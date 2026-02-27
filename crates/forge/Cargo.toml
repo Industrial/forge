@@ -1,0 +1,17 @@
+[package]
+name = "forge"
+version = "0.1.0"
+edition = "2021"
+authors = ["Tom Wieland <tom.wieland@gmail.com>"]
+license = "MIT OR Apache-2.0"
+repository = "https://github.com/Industrial/forge"
+homepage = "https://github.com/Industrial/forge"
+documentation = "https://docs.rs/forge"
+description = "A full-stack web framework for Rust — inspired by Django and Rails"
+keywords = ["web", "framework", "http", "async", "full-stack"]
+categories = ["web-programming::http-server", "asynchronous"]
+
+[dependencies]
+
+[lints.rust]
+# Shared lint configuration

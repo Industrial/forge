@@ -1,0 +1,13 @@
+#!/usr/bin/env bash
+set -euo pipefail
+exec > >(tee log/test-coverage.log) 2>&1 
+
+echo "> test-coverage"
+
+echo "> test-coverage > cargo llvm-cov nextest"
+RUSTFLAGS='-D warnings' cargo llvm-cov nextest \
+  --ignore-filename-regex 'run_dot\.rs' \
+  --fail-under-functions 17 \
+  --fail-under-lines 18 \
+  --fail-under-regions 18
+

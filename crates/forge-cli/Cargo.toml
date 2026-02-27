@@ -1,0 +1,20 @@
+[package]
+name = "forge-cli"
+version = "0.1.0"
+edition = "2021"
+authors = ["Tom Wieland <tom.wieland@gmail.com>"]
+license = "MIT OR Apache-2.0"
+description = "CLI for Forge — full-stack web framework"
+publish = false
+
+[dependencies]
+forge = { path = "../forge" }
+clap = { version = "4", features = ["derive"] }
+
+[dev-dependencies]
+assert_cmd = "2"
+predicates = "3"
+
+[[bin]]
+name = "forge"
+path = "src/main.rs"
