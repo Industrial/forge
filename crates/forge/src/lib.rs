@@ -18,10 +18,19 @@ pub use error::Error;
 pub use seed::Seeder;
 
 // Re-exports for a unified API (Phase 3)
+pub use async_trait;
 pub use axum;
+pub use axum::http;
+pub use axum_login;
+pub use chrono;
 pub use sea_orm;
 pub use sea_orm_migration;
+pub use serde;
+pub use serde_json;
 pub use tokio;
+pub use tower_sessions;
+pub use tower_sessions_sqlx_store;
+pub use uuid;
 
 /// Re-exported axum extractors for convenience
 pub mod extract {
@@ -30,9 +39,20 @@ pub mod extract {
 
 pub mod prelude {
   pub use crate::app::App;
+  pub use crate::auth::{hash_password, verify_password};
   pub use crate::config::ForgeConfig;
   pub use crate::error::Error;
-  pub use sea_orm::{ConnectionTrait, DatabaseConnection, EntityTrait};
+  pub use crate::ForgeAuthUser;
+  pub use async_trait::async_trait;
+  pub use axum_login::{AuthSession, AuthUser, AuthnBackend};
+  pub use chrono::{DateTime, NaiveDateTime, Utc};
+  pub use sea_orm::{
+    ActiveModelTrait, ActiveValue, ColumnTrait, ConnectionTrait, DatabaseConnection, EntityTrait,
+    QueryFilter, Set,
+  };
+  pub use serde::{Deserialize, Serialize};
+  pub use tower_sessions::{Session, SessionStore};
+  pub use uuid::Uuid;
 }
 
 #[cfg(test)]

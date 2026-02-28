@@ -55,4 +55,20 @@ fn forge_project_creation_file_verification() {
   let main_rs = fs::read_to_string(project_path.join("crates/app/src/main.rs")).unwrap();
   assert!(main_rs.contains("App::new()"));
   assert!(main_rs.contains(".serve()"));
+
+  // 3. Verify project builds (smoke test)
+  let check_result = Command::new("cargo")
+    .arg("check")
+    .current_dir(&project_path)
+    .output()
+    .expect("Failed to run cargo check");
+
+  if !check_result.status.success() {
+    println!("STDOUT: {}", String::from_utf8_lossy(&check_result.stdout));
+    println!("STDERR: {}", String::from_utf8_lossy(&check_result.stderr));
+  }
+  assert!(
+    check_result.status.success(),
+    "Generated project failed cargo check"
+  );
 }

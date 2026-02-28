@@ -25,6 +25,7 @@
 .tmp
 .vscode/
 Thumbs.db
+abc/
 dev-debug.log
 devenv.local.nix
 devenv.local.nix

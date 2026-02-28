@@ -1,14 +1,10 @@
 //! End-to-End tests for Forge Authentication and Session Management
 
-use axum_login::{AuthSession, AuthnBackend};
 use forge::prelude::*;
-use forge::ForgeAuthUser;
 use http::{header, Request, StatusCode};
-use serde::Deserialize;
 use std::fs;
 use std::process::Command;
 use tower::ServiceExt;
-use uuid::Uuid;
 
 /// Helper function to get the path to the forge binary
 fn get_forge_binary_path() -> std::path::PathBuf {
@@ -53,12 +49,6 @@ async fn forge_new_generates_auth_ready_workspace() {
   assert!(new_result.status.success());
   let root = temp_dir.path().join(project_name);
 
-  // Debug: list files
-  let entries = fs::read_dir(root.join("crates/db/src")).unwrap();
-  for entry in entries {
-    println!("File: {:?}", entry.unwrap().path());
-  }
-
   // Check for auth-related files
   assert!(
     root.join("crates/db/src/auth.rs").exists(),
@@ -66,13 +56,30 @@ async fn forge_new_generates_auth_ready_workspace() {
   );
 
   let cargo_toml = fs::read_to_string(root.join("crates/db/Cargo.toml")).unwrap();
+  // We now expect these NOT to be in the generated Cargo.toml because they are in forge::prelude
   assert!(
-    cargo_toml.contains("axum-login"),
-    "db/Cargo.toml should depend on axum-login"
+    !cargo_toml.contains("axum-login"),
+    "db/Cargo.toml should NOT explicitly depend on axum-login anymore"
   );
   assert!(
-    cargo_toml.contains("tower-sessions"),
-    "db/Cargo.toml should depend on tower-sessions"
+    !cargo_toml.contains("tower-sessions"),
+    "db/Cargo.toml should NOT explicitly depend on tower-sessions anymore"
+  );
+
+  // 3. Verify project builds (smoke test)
+  let check_result = Command::new("cargo")
+    .arg("check")
+    .current_dir(&root)
+    .output()
+    .expect("Failed to run cargo check");
+
+  if !check_result.status.success() {
+    println!("STDOUT: {}", String::from_utf8_lossy(&check_result.stdout));
+    println!("STDERR: {}", String::from_utf8_lossy(&check_result.stderr));
+  }
+  assert!(
+    check_result.status.success(),
+    "Generated auth project failed cargo check"
   );
 }
 
@@ -92,7 +99,7 @@ struct Credentials {
   email: String,
 }
 
-#[async_trait::async_trait]
+#[async_trait]
 impl AuthnBackend for MockBackend {
   type User = MockUser;
   type Credentials = Credentials;
@@ -111,11 +118,8 @@ impl AuthnBackend for MockBackend {
 
   async fn get_user(
     &self,
-    _user_id: &axum_login::UserId<Self>,
+    _user_id: &forge::axum_login::UserId<Self>,
   ) -> Result<Option<Self::User>, Self::Error> {
-    // Return the mock user if we have one?
-    // In a real backend, this would fetch from DB.
-    // For the test, we'll just return Some if any ID is provided.
     Ok(Some(MockUser {
       id: Uuid::new_v4(),
       email: "test@example.com".to_string(),
@@ -198,7 +202,6 @@ auto_seed = false
     .headers()
     .get(header::SET_COOKIE)
     .expect("No session cookie returned");
-  println!("Cookie: {:?}", cookie);
 
   // 4. Test profile access with cookie
   let response = router
@@ -215,7 +218,6 @@ auto_seed = false
   let body = axum::body::to_bytes(response.into_body(), usize::MAX)
     .await
     .unwrap();
-  println!("Body: {:?}", String::from_utf8_lossy(&body));
   assert!(String::from_utf8_lossy(&body).contains("test@example.com"));
 
   std::env::set_current_dir(original_cwd).unwrap();

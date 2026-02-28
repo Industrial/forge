@@ -110,8 +110,6 @@ forge = {{ path = "{}" }}
 db = {{ path = "../db" }}
 tokio = {{ version = "1", features = ["full"] }}
 serde = {{ version = "1.0", features = ["derive"] }}
-serde_json = "1.0"
-axum = "0.8"
 "#,
     forge_crate_path.display()
   );
@@ -125,14 +123,11 @@ version = "0.1.0"
 edition = "2021"
 
 [dependencies]
-async-trait = "0.1"
-chrono = {{ version = "0.4", features = ["serde"] }}
 forge = {{ path = "{}" }}
 sea-orm = {{ version = "1.1", features = ["runtime-tokio-rustls", "sqlx-sqlite", "macros"] }}
-serde = {{ version = "1", features = ["derive"] }}
-uuid = {{ version = "1", features = ["v4", "serde"] }}
-axum-login = "0.17"
-tower-sessions = "0.14"
+serde = {{ version = "1.0", features = ["derive"] }}
+uuid = {{ version = "1.0", features = ["v4", "serde"] }}
+chrono = {{ version = "0.4", features = ["serde"] }}
 "#,
     forge_crate_path.display()
   );
@@ -168,7 +163,6 @@ Thumbs.db
 
   // Create crates/app/src/main.rs
   let main_rs = r#"use forge::prelude::*;
-use forge::axum::extract::State;
 use db::auth::Backend;
 
 mod handlers;
@@ -204,13 +198,8 @@ use forge::axum::{
     response::IntoResponse,
     Json,
 };
-use axum_login::AuthSession;
 use db::auth::Backend;
 use db::models::user;
-use serde::Deserialize;
-use uuid::Uuid;
-use chrono::Utc;
-use forge::sea_orm::{EntityTrait, Set, QueryFilter, ColumnTrait};
 
 #[derive(Deserialize)]
 pub struct RegisterRequest {
@@ -289,7 +278,7 @@ pub async fn profile(auth_session: AuthSession<Backend>) -> impl IntoResponse {
   )?;
 
   // Create crates/db/src/lib.rs
-  let db_lib_rs = r#"use forge::sea_orm::DatabaseConnection;
+  let db_lib_rs = r#"use forge::prelude::*;
 use forge::sea_orm_migration::prelude::*;
 
 pub mod migrations;
@@ -299,7 +288,7 @@ pub mod auth;
 
 pub struct Migrator;
 
-#[async_trait::async_trait]
+#[async_trait]
 impl MigratorTrait for Migrator {
     fn migrations() -> Vec<Box<dyn MigrationTrait>> {
         vec![
@@ -321,11 +310,8 @@ pub mod prelude {
   fs::write(project_dir.join("crates/db/src/lib.rs"), db_lib_rs)?;
 
   // Create crates/db/src/auth.rs
-  let db_auth_rs = r#"use axum_login::AuthnBackend;
-use forge::prelude::*;
-use forge::sea_orm::{DatabaseConnection, EntityTrait, QueryFilter, ColumnTrait};
+  let db_auth_rs = r#"use forge::prelude::*;
 use crate::models::user;
-use serde::Deserialize;
 
 #[derive(Clone, Debug)]
 pub struct Backend {
@@ -344,7 +330,7 @@ pub struct Credentials {
     pub password: String,
 }
 
-#[async_trait::async_trait]
+#[async_trait]
 impl AuthnBackend for Backend {
     type User = user::Model;
     type Credentials = Credentials;
@@ -368,7 +354,7 @@ impl AuthnBackend for Backend {
         Ok(None)
     }
 
-    async fn get_user(&self, user_id: &axum_login::UserId<Self>) -> Result<Option<Self::User>, Self::Error> {
+    async fn get_user(&self, user_id: &forge::axum_login::UserId<Self>) -> Result<Option<Self::User>, Self::Error> {
         let user = user::Entity::find_by_id(*user_id)
             .one(&self.db)
             .await?;
@@ -490,10 +476,8 @@ impl MigrationTrait for Migration {
   )?;
 
   // Create crates/db/src/seeds/s20220101_000001_seed_users.rs
-  let seed_rs = r#"use forge::sea_orm::{DatabaseConnection, EntityTrait, Set, QueryFilter, ColumnTrait};
+  let seed_rs = r#"use forge::prelude::*;
 use crate::models::user;
-use chrono::Utc;
-use uuid::Uuid;
 
 pub async fn seed(db: &DatabaseConnection) -> Result<(), Box<dyn std::error::Error>> {
     let email = "root@localhost";
@@ -535,9 +519,8 @@ pub async fn seed(db: &DatabaseConnection) -> Result<(), Box<dyn std::error::Err
   )?;
 
   // Create crates/db/src/models/user.rs
-  let user_model_rs = r#"use forge::sea_orm::entity::prelude::*;
-use serde::{Deserialize, Serialize};
-use forge::ForgeAuthUser;
+  let user_model_rs = r#"use forge::prelude::*;
+use sea_orm::entity::prelude::*;
 
 #[derive(Clone, Debug, PartialEq, DeriveEntityModel, Serialize, Deserialize, ForgeAuthUser)]
 #[sea_orm(table_name = "user")]
@@ -549,8 +532,8 @@ pub struct Model {
     pub password_hash: String,
     pub is_active: bool,
     pub is_admin: bool,
-    pub created_at: DateTime,
-    pub updated_at: DateTime,
+    pub created_at: chrono::NaiveDateTime,
+    pub updated_at: chrono::NaiveDateTime,
 }
 
 #[derive(Copy, Clone, Debug, EnumIter, DeriveRelation)]

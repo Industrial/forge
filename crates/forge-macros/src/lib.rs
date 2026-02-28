@@ -8,8 +8,8 @@ pub fn derive_auth_user(input: TokenStream) -> TokenStream {
   let name = input.ident;
 
   let expanded = quote! {
-      impl axum_login::AuthUser for #name {
-          type Id = uuid::Uuid;
+      impl ::forge::axum_login::AuthUser for #name {
+          type Id = ::forge::uuid::Uuid;
 
           fn id(&self) -> Self::Id {
               self.id
