@@ -1,7 +1,9 @@
 //! Forge App builder - the core of the web framework.
 
 use axum::{handler::Handler, routing::get, Router};
+use futures::future::BoxFuture;
 use sea_orm::DatabaseConnection;
+use sea_orm_migration::MigratorTrait;
 use tokio::signal;
 use tower::ServiceBuilder;
 use tower_http::trace::{DefaultMakeSpan, DefaultOnRequest, DefaultOnResponse, TraceLayer};
@@ -9,6 +11,17 @@ use tracing::{info, warn};
 
 use crate::config::{self, ForgeConfig};
 use crate::db;
+
+/// Type alias for the idempotent seeding function.
+pub type SeedFn = Box<
+  dyn Fn(DatabaseConnection) -> BoxFuture<'static, Result<(), Box<dyn std::error::Error>>>
+    + Send
+    + Sync,
+>;
+
+/// Type alias for the migrator function.
+pub type MigratorFn =
+  Box<dyn Fn() -> BoxFuture<'static, Result<(), Box<dyn std::error::Error>>> + Send + Sync>;
 
 /// The main Forge application builder.
 ///
@@ -20,6 +33,10 @@ pub struct App {
   config: ForgeConfig,
   /// Database connection (if configured)
   db: Option<DatabaseConnection>,
+  /// Optional migrator function to run on startup
+  migrator: Option<MigratorFn>,
+  /// Optional seeder to run on startup
+  seeder: Option<SeedFn>,
 }
 
 impl App {
@@ -56,7 +73,36 @@ impl App {
       router,
       config,
       db: None,
+      migrator: None,
+      seeder: None,
     })
+  }
+
+  /// Register a migrator to be run automatically on startup.
+  pub fn with_migrations<M>(mut self, _migrator: M) -> Self
+  where
+    M: MigratorTrait + Send + Sync + 'static,
+  {
+    self.migrator = Some(Box::new(move || {
+      Box::pin(async move {
+        let config = config::load_config()?;
+        let db = db::initialize_database(&config.database).await?;
+        M::up(&db, None).await.map_err(|e| e.into())
+      })
+    }));
+    self
+  }
+
+  /// Register an idempotent seeding function to be run automatically on startup.
+  pub fn with_seed<F>(mut self, seeder: F) -> Self
+  where
+    F: Fn(DatabaseConnection) -> BoxFuture<'static, Result<(), Box<dyn std::error::Error>>>
+      + Send
+      + Sync
+      + 'static,
+  {
+    self.seeder = Some(Box::new(seeder));
+    self
   }
 
   /// Get a reference to the application configuration.
@@ -89,6 +135,8 @@ impl App {
       router,
       config,
       db: _,
+      migrator,
+      seeder,
     } = self;
 
     // Initialize database
@@ -102,6 +150,28 @@ impl App {
         eprintln!("Database connection error: {}", e);
         std::process::exit(1);
       });
+
+    // Run migrations if enabled and provided
+    if config.database.auto_migrate {
+      if let Some(run_migrations) = migrator {
+        info!("Running database migrations...");
+        run_migrations().await.unwrap_or_else(|e| {
+          eprintln!("Migration error: {}", e);
+          std::process::exit(1);
+        });
+      }
+    }
+
+    // Run seeder if enabled and provided
+    if config.database.auto_seed {
+      if let Some(seeder_fn) = seeder {
+        info!("Running database seeder...");
+        seeder_fn(db_conn.clone()).await.unwrap_or_else(|e| {
+          eprintln!("Seeding error: {}", e);
+          std::process::exit(1);
+        });
+      }
+    }
 
     // Inject database connection into state
     router.with_state(db_conn)
@@ -142,13 +212,13 @@ impl App {
 
   /// Initialize the tracing subscriber for logging.
   fn init_tracing() {
-    tracing_subscriber::fmt()
+    let _ = tracing_subscriber::fmt()
       .with_env_filter(
         tracing_subscriber::EnvFilter::from_default_env()
           .add_directive("forge=info".parse().unwrap())
           .add_directive("tower_http=info".parse().unwrap()),
       )
-      .init();
+      .try_init();
   }
 
   /// Log server start message.
@@ -246,7 +316,7 @@ url = "sqlite::memory:"
     fn new_creates_app_with_empty_router() {
       let temp_dir = tempfile::tempdir().unwrap();
       let original_cwd = std::env::current_dir().unwrap();
-      std::env::set_current_dir(&temp_dir).unwrap();
+      std::env::set_current_dir(temp_dir.path()).unwrap();
       setup_test_config(temp_dir.path(), "test_app");
 
       let _app = App::new();
@@ -258,7 +328,7 @@ url = "sqlite::memory:"
     fn default_trait_creates_same_as_new() {
       let temp_dir = tempfile::tempdir().unwrap();
       let original_cwd = std::env::current_dir().unwrap();
-      std::env::set_current_dir(&temp_dir).unwrap();
+      std::env::set_current_dir(temp_dir.path()).unwrap();
       setup_test_config(temp_dir.path(), "test_app");
 
       let _app_new = App::new();
@@ -275,7 +345,7 @@ url = "sqlite::memory:"
     fn route_method_accepts_static_handler() {
       let temp_dir = tempfile::tempdir().unwrap();
       let original_cwd = std::env::current_dir().unwrap();
-      std::env::set_current_dir(&temp_dir).unwrap();
+      std::env::set_current_dir(temp_dir.path()).unwrap();
       setup_test_config(temp_dir.path(), "test_app");
 
       let app = App::new().route("/", || async { "Hello" });
@@ -288,7 +358,7 @@ url = "sqlite::memory:"
     fn route_method_accepts_complex_handler() {
       let temp_dir = tempfile::tempdir().unwrap();
       let original_cwd = std::env::current_dir().unwrap();
-      std::env::set_current_dir(&temp_dir).unwrap();
+      std::env::set_current_dir(temp_dir.path()).unwrap();
       setup_test_config(temp_dir.path(), "test_app");
 
       let app = App::new().route("/api", || async { Html("<h1>API</h1>") });
@@ -305,7 +375,7 @@ url = "sqlite::memory:"
     async fn app_uses_config_host_and_port() {
       let temp_dir = tempfile::tempdir().unwrap();
       let original_cwd = std::env::current_dir().unwrap();
-      std::env::set_current_dir(&temp_dir).unwrap();
+      std::env::set_current_dir(temp_dir.path()).unwrap();
 
       let config_dir = temp_dir.path().join("config");
       fs::create_dir_all(&config_dir).unwrap();

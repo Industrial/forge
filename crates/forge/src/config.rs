@@ -30,6 +30,15 @@ pub struct DatabaseConfig {
   pub min_connections: Option<u32>,
   pub connect_timeout: Option<u64>,
   pub idle_timeout: Option<u64>,
+  #[serde(default = "default_true")]
+  pub auto_migrate: bool,
+  #[serde(default = "default_true")]
+  pub auto_seed: bool,
+}
+
+/// Default value for boolean configuration fields.
+fn default_true() -> bool {
+  true
 }
 
 pub fn load_config() -> Result<ForgeConfig, Box<dyn std::error::Error>> {

@@ -46,12 +46,13 @@ fn forge_project_creation_file_verification() {
 
   // 2. Verify files exist and have content
   assert!(project_path.join("Cargo.toml").exists());
-  assert!(project_path.join("src/main.rs").exists());
+  assert!(project_path.join("crates/app/src/main.rs").exists());
+  assert!(project_path.join("crates/db/src/lib.rs").exists());
   assert!(project_path.join("config/app.toml").exists());
   assert!(project_path.join("config/db.toml").exists());
   assert!(project_path.join(".gitignore").exists());
 
-  let main_rs = fs::read_to_string(project_path.join("src/main.rs")).unwrap();
+  let main_rs = fs::read_to_string(project_path.join("crates/app/src/main.rs")).unwrap();
   assert!(main_rs.contains("App::new()"));
   assert!(main_rs.contains(".serve()"));
 }

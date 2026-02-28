@@ -24,3 +24,7 @@ path = "002_config.rs"
 [[test]]
 name = "003_database"
 path = "003_database.rs"
+
+[[test]]
+name = "004_migrations"
+path = "004_migrations.rs"

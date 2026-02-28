@@ -15,6 +15,7 @@ pub use error::Error;
 // Re-exports for a unified API (Phase 3)
 pub use axum;
 pub use sea_orm;
+pub use sea_orm_migration;
 pub use tokio;
 
 /// Re-exported axum extractors for convenience

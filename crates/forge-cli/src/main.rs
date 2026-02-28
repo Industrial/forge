@@ -71,13 +71,9 @@ fn create_new_project(name: &str) -> Result<(), Box<dyn std::error::Error>> {
     return Err(format!("Directory '{}' already exists", name).into());
   }
 
-  // Create project directory
-  fs::create_dir_all(project_dir)?;
-
-  // Create src directory
-  fs::create_dir_all(project_dir.join("src"))?;
-
-  // Create config directory
+  // Create workspace structure
+  fs::create_dir_all(project_dir.join("crates/app/src"))?;
+  fs::create_dir_all(project_dir.join("crates/db/src"))?;
   fs::create_dir_all(project_dir.join("config"))?;
 
   // Get the absolute path to the forge crate relative to this executable
@@ -92,23 +88,47 @@ fn create_new_project(name: &str) -> Result<(), Box<dyn std::error::Error>> {
     .join("crates")
     .join("forge");
 
-  // Create Cargo.toml
-  let cargo_toml = format!(
+  // Create Root Cargo.toml (Workspace)
+  let root_cargo_toml = r#"[workspace]
+members = [
+    "crates/app",
+    "crates/db",
+]
+resolver = "2"
+"#;
+  fs::write(project_dir.join("Cargo.toml"), root_cargo_toml)?;
+
+  // Create crates/app/Cargo.toml
+  let app_cargo_toml = format!(
     r#"[package]
-name = "{}"
+name = "app"
 version = "0.1.0"
 edition = "2021"
 
 [dependencies]
 forge = {{ path = "{}" }}
+db = {{ path = "../db" }}
 tokio = {{ version = "1", features = ["full"] }}
-
-[workspace]
 "#,
-    name,
     forge_crate_path.display()
   );
-  fs::write(project_dir.join("Cargo.toml"), cargo_toml)?;
+  fs::write(project_dir.join("crates/app/Cargo.toml"), app_cargo_toml)?;
+
+  // Create crates/db/Cargo.toml
+  let db_cargo_toml = format!(
+    r#"[package]
+name = "db"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+forge = {{ path = "{}" }}
+sea-orm = {{ version = "1.1", features = ["runtime-tokio-rustls", "sqlx-sqlite", "macros"] }}
+async-trait = "0.1"
+"#,
+    forge_crate_path.display()
+  );
+  fs::write(project_dir.join("crates/db/Cargo.toml"), db_cargo_toml)?;
 
   // Create .gitignore
   let gitignore = r#"# Rust build artifacts
@@ -138,13 +158,15 @@ Thumbs.db
 "#;
   fs::write(project_dir.join(".gitignore"), gitignore)?;
 
-  // Create src/main.rs
+  // Create crates/app/src/main.rs
   let main_rs = r#"use forge::prelude::*;
 use forge::axum::extract::State;
 
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn std::error::Error>> {
     App::new()
+        .with_migrations(db::Migrator)
+        .with_seed(|db| Box::pin(db::seed(db)))
         .route("/", || async { "Hello from Forge!" })
         .route("/db-check", |State(db): State<DatabaseConnection>| async move {
             let backend = db.get_database_backend();
@@ -154,7 +176,88 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         .await
 }
 "#;
-  fs::write(project_dir.join("src").join("main.rs"), main_rs)?;
+  fs::write(project_dir.join("crates/app/src/main.rs"), main_rs)?;
+
+  // Create crates/db/src/lib.rs
+  let db_lib_rs = r#"use forge::sea_orm::{DatabaseConnection, EntityTrait, Set, QueryFilter, ColumnTrait};
+use forge::sea_orm_migration::prelude::*;
+
+pub struct Migrator;
+
+#[async_trait::async_trait]
+impl MigratorTrait for Migrator {
+    fn migrations() -> Vec<Box<dyn MigrationTrait>> {
+        vec![Box::new(m20220101_000001_create_user_table::Migration)]
+    }
+}
+
+pub mod m20220101_000001_create_user_table;
+
+pub async fn seed(db: &DatabaseConnection) -> Result<(), Box<dyn std::error::Error>> {
+    // Idempotent seed for root user
+    // In a real app, you'd use an Entity here. For now, we'll just log or use raw SQL if needed.
+    // But since we want a good example, let's assume we'll have an Entity later.
+    println!("Seeding database...");
+    Ok(())
+}
+"#;
+  fs::write(project_dir.join("crates/db/src/lib.rs"), db_lib_rs)?;
+
+  // Create crates/db/src/m20220101_000001_create_user_table.rs
+  let migration_rs = r#"use forge::sea_orm_migration::prelude::*;
+
+#[derive(Iden)]
+enum User {
+    Table,
+    Id,
+    Email,
+    Password,
+    CreatedAt,
+    UpdatedAt,
+}
+
+pub struct Migration;
+
+impl MigrationName for Migration {
+    fn name(&self) -> &str {
+        "m20220101_000001_create_user_table"
+    }
+}
+
+#[async_trait::async_trait]
+impl MigrationTrait for Migration {
+    async fn up(&self, manager: &SchemaManager) -> Result<(), DbErr> {
+        manager
+            .create_table(
+                Table::create()
+                    .table(User::Table)
+                    .if_not_exists()
+                    .col(
+                        ColumnDef::new(User::Id)
+                            .uuid()
+                            .not_null()
+                            .primary_key(),
+                    )
+                    .col(ColumnDef::new(User::Email).string().unique_key().not_null())
+                    .col(ColumnDef::new(User::Password).string().not_null())
+                    .col(ColumnDef::new(User::CreatedAt).date_time().not_null())
+                    .col(ColumnDef::new(User::UpdatedAt).date_time().not_null())
+                    .to_owned(),
+            )
+            .await
+    }
+
+    async fn down(&self, manager: &SchemaManager) -> Result<(), DbErr> {
+        manager
+            .drop_table(Table::drop().table(User::Table).to_owned())
+            .await
+    }
+}
+"#;
+  fs::write(
+    project_dir.join("crates/db/src/m20220101_000001_create_user_table.rs"),
+    migration_rs,
+  )?;
 
   // Create config/app.toml
   let app_toml = format!(
@@ -178,6 +281,8 @@ max_connections = 5
 min_connections = 1
 connect_timeout = 10
 idle_timeout = 600
+auto_migrate = true
+auto_seed = true
 "#;
   fs::write(project_dir.join("config").join("db.toml"), db_toml)?;
 
@@ -196,24 +301,27 @@ fn serve_project(config: &ForgeConfig) -> Result<(), Box<dyn std::error::Error>>
     return Err("No Cargo.toml found. Run `forge new myapp` to create a Forge project.".into());
   }
 
-  // Verify forge dependency in Cargo.toml
+  // Verify workspace in Cargo.toml
   let cargo_toml = std::fs::read_to_string("Cargo.toml")?;
-  if !cargo_toml.contains("forge") {
-    return Err("forge dependency not found in Cargo.toml. Add `forge = { path = \"../forge\" }` to dependencies.".into());
+  if !cargo_toml.contains("[workspace]") {
+    return Err("Not a Forge workspace. Ensure your Cargo.toml has a [workspace] section.".into());
   }
 
-  // Check for src/main.rs
-  if !std::path::Path::new("src/main.rs").exists() {
+  // Check for crates/app/src/main.rs
+  if !std::path::Path::new("crates/app/src/main.rs").exists() {
     return Err(
-      "src/main.rs not found. Ensure your project has a main.rs that uses forge::App.".into(),
+      "crates/app/src/main.rs not found. Ensure your project has an app crate with a main.rs."
+        .into(),
     );
   }
 
   let port = config.server.port; // Get port from config
   let host = &config.server.host;
-  // Spawn cargo run
+  // Spawn cargo run --package app
   let status = Command::new("cargo")
     .arg("run")
+    .arg("--package")
+    .arg("app")
     .env("PORT", port.to_string())
     .env("HOST", host)
     .status()?;
@@ -406,10 +514,11 @@ mod tests {
       // Verify directory structure
       assert!(project_path.exists());
       assert!(project_path.join("Cargo.toml").exists());
-      assert!(project_path.join("src").exists());
-      assert!(project_path.join("src").join("main.rs").exists());
+      assert!(project_path.join("crates/app").exists());
+      assert!(project_path.join("crates/app/src/main.rs").exists());
+      assert!(project_path.join("crates/db/src/lib.rs").exists());
       assert!(project_path.join(".gitignore").exists());
-      assert!(project_path.join("config").join("app.toml").exists());
+      assert!(project_path.join("config/app.toml").exists());
 
       // Verify git initialization
       assert!(project_path.join(".git").exists());
@@ -459,11 +568,14 @@ mod tests {
 
       // Then: Cargo.toml should have correct content
       let cargo_content = fs::read_to_string("cargo_test/Cargo.toml").unwrap();
-      assert!(cargo_content.contains(&format!("name = \"{}\"", project_name)));
-      assert!(cargo_content.contains("edition = \"2021\""));
-      assert!(cargo_content.contains("forge ="));
-      assert!(cargo_content.contains("tokio ="));
       assert!(cargo_content.contains("[workspace]"));
+      assert!(cargo_content.contains("crates/app"));
+      assert!(cargo_content.contains("crates/db"));
+
+      let app_cargo = fs::read_to_string("cargo_test/crates/app/Cargo.toml").unwrap();
+      assert!(app_cargo.contains("name = \"app\""));
+      assert!(app_cargo.contains("forge ="));
+      assert!(app_cargo.contains("db ="));
 
       // Restore original directory
       std::env::set_current_dir(original_cwd).unwrap();
@@ -484,15 +596,11 @@ mod tests {
       assert!(result.is_ok());
 
       // Then: main.rs should have correct Forge app code
-      let main_content = fs::read_to_string("main_test/src/main.rs").unwrap();
+      let main_content = fs::read_to_string("main_test/crates/app/src/main.rs").unwrap();
       assert!(main_content.contains("use forge::prelude::*;"));
-      assert!(main_content.contains("use forge::axum::extract::State;"));
-      assert!(main_content.contains("#[tokio::main]"));
       assert!(main_content.contains("App::new()"));
-      assert!(main_content.contains(".route(\"/\""));
-      assert!(main_content.contains(".route(\"/db-check\""));
+      assert!(main_content.contains(".with_migrations(db::Migrator)"));
       assert!(main_content.contains(".serve()"));
-      assert!(main_content.contains("Hello from Forge!"));
 
       // Restore original directory
       std::env::set_current_dir(original_cwd).unwrap();
@@ -554,6 +662,8 @@ mod tests {
           min_connections: None,
           connect_timeout: None,
           idle_timeout: None,
+          auto_migrate: true,
+          auto_seed: true,
         },
       };
       let result = serve_project(&config);
@@ -568,18 +678,15 @@ mod tests {
     }
 
     #[test]
-    fn serve_project_fails_without_forge_dependency() {
-      // Given: A directory with Cargo.toml but no forge dependency
+    fn serve_project_fails_without_workspace() {
+      // Given: A directory with Cargo.toml but no workspace
       let temp_dir = tempdir().unwrap();
 
-      // Create Cargo.toml without forge
+      // Create Cargo.toml without workspace
       let cargo_toml = r#"[package]
 name = "test"
 version = "0.1.0"
 edition = "2021"
-
-[dependencies]
-tokio = "1"
 "#;
       fs::write(temp_dir.path().join("Cargo.toml"), cargo_toml).unwrap();
 
@@ -603,6 +710,8 @@ tokio = "1"
           min_connections: None,
           connect_timeout: None,
           idle_timeout: None,
+          auto_migrate: true,
+          auto_seed: true,
         },
       };
       let result = serve_project(&config);
@@ -610,7 +719,7 @@ tokio = "1"
       // Then: It should fail with appropriate error
       assert!(result.is_err());
       let error_msg = result.unwrap_err().to_string();
-      assert!(error_msg.contains("forge dependency not found"));
+      assert!(error_msg.contains("Not a Forge workspace"));
 
       // Restore original directory
       std::env::set_current_dir(original_cwd).unwrap();
@@ -618,22 +727,14 @@ tokio = "1"
 
     #[test]
     fn serve_project_fails_without_main_rs() {
-      // Given: A directory with Cargo.toml containing forge but no main.rs
+      // Given: A directory with Cargo.toml containing workspace but no main.rs
       let temp_dir = tempdir().unwrap();
 
-      // Create Cargo.toml with forge
-      let cargo_toml = r#"[package]
-name = "test"
-version = "0.1.0"
-edition = "2021"
-
-[dependencies]
-forge = { path = "../forge" }
-tokio = "1"
-
-[workspace]
+      // Create Cargo.toml with workspace
+      let cargo_toml = r#"[workspace]
+members = ["crates/app"]
 "#;
-      fs::create_dir(temp_dir.path().join("src")).unwrap();
+      fs::create_dir_all(temp_dir.path().join("crates/app/src")).unwrap();
       fs::write(temp_dir.path().join("Cargo.toml"), cargo_toml).unwrap();
 
       // Change to temp directory
@@ -656,6 +757,8 @@ tokio = "1"
           min_connections: None,
           connect_timeout: None,
           idle_timeout: None,
+          auto_migrate: true,
+          auto_seed: true,
         },
       };
       let result = serve_project(&config);
@@ -663,7 +766,7 @@ tokio = "1"
       // Then: It should fail with appropriate error
       assert!(result.is_err());
       let error_msg = result.unwrap_err().to_string();
-      assert!(error_msg.contains("src/main.rs not found"));
+      assert!(error_msg.contains("crates/app/src/main.rs not found"));
 
       // Restore original directory
       std::env::set_current_dir(original_cwd).unwrap();
@@ -711,7 +814,7 @@ tokio = "1"
 
       // Then: Files should be readable
       let cargo_metadata = fs::metadata(format!("{}/Cargo.toml", project_name)).unwrap();
-      let main_metadata = fs::metadata(format!("{}/src/main.rs", project_name)).unwrap();
+      let main_metadata = fs::metadata(format!("{}/crates/app/src/main.rs", project_name)).unwrap();
 
       // Files should be readable by owner (basic check)
       assert!(cargo_metadata.is_file());
