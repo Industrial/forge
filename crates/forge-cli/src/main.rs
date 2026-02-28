@@ -166,11 +166,11 @@ use forge::axum::extract::State;
 async fn main() -> Result<(), Box<dyn std::error::Error>> {
     App::new()
         .with_migrations(db::Migrator)
-        .with_seed(|db| Box::pin(db::seed(db)))
+        .with_seed(|db| Box::pin(db::run_seeds(db)))
         .route("/", || async { "Hello from Forge!" })
-        .route("/db-check", |State(db): State<DatabaseConnection>| async move {
-            let backend = db.get_database_backend();
-            format!("Connected to {:?}", backend)
+        .route("/users", |State(db): State<DatabaseConnection>| async move {
+            let users = db::models::user::Entity::find().all(&db).await?;
+            Ok::<_, forge::Error>(axum::Json(users))
         })
         .serve()
         .await
@@ -179,35 +179,44 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
   fs::write(project_dir.join("crates/app/src/main.rs"), main_rs)?;
 
   // Create crates/db/src/lib.rs
-  let db_lib_rs = r#"use forge::sea_orm::{DatabaseConnection, EntityTrait, Set, QueryFilter, ColumnTrait};
+  let db_lib_rs = r#"use forge::sea_orm::DatabaseConnection;
 use forge::sea_orm_migration::prelude::*;
+
+pub mod migrations;
+pub mod models;
+pub mod seeds;
 
 pub struct Migrator;
 
 #[async_trait::async_trait]
 impl MigratorTrait for Migrator {
     fn migrations() -> Vec<Box<dyn MigrationTrait>> {
-        vec![Box::new(m20220101_000001_create_user_table::Migration)]
+        vec![Box::new(migrations::m20220101_000001_create_user_table::Migration)]
     }
 }
 
-pub mod m20220101_000001_create_user_table;
-
-pub async fn seed(db: &DatabaseConnection) -> Result<(), Box<dyn std::error::Error>> {
-    // Idempotent seed for root user
-    // In a real app, you'd use an Entity here. For now, we'll just log or use raw SQL if needed.
-    // But since we want a good example, let's assume we'll have an Entity later.
-    println!("Seeding database...");
+pub async fn run_seeds(db: DatabaseConnection) -> Result<(), Box<dyn std::error::Error>> {
+    seeds::s20220101_000001_seed_users::seed(&db).await?;
     Ok(())
+}
+
+pub mod prelude {
+    pub use crate::models::user;
 }
 "#;
   fs::write(project_dir.join("crates/db/src/lib.rs"), db_lib_rs)?;
 
-  // Create crates/db/src/m20220101_000001_create_user_table.rs
+  // Create crates/db/src/migrations/mod.rs
+  fs::write(
+    project_dir.join("crates/db/src/migrations/mod.rs"),
+    "pub mod m20220101_000001_create_user_table;",
+  )?;
+
+  // Create crates/db/src/migrations/m20220101_000001_create_user_table.rs
   let migration_rs = r#"use forge::sea_orm_migration::prelude::*;
 
 #[derive(Iden)]
-enum User {
+pub enum User {
     Table,
     Id,
     Email,
@@ -255,8 +264,82 @@ impl MigrationTrait for Migration {
 }
 "#;
   fs::write(
-    project_dir.join("crates/db/src/m20220101_000001_create_user_table.rs"),
+    project_dir.join("crates/db/src/migrations/m20220101_000001_create_user_table.rs"),
     migration_rs,
+  )?;
+
+  // Create crates/db/src/seeds/mod.rs
+  fs::write(
+    project_dir.join("crates/db/src/seeds/mod.rs"),
+    "pub mod s20220101_000001_seed_users;",
+  )?;
+
+  // Create crates/db/src/seeds/s20220101_000001_seed_users.rs
+  let seed_rs = r#"use forge::sea_orm::{DatabaseConnection, EntityTrait, Set, QueryFilter, ColumnTrait};
+use crate::models::user;
+use chrono::Utc;
+use uuid::Uuid;
+
+pub async fn seed(db: &DatabaseConnection) -> Result<(), Box<dyn std::error::Error>> {
+    let email = "root@localhost";
+    
+    // Idempotent check
+    let existing = user::Entity::find()
+        .filter(user::Column::Email.eq(email))
+        .one(db)
+        .await?;
+
+    if existing.is_none() {
+        let now = Utc::now().naive_utc();
+        let root = user::ActiveModel {
+            id: Set(Uuid::new_v4()),
+            email: Set(email.to_owned()),
+            password: Set("password123".to_owned()),
+            created_at: Set(now),
+            updated_at: Set(now),
+        };
+        user::Entity::insert(root).exec(db).await?;
+        println!("Seeded root user: {}", email);
+    }
+
+    Ok(())
+}
+"#;
+  fs::write(
+    project_dir.join("crates/db/src/seeds/s20220101_000001_seed_users.rs"),
+    seed_rs,
+  )?;
+
+  // Create crates/db/src/models/mod.rs
+  fs::write(
+    project_dir.join("crates/db/src/models/mod.rs"),
+    "pub mod user;",
+  )?;
+
+  // Create crates/db/src/models/user.rs
+  let user_model_rs = r#"use forge::sea_orm::entity::prelude::*;
+use serde::{Deserialize, Serialize};
+
+#[derive(Clone, Debug, PartialEq, DeriveEntityModel, Serialize, Deserialize)]
+#[sea_orm(table_name = "user")]
+pub struct Model {
+    #[sea_orm(primary_key, auto_increment = false)]
+    pub id: Uuid,
+    #[sea_orm(unique)]
+    pub email: String,
+    pub password: String,
+    pub created_at: DateTime,
+    pub updated_at: DateTime,
+}
+
+#[derive(Copy, Clone, Debug, EnumIter, DeriveRelation)]
+pub enum Relation {}
+
+impl ActiveModelBehavior for ActiveModel {}
+"#;
+  fs::write(
+    project_dir.join("crates/db/src/models/user.rs"),
+    user_model_rs,
   )?;
 
   // Create config/app.toml

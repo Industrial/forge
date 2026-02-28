@@ -6,11 +6,13 @@ pub mod app;
 pub mod config;
 pub mod db;
 pub mod error;
+pub mod seed;
 
 pub use app::App;
 pub use config::ForgeConfig;
 pub use db::initialize_database;
 pub use error::Error;
+pub use seed::Seeder;
 
 // Re-exports for a unified API (Phase 3)
 pub use axum;

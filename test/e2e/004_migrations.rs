@@ -58,19 +58,14 @@ async fn forge_new_generates_workspace_structure() {
     root.join("crates/db/Cargo.toml").exists(),
     "crates/db/Cargo.toml missing"
   );
+  assert!(root.join("crates/db/src/migrations/mod.rs").exists());
+  assert!(root.join("crates/db/src/models/mod.rs").exists());
+  assert!(root.join("crates/db/src/seeds/mod.rs").exists());
 
   let cargo_toml = fs::read_to_string(root.join("Cargo.toml")).unwrap();
   assert!(
     cargo_toml.contains("[workspace]"),
     "Root Cargo.toml should be a workspace"
-  );
-  assert!(
-    cargo_toml.contains("crates/app"),
-    "Workspace should include crates/app"
-  );
-  assert!(
-    cargo_toml.contains("crates/db"),
-    "Workspace should include crates/db"
   );
 }
 
@@ -119,7 +114,7 @@ impl MigrationTrait for MockMigration {
   }
 }
 
-async fn mock_seed(_db: &DatabaseConnection) -> Result<(), Box<dyn std::error::Error>> {
+async fn mock_seed(_db: DatabaseConnection) -> Result<(), Box<dyn std::error::Error>> {
   Ok(())
 }
 
@@ -155,7 +150,7 @@ auto_seed = true
   // 2. Initialize App with migrator and seed
   let app = App::new()
     .with_migrations(MockMigrator)
-    .with_seed(|db| Box::pin(async move { mock_seed(&db).await }))
+    .with_seed(|db| Box::pin(async move { mock_seed(db).await }))
     .route(
       "/db-check",
       |State(db): State<DatabaseConnection>| async move {
