@@ -3,6 +3,7 @@
 //! Core library; CLI lives in the `forge-cli` crate.
 
 pub mod app;
+pub mod audit;
 pub mod auth;
 pub mod authz;
 pub mod config;
@@ -13,6 +14,7 @@ pub mod seed;
 pub use forge_macros::*;
 
 pub use app::App;
+pub use audit::{AuditError, AuditEvent, EventKind, Outcome};
 pub use config::ForgeConfig;
 pub use db::initialize_database;
 pub use error::Error;

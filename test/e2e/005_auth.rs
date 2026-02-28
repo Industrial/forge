@@ -80,8 +80,9 @@ async fn forge_new_generates_auth_ready_workspace() {
   );
   let auth_handlers = fs::read_to_string(root.join("crates/app/src/handlers/auth.rs")).unwrap();
   assert!(
-    auth_handlers.contains("guard(Action::Manage, Role::Owner)"),
-    "handlers must demonstrate Shallow Gate (guard)"
+    auth_handlers.contains("guard_and_audit")
+      || auth_handlers.contains("guard(Action::Manage, Role::Owner)"),
+    "handlers must demonstrate Shallow Gate (guard or guard_and_audit)"
   );
   let main_rs = fs::read_to_string(root.join("crates/app/src/main.rs")).unwrap();
   assert!(

@@ -152,6 +152,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 use axum_login::AuthSession;
 use chrono::Utc;
 use forge::auth::hash_password;
+use forge::audit::{AuditEvent, EventKind, Outcome};
 use forge::authz::{Action, AuthSessionGuardExt, AuthzContext, Role};
 use forge::Error as ForgeError;
 use sea_orm::{ActiveModelTrait, DatabaseConnection, EntityTrait, Set, TransactionTrait};
@@ -231,6 +232,7 @@ pub struct LoginRequest {
 
 pub async fn login(
   mut auth_session: AuthSession<Backend>,
+  State(db): State<DatabaseConnection>,
   Json(payload): Json<LoginRequest>,
 ) -> Result<impl IntoResponse, ForgeError> {
   let credentials = db::auth::Credentials {
@@ -243,19 +245,69 @@ pub async fn login(
     .await
     .map_err(|e| ForgeError::Generic(format!("Authentication error: {}", e)))?;
 
-  if let Some(user) = user {
+  if let Some(ref user) = user {
     auth_session
-      .login(&user)
+      .login(user)
       .await
       .map_err(|e| ForgeError::Generic(format!("Login error: {}", e)))?;
+    let _ = forge::audit::log(
+      &db,
+      AuditEvent {
+        event_kind: EventKind::Auth,
+        actor_id: user.id,
+        subject_id: Some(user.id),
+        organization_id: user.current_org_id,
+        action: Action::Manage,
+        resource_type: "auth".to_string(),
+        resource_id: None,
+        outcome: Outcome::Success,
+        reason: Some("login".to_string()),
+      },
+    )
+    .await;
     Ok(StatusCode::OK.into_response())
   } else {
+    let _ = forge::audit::log(
+      &db,
+      AuditEvent {
+        event_kind: EventKind::Auth,
+        actor_id: Uuid::nil(),
+        subject_id: None,
+        organization_id: None,
+        action: Action::Manage,
+        resource_type: "auth".to_string(),
+        resource_id: None,
+        outcome: Outcome::Failure,
+        reason: Some("failed_login".to_string()),
+      },
+    )
+    .await;
     Ok((StatusCode::UNAUTHORIZED, "Invalid credentials").into_response())
   }
 }
 
-pub async fn logout(mut auth_session: AuthSession<Backend>) -> impl IntoResponse {
+pub async fn logout(
+  mut auth_session: AuthSession<Backend>,
+  State(db): State<DatabaseConnection>,
+) -> impl IntoResponse {
+  let actor_id = auth_session.requester_id();
+  let org_id = auth_session.organization_id();
   auth_session.logout().await.unwrap();
+  let _ = forge::audit::log(
+    &db,
+    AuditEvent {
+      event_kind: EventKind::Auth,
+      actor_id,
+      subject_id: Some(actor_id),
+      organization_id: org_id,
+      action: Action::Manage,
+      resource_type: "auth".to_string(),
+      resource_id: None,
+      outcome: Outcome::Success,
+      reason: Some("logout".to_string()),
+    },
+  )
+  .await;
   StatusCode::OK
 }
 
@@ -270,9 +322,14 @@ pub async fn profile(auth_session: AuthSession<Backend>) -> impl IntoResponse {
   }
 }
 
-/// Shallow Gate example: only users with Role::Owner (or Admin) can access.
-pub async fn admin_only(auth_session: AuthSession<Backend>) -> Result<impl IntoResponse, ForgeError> {
-  auth_session.guard(Action::Manage, Role::Owner)?;
+/// Shallow Gate example: only users with Role::Owner (or Admin) can access. Audits the decision.
+pub async fn admin_only(
+  auth_session: AuthSession<Backend>,
+  State(db): State<DatabaseConnection>,
+) -> Result<impl IntoResponse, ForgeError> {
+  auth_session
+    .guard_and_audit(&db, Action::Manage, Role::Owner, "admin", None)
+    .await?;
   Ok((StatusCode::OK, "Admin only: access granted"))
 }
 "#;
@@ -301,6 +358,7 @@ impl MigratorTrait for Migrator {
       Box::new(migrations::m20220101_000002_create_sessions_table::Migration),
       Box::new(migrations::m20220101_000003_create_organizations_table::Migration),
       Box::new(migrations::m20220101_000004_create_memberships_table::Migration),
+      Box::new(migrations::m20220101_000005_create_audit_log_table::Migration),
     ]
   }
 }
@@ -375,7 +433,7 @@ impl AuthnBackend for Backend {
   // Create crates/db/src/migrations/mod.rs
   fs::write(
     project_dir.join("crates/db/src/migrations/mod.rs"),
-    "pub mod m20220101_000001_create_user_table;\npub mod m20220101_000002_create_sessions_table;\npub mod m20220101_000003_create_organizations_table;\npub mod m20220101_000004_create_memberships_table;",
+    "pub mod m20220101_000001_create_user_table;\npub mod m20220101_000002_create_sessions_table;\npub mod m20220101_000003_create_organizations_table;\npub mod m20220101_000004_create_memberships_table;\npub mod m20220101_000005_create_audit_log_table;",
   )?;
 
   // Create crates/db/src/migrations/m20220101_000001_create_user_table.rs
@@ -577,6 +635,96 @@ impl MigrationTrait for Migration {
   fs::write(
     project_dir.join("crates/db/src/migrations/m20220101_000004_create_memberships_table.rs"),
     membership_migration_rs,
+  )?;
+
+  // Create crates/db/src/migrations/m20220101_000005_create_audit_log_table.rs (Phase 7)
+  let audit_log_migration_rs = r#"use sea_orm_migration::prelude::*;
+
+#[derive(Iden)]
+pub enum AuditLog {
+  Table,
+  Id,
+  EventKind,
+  ActorId,
+  SubjectId,
+  OrganizationId,
+  Action,
+  ResourceType,
+  ResourceId,
+  Outcome,
+  Reason,
+  OccurredAt,
+}
+
+pub struct Migration;
+
+impl MigrationName for Migration {
+  fn name(&self) -> &str {
+    "m20220101_000005_create_audit_log_table"
+  }
+}
+
+#[async_trait::async_trait]
+impl MigrationTrait for Migration {
+  async fn up(&self, manager: &SchemaManager) -> Result<(), DbErr> {
+    manager
+      .create_table(
+        Table::create()
+          .table(AuditLog::Table)
+          .if_not_exists()
+          .col(
+            ColumnDef::new(AuditLog::Id)
+              .uuid()
+              .not_null()
+              .primary_key(),
+          )
+          .col(ColumnDef::new(AuditLog::EventKind).string().not_null())
+          .col(ColumnDef::new(AuditLog::ActorId).uuid().not_null())
+          .col(ColumnDef::new(AuditLog::SubjectId).uuid())
+          .col(ColumnDef::new(AuditLog::OrganizationId).uuid())
+          .col(ColumnDef::new(AuditLog::Action).string().not_null())
+          .col(ColumnDef::new(AuditLog::ResourceType).string().not_null())
+          .col(ColumnDef::new(AuditLog::ResourceId).uuid())
+          .col(ColumnDef::new(AuditLog::Outcome).string().not_null())
+          .col(ColumnDef::new(AuditLog::Reason).string())
+          .col(ColumnDef::new(AuditLog::OccurredAt).date_time().not_null())
+          .to_owned(),
+      )
+      .await?;
+
+    manager
+      .create_index(
+        Index::create()
+          .name("idx_audit_log_org_occurred")
+          .table(AuditLog::Table)
+          .col(AuditLog::OrganizationId)
+          .col(AuditLog::OccurredAt)
+          .to_owned(),
+      )
+      .await?;
+
+    manager
+      .create_index(
+        Index::create()
+          .name("idx_audit_log_actor_occurred")
+          .table(AuditLog::Table)
+          .col(AuditLog::ActorId)
+          .col(AuditLog::OccurredAt)
+          .to_owned(),
+      )
+      .await
+  }
+
+  async fn down(&self, manager: &SchemaManager) -> Result<(), DbErr> {
+    manager
+      .drop_table(Table::drop().table(AuditLog::Table).to_owned())
+      .await
+  }
+}
+"#;
+  fs::write(
+    project_dir.join("crates/db/src/migrations/m20220101_000005_create_audit_log_table.rs"),
+    audit_log_migration_rs,
   )?;
 
   // Create crates/db/src/seeds/mod.rs

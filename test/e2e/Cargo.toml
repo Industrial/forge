@@ -6,7 +6,7 @@ publish = false
 
 [dependencies]
 tempfile = "3"
-reqwest = { version = "0.12", features = ["blocking"] }
+reqwest = { version = "0.12", features = ["blocking", "cookies", "json"] }
 tokio = { version = "1", features = ["full"] }
 forge = { path = "../../crates/forge" }
 tower = { version = "0.4", features = ["util"] }
@@ -14,9 +14,11 @@ http = "1.0"
 axum = "0.8"
 axum-login = "0.17"
 serde = "1.0"
+serde_json = "1.0"
 uuid = { version = "1", features = ["v4", "serde"] }
 async-trait = "0.1"
 dashmap = "6"
+rusqlite = "0.32"
 
 [[test]]
 name = "001_cli"
@@ -41,3 +43,7 @@ path = "005_auth.rs"
 [[test]]
 name = "006_authz"
 path = "006_authz.rs"
+
+[[test]]
+name = "007_audit"
+path = "007_audit.rs"
