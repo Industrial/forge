@@ -15,16 +15,19 @@ where
   B: AuthnBackend,
   B::User: AuthzContext,
 {
-  fn guard(&self, _action: Action, _role: Role) -> Result<(), AuthzError> {
-    // Shallow Gate Implementation:
-    // In this lean implementation, we check if the user is authenticated.
-    // Complex Role/Action mapping can be added here or delegated to the User model.
+  fn guard(&self, _action: Action, role: Role) -> Result<(), AuthzError> {
     if self.user.is_none() {
       return Err(AuthzError::Forbidden);
     }
 
-    // For now, we assume any authenticated user can perform the action.
-    // In a real implementation, we would call a policy or check user roles.
-    Ok(())
+    // Require the session user to have the given role (or higher) in the current org.
+    match self.role() {
+      Some(user_role) if user_role == role => Ok(()),
+      Some(Role::Owner) => Ok(()), // Owner can satisfy any role check
+      Some(Role::Admin) if matches!(role, Role::Admin | Role::Editor | Role::Viewer) => Ok(()),
+      Some(Role::Editor) if matches!(role, Role::Editor | Role::Viewer) => Ok(()),
+      Some(Role::Viewer) if role == Role::Viewer => Ok(()),
+      _ => Err(AuthzError::Forbidden),
+    }
   }
 }

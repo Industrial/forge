@@ -1,7 +1,7 @@
 //! End-to-End tests for Forge Authorization (Phase 6)
 
 use forge::prelude::*;
-use http::{header, Request, StatusCode};
+use http::{Request, StatusCode, header};
 use std::fs;
 use tower::ServiceExt;
 
@@ -12,9 +12,9 @@ struct MockUser {
   email: String,
   password_hash: String,
   org_id: Uuid,
+  role: Option<Role>,
 }
 
-// Implement AuthzContext for MockUser so AuthSession can use it
 impl AuthzContext for MockUser {
   fn requester_id(&self) -> Uuid {
     self.id
@@ -24,6 +24,9 @@ impl AuthzContext for MockUser {
   }
   fn organization_id(&self) -> Option<Uuid> {
     Some(self.org_id)
+  }
+  fn role(&self) -> Option<Role> {
+    self.role.clone()
   }
 }
 
@@ -51,6 +54,7 @@ impl AuthnBackend for MockBackend {
       email: format!("user@org-{}.com", org_id),
       password_hash: "hash".to_string(),
       org_id,
+      role: Some(Role::Admin),
     };
     self.users.insert(id, user.clone());
     Ok(Some(user))
@@ -60,7 +64,10 @@ impl AuthnBackend for MockBackend {
     &self,
     user_id: &forge::axum_login::UserId<Self>,
   ) -> Result<Option<Self::User>, Self::Error> {
-    Ok(self.users.get(user_id).map(|u| u.clone()))
+    Ok(self.users.get(user_id).map(|u| MockUser {
+      role: Some(Role::Admin),
+      ..u.clone()
+    }))
   }
 }
 
@@ -205,7 +212,7 @@ auto_seed = false
     .unwrap();
   assert_eq!(String::from_utf8_lossy(&body), org_b.to_string());
 
-  // 5. Test Guard (should pass as any authenticated user for now)
+  // 5. Test Guard (authenticated user with Role::Admin can access admin-only)
   let response = router
     .clone()
     .oneshot(

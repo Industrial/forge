@@ -1,6 +1,6 @@
 use proc_macro::TokenStream;
 use quote::quote;
-use syn::{parse_macro_input, DeriveInput};
+use syn::{DeriveInput, parse_macro_input};
 
 #[proc_macro_derive(ForgeAuthUser)]
 pub fn derive_auth_user(input: TokenStream) -> TokenStream {
@@ -34,10 +34,10 @@ pub fn derive_forge_scoped(input: TokenStream) -> TokenStream {
 
   // Parse #[forge_scoped(column_name)]
   for attr in &input.attrs {
-    if attr.path().is_ident("forge_scoped") {
-      if let Ok(nested) = attr.parse_args::<syn::Ident>() {
-        scope_column = nested.to_string();
-      }
+    if attr.path().is_ident("forge_scoped")
+      && let Ok(nested) = attr.parse_args::<syn::Ident>()
+    {
+      scope_column = nested.to_string();
     }
   }
 

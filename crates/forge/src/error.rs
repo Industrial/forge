@@ -79,6 +79,12 @@ impl From<axum::Error> for Error {
   }
 }
 
+impl From<crate::authz::AuthzError> for Error {
+  fn from(err: crate::authz::AuthzError) -> Self {
+    Error::Generic(err.to_string())
+  }
+}
+
 impl From<String> for Error {
   fn from(msg: String) -> Self {
     Error::Generic(msg)

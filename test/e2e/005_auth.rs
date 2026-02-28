@@ -1,7 +1,7 @@
 //! End-to-End tests for Forge Authentication and Session Management
 
 use forge::prelude::*;
-use http::{header, Request, StatusCode};
+use http::{Request, StatusCode, header};
 use std::fs;
 use std::process::Command;
 use tower::ServiceExt;
@@ -55,6 +55,35 @@ async fn forge_new_generates_auth_ready_workspace() {
     "crates/db/src/auth.rs missing"
   );
 
+  // Check for authz: organizations, memberships, user with current_org_id/current_role
+  assert!(
+    root.join("crates/db/src/models/organization.rs").exists(),
+    "crates/db/src/models/organization.rs missing"
+  );
+  assert!(
+    root.join("crates/db/src/models/membership.rs").exists(),
+    "crates/db/src/models/membership.rs missing"
+  );
+  let user_model = fs::read_to_string(root.join("crates/db/src/models/user.rs")).unwrap();
+  assert!(
+    user_model.contains("current_org_id") && user_model.contains("current_role"),
+    "user model must have current_org_id and current_role for authz"
+  );
+  assert!(
+    user_model.contains("impl AuthzContext"),
+    "user model must implement AuthzContext"
+  );
+  let auth_handlers = fs::read_to_string(root.join("crates/app/src/handlers/auth.rs")).unwrap();
+  assert!(
+    auth_handlers.contains("guard(Action::Manage, Role::Owner)"),
+    "handlers must demonstrate Shallow Gate (guard)"
+  );
+  let main_rs = fs::read_to_string(root.join("crates/app/src/main.rs")).unwrap();
+  assert!(
+    main_rs.contains("post_route") && main_rs.contains("/auth/admin"),
+    "main must use post_route for register/login and route for auth/admin"
+  );
+
   let cargo_toml = fs::read_to_string(root.join("crates/db/Cargo.toml")).unwrap();
   // We now expect these NOT to be in the generated Cargo.toml because they are in forge::prelude
   assert!(
@@ -88,6 +117,18 @@ struct MockUser {
   id: Uuid,
   email: String,
   password_hash: String,
+}
+
+impl AuthzContext for MockUser {
+  fn requester_id(&self) -> Uuid {
+    self.id
+  }
+  fn subject_id(&self) -> Uuid {
+    self.id
+  }
+  fn organization_id(&self) -> Option<Uuid> {
+    None
+  }
 }
 
 #[derive(Clone, Debug)]

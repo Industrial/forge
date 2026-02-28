@@ -52,6 +52,12 @@ pub trait AuthzContext {
 
   /// Optional organization/tenant context.
   fn organization_id(&self) -> Option<uuid::Uuid>;
+
+  /// Optional role in the current organization (for Shallow Gate).
+  /// Default is None; implement to enable role-based guards.
+  fn role(&self) -> Option<Role> {
+    None
+  }
 }
 
 impl<B> AuthzContext for axum_login::AuthSession<B>
@@ -77,6 +83,10 @@ where
 
   fn organization_id(&self) -> Option<uuid::Uuid> {
     self.user.as_ref().and_then(|u| u.organization_id())
+  }
+
+  fn role(&self) -> Option<Role> {
+    self.user.as_ref().and_then(|u| u.role())
   }
 }
 

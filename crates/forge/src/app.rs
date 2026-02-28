@@ -1,6 +1,6 @@
 //! Forge App builder - the core of the web framework.
 
-use axum::{handler::Handler, routing::get, Router};
+use axum::{Router, handler::Handler, routing::get, routing::post};
 use axum_login::AuthManagerLayerBuilder;
 use futures::future::BoxFuture;
 use sea_orm::{ConnectionTrait, DatabaseConnection, DbBackend};
@@ -124,7 +124,7 @@ impl App {
   pub fn with_auth<B, F>(mut self, backend_factory: F) -> Self
   where
     B: axum_login::AuthnBackend + Send + Sync + 'static,
-    B::User: axum_login::AuthUser<Id = uuid::Uuid>,
+    B::User: axum_login::AuthUser<Id = uuid::Uuid> + crate::authz::AuthzContext,
     F: Fn(DatabaseConnection) -> B + Send + Sync + 'static,
   {
     self.auth_installer = Some(Box::new(move |router, db_conn| {
@@ -166,13 +166,23 @@ impl App {
     self.db.as_ref()
   }
 
-  /// Add a route to the application.
+  /// Add a GET route to the application.
   pub fn route<H, T>(mut self, path: &str, handler: H) -> Self
   where
     H: Handler<T, DatabaseConnection>,
     T: 'static,
   {
     self.router = self.router.route(path, get(handler));
+    self
+  }
+
+  /// Add a POST route to the application (e.g. for /auth/register, /auth/login).
+  pub fn post_route<H, T>(mut self, path: &str, handler: H) -> Self
+  where
+    H: Handler<T, DatabaseConnection>,
+    T: 'static,
+  {
+    self.router = self.router.route(path, post(handler));
     self
   }
 
@@ -204,25 +214,25 @@ impl App {
       });
 
     // Run migrations if enabled and provided
-    if config.database.auto_migrate {
-      if let Some(run_migrations) = migrator {
-        info!("Running database migrations...");
-        run_migrations().await.unwrap_or_else(|e| {
-          eprintln!("Migration error: {}", e);
-          std::process::exit(1);
-        });
-      }
+    if config.database.auto_migrate
+      && let Some(run_migrations) = migrator
+    {
+      info!("Running database migrations...");
+      run_migrations().await.unwrap_or_else(|e| {
+        eprintln!("Migration error: {}", e);
+        std::process::exit(1);
+      });
     }
 
     // Run seeder if enabled and provided
-    if config.database.auto_seed {
-      if let Some(seeder_fn) = seeder {
-        info!("Running database seeder...");
-        seeder_fn(db_conn.clone()).await.unwrap_or_else(|e| {
-          eprintln!("Seeding error: {}", e);
-          std::process::exit(1);
-        });
-      }
+    if config.database.auto_seed
+      && let Some(seeder_fn) = seeder
+    {
+      info!("Running database seeder...");
+      seeder_fn(db_conn.clone()).await.unwrap_or_else(|e| {
+        eprintln!("Seeding error: {}", e);
+        std::process::exit(1);
+      });
     }
 
     // Install authentication if configured
