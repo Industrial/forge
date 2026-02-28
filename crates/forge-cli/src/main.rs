@@ -124,12 +124,12 @@ version = "0.1.0"
 edition = "2021"
 
 [dependencies]
-forge = {{ path = "{}" }}
-sea-orm = {{ version = "1.1", features = ["runtime-tokio-rustls", "sqlx-sqlite", "macros"] }}
 async-trait = "0.1"
 chrono = {{ version = "0.4", features = ["serde"] }}
-uuid = {{ version = "1", features = ["v4", "serde"] }}
+forge = {{ path = "{}" }}
+sea-orm = {{ version = "1.1", features = ["runtime-tokio-rustls", "sqlx-sqlite", "macros"] }}
 serde = {{ version = "1", features = ["derive"] }}
+uuid = {{ version = "1", features = ["v4", "serde"] }}
 "#,
     forge_crate_path.display()
   );
