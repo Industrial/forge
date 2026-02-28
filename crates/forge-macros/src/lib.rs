@@ -60,6 +60,7 @@ pub fn derive_forge_scoped(input: TokenStream) -> TokenStream {
   TokenStream::from(expanded)
 }
 
+/// Converts a snake_case string to PascalCase.
 fn to_pascal_case(s: &str) -> String {
   let mut res = String::new();
   let mut capitalize = true;
