@@ -28,10 +28,10 @@ Instead of auto-discovery, developers explicitly register their migrators:
 ```rust
 // crates/app/src/main.rs
 App::new()
-    .with_migrations(db::Migrator)
-    .with_seed(db::seed)
-    .serve()
-    .await
+  .with_migrations(db::Migrator)
+  .with_seed(db::seed)
+  .serve()
+  .await
 ```
 
 ### 4. Configuration

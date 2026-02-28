@@ -58,7 +58,7 @@ use axum::extract::State;
 use sea_orm::DatabaseConnection;
 
 async fn my_handler(State(db): State<DatabaseConnection>) {
-    // db is ready to use for queries
+  // db is ready to use for queries
 }
 ```
 

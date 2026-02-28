@@ -23,3 +23,55 @@ pub fn derive_auth_user(input: TokenStream) -> TokenStream {
 
   TokenStream::from(expanded)
 }
+
+#[proc_macro_derive(ForgeScoped, attributes(forge_scoped))]
+pub fn derive_forge_scoped(input: TokenStream) -> TokenStream {
+  let input = parse_macro_input!(input as DeriveInput);
+  let _name = input.ident;
+
+  // Default column is organization_id
+  let mut scope_column = "organization_id".to_string();
+
+  // Parse #[forge_scoped(column_name)]
+  for attr in &input.attrs {
+    if attr.path().is_ident("forge_scoped") {
+      if let Ok(nested) = attr.parse_args::<syn::Ident>() {
+        scope_column = nested.to_string();
+      }
+    }
+  }
+
+  let column_ident = quote::format_ident!("{}", to_pascal_case(&scope_column));
+
+  let expanded = quote! {
+      impl ::forge::authz::ForgeScoped<Entity> for ::forge::sea_orm::Select<Entity> {
+          fn scoped<C: ::forge::authz::AuthzContext>(self, context: &C) -> ::forge::sea_orm::Select<Entity> {
+              use ::forge::sea_orm::ColumnTrait;
+              if let Some(org_id) = context.organization_id() {
+                  self.filter(Column::#column_ident.eq(org_id))
+              } else {
+                  // Ghost Mode: If no org context, return nothing by default
+                  self.filter(::forge::sea_orm::Condition::all().add(::forge::sea_orm::Expr::val(1).eq(0)))
+              }
+          }
+      }
+  };
+
+  TokenStream::from(expanded)
+}
+
+fn to_pascal_case(s: &str) -> String {
+  let mut res = String::new();
+  let mut capitalize = true;
+  for c in s.chars() {
+    if c == '_' {
+      capitalize = true;
+    } else if capitalize {
+      res.push(c.to_uppercase().next().unwrap());
+      capitalize = false;
+    } else {
+      res.push(c);
+    }
+  }
+  res
+}

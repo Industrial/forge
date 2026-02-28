@@ -16,6 +16,7 @@ axum-login = "0.17"
 serde = "1.0"
 uuid = { version = "1", features = ["v4", "serde"] }
 async-trait = "0.1"
+dashmap = "6"
 
 [[test]]
 name = "001_cli"
@@ -36,3 +37,7 @@ path = "004_migrations.rs"
 [[test]]
 name = "005_auth"
 path = "005_auth.rs"
+
+[[test]]
+name = "006_authz"
+path = "006_authz.rs"

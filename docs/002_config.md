@@ -46,10 +46,10 @@ use forge::App;
 
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn std::error::Error>> {
-    App::new()  // Automatically loads config/app.toml via Figment
-        .route("/", || async { "Hello from Forge!" })
-        .serve()
-        .await
+  App::new()  // Automatically loads config/app.toml via Figment
+      .route("/", || async { "Hello from Forge!" })
+      .serve()
+      .await
 }
 ```
 
@@ -94,20 +94,20 @@ use serde::Deserialize;
 
 #[derive(Debug, Clone, Deserialize)]
 pub struct ForgeConfig {
-    pub app: AppConfig,
-    pub server: ServerConfig,
+  pub app: AppConfig,
+  pub server: ServerConfig,
 }
 
 #[derive(Debug, Clone, Deserialize)]
 pub struct AppConfig {
-    pub name: String,
-    pub environment: String,
+  pub name: String,
+  pub environment: String,
 }
 
 #[derive(Debug, Clone, Deserialize)]
 pub struct ServerConfig {
-    pub host: String,
-    pub port: u16,
+  pub host: String,
+  pub port: u16,
 }
 ```
 
@@ -125,7 +125,7 @@ myapp/
 ├── config/
 │   └── app.toml        # App and server configuration
 └── src/
-    └── main.rs         # Uses App::new() with auto-config loading
+  └── main.rs         # Uses App::new() with auto-config loading
 ```
 
 **Not in Phase 2**:
@@ -180,16 +180,16 @@ pub use error::Error;
 #[derive(Parser)]
 #[command(name = "forge")]
 enum Commands {
-    /// Create a new Forge project with configuration
-    New {
-        /// Project name
-        name: String,
-    },
-    /// Serve the current directory's Forge project
-    Serve,
-    /// Version information
-    #[command(name = "--version")]
-    Version,
+  /// Create a new Forge project with configuration
+  New {
+      /// Project name
+      name: String,
+  },
+  /// Serve the current directory's Forge project
+  Serve,
+  /// Version information
+  #[command(name = "--version")]
+  Version,
 }
 ```
 
@@ -219,94 +219,94 @@ test/e2e/
 ```rust
 #[tokio::test]
 async fn test_forge_new_generates_app_toml() {
-    // Arrange: temp directory
-    let temp_dir = TempDir::new().unwrap();
-    
-    // Act: run `forge new test_app`
-    let mut cmd = Command::new("forge");
-    cmd.arg("new")
-        .arg("test_app")
-        .current_dir(&temp_dir);
-    
-    // Assert: success exit code
-    cmd.assert().success();
-    
-    // Assert: config/app.toml exists
-    let config_path = temp_dir.path().join("test_app/config/app.toml");
-    assert!(config_path.exists());
-    
-    // Assert: content contains expected values
-    let content = fs::read_to_string(&config_path).unwrap();
-    assert!(content.contains(r#"name = "test_app""#));
-    assert!(content.contains(r#"port = 3000"#));
-    assert!(content.contains(r#"[app]"#));
-    assert!(content.contains(r#"[server]"#));
+  // Arrange: temp directory
+  let temp_dir = TempDir::new().unwrap();
+  
+  // Act: run `forge new test_app`
+  let mut cmd = Command::new("forge");
+  cmd.arg("new")
+      .arg("test_app")
+      .current_dir(&temp_dir);
+  
+  // Assert: success exit code
+  cmd.assert().success();
+  
+  // Assert: config/app.toml exists
+  let config_path = temp_dir.path().join("test_app/config/app.toml");
+  assert!(config_path.exists());
+  
+  // Assert: content contains expected values
+  let content = fs::read_to_string(&config_path).unwrap();
+  assert!(content.contains(r#"name = "test_app""#));
+  assert!(content.contains(r#"port = 3000"#));
+  assert!(content.contains(r#"[app]"#));
+  assert!(content.contains(r#"[server]"#));
 }
 
 #[tokio::test]
 async fn test_forge_serve_uses_config_port() {
-    // Arrange: create project with custom port
-    let temp_dir = TempDir::new().unwrap();
-    create_project_with_port(&temp_dir, "test_app", 3333).await;
-    
-    // Act: start server
-    let mut child = Command::new("forge")
-        .arg("serve")
-        .current_dir(temp_dir.path().join("test_app"))
-        .spawn()
-        .unwrap();
-    
-    // Wait for server startup
-    tokio::time::sleep(Duration::from_secs(2)).await;
-    
-    // Assert: server responds on configured port
-    let response = reqwest::get("http://127.0.0.1:3333/").await.unwrap();
-    assert!(response.status().is_success());
-    
-    // Cleanup
-    child.kill().await.unwrap();
+  // Arrange: create project with custom port
+  let temp_dir = TempDir::new().unwrap();
+  create_project_with_port(&temp_dir, "test_app", 3333).await;
+  
+  // Act: start server
+  let mut child = Command::new("forge")
+      .arg("serve")
+      .current_dir(temp_dir.path().join("test_app"))
+      .spawn()
+      .unwrap();
+  
+  // Wait for server startup
+  tokio::time::sleep(Duration::from_secs(2)).await;
+  
+  // Assert: server responds on configured port
+  let response = reqwest::get("http://127.0.0.1:3333/").await.unwrap();
+  assert!(response.status().is_success());
+  
+  // Cleanup
+  child.kill().await.unwrap();
 }
 
 #[tokio::test]
 async fn test_forge_serve_crash_without_config() {
-    // Arrange: create minimal project without config
-    let temp_dir = TempDir::new().unwrap();
-    create_minimal_project_no_config(&temp_dir, "test_app").await;
-    
-    // Act: run `forge serve`
-    let output = Command::new("forge")
-        .arg("serve")
-        .current_dir(temp_dir.path().join("test_app"))
-        .output()
-        .await
-        .unwrap();
-    
-    // Assert: process fails
-    assert!(!output.status.success());
-    
-    // Assert: error mentions config/app.toml
-    let stderr = String::from_utf8_lossy(&output.stderr);
-    assert!(stderr.contains("config/app.toml") || stderr.contains("configuration file"));
+  // Arrange: create minimal project without config
+  let temp_dir = TempDir::new().unwrap();
+  create_minimal_project_no_config(&temp_dir, "test_app").await;
+  
+  // Act: run `forge serve`
+  let output = Command::new("forge")
+      .arg("serve")
+      .current_dir(temp_dir.path().join("test_app"))
+      .output()
+      .await
+      .unwrap();
+  
+  // Assert: process fails
+  assert!(!output.status.success());
+  
+  // Assert: error mentions config/app.toml
+  let stderr = String::from_utf8_lossy(&output.stderr);
+  assert!(stderr.contains("config/app.toml") || stderr.contains("configuration file"));
 }
 
 #[tokio::test]
 async fn test_no_port_flag_in_cli() {
-    // Arrange: valid project
-    let temp_dir = TempDir::new().unwrap();
-    create_project(&temp_dir, "test_app").await;
-    
-    // Act: try to use --port flag (should fail)
-    let output = Command::new("forge")
-        .args(["serve", "--port", "4000"])
-        .current_dir(temp_dir.path().join("test_app"))
-        .output()
-        .await
-        .unwrap();
-    
-    // Assert: CLI rejects unknown flag
-    assert!(!output.status.success());
-    let stderr = String::from_utf8_lossy(&output.stderr);
-    assert!(stderr.contains("error: unexpected argument '--port'"));
+  // Arrange: valid project
+  let temp_dir = TempDir::new().unwrap();
+  create_project(&temp_dir, "test_app").await;
+  
+  // Act: try to use --port flag (should fail)
+  let output = Command::new("forge")
+      .args(["serve", "--port", "4000"])
+      .current_dir(temp_dir.path().join("test_app"))
+      .output()
+      .await
+      .unwrap();
+  
+  // Assert: CLI rejects unknown flag
+  assert!(!output.status.success());
+  let stderr = String::from_utf8_lossy(&output.stderr);
+  assert!(stderr.contains("error: unexpected argument '--port'"));
 }
 ```
 
