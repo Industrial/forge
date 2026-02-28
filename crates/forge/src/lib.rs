@@ -38,20 +38,18 @@ pub mod extract {
 }
 
 pub mod prelude {
+  pub use crate::ForgeAuthUser;
   pub use crate::app::App;
   pub use crate::auth::{hash_password, verify_password};
   pub use crate::config::ForgeConfig;
   pub use crate::error::Error;
-  pub use crate::ForgeAuthUser;
   pub use async_trait::async_trait;
   pub use axum_login::{AuthSession, AuthUser, AuthnBackend};
   pub use chrono::{DateTime, NaiveDateTime, Utc};
-  pub use sea_orm::{
-    ActiveModelTrait, ActiveValue, ColumnTrait, ConnectionTrait, DatabaseConnection, EntityTrait,
-    QueryFilter, Set,
-  };
+  pub use sea_orm::{ActiveModelTrait, ActiveValue, ColumnTrait, ConnectionTrait, DatabaseConnection, EntityTrait, QueryFilter, Set};
   pub use serde::{Deserialize, Serialize};
   pub use tower_sessions::{Session, SessionStore};
+  pub use tracing::{info, warn, debug, error};
   pub use uuid::Uuid;
 }
 
