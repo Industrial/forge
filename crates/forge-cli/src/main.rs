@@ -1,6 +1,9 @@
 //! Forge CLI — invoke from tests by running the binary and asserting on output.
 
 use clap::{CommandFactory, Parser, Subcommand};
+#[cfg(test)]
+use forge::config::{AppConfig, ServerConfig};
+use forge::ForgeConfig;
 use std::fs;
 use std::path::Path;
 use std::process::Command;
@@ -22,11 +25,7 @@ enum Commands {
     name: String,
   },
   /// Serve the current Forge project
-  Serve {
-    /// Port to serve on (default: 3000)
-    #[arg(short, long, default_value = "3000")]
-    port: u16,
-  },
+  Serve {},
 }
 
 fn main() -> std::process::ExitCode {
@@ -41,8 +40,16 @@ fn main() -> std::process::ExitCode {
       println!("Created new Forge project: {}", name);
       std::process::ExitCode::SUCCESS
     }
-    Some(Commands::Serve { port }) => {
-      if let Err(e) = serve_project(port) {
+    Some(Commands::Serve {}) => {
+      use forge::config;
+      let config = match config::load_config() {
+        Ok(c) => c,
+        Err(e) => {
+          eprintln!("Error: {}", e);
+          return std::process::ExitCode::FAILURE;
+        }
+      };
+      if let Err(e) = serve_project(&config) {
         eprintln!("Error serving project: {}", e);
         return std::process::ExitCode::FAILURE;
       }
@@ -65,10 +72,13 @@ fn create_new_project(name: &str) -> Result<(), Box<dyn std::error::Error>> {
   }
 
   // Create project directory
-  fs::create_dir(project_dir)?;
+  fs::create_dir_all(project_dir)?;
 
   // Create src directory
-  fs::create_dir(project_dir.join("src"))?;
+  fs::create_dir_all(project_dir.join("src"))?;
+
+  // Create config directory
+  fs::create_dir_all(project_dir.join("config"))?;
 
   // Get the absolute path to the forge crate relative to this executable
   let exe_path = std::env::current_exe().unwrap();
@@ -141,36 +151,55 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 "#;
   fs::write(project_dir.join("src").join("main.rs"), main_rs)?;
 
+  // Create config/app.toml
+  let app_toml = format!(
+    r#"[app]
+name = "{}"
+environment = "development"
+
+[server]
+host = "0.0.0.0"
+port = 3000
+"#,
+    name
+  );
+  fs::write(project_dir.join("config").join("app.toml"), app_toml)?;
+
+  // Initialize git repository
+  Command::new("git")
+    .arg("init")
+    .current_dir(project_dir)
+    .status()?;
+
   Ok(())
 }
 
-fn serve_project(port: u16) -> Result<(), Box<dyn std::error::Error>> {
-  // Check if we're in a Forge project
-  let cargo_toml_path = Path::new("Cargo.toml");
-  if !cargo_toml_path.exists() {
-    return Err("No Cargo.toml found. Run `forge new <name>` to create a Forge project.".into());
+fn serve_project(config: &ForgeConfig) -> Result<(), Box<dyn std::error::Error>> {
+  // Check for Cargo.toml
+  if !std::path::Path::new("Cargo.toml").exists() {
+    return Err("No Cargo.toml found. Run `forge new myapp` to create a Forge project.".into());
   }
 
-  // Check if forge is in dependencies (basic check)
-  let cargo_content = fs::read_to_string(cargo_toml_path)?;
-  if !cargo_content.contains("forge =") {
+  // Verify forge dependency in Cargo.toml
+  let cargo_toml = std::fs::read_to_string("Cargo.toml")?;
+  if !cargo_toml.contains("forge") {
     return Err("forge dependency not found in Cargo.toml. Add `forge = { path = \"../forge\" }` to dependencies.".into());
   }
 
-  // Check if src/main.rs exists
-  let main_rs_path = Path::new("src").join("main.rs");
-  if !main_rs_path.exists() {
+  // Check for src/main.rs
+  if !std::path::Path::new("src/main.rs").exists() {
     return Err(
       "src/main.rs not found. Ensure your project has a main.rs that uses forge::App.".into(),
     );
   }
 
-  println!("Starting Forge development server...");
-
+  let port = config.server.port; // Get port from config
+  let host = &config.server.host;
   // Spawn cargo run
   let status = Command::new("cargo")
     .arg("run")
     .env("PORT", port.to_string())
+    .env("HOST", host)
     .status()?;
 
   if status.success() {
@@ -239,57 +268,6 @@ mod tests {
     }
 
     #[test]
-    fn serve_subcommand_parses_default_port() {
-      // Given: Command line with serve subcommand (no port specified)
-      let args = Args::try_parse_from(["forge", "serve"]);
-
-      // When: Parsing the arguments
-      // Then: It should contain Serve command with default port
-      assert!(args.is_ok());
-      let args = args.unwrap();
-      match args.command {
-        Some(Commands::Serve { port }) => {
-          assert_eq!(port, 3000); // default value
-        }
-        _ => panic!("Expected Serve command"),
-      }
-    }
-
-    #[test]
-    fn serve_subcommand_parses_custom_port() {
-      // Given: Command line with serve subcommand and custom port
-      let args = Args::try_parse_from(["forge", "serve", "--port", "8080"]);
-
-      // When: Parsing the arguments
-      // Then: It should contain Serve command with custom port
-      assert!(args.is_ok());
-      let args = args.unwrap();
-      match args.command {
-        Some(Commands::Serve { port }) => {
-          assert_eq!(port, 8080);
-        }
-        _ => panic!("Expected Serve command"),
-      }
-    }
-
-    #[test]
-    fn short_port_option_works() {
-      // Given: Command line with short port option
-      let args = Args::try_parse_from(["forge", "serve", "-p", "9000"]);
-
-      // When: Parsing the arguments
-      // Then: It should work with short option
-      assert!(args.is_ok());
-      let args = args.unwrap();
-      match args.command {
-        Some(Commands::Serve { port }) => {
-          assert_eq!(port, 9000);
-        }
-        _ => panic!("Expected Serve command"),
-      }
-    }
-
-    #[test]
     fn no_subcommand_defaults_to_none() {
       // Given: Command line with no subcommand
       let args = Args::try_parse_from(["forge"]);
@@ -325,11 +303,11 @@ mod tests {
     fn commands_enum_has_serve_variant() {
       // Given: Commands enum
       // When: Creating Serve variant
-      let cmd = Commands::Serve { port: 8080 };
+      let cmd = Commands::Serve {};
 
       // Then: It should compile and work
       match cmd {
-        Commands::Serve { port } => assert_eq!(port, 8080),
+        Commands::Serve {} => (),
         _ => panic!("Expected Serve variant"),
       }
     }
@@ -376,7 +354,6 @@ mod tests {
       // Given: Valid project setup (tested separately)
       // When: main processes Serve command
       // Then: It should dispatch to serve_project
-      // Note: Full testing requires mocking or integration testing
     }
 
     #[test]
@@ -416,6 +393,10 @@ mod tests {
       assert!(project_path.join("src").exists());
       assert!(project_path.join("src").join("main.rs").exists());
       assert!(project_path.join(".gitignore").exists());
+      assert!(project_path.join("config").join("app.toml").exists());
+
+      // Verify git initialization
+      assert!(project_path.join(".git").exists());
 
       // Restore original directory
       std::env::set_current_dir(original_cwd).unwrap();
@@ -540,7 +521,17 @@ mod tests {
       std::env::set_current_dir(&temp_dir).unwrap();
 
       // When: Calling serve_project
-      let result = serve_project(3000);
+      let config = ForgeConfig {
+        app: AppConfig {
+          name: "test".to_string(),
+          environment: "development".to_string(),
+        },
+        server: ServerConfig {
+          host: "0.0.0.0".to_string(),
+          port: 3000,
+        },
+      };
+      let result = serve_project(&config);
 
       // Then: It should fail with appropriate error
       assert!(result.is_err());
@@ -572,7 +563,17 @@ tokio = "1"
       std::env::set_current_dir(&temp_dir).unwrap();
 
       // When: Calling serve_project
-      let result = serve_project(3000);
+      let config = ForgeConfig {
+        app: AppConfig {
+          name: "test".to_string(),
+          environment: "development".to_string(),
+        },
+        server: ServerConfig {
+          host: "0.0.0.0".to_string(),
+          port: 3000,
+        },
+      };
+      let result = serve_project(&config);
 
       // Then: It should fail with appropriate error
       assert!(result.is_err());
@@ -608,7 +609,17 @@ tokio = "1"
       std::env::set_current_dir(&temp_dir).unwrap();
 
       // When: Calling serve_project
-      let result = serve_project(3000);
+      let config = ForgeConfig {
+        app: AppConfig {
+          name: "test".to_string(),
+          environment: "development".to_string(),
+        },
+        server: ServerConfig {
+          host: "0.0.0.0".to_string(),
+          port: 3000,
+        },
+      };
+      let result = serve_project(&config);
 
       // Then: It should fail with appropriate error
       assert!(result.is_err());
@@ -617,17 +628,6 @@ tokio = "1"
 
       // Restore original directory
       std::env::set_current_dir(original_cwd).unwrap();
-    }
-
-    #[test]
-    fn serve_project_accepts_different_ports() {
-      // Given: A valid project setup (but we'll test the port parameter)
-      // Note: We can't easily test the actual serving without integration testing
-      // But we can verify the function accepts different port values
-
-      // This is more of a compilation test - the function signature accepts u16
-      let _port: u16 = 8080;
-      // The actual serving logic is tested in integration tests
     }
   }
 

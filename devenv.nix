@@ -87,10 +87,21 @@
   enterShell = ''
     prek-install
 
-    # Add forge CLI to PATH if it exists
-    if [ -f ./target/release/forge ]; then
+    # Add forge CLI to PATH if it exists, prioritizing debug during dev
+    if [ -f ./target/debug/forge ] && [ -f ./target/release/forge ]; then
+      if [ ./target/debug/forge -nt ./target/release/forge ]; then
+        export PATH="$PWD/target/debug:$PATH"
+        echo "Forge CLI (debug) available in PATH"
+      else
+        export PATH="$PWD/target/release:$PATH"
+        echo "Forge CLI (release) available in PATH"
+      fi
+    elif [ -f ./target/debug/forge ]; then
+      export PATH="$PWD/target/debug:$PATH"
+      echo "Forge CLI (debug) available in PATH"
+    elif [ -f ./target/release/forge ]; then
       export PATH="$PWD/target/release:$PATH"
-      echo "Forge CLI available in PATH"
+      echo "Forge CLI (release) available in PATH"
     fi
   '';
 }

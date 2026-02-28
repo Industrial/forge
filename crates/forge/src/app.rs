@@ -6,18 +6,29 @@ use tower::ServiceBuilder;
 use tower_http::trace::{DefaultMakeSpan, DefaultOnRequest, DefaultOnResponse, TraceLayer};
 use tracing::{info, warn};
 
+use crate::config::{self, ForgeConfig};
+
 /// The main Forge application builder.
 ///
 /// Provides a fluent API for configuring and running Axum-based web applications.
 pub struct App {
   /// The Axum router containing all configured routes and middleware.
   router: Router,
+  /// Application configuration loaded from `config/app.toml`
+  config: ForgeConfig,
 }
 
 impl App {
   /// Create a new Forge application.
   pub fn new() -> Self {
     info!("Initializing Forge application");
+
+    let config = config::load_config().unwrap_or_else(|e| {
+      eprintln!("Error: {}", e);
+      std::process::exit(1);
+    });
+    info!("Application config: {:?}", config.app);
+    info!("Server config: {:?}", config.server);
 
     let router = Router::new();
 
@@ -31,7 +42,12 @@ impl App {
 
     info!("Forge application initialized with tracing middleware");
 
-    Self { router }
+    Self { router, config }
+  }
+
+  /// Get a reference to the application configuration.
+  pub fn config(&self) -> &ForgeConfig {
+    &self.config
   }
 
   /// Add a route to the application.
@@ -52,17 +68,6 @@ impl App {
     self
   }
 
-  /// Parse port from environment variable or default to 3000.
-  ///
-  /// # Returns
-  /// - The port number from PORT env var if valid
-  /// - 3000 if PORT is not set or invalid
-  fn parse_port() -> u16 {
-    std::env::var("PORT")
-      .map(|p| p.parse::<u16>().unwrap_or(3000))
-      .unwrap_or(3000)
-  }
-
   /// Initialize the tracing subscriber for logging.
   ///
   /// This should only be called once per application lifecycle.
@@ -76,14 +81,9 @@ impl App {
       .init();
   }
 
-  /// Build the server address string from port.
-  fn build_address(port: u16) -> String {
-    format!("0.0.0.0:{}", port)
-  }
-
   /// Log server start message
-  fn log_server_start(port: u16) {
-    info!("Forge server running on http://0.0.0.0:{}", port);
+  fn log_server_start(host: &str, port: u16) {
+    info!("Forge server running on http://{}:{}", host, port);
   }
 
   /// Log server stop message
@@ -97,8 +97,8 @@ impl App {
   }
 
   /// Log bind error
-  fn log_bind_error(addr: &str, e: &std::io::Error) {
-    warn!("Failed to bind to {}: {}", addr, e);
+  fn log_bind_error(host: &str, port: u16, e: &std::io::Error) {
+    warn!("Failed to bind to {}:{}: {}", host, port, e);
   }
 
   /// Bind TCP listener to address
@@ -128,18 +128,18 @@ impl App {
     // Initialize tracing subscriber if not already initialized
     Self::init_tracing();
 
-    let app = self.router;
+    let App { router, config } = self;
 
-    // Get port from environment or default to 3000
-    let port = Self::parse_port();
-
-    let addr = Self::build_address(port);
+    // Get host and port from config
+    let host = config.server.host;
+    let port = config.server.port;
+    let addr = format!("{}:{}", host, port);
 
     match Self::bind_listener(&addr).await {
       Ok(listener) => {
-        Self::log_server_start(port);
+        Self::log_server_start(&host, port);
 
-        match axum::serve(listener, app)
+        match axum::serve(listener, router)
           .with_graceful_shutdown(shutdown_signal())
           .await
         {
@@ -154,7 +154,7 @@ impl App {
         }
       }
       Err(e) => {
-        Self::log_bind_error(&addr, &e);
+        Self::log_bind_error(&host, port, &e);
         Err(e.into())
       }
     }
@@ -213,27 +213,62 @@ impl Default for App {
 }
 
 #[cfg(test)]
+#[allow(dead_code)]
+#[allow(unused_variables)]
 mod tests {
   use super::*;
   use axum::response::Html;
+  use std::fs;
+  use std::path::Path;
+  use tempfile;
+
+  fn setup_test_config(dir: &Path, project_name: &str) {
+    let config_dir = dir.join("config");
+    fs::create_dir_all(&config_dir).unwrap();
+    let app_toml_content = format!(
+      r#"[app]
+name = "{}"
+environment = "test"
+
+[server]
+host = "127.0.0.1"
+port = 3000
+"#,
+      project_name
+    );
+    fs::write(config_dir.join("app.toml"), app_toml_content).unwrap();
+  }
 
   /// Test suite for App creation and initialization
+  #[allow(unused_variables)]
   mod app_creation {
     use super::*;
 
     #[test]
     fn new_creates_app_with_empty_router() {
       // Given: No preconditions
+      let temp_dir = tempfile::tempdir().unwrap();
+      let original_cwd = std::env::current_dir().unwrap();
+      std::env::set_current_dir(&temp_dir).unwrap();
+      setup_test_config(temp_dir.path(), "test_app");
+
       // When: Creating a new App
       let app = App::new();
 
       // Then: App should be created successfully
       // Note: We can't inspect the router directly, but compilation succeeds
-      let _app = app;
+      let _ = app;
+
+      std::env::set_current_dir(original_cwd).unwrap();
     }
 
     #[test]
     fn default_trait_creates_same_as_new() {
+      let temp_dir = tempfile::tempdir().unwrap();
+      let original_cwd = std::env::current_dir().unwrap();
+      std::env::set_current_dir(&temp_dir).unwrap();
+      setup_test_config(temp_dir.path(), "test_app");
+
       // Given: No preconditions
       // When: Using Default trait vs new()
       let app_new = App::new();
@@ -243,10 +278,17 @@ mod tests {
       // Note: We test this by ensuring both compile and run without errors
       let _app_new = app_new;
       let _app_default = app_default;
+
+      std::env::set_current_dir(original_cwd).unwrap();
     }
 
     #[test]
     fn app_is_send_and_sync() {
+      let temp_dir = tempfile::tempdir().unwrap();
+      let original_cwd = std::env::current_dir().unwrap();
+      std::env::set_current_dir(&temp_dir).unwrap();
+      setup_test_config(temp_dir.path(), "test_app");
+
       // Given: An App instance
       let app = App::new();
 
@@ -254,15 +296,23 @@ mod tests {
       // Then: It should compile (marker trait test)
       fn assert_send_sync<T: Send + Sync>(_t: T) {}
       assert_send_sync(app);
+
+      std::env::set_current_dir(original_cwd).unwrap();
     }
   }
 
   /// Test suite for route registration
+  #[allow(unused_variables)]
   mod route_registration {
     use super::*;
 
     #[test]
     fn route_method_accepts_static_handler() {
+      let temp_dir = tempfile::tempdir().unwrap();
+      let original_cwd = std::env::current_dir().unwrap();
+      std::env::set_current_dir(&temp_dir).unwrap();
+      setup_test_config(temp_dir.path(), "test_app");
+
       // Given: An App instance
       let app = App::new();
 
@@ -270,11 +320,18 @@ mod tests {
       let app = app.route("/", || async { "Hello" });
 
       // Then: It should succeed without errors
-      let _app = app;
+      let _ = app;
+
+      std::env::set_current_dir(original_cwd).unwrap();
     }
 
     #[test]
     fn route_method_accepts_complex_handler() {
+      let temp_dir = tempfile::tempdir().unwrap();
+      let original_cwd = std::env::current_dir().unwrap();
+      std::env::set_current_dir(&temp_dir).unwrap();
+      setup_test_config(temp_dir.path(), "test_app");
+
       // Given: An App instance
       let app = App::new();
 
@@ -282,11 +339,18 @@ mod tests {
       let app = app.route("/api", || async { Html("<h1>API</h1>") });
 
       // Then: It should succeed without errors
-      let _app = app;
+      let _ = app;
+
+      std::env::set_current_dir(original_cwd).unwrap();
     }
 
     #[test]
     fn route_method_is_fluent_returns_self() {
+      let temp_dir = tempfile::tempdir().unwrap();
+      let original_cwd = std::env::current_dir().unwrap();
+      std::env::set_current_dir(&temp_dir).unwrap();
+      setup_test_config(temp_dir.path(), "test_app");
+
       // Given: An App instance
       let app = App::new();
 
@@ -297,11 +361,18 @@ mod tests {
         .route("/health", || async { "ok" });
 
       // Then: It should succeed and return App
-      let _app = app;
+      let _ = app;
+
+      std::env::set_current_dir(original_cwd).unwrap();
     }
 
     #[test]
     fn route_method_accepts_different_path_patterns() {
+      let temp_dir = tempfile::tempdir().unwrap();
+      let original_cwd = std::env::current_dir().unwrap();
+      std::env::set_current_dir(&temp_dir).unwrap();
+      setup_test_config(temp_dir.path(), "test_app");
+
       // Given: An App instance
       let app = App::new();
 
@@ -313,18 +384,26 @@ mod tests {
         .route("/api/v1/data", || async { "api data" });
 
       // Then: All should be accepted
-      let _app = app;
+      let _ = app;
+
+      std::env::set_current_dir(original_cwd).unwrap();
     }
   }
 
   /// Test suite for serve method - limited testing due to server binding
+  #[allow(unused_variables)]
   mod serve_method {
     use super::*;
 
     #[test]
     fn serve_method_exists_and_is_callable() {
+      let temp_dir = tempfile::tempdir().unwrap();
+      let original_cwd = std::env::current_dir().unwrap();
+      std::env::set_current_dir(&temp_dir).unwrap();
+      setup_test_config(temp_dir.path(), "test_app");
+
       // Given: An App with routes
-      let app = App::new().route("/", || async { "test" });
+      let _app = App::new().route("/", || async { "test" });
 
       // When: Calling serve method signature
       // Then: It should compile (async function that returns Result)
@@ -337,153 +416,42 @@ mod tests {
       }
 
       // Just test that the method exists
-      let _app = app;
-    }
+      let _ = _app;
 
-    #[test]
-    fn parse_port_returns_env_var_when_valid() {
-      // Given: PORT environment variable set to valid value
-      std::env::set_var("PORT", "8080");
-
-      // When: parse_port is called
-      let port = App::parse_port();
-
-      // Then: It should return the parsed value
-      assert_eq!(port, 8080);
-
-      // Clean up
-      std::env::remove_var("PORT");
-    }
-
-    #[test]
-    fn parse_port_defaults_to_3000_when_not_set() {
-      // Given: PORT environment variable not set
-      std::env::remove_var("PORT");
-
-      // When: parse_port is called
-      let port = App::parse_port();
-
-      // Then: It should default to 3000
-      assert_eq!(port, 3000);
-    }
-
-    #[test]
-    fn parse_port_handles_invalid_values() {
-      // Given: Invalid PORT environment variable
-      std::env::set_var("PORT", "invalid");
-
-      // When: parse_port is called
-      let port = App::parse_port();
-
-      // Then: It should fallback to 3000
-      assert_eq!(port, 3000);
-
-      // Clean up
-      std::env::remove_var("PORT");
-    }
-
-    #[test]
-    fn parse_port_handles_out_of_range_values() {
-      // Given: PORT environment variable with out-of-range value
-      std::env::set_var("PORT", "999999");
-
-      // When: parse_port is called
-      let port = App::parse_port();
-
-      // Then: It should fallback to 3000
-      assert_eq!(port, 3000);
-
-      // Clean up
-      std::env::remove_var("PORT");
-    }
-
-    #[test]
-    fn parse_port_handles_empty_string() {
-      // Given: PORT environment variable set to empty string
-      std::env::set_var("PORT", "");
-
-      // When: parse_port is called
-      let port = App::parse_port();
-
-      // Then: It should fallback to 3000
-      assert_eq!(port, 3000);
-
-      // Clean up
-      std::env::remove_var("PORT");
-    }
-
-    #[test]
-    fn build_address_formats_correctly() {
-      // Given: A port number
-      let port = 8080;
-
-      // When: build_address is called
-      let addr = App::build_address(port);
-
-      // Then: It should format correctly
-      assert_eq!(addr, "0.0.0.0:8080");
-    }
-
-    #[test]
-    fn build_address_handles_standard_port() {
-      // Given: The default port 3000
-      let port = 3000;
-
-      // When: build_address is called
-      let addr = App::build_address(port);
-
-      // Then: It should format correctly
-      assert_eq!(addr, "0.0.0.0:3000");
-    }
-
-    #[test]
-    fn build_address_handles_privileged_port() {
-      // Given: A privileged port (e.g., 80)
-      let port = 80;
-
-      // When: build_address is called
-      let addr = App::build_address(port);
-
-      // Then: It should format correctly
-      assert_eq!(addr, "0.0.0.0:80");
-    }
-
-    #[tokio::test]
-    async fn serve_attempts_to_bind_to_port() {
-      // Note: Cannot directly test serve() because it calls init_tracing() which
-      // can only run once per process. Instead, we test the components:
-
-      // Given: A valid port
-      std::env::set_var("PORT", "0"); // Port 0 lets OS assign random port
-
-      // When: Testing the components that serve() uses
-      let port = App::parse_port();
-      let addr = App::build_address(port);
-
-      // Then: bind_listener should succeed with port 0
-      let result = App::bind_listener(&addr).await;
-      assert!(result.is_ok(), "Should be able to bind to port 0");
-
-      // Clean up
-      std::env::remove_var("PORT");
+      std::env::set_current_dir(original_cwd).unwrap();
     }
 
     #[tokio::test]
     async fn serve_handles_bind_failure() {
+      let temp_dir = tempfile::tempdir().unwrap();
+      let original_cwd = std::env::current_dir().unwrap();
+      std::env::set_current_dir(&temp_dir).unwrap();
+      setup_test_config(temp_dir.path(), "test_app");
+
       // Note: This test is limited because serve() calls init_tracing() which can only
       // run once per process. We verify the bind error logic through the bind_listener test.
       // This test documents the expected behavior.
 
-      // Verify that bind_listener fails with invalid port (this is what serve() uses internally)
-      let result = App::bind_listener("127.0.0.1:99999").await;
-      assert!(result.is_err());
+      // Given: An App with a specific configuration for binding failure
+      let _app = App::new().route("/", || async { "test" });
+
+      // When: Trying to bind to an invalid address within serve (simulated)
+      let host = "127.0.0.1";
+      let port = 99999; // An invalid port for binding
+      let addr = format!("{}:{}", host, port);
+
+      // Then: bind_listener should fail with an error
+      let result = App::bind_listener(&addr).await;
+      assert!(result.is_err(), "Binding to an invalid port should fail");
+
+      std::env::set_current_dir(original_cwd).unwrap();
     }
 
     #[test]
     fn log_functions_exist() {
       // These are simple logging functions that just call info!/warn!
       // We verify they exist and can be called (compilation test)
-      App::log_server_start(3000);
+      App::log_server_start("0.0.0.0", 3000);
       App::log_server_stop();
     }
 
@@ -513,26 +481,41 @@ mod tests {
   }
 
   /// Test suite for tracing and logging setup
+  #[allow(unused_variables)]
   mod tracing_setup {
     use super::*;
 
     #[test]
     fn app_initialization_logs_are_present() {
+      let temp_dir = tempfile::tempdir().unwrap();
+      let original_cwd = std::env::current_dir().unwrap();
+      std::env::set_current_dir(&temp_dir).unwrap();
+      setup_test_config(temp_dir.path(), "test_app");
+
       // Given: Tracing subscriber is initialized
       // When: Creating a new App
       // Then: Initialization logs should be emitted
       // Note: We can't easily capture logs in unit tests, but we verify
       // that the logging calls compile and the logic is correct
-      let _app = App::new();
+      let _ = App::new();
+
+      std::env::set_current_dir(original_cwd).unwrap();
     }
 
     #[test]
     fn tracing_middleware_is_configured() {
+      let temp_dir = tempfile::tempdir().unwrap();
+      let original_cwd = std::env::current_dir().unwrap();
+      std::env::set_current_dir(&temp_dir).unwrap();
+      setup_test_config(temp_dir.path(), "test_app");
+
       // Given: App creation process
       // When: new() is called
       // Then: TraceLayer should be added with INFO level logging
       // Note: This is verified by successful compilation and runtime behavior
-      let _app = App::new();
+      let _ = App::new();
+
+      std::env::set_current_dir(original_cwd).unwrap();
     }
 
     #[test]
@@ -551,6 +534,11 @@ mod tests {
     #[tokio::test]
     async fn bind_error_returns_error_result() {
       // Given: A port that's likely already in use or invalid
+      let temp_dir = tempfile::tempdir().unwrap();
+      let original_cwd = std::env::current_dir().unwrap();
+      std::env::set_current_dir(&temp_dir).unwrap();
+      setup_test_config(temp_dir.path(), "test_app");
+
       // Bind to a port first, then try to bind again
       let listener = tokio::net::TcpListener::bind("127.0.0.1:0").await.unwrap();
       let _addr = listener.local_addr().unwrap();
@@ -566,6 +554,8 @@ mod tests {
 
       // Then: The error should be a Box<dyn Error>
       assert!(result.is_err());
+
+      std::env::set_current_dir(original_cwd).unwrap();
     }
 
     #[test]
@@ -611,11 +601,17 @@ mod tests {
   }
 
   /// Integration-style tests that can run without external dependencies
+  #[allow(unused_variables)]
   mod integration_tests {
     use super::*;
 
     #[test]
     fn app_builder_pattern_works() {
+      let temp_dir = tempfile::tempdir().unwrap();
+      let original_cwd = std::env::current_dir().unwrap();
+      std::env::set_current_dir(&temp_dir).unwrap();
+      setup_test_config(temp_dir.path(), "test_app");
+
       // Given: Fluent API usage
       // When: Building an app with multiple routes
       let app = App::new()
@@ -624,21 +620,35 @@ mod tests {
         .route("/api/v1/users", || async { "[]" });
 
       // Then: It should succeed
-      let _app = app;
+      let _ = app;
+
+      std::env::set_current_dir(original_cwd).unwrap();
     }
 
     #[test]
     fn app_can_be_moved_and_cloned_conceptually() {
+      let temp_dir = tempfile::tempdir().unwrap();
+      let original_cwd = std::env::current_dir().unwrap();
+      std::env::set_current_dir(&temp_dir).unwrap();
+      setup_test_config(temp_dir.path(), "test_app");
+
       // Given: An app instance
       let app1 = App::new().route("/", || async { "test" });
 
       // When: Moving the app (conceptually - ownership transfer)
       // Then: It should work (compile-time test)
       let _app2 = app1;
+
+      std::env::set_current_dir(original_cwd).unwrap();
     }
 
     #[test]
     fn route_handlers_can_return_different_types() {
+      let temp_dir = tempfile::tempdir().unwrap();
+      let original_cwd = std::env::current_dir().unwrap();
+      std::env::set_current_dir(&temp_dir).unwrap();
+      setup_test_config(temp_dir.path(), "test_app");
+
       // Given: Different response types
       // When: Adding routes with different return types
       let app = App::new()
@@ -649,7 +659,9 @@ mod tests {
         .route("/html", || async { Html("<div>Hello</div>") });
 
       // Then: All should compile successfully
-      let _app = app;
+      let _ = app;
+
+      std::env::set_current_dir(original_cwd).unwrap();
     }
 
     #[tokio::test]
@@ -676,6 +688,36 @@ mod tests {
 
       // Then: It should fail with an error
       assert!(result.is_err());
+    }
+
+    #[tokio::test]
+    async fn app_uses_config_host_and_port() {
+      let temp_dir = tempfile::tempdir().unwrap();
+      let original_cwd = std::env::current_dir().unwrap();
+      std::env::set_current_dir(&temp_dir).unwrap();
+
+      // Given: A specific config
+      let config_dir = temp_dir.path().join("config");
+      fs::create_dir_all(&config_dir).unwrap();
+      let app_toml_content = r#"[app]
+name = "test_app"
+environment = "test"
+
+[server]
+host = "127.0.0.1"
+port = 0
+"#; // Use port 0 for random available port
+      fs::write(config_dir.join("app.toml"), app_toml_content).unwrap();
+
+      // When: Creating an app
+      let app = App::new();
+
+      // Then: It should use the configured host and port
+      assert_eq!(app.config().server.host, "127.0.0.1");
+      // Note: port 0 is used in config, let's verify it matches
+      assert_eq!(app.config().server.port, 0);
+
+      std::env::set_current_dir(original_cwd).unwrap();
     }
   }
 }
