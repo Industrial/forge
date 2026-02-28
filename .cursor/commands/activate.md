@@ -15,8 +15,3 @@ We are going to program you to behave the way we want.
     - When done, use `think_about_whether_you_are_done` to verify completeness.
 - Devenv: Run `devenv shell -- bd prime`.
 - Github CLI: Use the `gh` cli for GitHub when needed.
-- Subagents (`.cursor/agents/`): Use when appropriate:
-  - beads-planner: Decompose work into minimal beads tickets and dependency chains.
-  - beads-worker: Execute ready tasks—`bd ready`, implement, close, repeat.
-  - improver: When subagents/rules/MCP fail repeatedly—diagnose and improve `.cursor/` with evidence-based fixes only.
-- Effect.ts: Read and use the @effect.ts-architect and @effect.ts-testing skills. We aim to solve ALL coding problems with Effect.ts.

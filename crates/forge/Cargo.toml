@@ -12,6 +12,17 @@ keywords = ["web", "framework", "http", "async", "full-stack"]
 categories = ["web-programming::http-server", "asynchronous"]
 
 [dependencies]
+axum = "0.7"
+tokio = { version = "1", features = ["full"] }
+tower = "0.4"
+tower-http = { version = "0.5", features = ["trace"] }
+tracing = "0.1"
+tracing-subscriber = { version = "0.3", features = ["env-filter"] }
+serde = { version = "1.0", features = ["derive"] }
+
+[dev-dependencies]
+serde_json = "1.0"
 
 [lints.rust]
 # Shared lint configuration
+unexpected_cfgs = { level = "warn", check-cfg = ['cfg(coverage)'] }

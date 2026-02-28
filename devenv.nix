@@ -38,7 +38,7 @@
   # Development packages
   packages = with pkgs; [
     # AI
-    inputs.nixpkgs-unstable.legacyPackages.${pkgs.system}.beads
+    inputs.nixpkgs-unstable.legacyPackages.${stdenv.hostPlatform.system}.beads
 
     # Rust tools
     clippy
@@ -86,5 +86,11 @@
 
   enterShell = ''
     prek-install
+
+    # Add forge CLI to PATH if it exists
+    if [ -f ./target/release/forge ]; then
+      export PATH="$PWD/target/release:$PATH"
+      echo "Forge CLI available in PATH"
+    fi
   '';
 }

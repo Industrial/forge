@@ -21,25 +21,6 @@
         inherit system;
         overlays = [cargo2nix.overlays.default];
       };
-      # Default build: buildRustPackage (streamweave from crates.io 0.10.0).
-      # Cargo.lock must be committed so the flake input has it (see README).
-      defaultPackage = pkgs.rustPlatform.buildRustPackage {
-        pname = "forge";
-        version = "0.3.0";
-        src = self;
-        cargoLock.lockFile = self + "/Cargo.lock";
-        nativeBuildInputs = [pkgs.pkg-config];
-        buildInputs = [pkgs.openssl];
-        cargoBuildFlags = ["--bin" "run_dot"];
-        installPhase = ''
-          runHook preInstall
-          # buildRustPackage build phase may not build the bin; build it here so it exists
-          cargo build --release --bin run_dot
-          mkdir -p $out/bin
-          cp target/release/run_dot $out/bin/forge
-          runHook postInstall
-        '';
-      };
       # cargo2nix build (optional): only when Cargo.nix exists.
       # Generate with: nix run .#generate  (or nix run github:cargo2nix/cargo2nix -- cargo2nix)
       hasCargoNix = pkgs.lib.pathExists (self + "/Cargo.nix");
@@ -58,11 +39,30 @@
         then rustPkgs.workspace.forge {}
         else null;
     in {
-      packages =
+      packages = let
+        forgePkg = pkgs.rustPlatform.buildRustPackage {
+          pname = "forge";
+          version = "0.1.0";
+          src = self;
+          cargoLock.lockFile = self + "/Cargo.lock";
+          nativeBuildInputs = [pkgs.pkg-config];
+          buildInputs = [pkgs.openssl];
+          cargoBuildFlags = ["--bin" "forge"];
+          installPhase = ''
+            runHook preInstall
+            # Build the forge binary from the forge-cli crate
+            cargo build --release --bin forge
+            mkdir -p $out/bin
+            cp target/release/forge $out/bin/forge
+            runHook postInstall
+          '';
+        };
+      in
         {
-          default = defaultPackage;
+          forge = forgePkg;
+          default = forgePkg;
           # buildRustPackage (always available)
-          buildRustPackage = defaultPackage;
+          buildRustPackage = forgePkg;
         }
         // pkgs.lib.optionalAttrs (cargo2nixPackage != null) {
           # cargo2nix workspace package (requires Cargo.nix in repo)

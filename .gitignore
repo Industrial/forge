@@ -21,10 +21,9 @@
 .env.local
 .idea
 .idea/
+.serena/
+.tmp
 .vscode/
-/.serena/
-/.tmp
-/target/
 Thumbs.db
 dev-debug.log
 devenv.local.nix
@@ -34,5 +33,6 @@ logs
 node_modules/
 npm-debug.log*
 outcome.json
+target/
 yarn-debug.log*
 yarn-error.log*
