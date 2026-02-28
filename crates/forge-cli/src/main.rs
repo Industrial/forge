@@ -73,7 +73,9 @@ fn create_new_project(name: &str) -> Result<(), Box<dyn std::error::Error>> {
 
   // Create workspace structure
   fs::create_dir_all(project_dir.join("crates/app/src"))?;
-  fs::create_dir_all(project_dir.join("crates/db/src"))?;
+  fs::create_dir_all(project_dir.join("crates/db/src/migrations"))?;
+  fs::create_dir_all(project_dir.join("crates/db/src/seeds"))?;
+  fs::create_dir_all(project_dir.join("crates/db/src/models"))?;
   fs::create_dir_all(project_dir.join("config"))?;
 
   // Get the absolute path to the forge crate relative to this executable
