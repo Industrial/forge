@@ -2,7 +2,7 @@
 
 use clap::{CommandFactory, Parser, Subcommand};
 #[cfg(test)]
-use forge::config::{AppConfig, ServerConfig};
+use forge::config::{AppConfig, DatabaseConfig, ServerConfig};
 use forge::ForgeConfig;
 use std::fs;
 use std::path::Path;
@@ -139,12 +139,17 @@ Thumbs.db
   fs::write(project_dir.join(".gitignore"), gitignore)?;
 
   // Create src/main.rs
-  let main_rs = r#"use forge::App;
+  let main_rs = r#"use forge::prelude::*;
+use forge::axum::extract::State;
 
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn std::error::Error>> {
     App::new()
         .route("/", || async { "Hello from Forge!" })
+        .route("/db-check", |State(db): State<DatabaseConnection>| async move {
+            let backend = db.get_database_backend();
+            format!("Connected to {:?}", backend)
+        })
         .serve()
         .await
 }
@@ -164,6 +169,17 @@ port = 3000
     name
   );
   fs::write(project_dir.join("config").join("app.toml"), app_toml)?;
+
+  // Create config/db.toml
+  let db_toml = r#"[database]
+# SQLite connection string. The file will be created in the project root.
+url = "sqlite://db.sqlite?mode=rwc"
+max_connections = 5
+min_connections = 1
+connect_timeout = 10
+idle_timeout = 600
+"#;
+  fs::write(project_dir.join("config").join("db.toml"), db_toml)?;
 
   // Initialize git repository
   Command::new("git")
@@ -469,10 +485,12 @@ mod tests {
 
       // Then: main.rs should have correct Forge app code
       let main_content = fs::read_to_string("main_test/src/main.rs").unwrap();
-      assert!(main_content.contains("use forge::App;"));
+      assert!(main_content.contains("use forge::prelude::*;"));
+      assert!(main_content.contains("use forge::axum::extract::State;"));
       assert!(main_content.contains("#[tokio::main]"));
       assert!(main_content.contains("App::new()"));
       assert!(main_content.contains(".route(\"/\""));
+      assert!(main_content.contains(".route(\"/db-check\""));
       assert!(main_content.contains(".serve()"));
       assert!(main_content.contains("Hello from Forge!"));
 
@@ -530,6 +548,13 @@ mod tests {
           host: "0.0.0.0".to_string(),
           port: 3000,
         },
+        database: DatabaseConfig {
+          url: "sqlite::memory:".to_string(),
+          max_connections: None,
+          min_connections: None,
+          connect_timeout: None,
+          idle_timeout: None,
+        },
       };
       let result = serve_project(&config);
 
@@ -571,6 +596,13 @@ tokio = "1"
         server: ServerConfig {
           host: "0.0.0.0".to_string(),
           port: 3000,
+        },
+        database: DatabaseConfig {
+          url: "sqlite::memory:".to_string(),
+          max_connections: None,
+          min_connections: None,
+          connect_timeout: None,
+          idle_timeout: None,
         },
       };
       let result = serve_project(&config);
@@ -617,6 +649,13 @@ tokio = "1"
         server: ServerConfig {
           host: "0.0.0.0".to_string(),
           port: 3000,
+        },
+        database: DatabaseConfig {
+          url: "sqlite::memory:".to_string(),
+          max_connections: None,
+          min_connections: None,
+          connect_timeout: None,
+          idle_timeout: None,
         },
       };
       let result = serve_project(&config);

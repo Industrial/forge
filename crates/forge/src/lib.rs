@@ -4,11 +4,30 @@
 
 pub mod app;
 pub mod config;
+pub mod db;
 pub mod error;
 
 pub use app::App;
 pub use config::ForgeConfig;
+pub use db::initialize_database;
 pub use error::Error;
+
+// Re-exports for a unified API (Phase 3)
+pub use axum;
+pub use sea_orm;
+pub use tokio;
+
+/// Re-exported axum extractors for convenience
+pub mod extract {
+  pub use axum::extract::*;
+}
+
+pub mod prelude {
+  pub use crate::app::App;
+  pub use crate::config::ForgeConfig;
+  pub use crate::error::Error;
+  pub use sea_orm::{ConnectionTrait, DatabaseConnection, EntityTrait};
+}
 
 #[cfg(test)]
 mod tests {
@@ -31,6 +50,11 @@ port = 3000
       project_name
     );
     fs::write(config_dir.join("app.toml"), app_toml_content).unwrap();
+
+    let db_toml_content = r#"[database]
+url = "sqlite::memory:"
+"#;
+    fs::write(config_dir.join("db.toml"), db_toml_content).unwrap();
   }
 
   #[allow(unused_variables)]

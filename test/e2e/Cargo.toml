@@ -9,6 +9,9 @@ tempfile = "3"
 reqwest = { version = "0.12", features = ["blocking"] }
 tokio = { version = "1", features = ["full"] }
 forge = { path = "../../crates/forge" }
+tower = { version = "0.4", features = ["util"] }
+http = "1.0"
+axum = "0.7"
 
 [[test]]
 name = "001_cli"
@@ -17,3 +20,7 @@ path = "001_cli.rs"
 [[test]]
 name = "002_config"
 path = "002_config.rs"
+
+[[test]]
+name = "003_database"
+path = "003_database.rs"
