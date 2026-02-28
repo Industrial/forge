@@ -175,7 +175,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         .route("/", || async { "Hello from Forge!" })
         .route("/users", |State(db): State<DatabaseConnection>| async move {
             let users = db::models::user::Entity::find().all(&db).await?;
-            Ok::<_, forge::Error>(axum::Json(users))
+            Ok::<_, forge::Error>(forge::axum::Json(users))
         })
         .serve()
         .await

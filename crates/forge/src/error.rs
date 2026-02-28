@@ -1,5 +1,7 @@
 //! Error types for the Forge framework.
 
+use axum::http::StatusCode;
+use axum::response::{IntoResponse, Response};
 use std::fmt;
 
 /// Custom error type for Forge operations.
@@ -11,6 +13,21 @@ pub enum Error {
   Http(axum::Error),
   /// Generic error with message
   Generic(String),
+  /// Database error
+  Database(sea_orm::DbErr),
+}
+
+impl IntoResponse for Error {
+  fn into_response(self) -> Response {
+    let (status, message) = match self {
+      Error::Io(err) => (StatusCode::INTERNAL_SERVER_ERROR, format!("I/O error: {}", err)),
+      Error::Http(err) => (StatusCode::INTERNAL_SERVER_ERROR, format!("HTTP error: {}", err)),
+      Error::Generic(msg) => (StatusCode::INTERNAL_SERVER_ERROR, msg),
+      Error::Database(err) => (StatusCode::INTERNAL_SERVER_ERROR, format!("Database error: {}", err)),
+    };
+
+    (status, message).into_response()
+  }
 }
 
 impl fmt::Display for Error {
@@ -19,6 +36,7 @@ impl fmt::Display for Error {
       Error::Io(err) => write!(f, "I/O error: {}", err),
       Error::Http(err) => write!(f, "HTTP error: {}", err),
       Error::Generic(msg) => write!(f, "{}", msg),
+      Error::Database(err) => write!(f, "Database error: {}", err),
     }
   }
 }
@@ -29,7 +47,14 @@ impl std::error::Error for Error {
       Error::Io(err) => Some(err),
       Error::Http(err) => Some(err),
       Error::Generic(_) => None,
+      Error::Database(err) => Some(err),
     }
+  }
+}
+
+impl From<sea_orm::DbErr> for Error {
+  fn from(err: sea_orm::DbErr) -> Self {
+    Error::Database(err)
   }
 }
 
