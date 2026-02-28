@@ -20,10 +20,19 @@ pub enum Error {
 impl IntoResponse for Error {
   fn into_response(self) -> Response {
     let (status, message) = match self {
-      Error::Io(err) => (StatusCode::INTERNAL_SERVER_ERROR, format!("I/O error: {}", err)),
-      Error::Http(err) => (StatusCode::INTERNAL_SERVER_ERROR, format!("HTTP error: {}", err)),
+      Error::Io(err) => (
+        StatusCode::INTERNAL_SERVER_ERROR,
+        format!("I/O error: {}", err),
+      ),
+      Error::Http(err) => (
+        StatusCode::INTERNAL_SERVER_ERROR,
+        format!("HTTP error: {}", err),
+      ),
       Error::Generic(msg) => (StatusCode::INTERNAL_SERVER_ERROR, msg),
-      Error::Database(err) => (StatusCode::INTERNAL_SERVER_ERROR, format!("Database error: {}", err)),
+      Error::Database(err) => (
+        StatusCode::INTERNAL_SERVER_ERROR,
+        format!("Database error: {}", err),
+      ),
     };
 
     (status, message).into_response()

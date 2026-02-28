@@ -3,10 +3,13 @@
 //! Core library; CLI lives in the `forge-cli` crate.
 
 pub mod app;
+pub mod auth;
 pub mod config;
 pub mod db;
 pub mod error;
 pub mod seed;
+
+pub use forge_macros::*;
 
 pub use app::App;
 pub use config::ForgeConfig;

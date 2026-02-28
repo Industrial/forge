@@ -1,12 +1,15 @@
 //! Forge App builder - the core of the web framework.
 
 use axum::{handler::Handler, routing::get, Router};
+use axum_login::AuthManagerLayerBuilder;
 use futures::future::BoxFuture;
-use sea_orm::DatabaseConnection;
+use sea_orm::{ConnectionTrait, DatabaseConnection, DbBackend};
 use sea_orm_migration::MigratorTrait;
 use tokio::signal;
 use tower::ServiceBuilder;
 use tower_http::trace::{DefaultMakeSpan, DefaultOnRequest, DefaultOnResponse, TraceLayer};
+use tower_sessions::{Expiry, SessionManagerLayer};
+use tower_sessions_sqlx_store::SqliteStore;
 use tracing::{info, warn};
 
 use crate::config::{self, ForgeConfig};
@@ -23,6 +26,15 @@ pub type SeedFn = Box<
 pub type MigratorFn =
   Box<dyn Fn() -> BoxFuture<'static, Result<(), Box<dyn std::error::Error>>> + Send + Sync>;
 
+/// Type alias for the auth installer function.
+pub type AuthInstallerFn = Box<
+  dyn FnOnce(
+      Router<DatabaseConnection>,
+      DatabaseConnection,
+    ) -> BoxFuture<'static, Router<DatabaseConnection>>
+    + Send,
+>;
+
 /// The main Forge application builder.
 ///
 /// Provides a fluent API for configuring and running Axum-based web applications.
@@ -37,6 +49,8 @@ pub struct App {
   migrator: Option<MigratorFn>,
   /// Optional seeder to run on startup
   seeder: Option<SeedFn>,
+  /// Optional auth installer
+  auth_installer: Option<AuthInstallerFn>,
 }
 
 impl App {
@@ -75,6 +89,7 @@ impl App {
       db: None,
       migrator: None,
       seeder: None,
+      auth_installer: None,
     })
   }
 
@@ -105,6 +120,42 @@ impl App {
     self
   }
 
+  /// Register authentication and session management.
+  pub fn with_auth<B, F>(mut self, backend_factory: F) -> Self
+  where
+    B: axum_login::AuthnBackend + Send + Sync + 'static,
+    B::User: axum_login::AuthUser<Id = uuid::Uuid>,
+    F: Fn(DatabaseConnection) -> B + Send + Sync + 'static,
+  {
+    self.auth_installer = Some(Box::new(move |router, db_conn| {
+      Box::pin(async move {
+        if db_conn.get_database_backend() != DbBackend::Sqlite {
+          warn!("Authentication currently only supports SQLite session store out-of-the-box.");
+          return router;
+        }
+
+        let pool = db_conn.get_sqlite_connection_pool();
+        let session_store = SqliteStore::new(pool.clone());
+
+        if let Err(e) = session_store.migrate().await {
+          warn!("Failed to migrate sessions table: {}", e);
+        }
+
+        let session_layer = SessionManagerLayer::new(session_store)
+          .with_secure(false)
+          .with_expiry(Expiry::OnInactivity(
+            tower_sessions::cookie::time::Duration::days(30),
+          ));
+
+        let backend = backend_factory(db_conn);
+        let auth_layer = AuthManagerLayerBuilder::new(backend, session_layer).build();
+
+        router.layer(auth_layer)
+      })
+    }));
+    self
+  }
+
   /// Get a reference to the application configuration.
   pub fn config(&self) -> &ForgeConfig {
     &self.config
@@ -132,11 +183,12 @@ impl App {
     Self::init_tracing();
 
     let App {
-      router,
+      mut router,
       config,
       db: _,
       migrator,
       seeder,
+      auth_installer,
     } = self;
 
     // Initialize database
@@ -171,6 +223,12 @@ impl App {
           std::process::exit(1);
         });
       }
+    }
+
+    // Install authentication if configured
+    if let Some(installer) = auth_installer {
+      info!("Installing authentication middleware...");
+      router = installer(router, db_conn.clone()).await;
     }
 
     // Inject database connection into state

@@ -11,7 +11,11 @@ tokio = { version = "1", features = ["full"] }
 forge = { path = "../../crates/forge" }
 tower = { version = "0.4", features = ["util"] }
 http = "1.0"
-axum = "0.7"
+axum = "0.8"
+axum-login = "0.17"
+serde = "1.0"
+uuid = { version = "1", features = ["v4", "serde"] }
+async-trait = "0.1"
 
 [[test]]
 name = "001_cli"
@@ -28,3 +32,7 @@ path = "003_database.rs"
 [[test]]
 name = "004_migrations"
 path = "004_migrations.rs"
+
+[[test]]
+name = "005_auth"
+path = "005_auth.rs"
