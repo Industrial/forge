@@ -34,8 +34,8 @@ pub fn create_new_project(name: &str) -> Result<(), Box<dyn std::error::Error>> 
   // Create Root Cargo.toml (Workspace)
   let root_cargo_toml = r#"[workspace]
 members = [
-    "crates/app",
-    "crates/db",
+  "crates/app",
+  "crates/db",
 ]
 resolver = "2"
 "#;
@@ -53,6 +53,11 @@ forge = {{ path = "{}" }}
 db = {{ path = "../db" }}
 tokio = {{ version = "1", features = ["full"] }}
 serde = {{ version = "1.0", features = ["derive"] }}
+axum = "0.8"
+axum-login = "0.17"
+sea-orm = {{ version = "1.1", features = ["runtime-tokio-rustls", "sqlx-sqlite", "macros"] }}
+chrono = {{ version = "0.4", features = ["serde"] }}
+uuid = {{ version = "1.0", features = ["v4", "serde"] }}
 "#,
     forge_crate_path.display()
   );
@@ -68,9 +73,12 @@ edition = "2024"
 [dependencies]
 forge = {{ path = "{}" }}
 sea-orm = {{ version = "1.1", features = ["runtime-tokio-rustls", "sqlx-sqlite", "macros"] }}
+sea-orm-migration = "1.1"
 serde = {{ version = "1.0", features = ["derive"] }}
 uuid = {{ version = "1.0", features = ["v4", "serde"] }}
 chrono = {{ version = "0.4", features = ["serde"] }}
+async-trait = "0.1"
+tracing = "0.1"
 "#,
     forge_crate_path.display()
   );
@@ -105,25 +113,25 @@ Thumbs.db
   fs::write(project_dir.join(".gitignore"), gitignore)?;
 
   // Create crates/app/src/main.rs
-  let main_rs = r#"use forge::prelude::*;
+  let main_rs = r#"use forge::App;
 use db::auth::Backend;
 
 mod handlers;
 
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn std::error::Error>> {
-    App::new()
-        .with_migrations(db::Migrator)
-        .with_seed(|db| Box::pin(db::run_seeds(db)))
-        .with_auth(|db| Backend::new(db))
-        .route("/", || async { "Hello from Forge!" })
-        .post_route("/auth/register", handlers::auth::register)
-        .post_route("/auth/login", handlers::auth::login)
-        .route("/auth/logout", handlers::auth::logout)
-        .route("/auth/profile", handlers::auth::profile)
-        .route("/auth/admin", handlers::auth::admin_only)
-        .serve()
-        .await
+  App::new()
+    .with_migrations(db::Migrator)
+    .with_seed(|db| Box::pin(db::run_seeds(db)))
+    .with_auth(|db| Backend::new(db))
+    .route("/", || async { "Hello from Forge!" })
+    .post_route("/auth/register", handlers::auth::register)
+    .post_route("/auth/login", handlers::auth::login)
+    .route("/auth/logout", handlers::auth::logout)
+    .route("/auth/profile", handlers::auth::profile)
+    .route("/auth/admin", handlers::auth::admin_only)
+    .serve()
+    .await
 }
 "#;
   fs::write(project_dir.join("crates/app/src/main.rs"), main_rs)?;
@@ -135,129 +143,137 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
   )?;
 
   // Create crates/app/src/handlers/auth.rs
-  let auth_handlers_rs = r#"use forge::prelude::*;
-use forge::axum::{
-    extract::State,
-    http::StatusCode,
-    response::IntoResponse,
-    Json,
+  let auth_handlers_rs = r#"use axum::{
+  extract::State,
+  http::StatusCode,
+  response::IntoResponse,
+  Json,
 };
+use axum_login::AuthSession;
+use chrono::Utc;
+use forge::auth::hash_password;
+use forge::authz::{Action, AuthSessionGuardExt, AuthzContext, Role};
+use forge::Error as ForgeError;
+use sea_orm::{ActiveModelTrait, DatabaseConnection, EntityTrait, Set, TransactionTrait};
+use serde::Deserialize;
+use uuid::Uuid;
+
 use db::auth::Backend;
 use db::models::{organization, membership, user};
 
 #[derive(Deserialize)]
 pub struct RegisterRequest {
-    pub email: String,
-    pub password: String,
+  pub email: String,
+  pub password: String,
 }
 
 pub async fn register(
-    State(db): State<DatabaseConnection>,
-    Json(payload): Json<RegisterRequest>,
-) -> Result<impl IntoResponse, forge::Error> {
-    let password_hash = forge::auth::hash_password(&payload.password)?;
-    let now = Utc::now().naive_utc();
-    let user_id = Uuid::new_v4();
-    let org_id = Uuid::new_v4();
-    let membership_id = Uuid::new_v4();
+  State(db): State<DatabaseConnection>,
+  Json(payload): Json<RegisterRequest>,
+) -> Result<impl IntoResponse, ForgeError> {
+  let password_hash = hash_password(&payload.password)?;
+  let now = Utc::now().naive_utc();
+  let user_id = Uuid::new_v4();
+  let org_id = Uuid::new_v4();
+  let membership_id = Uuid::new_v4();
 
-    let tx = db.begin().await?;
-    let new_user = user::ActiveModel {
-        id: Set(user_id),
-        email: Set(payload.email.clone()),
-        password_hash: Set(password_hash),
-        is_active: Set(true),
-        is_admin: Set(false),
-        current_org_id: Set(None),
-        current_role: Set(None),
-        created_at: Set(now),
-        updated_at: Set(now),
-    };
-    user::Entity::insert(new_user).exec(&tx).await?;
+  let tx = db.begin().await?;
+  let new_user = user::ActiveModel {
+    id: Set(user_id),
+    email: Set(payload.email.clone()),
+    password_hash: Set(password_hash),
+    is_active: Set(true),
+    is_admin: Set(false),
+    current_org_id: Set(None),
+    current_role: Set(None),
+    created_at: Set(now),
+    updated_at: Set(now),
+  };
+  user::Entity::insert(new_user).exec(&tx).await?;
 
-    let slug = format!("org-{}", org_id.as_simple());
-    let new_org = organization::ActiveModel {
-        id: Set(org_id),
-        name: Set(format!("{}'s workspace", payload.email)),
-        slug: Set(slug),
-        created_at: Set(now),
-        updated_at: Set(now),
-    };
-    organization::Entity::insert(new_org).exec(&tx).await?;
+  let slug = format!("org-{}", org_id.as_simple());
+  let new_org = organization::ActiveModel {
+    id: Set(org_id),
+    name: Set(format!("{}'s workspace", payload.email)),
+    slug: Set(slug),
+    created_at: Set(now),
+    updated_at: Set(now),
+  };
+  organization::Entity::insert(new_org).exec(&tx).await?;
 
-    let new_membership = membership::ActiveModel {
-        id: Set(membership_id),
-        user_id: Set(user_id),
-        org_id: Set(org_id),
-        role: Set("owner".to_string()),
-        created_at: Set(now),
-        updated_at: Set(now),
-    };
-    membership::Entity::insert(new_membership).exec(&tx).await?;
+  let new_membership = membership::ActiveModel {
+    id: Set(membership_id),
+    user_id: Set(user_id),
+    org_id: Set(org_id),
+    role: Set("owner".to_string()),
+    created_at: Set(now),
+    updated_at: Set(now),
+  };
+  membership::Entity::insert(new_membership).exec(&tx).await?;
 
-    let u = user::Entity::find_by_id(user_id).one(&tx).await?.ok_or_else(|| forge::Error::Generic("User not found".into()))?;
-    let mut am: user::ActiveModel = u.into();
-    am.current_org_id = Set(Some(org_id));
-    am.current_role = Set(Some("owner".to_string()));
-    am.updated_at = Set(now);
-    am.update(&tx).await?;
+  let u = user::Entity::find_by_id(user_id).one(&tx).await?.ok_or_else(|| ForgeError::Generic("User not found".into()))?;
+  let mut am: user::ActiveModel = u.into();
+  am.current_org_id = Set(Some(org_id));
+  am.current_role = Set(Some("owner".to_string()));
+  am.updated_at = Set(now);
+  am.update(&tx).await?;
 
-    tx.commit().await?;
+  tx.commit().await?;
 
-    Ok((StatusCode::CREATED, "User registered successfully"))
+  Ok((StatusCode::CREATED, "User registered successfully"))
 }
 
 #[derive(Deserialize)]
 pub struct LoginRequest {
-    pub email: String,
-    pub password: String,
+  pub email: String,
+  pub password: String,
 }
 
 pub async fn login(
-    mut auth_session: AuthSession<Backend>,
-    Json(payload): Json<LoginRequest>,
-) -> Result<impl IntoResponse, forge::Error> {
-    let credentials = db::auth::Credentials {
-        email: payload.email,
-        password: payload.password,
-    };
+  mut auth_session: AuthSession<Backend>,
+  Json(payload): Json<LoginRequest>,
+) -> Result<impl IntoResponse, ForgeError> {
+  let credentials = db::auth::Credentials {
+    email: payload.email,
+    password: payload.password,
+  };
 
-    let user = auth_session
-        .authenticate(credentials)
-        .await
-        .map_err(|e| forge::Error::Generic(format!("Authentication error: {}", e)))?;
+  let user = auth_session
+    .authenticate(credentials)
+    .await
+    .map_err(|e| ForgeError::Generic(format!("Authentication error: {}", e)))?;
 
-    if let Some(user) = user {
-        auth_session
-            .login(&user)
-            .await
-            .map_err(|e| forge::Error::Generic(format!("Login error: {}", e)))?;
-        Ok(StatusCode::OK.into_response())
-    } else {
-        Ok((StatusCode::UNAUTHORIZED, "Invalid credentials").into_response())
-    }
+  if let Some(user) = user {
+    auth_session
+      .login(&user)
+      .await
+      .map_err(|e| ForgeError::Generic(format!("Login error: {}", e)))?;
+    Ok(StatusCode::OK.into_response())
+  } else {
+    Ok((StatusCode::UNAUTHORIZED, "Invalid credentials").into_response())
+  }
 }
 
 pub async fn logout(mut auth_session: AuthSession<Backend>) -> impl IntoResponse {
-    auth_session.logout().await.unwrap();
-    StatusCode::OK
+  auth_session.logout().await.unwrap();
+  StatusCode::OK
 }
 
 pub async fn profile(auth_session: AuthSession<Backend>) -> impl IntoResponse {
-    match &auth_session.user {
-        Some(user) => {
-            let org = auth_session.organization_id().map(|id| id.to_string()).unwrap_or_else(|| "none".to_string());
-            let role = auth_session.role().map(|r| format!("{:?}", r)).unwrap_or_else(|| "none".to_string());
-            format!("Hello, {}! org={} role={}", user.email, org, role).into_response()
-        }
-        None => (StatusCode::UNAUTHORIZED, "Not logged in").into_response(),
+  match &auth_session.user {
+    Some(user) => {
+      let org = auth_session.organization_id().map(|id| id.to_string()).unwrap_or_else(|| "none".to_string());
+      let role = auth_session.role().map(|r| format!("{:?}", r)).unwrap_or_else(|| "none".to_string());
+      format!("Hello, {}! org={} role={}", user.email, org, role).into_response()
     }
+    None => (StatusCode::UNAUTHORIZED, "Not logged in").into_response(),
+  }
 }
 
 /// Shallow Gate example: only users with Role::Owner (or Admin) can access.
-pub async fn admin_only(auth_session: AuthSession<Backend>) -> Result<impl IntoResponse, forge::Error> {
-    auth_session.guard(Action::Manage, Role::Owner)?;
-    Ok((StatusCode::OK, "Admin only: access granted"))
+pub async fn admin_only(auth_session: AuthSession<Backend>) -> Result<impl IntoResponse, ForgeError> {
+  auth_session.guard(Action::Manage, Role::Owner)?;
+  Ok((StatusCode::OK, "Admin only: access granted"))
 }
 "#;
   fs::write(
@@ -266,8 +282,9 @@ pub async fn admin_only(auth_session: AuthSession<Backend>) -> Result<impl IntoR
   )?;
 
   // Create crates/db/src/lib.rs
-  let db_lib_rs = r#"use forge::prelude::*;
-use forge::sea_orm_migration::prelude::*;
+  let db_lib_rs = r#"use async_trait::async_trait;
+use sea_orm::DatabaseConnection;
+use sea_orm_migration::prelude::{MigrationTrait, MigratorTrait};
 
 pub mod migrations;
 pub mod models;
@@ -278,78 +295,79 @@ pub struct Migrator;
 
 #[async_trait]
 impl MigratorTrait for Migrator {
-    fn migrations() -> Vec<Box<dyn MigrationTrait>> {
-        vec![
-            Box::new(migrations::m20220101_000001_create_user_table::Migration),
-            Box::new(migrations::m20220101_000002_create_sessions_table::Migration),
-            Box::new(migrations::m20220101_000003_create_organizations_table::Migration),
-            Box::new(migrations::m20220101_000004_create_memberships_table::Migration),
-        ]
-    }
+  fn migrations() -> Vec<Box<dyn MigrationTrait>> {
+    vec![
+      Box::new(migrations::m20220101_000001_create_user_table::Migration),
+      Box::new(migrations::m20220101_000002_create_sessions_table::Migration),
+      Box::new(migrations::m20220101_000003_create_organizations_table::Migration),
+      Box::new(migrations::m20220101_000004_create_memberships_table::Migration),
+    ]
+  }
 }
 
 pub async fn run_seeds(db: DatabaseConnection) -> Result<(), Box<dyn std::error::Error>> {
-    seeds::s20220101_000001_seed_users::seed(&db).await?;
-    Ok(())
-}
-
-pub mod prelude {
-    pub use crate::models::user;
+  seeds::s20220101_000001_seed_users::seed(&db).await?;
+  Ok(())
 }
 "#;
   fs::write(project_dir.join("crates/db/src/lib.rs"), db_lib_rs)?;
 
   // Create crates/db/src/auth.rs
-  let db_auth_rs = r#"use forge::prelude::*;
+  let db_auth_rs = r#"use async_trait::async_trait;
+use forge::auth::verify_password;
+use forge::{axum_login::AuthnBackend, Error};
+use sea_orm::{ColumnTrait, DatabaseConnection, EntityTrait, QueryFilter};
+use serde::Deserialize;
+
 use crate::models::user;
 
 #[derive(Clone, Debug)]
 pub struct Backend {
-    db: DatabaseConnection,
+  db: DatabaseConnection,
 }
 
 impl Backend {
-    pub fn new(db: DatabaseConnection) -> Self {
-        Self { db }
-    }
+  pub fn new(db: DatabaseConnection) -> Self {
+    Self { db }
+  }
 }
 
 #[derive(Debug, Deserialize)]
 pub struct Credentials {
-    pub email: String,
-    pub password: String,
+  pub email: String,
+  pub password: String,
 }
 
 #[async_trait]
 impl AuthnBackend for Backend {
-    type User = user::Model;
-    type Credentials = Credentials;
-    type Error = forge::Error;
+  type User = user::Model;
+  type Credentials = Credentials;
+  type Error = Error;
 
-    async fn authenticate(
-        &self,
-        creds: Self::Credentials,
-    ) -> Result<Option<Self::User>, Self::Error> {
-        let user = user::Entity::find()
-            .filter(user::Column::Email.eq(creds.email))
-            .one(&self.db)
-            .await?;
+  async fn authenticate(
+  &self,
+  creds: Self::Credentials,
+  ) -> Result<Option<Self::User>, Self::Error> {
+    let user = user::Entity::find()
+      .filter(user::Column::Email.eq(creds.email))
+      .one(&self.db)
+      .await?;
 
-        if let Some(user) = user {
-            if forge::auth::verify_password(&creds.password, &user.password_hash)? {
-                return Ok(Some(user));
-            }
-        }
-
-        Ok(None)
+    if let Some(user) = user {
+      if verify_password(&creds.password, &user.password_hash)? {
+        return Ok(Some(user));
+      }
     }
 
-    async fn get_user(&self, user_id: &forge::axum_login::UserId<Self>) -> Result<Option<Self::User>, Self::Error> {
-        let user = user::Entity::find_by_id(*user_id)
-            .one(&self.db)
-            .await?;
-        Ok(user)
-    }
+    Ok(None)
+  }
+
+  async fn get_user(&self, user_id: &forge::axum_login::UserId<Self>) -> Result<Option<Self::User>, Error> {
+    let user = user::Entity::find_by_id(*user_id)
+      .one(&self.db)
+      .await?;
+    Ok(user)
+  }
 }
 "#;
   fs::write(project_dir.join("crates/db/src/auth.rs"), db_auth_rs)?;
@@ -361,62 +379,62 @@ impl AuthnBackend for Backend {
   )?;
 
   // Create crates/db/src/migrations/m20220101_000001_create_user_table.rs
-  let migration_rs = r#"use forge::sea_orm_migration::prelude::*;
+  let migration_rs = r#"use sea_orm_migration::prelude::*;
 
 #[derive(Iden)]
 pub enum User {
-    Table,
-    Id,
-    Email,
-    PasswordHash,
-    IsActive,
-    IsAdmin,
-    CurrentOrgId,
-    CurrentRole,
-    CreatedAt,
-    UpdatedAt,
+  Table,
+  Id,
+  Email,
+  PasswordHash,
+  IsActive,
+  IsAdmin,
+  CurrentOrgId,
+  CurrentRole,
+  CreatedAt,
+  UpdatedAt,
 }
 
 pub struct Migration;
 
 impl MigrationName for Migration {
-    fn name(&self) -> &str {
-        "m20220101_000001_create_user_table"
-    }
+  fn name(&self) -> &str {
+    "m20220101_000001_create_user_table"
+  }
 }
 
 #[async_trait::async_trait]
 impl MigrationTrait for Migration {
-    async fn up(&self, manager: &SchemaManager) -> Result<(), DbErr> {
-        manager
-            .create_table(
-                Table::create()
-                    .table(User::Table)
-                    .if_not_exists()
-                    .col(
-                        ColumnDef::new(User::Id)
-                            .uuid()
-                            .not_null()
-                            .primary_key(),
-                    )
-                    .col(ColumnDef::new(User::Email).string().unique_key().not_null())
-                    .col(ColumnDef::new(User::PasswordHash).string().not_null())
-                    .col(ColumnDef::new(User::IsActive).boolean().not_null().default(true))
-                    .col(ColumnDef::new(User::IsAdmin).boolean().not_null().default(false))
-                    .col(ColumnDef::new(User::CurrentOrgId).uuid())
-                    .col(ColumnDef::new(User::CurrentRole).string())
-                    .col(ColumnDef::new(User::CreatedAt).date_time().not_null())
-                    .col(ColumnDef::new(User::UpdatedAt).date_time().not_null())
-                    .to_owned(),
-            )
-            .await
-    }
+  async fn up(&self, manager: &SchemaManager) -> Result<(), DbErr> {
+    manager
+      .create_table(
+        Table::create()
+          .table(User::Table)
+          .if_not_exists()
+          .col(
+            ColumnDef::new(User::Id)
+              .uuid()
+              .not_null()
+              .primary_key(),
+          )
+          .col(ColumnDef::new(User::Email).string().unique_key().not_null())
+          .col(ColumnDef::new(User::PasswordHash).string().not_null())
+          .col(ColumnDef::new(User::IsActive).boolean().not_null().default(true))
+          .col(ColumnDef::new(User::IsAdmin).boolean().not_null().default(false))
+          .col(ColumnDef::new(User::CurrentOrgId).uuid())
+          .col(ColumnDef::new(User::CurrentRole).string())
+          .col(ColumnDef::new(User::CreatedAt).date_time().not_null())
+          .col(ColumnDef::new(User::UpdatedAt).date_time().not_null())
+          .to_owned(),
+      )
+      .await
+  }
 
-    async fn down(&self, manager: &SchemaManager) -> Result<(), DbErr> {
-        manager
-            .drop_table(Table::drop().table(User::Table).to_owned())
-            .await
-    }
+  async fn down(&self, manager: &SchemaManager) -> Result<(), DbErr> {
+    manager
+      .drop_table(Table::drop().table(User::Table).to_owned())
+      .await
+  }
 }
 "#;
   fs::write(
@@ -425,37 +443,37 @@ impl MigrationTrait for Migration {
   )?;
 
   // Create crates/db/src/migrations/m20220101_000002_create_sessions_table.rs
-  let sessions_migration_rs = r#"use forge::sea_orm_migration::prelude::*;
+  let sessions_migration_rs = r#"use sea_orm_migration::prelude::*;
 
 pub struct Migration;
 
 impl MigrationName for Migration {
-    fn name(&self) -> &str {
-        "m20220101_000002_create_sessions_table"
-    }
+  fn name(&self) -> &str {
+    "m20220101_000002_create_sessions_table"
+  }
 }
 
 #[async_trait::async_trait]
 impl MigrationTrait for Migration {
-    async fn up(&self, manager: &SchemaManager) -> Result<(), DbErr> {
-        manager
-            .create_table(
-                Table::create()
-                    .table(Alias::new("sessions"))
-                    .if_not_exists()
-                    .col(ColumnDef::new(Alias::new("id")).string().not_null().primary_key())
-                    .col(ColumnDef::new(Alias::new("data")).binary().not_null())
-                    .col(ColumnDef::new(Alias::new("expiry_date")).big_integer().not_null())
-                    .to_owned(),
-            )
-            .await
-    }
+  async fn up(&self, manager: &SchemaManager) -> Result<(), DbErr> {
+    manager
+      .create_table(
+        Table::create()
+          .table(Alias::new("sessions"))
+          .if_not_exists()
+          .col(ColumnDef::new(Alias::new("id")).string().not_null().primary_key())
+          .col(ColumnDef::new(Alias::new("data")).binary().not_null())
+          .col(ColumnDef::new(Alias::new("expiry_date")).big_integer().not_null())
+          .to_owned(),
+      )
+      .await
+  }
 
-    async fn down(&self, manager: &SchemaManager) -> Result<(), DbErr> {
-        manager
-            .drop_table(Table::drop().table(Alias::new("sessions")).to_owned())
-            .await
-    }
+  async fn down(&self, manager: &SchemaManager) -> Result<(), DbErr> {
+    manager
+      .drop_table(Table::drop().table(Alias::new("sessions")).to_owned())
+      .await
+  }
 }
 "#;
   fs::write(
@@ -463,47 +481,47 @@ impl MigrationTrait for Migration {
     sessions_migration_rs,
   )?;
 
-  let org_migration_rs = r#"use forge::sea_orm_migration::prelude::*;
+  let org_migration_rs = r#"use sea_orm_migration::prelude::*;
 
 #[derive(Iden)]
 pub enum Organization {
-    Table,
-    Id,
-    Name,
-    Slug,
-    CreatedAt,
-    UpdatedAt,
+  Table,
+  Id,
+  Name,
+  Slug,
+  CreatedAt,
+  UpdatedAt,
 }
 
 pub struct Migration;
 
 impl MigrationName for Migration {
-    fn name(&self) -> &str {
-        "m20220101_000003_create_organizations_table"
-    }
+  fn name(&self) -> &str {
+    "m20220101_000003_create_organizations_table"
+  }
 }
 
 #[async_trait::async_trait]
 impl MigrationTrait for Migration {
-    async fn up(&self, manager: &SchemaManager) -> Result<(), DbErr> {
-        manager
-            .create_table(
-                Table::create()
-                    .table(Organization::Table)
-                    .if_not_exists()
-                    .col(ColumnDef::new(Organization::Id).uuid().not_null().primary_key())
-                    .col(ColumnDef::new(Organization::Name).string().not_null())
-                    .col(ColumnDef::new(Organization::Slug).string().unique_key().not_null())
-                    .col(ColumnDef::new(Organization::CreatedAt).date_time().not_null())
-                    .col(ColumnDef::new(Organization::UpdatedAt).date_time().not_null())
-                    .to_owned(),
-            )
-            .await
-    }
+  async fn up(&self, manager: &SchemaManager) -> Result<(), DbErr> {
+    manager
+      .create_table(
+        Table::create()
+          .table(Organization::Table)
+          .if_not_exists()
+          .col(ColumnDef::new(Organization::Id).uuid().not_null().primary_key())
+          .col(ColumnDef::new(Organization::Name).string().not_null())
+          .col(ColumnDef::new(Organization::Slug).string().unique_key().not_null())
+          .col(ColumnDef::new(Organization::CreatedAt).date_time().not_null())
+          .col(ColumnDef::new(Organization::UpdatedAt).date_time().not_null())
+          .to_owned(),
+      )
+      .await
+  }
 
-    async fn down(&self, manager: &SchemaManager) -> Result<(), DbErr> {
-        manager.drop_table(Table::drop().table(Organization::Table).to_owned()).await
-    }
+  async fn down(&self, manager: &SchemaManager) -> Result<(), DbErr> {
+    manager.drop_table(Table::drop().table(Organization::Table).to_owned()).await
+  }
 }
 "#;
   fs::write(
@@ -511,49 +529,49 @@ impl MigrationTrait for Migration {
     org_migration_rs,
   )?;
 
-  let membership_migration_rs = r#"use forge::sea_orm_migration::prelude::*;
+  let membership_migration_rs = r#"use sea_orm_migration::prelude::*;
 
 #[derive(Iden)]
 pub enum Membership {
-    Table,
-    Id,
-    UserId,
-    OrgId,
-    Role,
-    CreatedAt,
-    UpdatedAt,
+  Table,
+  Id,
+  UserId,
+  OrgId,
+  Role,
+  CreatedAt,
+  UpdatedAt,
 }
 
 pub struct Migration;
 
 impl MigrationName for Migration {
-    fn name(&self) -> &str {
-        "m20220101_000004_create_memberships_table"
-    }
+  fn name(&self) -> &str {
+    "m20220101_000004_create_memberships_table"
+  }
 }
 
 #[async_trait::async_trait]
 impl MigrationTrait for Migration {
-    async fn up(&self, manager: &SchemaManager) -> Result<(), DbErr> {
-        manager
-            .create_table(
-                Table::create()
-                    .table(Membership::Table)
-                    .if_not_exists()
-                    .col(ColumnDef::new(Membership::Id).uuid().not_null().primary_key())
-                    .col(ColumnDef::new(Membership::UserId).uuid().not_null())
-                    .col(ColumnDef::new(Membership::OrgId).uuid().not_null())
-                    .col(ColumnDef::new(Membership::Role).string().not_null())
-                    .col(ColumnDef::new(Membership::CreatedAt).date_time().not_null())
-                    .col(ColumnDef::new(Membership::UpdatedAt).date_time().not_null())
-                    .to_owned(),
-            )
-            .await
-    }
+  async fn up(&self, manager: &SchemaManager) -> Result<(), DbErr> {
+    manager
+      .create_table(
+        Table::create()
+          .table(Membership::Table)
+          .if_not_exists()
+          .col(ColumnDef::new(Membership::Id).uuid().not_null().primary_key())
+          .col(ColumnDef::new(Membership::UserId).uuid().not_null())
+          .col(ColumnDef::new(Membership::OrgId).uuid().not_null())
+          .col(ColumnDef::new(Membership::Role).string().not_null())
+          .col(ColumnDef::new(Membership::CreatedAt).date_time().not_null())
+          .col(ColumnDef::new(Membership::UpdatedAt).date_time().not_null())
+          .to_owned(),
+      )
+      .await
+  }
 
-    async fn down(&self, manager: &SchemaManager) -> Result<(), DbErr> {
-        manager.drop_table(Table::drop().table(Membership::Table).to_owned()).await
-    }
+  async fn down(&self, manager: &SchemaManager) -> Result<(), DbErr> {
+    manager.drop_table(Table::drop().table(Membership::Table).to_owned()).await
+  }
 }
 "#;
   fs::write(
@@ -568,60 +586,65 @@ impl MigrationTrait for Migration {
   )?;
 
   // Create crates/db/src/seeds/s20220101_000001_seed_users.rs
-  let seed_rs = r#"use forge::prelude::*;
+  let seed_rs = r#"use chrono::Utc;
+use forge::auth::hash_password;
+use sea_orm::{ColumnTrait, DatabaseConnection, EntityTrait, QueryFilter, Set};
+use tracing::info;
+use uuid::Uuid;
+
 use crate::models::{organization, membership, user};
 
 pub async fn seed(db: &DatabaseConnection) -> Result<(), Box<dyn std::error::Error>> {
-    let email = "root@localhost";
+  let email = "root@localhost";
 
-    let existing = user::Entity::find()
-        .filter(user::Column::Email.eq(email))
-        .one(db)
-        .await?;
+  let existing = user::Entity::find()
+    .filter(user::Column::Email.eq(email))
+    .one(db)
+    .await?;
 
-    if existing.is_none() {
-        let now = Utc::now().naive_utc();
-        let user_id = Uuid::new_v4();
-        let org_id = Uuid::new_v4();
-        let membership_id = Uuid::new_v4();
-        let password_hash = forge::auth::hash_password("password123")?;
+  if existing.is_none() {
+    let now = Utc::now().naive_utc();
+    let user_id = Uuid::new_v4();
+    let org_id = Uuid::new_v4();
+    let membership_id = Uuid::new_v4();
+    let password_hash = hash_password("password123")?;
 
-        let root_user = user::ActiveModel {
-            id: Set(user_id),
-            email: Set(email.to_owned()),
-            password_hash: Set(password_hash),
-            is_active: Set(true),
-            is_admin: Set(true),
-            current_org_id: Set(Some(org_id)),
-            current_role: Set(Some("owner".to_string())),
-            created_at: Set(now),
-            updated_at: Set(now),
-        };
-        user::Entity::insert(root_user).exec(db).await?;
+    let root_user = user::ActiveModel {
+      id: Set(user_id),
+      email: Set(email.to_owned()),
+      password_hash: Set(password_hash),
+      is_active: Set(true),
+      is_admin: Set(true),
+      current_org_id: Set(Some(org_id)),
+      current_role: Set(Some("owner".to_string())),
+      created_at: Set(now),
+      updated_at: Set(now),
+    };
+    user::Entity::insert(root_user).exec(db).await?;
 
-        let default_org = organization::ActiveModel {
-            id: Set(org_id),
-            name: Set("Default".to_string()),
-            slug: Set("default".to_string()),
-            created_at: Set(now),
-            updated_at: Set(now),
-        };
-        organization::Entity::insert(default_org).exec(db).await?;
+    let default_org = organization::ActiveModel {
+      id: Set(org_id),
+      name: Set("Default".to_string()),
+      slug: Set("default".to_string()),
+      created_at: Set(now),
+      updated_at: Set(now),
+    };
+    organization::Entity::insert(default_org).exec(db).await?;
 
-        let root_membership = membership::ActiveModel {
-            id: Set(membership_id),
-            user_id: Set(user_id),
-            org_id: Set(org_id),
-            role: Set("owner".to_string()),
-            created_at: Set(now),
-            updated_at: Set(now),
-        };
-        membership::Entity::insert(root_membership).exec(db).await?;
+    let root_membership = membership::ActiveModel {
+      id: Set(membership_id),
+      user_id: Set(user_id),
+      org_id: Set(org_id),
+      role: Set("owner".to_string()),
+      created_at: Set(now),
+      updated_at: Set(now),
+    };
+    membership::Entity::insert(root_membership).exec(db).await?;
 
-        info!("Seeded root user: {} with org and Owner membership", email);
-    }
+    info!("Seeded root user: {} with org and Owner membership", email);
+  }
 
-    Ok(())
+  Ok(())
 }
 "#;
   fs::write(
@@ -636,44 +659,46 @@ pub async fn seed(db: &DatabaseConnection) -> Result<(), Box<dyn std::error::Err
   )?;
 
   // Create crates/db/src/models/user.rs
-  let user_model_rs = r#"use forge::prelude::*;
+  let user_model_rs = r#"use forge::authz::{AuthzContext, Role};
+use forge::ForgeAuthUser;
 use sea_orm::entity::prelude::*;
+use serde::{Deserialize, Serialize};
 
 #[derive(Clone, Debug, PartialEq, DeriveEntityModel, Serialize, Deserialize, ForgeAuthUser)]
 #[sea_orm(table_name = "user")]
 pub struct Model {
-    #[sea_orm(primary_key, auto_increment = false)]
-    pub id: Uuid,
-    #[sea_orm(unique)]
-    pub email: String,
-    pub password_hash: String,
-    pub is_active: bool,
-    pub is_admin: bool,
-    pub current_org_id: Option<Uuid>,
-    pub current_role: Option<String>,
-    pub created_at: chrono::NaiveDateTime,
-    pub updated_at: chrono::NaiveDateTime,
+  #[sea_orm(primary_key, auto_increment = false)]
+  pub id: Uuid,
+  #[sea_orm(unique)]
+  pub email: String,
+  pub password_hash: String,
+  pub is_active: bool,
+  pub is_admin: bool,
+  pub current_org_id: Option<Uuid>,
+  pub current_role: Option<String>,
+  pub created_at: chrono::NaiveDateTime,
+  pub updated_at: chrono::NaiveDateTime,
 }
 
 impl AuthzContext for Model {
-    fn requester_id(&self) -> Uuid {
-        self.id
-    }
-    fn subject_id(&self) -> Uuid {
-        self.id
-    }
-    fn organization_id(&self) -> Option<Uuid> {
-        self.current_org_id
-    }
-    fn role(&self) -> Option<Role> {
-        self.current_role.as_deref().and_then(|s| match s {
-            "owner" => Some(Role::Owner),
-            "admin" => Some(Role::Admin),
-            "editor" => Some(Role::Editor),
-            "viewer" => Some(Role::Viewer),
-            _ => None,
-        })
-    }
+  fn requester_id(&self) -> Uuid {
+    self.id
+  }
+  fn subject_id(&self) -> Uuid {
+    self.id
+  }
+  fn organization_id(&self) -> Option<Uuid> {
+    self.current_org_id
+  }
+  fn role(&self) -> Option<Role> {
+    self.current_role.as_deref().and_then(|s| match s {
+      "owner" => Some(Role::Owner),
+      "admin" => Some(Role::Admin),
+      "editor" => Some(Role::Editor),
+      "viewer" => Some(Role::Viewer),
+      _ => None,
+    })
+  }
 }
 
 #[derive(Copy, Clone, Debug, EnumIter, DeriveRelation)]
@@ -686,19 +711,19 @@ impl ActiveModelBehavior for ActiveModel {}
     user_model_rs,
   )?;
 
-  let org_model_rs = r#"use forge::prelude::*;
-use sea_orm::entity::prelude::*;
+  let org_model_rs = r#"use sea_orm::entity::prelude::*;
+use serde::{Deserialize, Serialize};
 
 #[derive(Clone, Debug, PartialEq, DeriveEntityModel, Serialize, Deserialize)]
 #[sea_orm(table_name = "organization")]
 pub struct Model {
-    #[sea_orm(primary_key, auto_increment = false)]
-    pub id: Uuid,
-    pub name: String,
-    #[sea_orm(unique)]
-    pub slug: String,
-    pub created_at: chrono::NaiveDateTime,
-    pub updated_at: chrono::NaiveDateTime,
+  #[sea_orm(primary_key, auto_increment = false)]
+  pub id: Uuid,
+  pub name: String,
+  #[sea_orm(unique)]
+  pub slug: String,
+  pub created_at: chrono::NaiveDateTime,
+  pub updated_at: chrono::NaiveDateTime,
 }
 
 #[derive(Copy, Clone, Debug, EnumIter, DeriveRelation)]
@@ -711,19 +736,19 @@ impl ActiveModelBehavior for ActiveModel {}
     org_model_rs,
   )?;
 
-  let membership_model_rs = r#"use forge::prelude::*;
-use sea_orm::entity::prelude::*;
+  let membership_model_rs = r#"use sea_orm::entity::prelude::*;
+use serde::{Deserialize, Serialize};
 
 #[derive(Clone, Debug, PartialEq, DeriveEntityModel, Serialize, Deserialize)]
 #[sea_orm(table_name = "membership")]
 pub struct Model {
-    #[sea_orm(primary_key, auto_increment = false)]
-    pub id: Uuid,
-    pub user_id: Uuid,
-    pub org_id: Uuid,
-    pub role: String,
-    pub created_at: chrono::NaiveDateTime,
-    pub updated_at: chrono::NaiveDateTime,
+  #[sea_orm(primary_key, auto_increment = false)]
+  pub id: Uuid,
+  pub user_id: Uuid,
+  pub org_id: Uuid,
+  pub role: String,
+  pub created_at: chrono::NaiveDateTime,
+  pub updated_at: chrono::NaiveDateTime,
 }
 
 #[derive(Copy, Clone, Debug, EnumIter, DeriveRelation)]

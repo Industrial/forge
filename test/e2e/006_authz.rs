@@ -1,9 +1,19 @@
 //! End-to-End tests for Forge Authorization (Phase 6)
+//!
+//! **Covered:** Org isolation (context), Shallow Gate (`guard`) for all roles (Owner, Admin, Editor, Viewer),
+//! role hierarchy (Owner > Admin > Editor > Viewer), unauthenticated → Forbidden, and user with no role → Forbidden.
+//!
+//! **Not covered here:** Deep Scope (ForgeScoped / `.scoped(&auth)`) and ForgePolicy (ReBAC) require a full
+//! SeaORM + generated-app environment and are better exercised via a generated project or integration tests.
 
-use forge::prelude::*;
+use async_trait::async_trait;
+use axum_login::{AuthSession, AuthnBackend};
+use forge::authz::{Action, AuthSessionGuardExt, AuthzContext, Role};
+use forge::{App, Error as ForgeError, ForgeAuthUser};
 use http::{Request, StatusCode, header};
 use std::fs;
 use tower::ServiceExt;
+use uuid::Uuid;
 
 #[derive(Clone, Debug, ForgeAuthUser)]
 #[allow(dead_code)]
@@ -33,6 +43,10 @@ impl AuthzContext for MockUser {
 use dashmap::DashMap;
 use std::sync::Arc;
 
+/// Credentials for the mock backend: (org_id, role). Used to create users with different roles.
+#[derive(Clone, Debug)]
+struct MockCreds(pub Uuid, pub Role);
+
 #[derive(Clone, Debug)]
 struct MockBackend {
   users: Arc<DashMap<Uuid, MockUser>>,
@@ -41,20 +55,20 @@ struct MockBackend {
 #[async_trait]
 impl AuthnBackend for MockBackend {
   type User = MockUser;
-  type Credentials = Uuid; // Use org_id as credentials for testing
-  type Error = forge::Error;
+  type Credentials = MockCreds;
+  type Error = ForgeError;
 
   async fn authenticate(
     &self,
-    org_id: Self::Credentials,
+    creds: Self::Credentials,
   ) -> Result<Option<Self::User>, Self::Error> {
     let id = Uuid::new_v4();
     let user = MockUser {
       id,
-      email: format!("user@org-{}.com", org_id),
+      email: format!("user@org-{}.com", creds.0),
       password_hash: "hash".to_string(),
-      org_id,
-      role: Some(Role::Admin),
+      org_id: creds.0,
+      role: Some(creds.1),
     };
     self.users.insert(id, user.clone());
     Ok(Some(user))
@@ -64,10 +78,7 @@ impl AuthnBackend for MockBackend {
     &self,
     user_id: &forge::axum_login::UserId<Self>,
   ) -> Result<Option<Self::User>, Self::Error> {
-    Ok(self.users.get(user_id).map(|u| MockUser {
-      role: Some(Role::Admin),
-      ..u.clone()
-    }))
+    Ok(self.users.get(user_id).map(|r| (*r).clone()))
   }
 }
 
@@ -117,7 +128,11 @@ auto_seed = false
     .route(
       "/login-a",
       move |mut session: AuthSession<MockBackend>| async move {
-        let user = session.authenticate(org_a).await.unwrap().unwrap();
+        let user = session
+          .authenticate(MockCreds(org_a, Role::Admin))
+          .await
+          .unwrap()
+          .unwrap();
         session.login(&user).await.unwrap();
         StatusCode::OK
       },
@@ -125,7 +140,63 @@ auto_seed = false
     .route(
       "/login-b",
       move |mut session: AuthSession<MockBackend>| async move {
-        let user = session.authenticate(org_b).await.unwrap().unwrap();
+        let user = session
+          .authenticate(MockCreds(org_b, Role::Admin))
+          .await
+          .unwrap()
+          .unwrap();
+        session.login(&user).await.unwrap();
+        StatusCode::OK
+      },
+    )
+    .route(
+      "/login-owner",
+      move |mut session: AuthSession<MockBackend>| async move {
+        let user = session
+          .authenticate(MockCreds(org_a, Role::Owner))
+          .await
+          .unwrap()
+          .unwrap();
+        session.login(&user).await.unwrap();
+        StatusCode::OK
+      },
+    )
+    .route(
+      "/login-editor",
+      move |mut session: AuthSession<MockBackend>| async move {
+        let user = session
+          .authenticate(MockCreds(org_a, Role::Editor))
+          .await
+          .unwrap()
+          .unwrap();
+        session.login(&user).await.unwrap();
+        StatusCode::OK
+      },
+    )
+    .route(
+      "/login-viewer",
+      move |mut session: AuthSession<MockBackend>| async move {
+        let user = session
+          .authenticate(MockCreds(org_a, Role::Viewer))
+          .await
+          .unwrap()
+          .unwrap();
+        session.login(&user).await.unwrap();
+        StatusCode::OK
+      },
+    )
+    .route(
+      "/login-no-role",
+      move |mut session: AuthSession<MockBackend>| async move {
+        let id = Uuid::new_v4();
+        let user = MockUser {
+          id,
+          email: "norole@test.com".to_string(),
+          password_hash: "hash".to_string(),
+          org_id: org_a,
+          role: None,
+        };
+        users.insert(id, user.clone());
         session.login(&user).await.unwrap();
         StatusCode::OK
       },
@@ -141,9 +212,27 @@ auto_seed = false
       },
     )
     .route(
+      "/owner-only",
+      |session: AuthSession<MockBackend>| async move {
+        match session.guard(Action::Manage, Role::Owner) {
+          Ok(_) => (StatusCode::OK, "Success"),
+          Err(_) => (StatusCode::FORBIDDEN, "Forbidden"),
+        }
+      },
+    )
+    .route(
       "/admin-only",
       |session: AuthSession<MockBackend>| async move {
         match session.guard(Action::Manage, Role::Admin) {
+          Ok(_) => (StatusCode::OK, "Success"),
+          Err(_) => (StatusCode::FORBIDDEN, "Forbidden"),
+        }
+      },
+    )
+    .route(
+      "/viewer-only",
+      |session: AuthSession<MockBackend>| async move {
+        match session.guard(Action::Read, Role::Viewer) {
           Ok(_) => (StatusCode::OK, "Success"),
           Err(_) => (StatusCode::FORBIDDEN, "Forbidden"),
         }
@@ -226,7 +315,7 @@ auto_seed = false
     .unwrap();
   assert_eq!(response.status(), StatusCode::OK);
 
-  // 6. Test Guard fail (no cookie)
+  // 6. Test Guard fail (no cookie / unauthenticated)
   let response = router
     .clone()
     .oneshot(
@@ -238,6 +327,172 @@ auto_seed = false
     .await
     .unwrap();
   assert_eq!(response.status(), StatusCode::FORBIDDEN);
+
+  // --- Role hierarchy and insufficient-role tests ---
+
+  // 7. Login as Owner (org_a)
+  let response = router
+    .clone()
+    .oneshot(
+      Request::builder()
+        .uri("/login-owner")
+        .body(axum::body::Body::empty())
+        .unwrap(),
+    )
+    .await
+    .unwrap();
+  let cookie_owner = response.headers().get(header::SET_COOKIE).unwrap().clone();
+
+  // 8. Owner can access owner-only, admin-only, viewer-only (hierarchy)
+  for uri in ["/owner-only", "/admin-only", "/viewer-only"] {
+    let response = router
+      .clone()
+      .oneshot(
+        Request::builder()
+          .uri(uri)
+          .header(header::COOKIE, &cookie_owner)
+          .body(axum::body::Body::empty())
+          .unwrap(),
+      )
+      .await
+      .unwrap();
+    assert_eq!(
+      response.status(),
+      StatusCode::OK,
+      "Owner should access {}",
+      uri
+    );
+  }
+
+  // 9. Login as Viewer (org_a)
+  let response = router
+    .clone()
+    .oneshot(
+      Request::builder()
+        .uri("/login-viewer")
+        .body(axum::body::Body::empty())
+        .unwrap(),
+    )
+    .await
+    .unwrap();
+  let cookie_viewer = response.headers().get(header::SET_COOKIE).unwrap().clone();
+
+  // 10. Viewer can access only viewer-only; forbidden for owner-only and admin-only
+  let response = router
+    .clone()
+    .oneshot(
+      Request::builder()
+        .uri("/viewer-only")
+        .header(header::COOKIE, &cookie_viewer)
+        .body(axum::body::Body::empty())
+        .unwrap(),
+    )
+    .await
+    .unwrap();
+  assert_eq!(response.status(), StatusCode::OK);
+
+  for uri in ["/owner-only", "/admin-only"] {
+    let response = router
+      .clone()
+      .oneshot(
+        Request::builder()
+          .uri(uri)
+          .header(header::COOKIE, &cookie_viewer)
+          .body(axum::body::Body::empty())
+          .unwrap(),
+      )
+      .await
+      .unwrap();
+    assert_eq!(
+      response.status(),
+      StatusCode::FORBIDDEN,
+      "Viewer should be forbidden for {}",
+      uri
+    );
+  }
+
+  // 11. Login as Editor (org_a) – can access viewer-only (Editor > Viewer), forbidden for owner-only and admin-only
+  let response = router
+    .clone()
+    .oneshot(
+      Request::builder()
+        .uri("/login-editor")
+        .body(axum::body::Body::empty())
+        .unwrap(),
+    )
+    .await
+    .unwrap();
+  let cookie_editor = response.headers().get(header::SET_COOKIE).unwrap().clone();
+
+  let response = router
+    .clone()
+    .oneshot(
+      Request::builder()
+        .uri("/viewer-only")
+        .header(header::COOKIE, &cookie_editor)
+        .body(axum::body::Body::empty())
+        .unwrap(),
+    )
+    .await
+    .unwrap();
+  assert_eq!(
+    response.status(),
+    StatusCode::OK,
+    "Editor satisfies Viewer in hierarchy"
+  );
+
+  for uri in ["/owner-only", "/admin-only"] {
+    let response = router
+      .clone()
+      .oneshot(
+        Request::builder()
+          .uri(uri)
+          .header(header::COOKIE, &cookie_editor)
+          .body(axum::body::Body::empty())
+          .unwrap(),
+      )
+      .await
+      .unwrap();
+    assert_eq!(
+      response.status(),
+      StatusCode::FORBIDDEN,
+      "Editor must not satisfy {}",
+      uri
+    );
+  }
+
+  // 12. User with no role (role None) gets Forbidden on any guarded route
+  let response = router
+    .clone()
+    .oneshot(
+      Request::builder()
+        .uri("/login-no-role")
+        .body(axum::body::Body::empty())
+        .unwrap(),
+    )
+    .await
+    .unwrap();
+  let cookie_norole = response.headers().get(header::SET_COOKIE).unwrap().clone();
+
+  for uri in ["/owner-only", "/admin-only", "/viewer-only"] {
+    let response = router
+      .clone()
+      .oneshot(
+        Request::builder()
+          .uri(uri)
+          .header(header::COOKIE, &cookie_norole)
+          .body(axum::body::Body::empty())
+          .unwrap(),
+      )
+      .await
+      .unwrap();
+    assert_eq!(
+      response.status(),
+      StatusCode::FORBIDDEN,
+      "User with no role should be forbidden for {}",
+      uri
+    );
+  }
 
   std::env::set_current_dir(original_cwd).unwrap();
 }

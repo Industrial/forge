@@ -1,7 +1,7 @@
 //! End-to-End tests for Forge migrations and seeding
 
 use axum::extract::State;
-use forge::prelude::*;
+use forge::App;
 use forge::sea_orm::DatabaseConnection;
 use forge::sea_orm_migration::prelude::*;
 use http::{Request, StatusCode};

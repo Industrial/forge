@@ -174,7 +174,7 @@ Later (out of initial scope): admin UI (Django-style), form validation layer, We
 
 ## Key Files to Create (Phase 1)
 
-- **Library**: `src/lib.rs` — exports `App`, `Config` (or config loader), and re-exports used from axum/tower so users get one import (`forge::*` or `forge::prelude`).
+- **Library**: `src/lib.rs` — exports `App`, `Config` (or config loader), and re-exports; users import explicitly (e.g. `use forge::App;`, `use forge::authz::Role;`).
 - **App builder**: e.g. `src/app.rs` — struct `App { router, config? }` with methods like `.route()`, `.with_state()`, `.serve()` that build and run an Axum app.
 - **Bin**: Replace current binary with a minimal “hello” app that uses `forge::App` (or keep as example only and make the default binary the generated app in new projects).
 

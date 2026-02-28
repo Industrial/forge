@@ -1,6 +1,6 @@
 //! End-to-End tests for Forge CLI config module
 
-use forge::prelude::*;
+use forge::App;
 use std::fs;
 use std::process::Command;
 

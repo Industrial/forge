@@ -38,28 +38,6 @@ pub mod extract {
   pub use axum::extract::*;
 }
 
-pub mod prelude {
-  pub use crate::ForgeAuthUser;
-  pub use crate::app::App;
-  pub use crate::auth::{hash_password, verify_password};
-  pub use crate::authz::{
-    Action, AuthSessionGuardExt, AuthzContext, ForgePolicy, ForgeScoped, Role,
-  };
-  pub use crate::config::ForgeConfig;
-  pub use crate::error::Error;
-  pub use async_trait::async_trait;
-  pub use axum_login::{AuthSession, AuthUser, AuthnBackend};
-  pub use chrono::{DateTime, NaiveDateTime, Utc};
-  pub use sea_orm::{
-    ActiveModelTrait, ActiveValue, ColumnTrait, ConnectionTrait, DatabaseConnection, EntityTrait,
-    QueryFilter, Set, TransactionTrait,
-  };
-  pub use serde::{Deserialize, Serialize};
-  pub use tower_sessions::{Session, SessionStore};
-  pub use tracing::{debug, error, info, warn};
-  pub use uuid::Uuid;
-}
-
 #[cfg(test)]
 mod tests {
   use super::*;

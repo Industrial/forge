@@ -1,7 +1,8 @@
 //! End-to-End tests for Forge CLI database module
 
 use axum::extract::State;
-use forge::prelude::*;
+use forge::App;
+use forge::sea_orm::{ConnectionTrait, DatabaseConnection};
 use http::{Request, StatusCode};
 use std::fs;
 use std::process::Command;

@@ -25,7 +25,7 @@ Forge's authorization engine is built on six core primitives:
 | **Object** | Generic type `R` in `ForgePolicy<R>` | Any entity (e.g. `Project`, `Invoice`). |
 | **Logic**  | `trait ForgePolicy<R>`  | `async fn can(...) -> Result<bool, AuthzError>`. |
 
-All of the above are re-exported in `forge::prelude` for use in handlers and policies.
+Import what you need from `forge` and `forge::authz` (e.g. `use forge::App;`, `use forge::authz::{Action, Role, AuthzContext};`).
 
 ## 2. Architecture: Shallow Gate + Deep Scope
 

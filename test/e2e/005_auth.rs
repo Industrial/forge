@@ -1,10 +1,15 @@
 //! End-to-End tests for Forge Authentication and Session Management
 
-use forge::prelude::*;
+use async_trait::async_trait;
+use axum_login::{AuthSession, AuthnBackend};
+use forge::authz::AuthzContext;
+use forge::{App, Error as ForgeError, ForgeAuthUser};
 use http::{Request, StatusCode, header};
+use serde::Deserialize;
 use std::fs;
 use std::process::Command;
 use tower::ServiceExt;
+use uuid::Uuid;
 
 /// Helper function to get the path to the forge binary
 fn get_forge_binary_path() -> std::path::PathBuf {
@@ -83,16 +88,20 @@ async fn forge_new_generates_auth_ready_workspace() {
     main_rs.contains("post_route") && main_rs.contains("/auth/admin"),
     "main must use post_route for register/login and route for auth/admin"
   );
+  assert!(
+    !main_rs.contains("forge::prelude"),
+    "generated app must use explicit imports"
+  );
 
   let cargo_toml = fs::read_to_string(root.join("crates/db/Cargo.toml")).unwrap();
-  // We now expect these NOT to be in the generated Cargo.toml because they are in forge::prelude
   assert!(
-    !cargo_toml.contains("axum-login"),
-    "db/Cargo.toml should NOT explicitly depend on axum-login anymore"
+    cargo_toml.contains("sea-orm-migration"),
+    "db/Cargo.toml should list sea-orm-migration explicitly"
   );
+  let app_cargo = fs::read_to_string(root.join("crates/app/Cargo.toml")).unwrap();
   assert!(
-    !cargo_toml.contains("tower-sessions"),
-    "db/Cargo.toml should NOT explicitly depend on tower-sessions anymore"
+    app_cargo.contains("axum") && app_cargo.contains("sea-orm"),
+    "app/Cargo.toml should list axum and sea-orm explicitly"
   );
 
   // 3. Verify project builds (smoke test)
@@ -144,7 +153,7 @@ struct Credentials {
 impl AuthnBackend for MockBackend {
   type User = MockUser;
   type Credentials = Credentials;
-  type Error = forge::Error;
+  type Error = ForgeError;
 
   async fn authenticate(
     &self,
