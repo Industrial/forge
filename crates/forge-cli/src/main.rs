@@ -501,7 +501,7 @@ pub async fn seed(db: &DatabaseConnection) -> Result<(), Box<dyn std::error::Err
             updated_at: Set(now),
         };
         user::Entity::insert(root).exec(db).await?;
-        println!("Seeded root user: {}", email);
+        info!("Seeded root user: {}", email);
     }
 
     Ok(())
