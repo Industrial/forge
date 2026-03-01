@@ -29,7 +29,7 @@ sea-orm = { version = "1.1", features = [
   "macros",
 ] }
 sea-orm-migration = { version = "1.1" }
-tower-sessions = "0.14"
+tower-sessions = "0.15"
 tower-sessions-sqlx-store = { version = "0.15", features = ["sqlite"] }
 axum-login = "0.17"
 argon2 = "0.5"
