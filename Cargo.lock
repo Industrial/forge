@@ -426,6 +426,25 @@ dependencies = [
 ]
 
 [[package]]
+name = "axum-login"
+version = "0.18.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "964ea6eb764a227baa8c3368e45c94d23b6863cc7b880c6c9e341c143c5a5ff7"
+dependencies = [
+ "axum 0.8.8",
+ "form_urlencoded",
+ "serde",
+ "subtle",
+ "thiserror 2.0.18",
+ "tower-cookies",
+ "tower-layer",
+ "tower-service",
+ "tower-sessions",
+ "tracing",
+ "urlencoding",
+]
+
+[[package]]
 name = "axum-valid"
 version = "0.24.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -1133,7 +1152,7 @@ dependencies = [
  "argon2",
  "async-trait",
  "axum 0.8.8",
- "axum-login",
+ "axum-login 0.18.0",
  "axum-valid",
  "bytes",
  "chrono",
@@ -1172,7 +1191,7 @@ version = "0.1.0"
 dependencies = [
  "async-trait",
  "axum 0.7.9",
- "axum-login",
+ "axum-login 0.17.0",
  "sea-orm",
  "serde",
  "thiserror 2.0.18",
@@ -1205,7 +1224,7 @@ version = "0.1.0"
 dependencies = [
  "async-trait",
  "axum 0.8.8",
- "axum-login",
+ "axum-login 0.18.0",
  "dashmap",
  "forge",
  "forge-e2e-lib",
