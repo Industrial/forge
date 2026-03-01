@@ -128,10 +128,14 @@ pub fn otel_layer() -> impl tracing_subscriber::Layer<tracing_subscriber::Regist
   tracing_opentelemetry::layer().with_tracer(tracer)
 }
 
-/// Build env filter for the tracing subscriber (forge, app binary, tower_http, optional RUST_LOG).
+/// Build env filter for the tracing subscriber.
+/// Uses RUST_LOG when set (e.g. `info,forge=debug,app=debug,sqlx=debug`); otherwise defaults to `info`.
+/// Does not override RUST_LOG, so `forge=debug` and `app=debug` from the environment are respected.
+/// Suppresses noisy warnings: Otel trace extractor (SpanDisabled when using no-op tracer),
+/// and tower_sessions "record not found" (expected after server restart or stale cookie).
 pub fn env_filter() -> EnvFilter {
-  EnvFilter::from_default_env()
-    .add_directive("forge=info".parse().unwrap())
-    .add_directive("app=info".parse().unwrap())
-    .add_directive("tower_http=info".parse().unwrap())
+  EnvFilter::try_from_default_env()
+    .unwrap_or_else(|_| EnvFilter::new("info"))
+    .add_directive("axum_tracing_opentelemetry=error".parse().unwrap())
+    .add_directive("tower_sessions_core=error".parse().unwrap())
 }

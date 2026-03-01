@@ -4,6 +4,7 @@ use axum::{
 };
 
 pub async fn handler(ws: WebSocketUpgrade) -> Response {
+  tracing::debug!(target: "app::handlers", "route: GET /ws (upgrade)");
   ws.on_upgrade(handle_socket)
 }
 

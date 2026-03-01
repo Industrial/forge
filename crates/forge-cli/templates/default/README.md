@@ -22,5 +22,35 @@ Builds the frontend (`bun run build`), then runs the backend serving static asse
 
 - `forge dev` — development: backend + Vite dev server; open http://localhost:3000
 - `forge serve` — production: build frontend, then run backend serving static files
-- `cargo run -p app` — backend only (port 4000); set `FORGE_ENVIRONMENT=development` or `production` as needed
+- `cargo run -p app` — backend only (port 4000). Use `FORGE_ENVIRONMENT=development` for local HTTP so the session cookie is not `Secure` (required for login to persist after redirect).
 - `bun run dev` (in `frontend/`) — Vite only (port 3000); ensure backend is running for API/pages
+
+## Seed users
+
+After running migrations and seeds, these users exist for development.
+
+**Default org** (domain `@default.org`):
+
+| Email | Password | Global admin | Role | Purpose |
+|-------|----------|--------------|------|--------|
+| admin@admin.com | password | ✓ | owner | App-wide admin; owner in Default org |
+| owner@default.org | password | — | owner | Org owner only (no global admin) |
+| orgadmin@default.org | password | — | admin | Org-scoped admin (members, settings) |
+| editor@default.org | password | — | editor | Create/edit content in Default |
+| viewer@default.org | password | — | viewer | Read-only in Default |
+
+**Other org** (domain `@other.org`):
+
+| Email | Password | Global admin | Role | Purpose |
+|-------|----------|--------------|------|--------|
+| owner@other.org | password | — | owner | Org owner for Other |
+| orgadmin@other.org | password | — | admin | Org-scoped admin for Other |
+| viewer@other.org | password | — | viewer | Read-only in Other |
+
+**Multi-org** (tests org switching):
+
+| Email | Password | Global admin | Roles | Purpose |
+|-------|----------|--------------|-------|--------|
+| multi@email.com | password | — | viewer in Default, editor in Other | Switch orgs to see different roles |
+
+Two organizations are seeded: **Default** and **Other**. Use `multi@email.com` to test switching orgs and different roles per org.

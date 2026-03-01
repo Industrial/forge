@@ -33,6 +33,10 @@
   env = {
     RUST_BACKTRACE = "1";
     CARGO_TERM_COLOR = "always";
+    # Enable SQL statement logging (forge db layer). SQL appears when FORGE_SQL_DEBUG=1 and sqlx=debug below.
+    FORGE_SQL_DEBUG = "1";
+    # Show SQL queries (sqlx) and app/forge at debug. Omit sqlx=debug to disable SQL logging.
+    RUST_LOG = "info,forge=debug,app=debug,sqlx=debug";
   };
 
   # Development packages

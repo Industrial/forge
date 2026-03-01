@@ -1,3 +1,4 @@
+use log::LevelFilter;
 use sea_orm::{ConnectOptions, Database, DatabaseConnection};
 use std::time::Duration;
 
@@ -7,6 +8,8 @@ use crate::config::DatabaseConfig;
 /// Uses SeaORM [ConnectOptions] for all backends (SQLite, PostgreSQL, etc.) so that
 /// DB-level OpenTelemetry (e.g. the sea-orm-tracing crate wrapping the connection)
 /// can apply to SQLite and non-SQLite alike.
+///
+/// SQL statement logging is enabled when the `FORGE_SQL_DEBUG` env var is set (e.g. `1` or `true`).
 pub async fn initialize_database(
   config: &DatabaseConfig,
 ) -> Result<DatabaseConnection, Box<dyn std::error::Error>> {
@@ -26,6 +29,13 @@ pub async fn initialize_database(
 
   if let Some(timeout) = config.idle_timeout {
     opt.idle_timeout(Duration::from_secs(timeout));
+  }
+
+  if std::env::var("FORGE_SQL_DEBUG").as_deref() == Ok("1")
+    || std::env::var("FORGE_SQL_DEBUG").as_deref() == Ok("true")
+  {
+    opt.sqlx_logging(true);
+    opt.sqlx_logging_level(LevelFilter::Debug);
   }
 
   // DB-level OTel: SeaORM 1.1 does not expose set_auto_tracing on ConnectOptions.

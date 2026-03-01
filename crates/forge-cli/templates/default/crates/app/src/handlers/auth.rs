@@ -1,23 +1,25 @@
 use axum::{
-  extract::State,
+  extract::{FromRequest, Request, State},
   http::StatusCode,
   response::{IntoResponse, Redirect},
-  Json,
+  Form, Json,
 };
 use axum_login::AuthSession;
+use tower_sessions::Session;
 use chrono::Utc;
 use forge::auth::{hash_api_token, hash_password};
 use forge::audit::{AuditEvent, EventKind, Outcome};
-use forge::authz::{guard_and_audit_user, Action, AuthzContext, Role};
+use forge::authz::{Action, record_authz_denied, AuthzContext};
 use forge::validation::Valid;
 use forge::token_auth::{OptionalRequireAuth, RequireAuth};
-use forge::authz::record_authz_denied;
 use forge::{DbConnection, Error as ForgeError};
 use sea_orm::{ActiveModelTrait, EntityTrait, Set, TransactionTrait};
+use serde::de::DeserializeOwned;
 use serde::Deserialize;
 use uuid::Uuid;
 use validator::Validate;
 
+use crate::handlers::inertia_shared;
 use db::auth::Backend;
 use db::models::{api_token, organization, membership, user};
 
@@ -30,9 +32,11 @@ pub struct RegisterRequest {
 }
 
 pub async fn register(
+  session: Session,
   State(db): State<DbConnection>,
   Valid(Json(payload)): Valid<Json<RegisterRequest>>,
 ) -> Result<impl IntoResponse, ForgeError> {
+  tracing::debug!(target: "app::auth", "route: POST /api/auth/register email={}", payload.email);
   let password_hash = hash_password(&payload.password)?;
   let now = Utc::now().naive_utc();
   let user_id = Uuid::new_v4();
@@ -82,7 +86,11 @@ pub async fn register(
 
   tx.commit().await?;
 
-  Ok((StatusCode::CREATED, "User registered successfully"))
+  session
+    .insert(inertia_shared::FLASH_MESSAGE, "Thanks for registering. Please log in.")
+    .await
+    .ok();
+  Ok(Redirect::to("/login").into_response())
 }
 
 #[derive(Deserialize, Validate)]
@@ -93,11 +101,47 @@ pub struct LoginRequest {
   pub password: String,
 }
 
+/// Accepts JSON (Inertia) or form-urlencoded (e.g. e2e native form submit).
+pub(crate) struct JsonOrForm<T>(pub(crate) T);
+
+impl<S, T> FromRequest<S> for JsonOrForm<T>
+where
+  T: DeserializeOwned + Send,
+  S: Send + Sync,
+{
+  type Rejection = (StatusCode, &'static str);
+
+  async fn from_request(req: Request, state: &S) -> Result<Self, Self::Rejection> {
+    let (parts, body) = req.into_parts();
+    let content_type = parts.headers.get(axum::http::header::CONTENT_TYPE);
+    let is_form = content_type
+      .and_then(|v| v.to_str().ok())
+      .map(|v| v.starts_with("application/x-www-form-urlencoded"))
+      .unwrap_or(false);
+    let req = Request::from_parts(parts, body);
+    if is_form {
+      let Form(payload) = Form::<T>::from_request(req, state)
+        .await
+        .map_err(|_| (StatusCode::BAD_REQUEST, "invalid form body for login"))?;
+      Ok(JsonOrForm(payload))
+    } else {
+      let Json(payload) = Json::<T>::from_request(req, state)
+        .await
+        .map_err(|_| (StatusCode::BAD_REQUEST, "invalid JSON body for login"))?;
+      Ok(JsonOrForm(payload))
+    }
+  }
+}
+
 pub async fn login(
+  session: Session,
   mut auth_session: AuthSession<Backend>,
   State(db): State<DbConnection>,
-  Valid(Json(payload)): Valid<Json<LoginRequest>>,
+  JsonOrForm(payload): JsonOrForm<LoginRequest>,
 ) -> Result<impl IntoResponse, ForgeError> {
+  let email = payload.email.clone();
+  tracing::debug!(target: "app::auth", "route: POST /api/auth/login email={}", email);
+  payload.validate().map_err(|e| ForgeError::Generic(e.to_string()))?;
   let credentials = db::auth::Credentials {
     email: payload.email,
     password: payload.password,
@@ -109,6 +153,7 @@ pub async fn login(
     .map_err(|e| ForgeError::Generic(format!("Authentication error: {}", e)))?;
 
   if let Some(ref user) = user {
+    tracing::debug!(target: "app::auth", "login success user_id={} email={}", user.id, user.email);
     auth_session
       .login(user)
       .await
@@ -128,8 +173,14 @@ pub async fn login(
       },
     )
     .await;
+    session
+      .insert(inertia_shared::FLASH_MESSAGE, "Welcome back!")
+      .await
+      .ok();
+    // 303 See Other: correct for POST→GET redirect (RFC 7231). Axum's Redirect::to() uses 303.
     Ok(Redirect::to("/dashboard").into_response())
   } else {
+    tracing::debug!(target: "app::auth", "login failed: invalid credentials email={}", email);
     let _ = forge::audit::log(
       &db,
       AuditEvent {
@@ -153,6 +204,7 @@ pub async fn logout(
   mut auth_session: AuthSession<Backend>,
   State(db): State<DbConnection>,
 ) -> impl IntoResponse {
+  tracing::debug!(target: "app::auth", "route: GET /api/auth/logout");
   let actor_id = auth_session.requester_id();
   let org_id = auth_session.organization_id();
   auth_session.logout().await.unwrap();
@@ -175,6 +227,7 @@ pub async fn logout(
 }
 
 pub async fn profile(auth_session: AuthSession<Backend>) -> impl IntoResponse {
+  tracing::debug!(target: "app::auth", "route: GET /api/auth/profile has_user={}", auth_session.user.is_some());
   match &auth_session.user {
     Some(user) => {
       let org_id = auth_session.organization_id().expect("profile requires organization_id");
@@ -195,6 +248,7 @@ pub async fn create_token(
   State(db): State<DbConnection>,
   Valid(Json(payload)): Valid<Json<CreateTokenRequest>>,
 ) -> Result<impl IntoResponse, ForgeError> {
+  tracing::debug!(target: "app::auth", "route: POST /api/auth/tokens user_id={}", user.id);
   let secret = format!("forge_{}", Uuid::new_v4().to_string().replace('-', ""));
   let token_hash = hash_api_token(&secret);
   let now = Utc::now().naive_utc();
@@ -213,11 +267,12 @@ pub async fn create_token(
   Ok(Json(forge::serde_json::json!({ "token": secret })))
 }
 
-/// Shallow Gate example: only users with Role::Owner (or Admin) can access. Audits the decision.
+/// Global admin only: only users with is_admin can access. Audits the decision.
 pub async fn admin_only(
   OptionalRequireAuth(maybe_user): OptionalRequireAuth<Backend>,
   State(db): State<DbConnection>,
 ) -> Result<impl IntoResponse, ForgeError> {
+  tracing::debug!(target: "app::auth", "route: GET /api/auth/admin authenticated={}", maybe_user.is_some());
   let user = match maybe_user {
     Some(u) => u,
     None => {
@@ -225,6 +280,9 @@ pub async fn admin_only(
       return Ok((StatusCode::UNAUTHORIZED, "Authentication required").into_response());
     }
   };
-  guard_and_audit_user(&user, &db, Action::Manage, Role::Owner, "admin", None).await?;
+  if !user.is_admin {
+    record_authz_denied(&db, Action::Manage, "admin", Some(user.id)).await;
+    return Ok((StatusCode::FORBIDDEN, "Forbidden").into_response());
+  }
   Ok((StatusCode::OK, format!("Admin only: access granted for {}", user.email)).into_response())
 }

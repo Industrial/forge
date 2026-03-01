@@ -49,7 +49,7 @@ EOF
 # Use a writable DB path (TMPDIR) so SQLite is never readonly in Nix/CI or when .tmp is read-only
 E2E_DB_PATH="${TMPDIR:-/tmp}/forge_e2e_$$.sqlite"
 rm -f "$E2E_DB_PATH"
-# Disable seed so tests control data
+# Enable seed so auth e2e tests can use seed users (admin@admin.com, viewer@default.org, etc.)
 cat > "$PREBUILT/config/db.toml" <<EOF
 [database]
 url = "sqlite://${E2E_DB_PATH}?mode=rwc"
@@ -58,7 +58,7 @@ min_connections = 1
 connect_timeout = 10
 idle_timeout = 600
 auto_migrate = true
-auto_seed = false
+auto_seed = true
 EOF
 export E2E_DB_PATH
 

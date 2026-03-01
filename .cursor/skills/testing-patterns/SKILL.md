@@ -195,7 +195,7 @@ it('should submit form on button click', async () => {
   renderWithTheme(<LoginForm onSubmit={onSubmit} />);
 
   fireEvent.changeText(screen.getByLabelText('Email'), 'user@example.com');
-  fireEvent.changeText(screen.getByLabelText('Password'), 'password123');
+  fireEvent.changeText(screen.getByLabelText('Password'), 'password');
   fireEvent.press(screen.getByTestId('login-button'));
 
   await waitFor(() => {

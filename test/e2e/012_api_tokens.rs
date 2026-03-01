@@ -33,7 +33,7 @@ async fn api_tokens_create_via_session_then_protected_route_with_bearer() {
 
   let reg = session_client
     .post(format!("{}/api/auth/register", base))
-    .json(&serde_json::json!({ "email": email, "password": "password123" }))
+    .json(&serde_json::json!({ "email": email, "password": "password" }))
     .send()
     .await
     .expect("register");
@@ -46,7 +46,7 @@ async fn api_tokens_create_via_session_then_protected_route_with_bearer() {
 
   let login = session_client
     .post(format!("{}/api/auth/login", base))
-    .json(&serde_json::json!({ "email": email, "password": "password123" }))
+    .json(&serde_json::json!({ "email": email, "password": "password" }))
     .send()
     .await
     .expect("login");

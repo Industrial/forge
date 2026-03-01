@@ -65,6 +65,7 @@ pub fn init_tracing() {
 }
 
 /// Internal helper that sets up OpenTelemetry and the tracing subscriber.
+/// When [FORGE_SQL_DEBUG] is set, set `RUST_LOG=sqlx=debug` (e.g. in devenv) to see SQL statements.
 fn init_tracing_impl() {
   observability::init_otel();
   let _ = tracing_subscriber::registry()
@@ -72,6 +73,7 @@ fn init_tracing_impl() {
     .with(observability::env_filter())
     .with(tracing_subscriber::fmt::layer())
     .try_init();
+  let _ = tracing_log::LogTracer::init();
 }
 
 /// The main Forge application builder.
@@ -217,9 +219,15 @@ impl App {
             warn!("Failed to migrate sessions table: {}", e);
           }
 
+          // Session cookie security: HttpOnly (XSS), Secure in production (HTTPS only),
+          // SameSite=Lax (CSRF + allows top-level nav), Path=/ (site-wide). See OWASP session guidance.
+          // In development (e.g. HTTP localhost), Secure must be false or browsers won't send the cookie.
+          let secure = !crate::config::effective_environment().eq_ignore_ascii_case("development");
           let session_layer = SessionManagerLayer::new(session_store)
-            .with_secure(false)
+            .with_http_only(true)
+            .with_secure(secure)
             .with_same_site(tower_sessions::cookie::SameSite::Lax)
+            .with_path("/")
             .with_expiry(Expiry::OnInactivity(
               tower_sessions::cookie::time::Duration::days(30),
             ));

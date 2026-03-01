@@ -56,7 +56,7 @@ async fn e2e_prebuilt_validation_layout_and_422() {
     .as_millis();
   let reg_ok = client
     .post(format!("{}/api/auth/register", base))
-    .json(&serde_json::json!({ "email": format!("valid-{}@example.com", unique), "password": "password123" }))
+    .json(&serde_json::json!({ "email": format!("valid-{}@example.com", unique), "password": "password" }))
     .send()
     .await
     .expect("register");

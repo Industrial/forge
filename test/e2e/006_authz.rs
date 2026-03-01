@@ -30,7 +30,10 @@ async fn e2e_prebuilt_authz_layout_and_protected_route() {
   assert!(user_model.contains("impl AuthzContext"));
   let auth_handlers =
     fs::read_to_string(project_root.join("crates/app/src/handlers/auth.rs")).unwrap();
-  assert!(auth_handlers.contains("guard") || auth_handlers.contains("guard_and_audit"));
+  assert!(
+    auth_handlers.contains("admin") && (auth_handlers.contains("is_admin") || auth_handlers.contains("record_authz_denied")),
+    "auth handlers should gate admin or use record_authz_denied"
+  );
 
   let base = cli::e2e_base_url().expect("run e2e via bin/test-e2e (E2E_BASE_URL not set)");
   if std::env::var("E2E_WEBDRIVER_URL").is_err() {
@@ -43,7 +46,7 @@ async fn e2e_prebuilt_authz_layout_and_protected_route() {
       .unwrap()
       .as_millis()
   );
-  let password = "password123";
+  let password = "password";
 
   let c = forge_e2e_lib::browser::connect()
     .await

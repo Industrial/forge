@@ -1,21 +1,18 @@
-import React, { useState } from 'react';
-import { router } from '@inertiajs/react';
+import React from 'react';
 
 export default function Login() {
-  const [email, setEmail] = useState('');
-  const [password, setPassword] = useState('');
-
-  const submit = (e: React.FormEvent) => {
-    e.preventDefault();
-    router.post('/api/auth/login', { email, password });
-  };
-
   return (
     <div>
       <h1>Login</h1>
-      <form onSubmit={submit}>
-        <input type="email" value={email} onChange={(e) => setEmail(e.target.value)} placeholder="Email" required />
-        <input type="password" value={password} onChange={(e) => setPassword(e.target.value)} placeholder="Password" required />
+      {/* Native form submit with target="_top" so the redirect after login is a full
+          document load and the session cookie is sent on GET /dashboard. */}
+      <form
+        action="/api/auth/login"
+        method="post"
+        target="_top"
+      >
+        <input name="email" type="email" placeholder="Email" required />
+        <input name="password" type="password" placeholder="Password" required />
         <button type="submit">Log in</button>
       </form>
       <a href="/register">Register</a> | <a href="/">Home</a>
