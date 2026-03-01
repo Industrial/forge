@@ -102,4 +102,10 @@ async fn api_tokens_create_via_session_then_protected_route_with_bearer() {
     "response should indicate correct identity or success; got: {}",
     body
   );
+
+  if std::env::var("E2E_WEBDRIVER_URL").is_ok() {
+    forge_e2e_lib::browser::assert_app_root_loads(&base)
+      .await
+      .expect("browser must load app root");
+  }
 }

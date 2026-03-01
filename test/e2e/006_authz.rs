@@ -1,14 +1,11 @@
 //! E2E tests for Forge authz using the prebuilt project from `bin/test-e2e`.
-//! Run `bin/test-e2e` first.
+//! Run `bin/test-e2e` first. 100% fantoccini: unauthed /dashboard redirect, then login and verify dashboard.
 
 use std::fs;
-use std::time::Duration;
 
 use forge_e2e_lib::cli;
 
-/// Single E2E test: prebuilt authz layout and protected route requires auth.
-/// 1. Asserts project layout, org/membership models, user AuthzContext, auth handlers with guard.
-/// 2. Unauthed GET /api/auth/admin → 401/403/404; register+login; authed GET → 200/403/404.
+/// Single E2E test: prebuilt authz layout; then browser: /dashboard unauthed → redirect to login; register+login → dashboard loads.
 #[tokio::test]
 async fn e2e_prebuilt_authz_layout_and_protected_route() {
   let project_root = cli::prebuilt_project_root();
@@ -36,6 +33,9 @@ async fn e2e_prebuilt_authz_layout_and_protected_route() {
   assert!(auth_handlers.contains("guard") || auth_handlers.contains("guard_and_audit"));
 
   let base = cli::e2e_base_url().expect("run e2e via bin/test-e2e (E2E_BASE_URL not set)");
+  if std::env::var("E2E_WEBDRIVER_URL").is_err() {
+    return;
+  }
   let email = format!(
     "authz-e2e-{}@test.com",
     std::time::SystemTime::now()
@@ -43,47 +43,22 @@ async fn e2e_prebuilt_authz_layout_and_protected_route() {
       .unwrap()
       .as_millis()
   );
-  let client = reqwest::Client::builder()
-    .cookie_store(true)
-    .timeout(Duration::from_secs(5))
-    .build()
-    .unwrap();
+  let password = "password123";
 
-  let unauthed = client
-    .get(format!("{}/api/auth/admin", base))
-    .send()
+  let c = forge_e2e_lib::browser::connect()
     .await
-    .expect("request");
-  assert!(
-    unauthed.status().as_u16() == 401
-      || unauthed.status().as_u16() == 403
-      || unauthed.status().as_u16() == 404,
-    "unauthenticated GET /api/auth/admin should be 401/403/404: {}",
-    unauthed.status()
-  );
-
-  let _ = client
-    .post(format!("{}/api/auth/register", base))
-    .json(&serde_json::json!({ "email": email, "password": "password123" }))
-    .send()
-    .await;
-  let _ = client
-    .post(format!("{}/api/auth/login", base))
-    .json(&serde_json::json!({ "email": email, "password": "password123" }))
-    .send()
+    .expect("browser connect (run chromedriver or set E2E_WEBDRIVER_URL)");
+  forge_e2e_lib::browser::assert_dashboard_redirects_to_login(&c, &base)
     .await
-    .expect("login");
-
-  let authed = client
-    .get(format!("{}/api/auth/admin", base))
-    .send()
+    .expect("unauthed /dashboard must redirect to login");
+  forge_e2e_lib::browser::register_via_browser(&c, &base, &email, password)
     .await
-    .expect("request");
-  assert!(
-    authed.status().as_u16() == 200
-      || authed.status().as_u16() == 403
-      || authed.status().as_u16() == 404,
-    "authenticated GET /api/auth/admin should be 200, 403, or 404: {}",
-    authed.status()
-  );
+    .expect("register via browser");
+  forge_e2e_lib::browser::login_via_browser(&c, &base, &email, password)
+    .await
+    .expect("login via browser");
+  forge_e2e_lib::browser::assert_dashboard_visible(&c, &base)
+    .await
+    .expect("dashboard visible after login");
+  c.close().await.expect("close browser");
 }

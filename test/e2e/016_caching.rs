@@ -106,4 +106,10 @@ async fn e2e_prebuilt_caching_config_and_app_cache() {
     "cached response should have Cache-Control (max-age or public); got {:?}",
     cache_control
   );
+
+  if std::env::var("E2E_WEBDRIVER_URL").is_ok() {
+    forge_e2e_lib::browser::assert_app_root_loads(&base)
+      .await
+      .expect("browser must load app root");
+  }
 }

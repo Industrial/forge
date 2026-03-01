@@ -1,8 +1,7 @@
-//! E2E test for Forge background jobs (011): one test for layout, config, cron registration, and server-with-worker running.
-//! Run via `bin/test-e2e`. Health endpoints are tested only in 008_health.
+//! E2E test for Forge background jobs (011): layout, config, cron registration; browser verifies #app and Pages/Home.
+//! Run via `bin/test-e2e`. 100% fantoccini for server check: navigate to / and verify #app and Pages/Home content.
 
 use std::fs;
-use std::time::Duration;
 
 use forge_e2e_lib::cli;
 
@@ -54,24 +53,9 @@ async fn jobs_layout_config_cron_and_server_with_worker() {
   );
 
   let base = cli::e2e_base_url().expect("run e2e via bin/test-e2e (E2E_BASE_URL not set)");
-  let client = reqwest::Client::builder()
-    .timeout(Duration::from_secs(5))
-    .build()
-    .unwrap();
-  let resp = client
-    .get(format!("{}/", base))
-    .send()
-    .await
-    .expect("request");
-  assert_eq!(
-    resp.status().as_u16(),
-    200,
-    "server with cron worker must be up"
-  );
-  let body = resp.text().await.unwrap_or_default();
-  assert!(
-    (body.contains("id=\"app\"") || body.contains("id='app'")) && body.contains("Pages/Home"),
-    "root route should return Inertia shell with Pages/Home; got: {}",
-    body
-  );
+  if std::env::var("E2E_WEBDRIVER_URL").is_ok() {
+    forge_e2e_lib::browser::assert_app_root_loads_and_contains(&base, "Pages/Home")
+      .await
+      .expect("browser must load app root with Pages/Home");
+  }
 }

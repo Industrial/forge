@@ -7,7 +7,11 @@ use std::process::{Child, Command};
 use std::time::{Duration, Instant};
 
 /// Wait until the HTTP server is accepting connections on host:port (poll with timeout).
-fn wait_for_server(host: &str, port: u16, timeout: Duration) -> Result<(), Box<dyn std::error::Error>> {
+fn wait_for_server(
+  host: &str,
+  port: u16,
+  timeout: Duration,
+) -> Result<(), Box<dyn std::error::Error>> {
   let deadline = Instant::now() + timeout;
   let addr = (host, port)
     .to_socket_addrs()?
@@ -58,10 +62,16 @@ pub fn serve_project(config: &ForgeConfig) -> Result<(), Box<dyn std::error::Err
       .status();
     match install_status {
       Ok(s) if !s.success() => {
-        eprintln!("Warning: bun install failed (exit code {:?}). Continuing anyway.", s.code());
+        eprintln!(
+          "Warning: bun install failed (exit code {:?}). Continuing anyway.",
+          s.code()
+        );
       }
       Err(e) => {
-        eprintln!("Warning: could not run bun install ({}). Ensure bun is in PATH. Continuing.", e);
+        eprintln!(
+          "Warning: could not run bun install ({}). Ensure bun is in PATH. Continuing.",
+          e
+        );
       }
       _ => {}
     }
@@ -105,7 +115,10 @@ pub fn serve_project(config: &ForgeConfig) -> Result<(), Box<dyn std::error::Err
         eprintln!("  Backend (proxied): http://{}:{}", host, port);
       }
       Err(e) => {
-        eprintln!("Warning: could not start Vite ({}). Run manually in frontend/ if needed.", e);
+        eprintln!(
+          "Warning: could not start Vite ({}). Run manually in frontend/ if needed.",
+          e
+        );
       }
     }
   }

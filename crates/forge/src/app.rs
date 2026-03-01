@@ -64,6 +64,7 @@ pub fn init_tracing() {
   init_tracing_impl();
 }
 
+/// Internal helper that sets up OpenTelemetry and the tracing subscriber.
 fn init_tracing_impl() {
   observability::init_otel();
   let _ = tracing_subscriber::registry()
@@ -608,6 +609,9 @@ environment = "test"
 [server]
 host = "127.0.0.1"
 port = 3000
+
+[frontend]
+port = 3000
 "#,
       project_name
     );
@@ -615,6 +619,8 @@ port = 3000
 
     let db_toml_content = r#"[database]
 url = "sqlite::memory:"
+auto_migrate = true
+auto_seed = false
 "#;
     fs::write(config_dir.join("db.toml"), db_toml_content).unwrap();
   }
@@ -696,11 +702,16 @@ environment = "test"
 [server]
 host = "127.0.0.1"
 port = 0
+
+[frontend]
+port = 3000
 "#;
       fs::write(config_dir.join("app.toml"), app_toml_content).unwrap();
 
       let db_toml_content = r#"[database]
 url = "sqlite::memory:"
+auto_migrate = true
+auto_seed = false
 "#;
       fs::write(config_dir.join("db.toml"), db_toml_content).unwrap();
 

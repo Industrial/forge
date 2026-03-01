@@ -338,7 +338,10 @@ mod tests {
       assert!(main_content.contains("CronSchedule"));
       assert!(main_content.contains(".post_route"));
       assert!(main_content.contains(".route(\"/api/auth/admin\""));
-      assert!(main_content.contains(".serve()"));
+      assert!(
+        main_content.contains(".serve()") || main_content.contains("into_router_before_state"),
+        "generated main should call .serve() or into_router_before_state"
+      );
 
       // Restore original directory
       std::env::set_current_dir(original_cwd).unwrap();

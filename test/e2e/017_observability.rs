@@ -72,4 +72,10 @@ async fn e2e_prebuilt_observability_trace_propagation_and_trace_id() {
   );
 
   // Response may include traceparent/tracestate (W3C propagation); at least we verified same trace id in body
+
+  if std::env::var("E2E_WEBDRIVER_URL").is_ok() {
+    forge_e2e_lib::browser::assert_app_root_loads(&base)
+      .await
+      .expect("browser must load app root");
+  }
 }

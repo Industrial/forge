@@ -52,7 +52,10 @@ async fn e2e_prebuilt_audit_migration_and_events() {
 
   tokio::time::sleep(Duration::from_millis(100)).await;
 
-  let db_path = project_root.join("db.sqlite");
+  let db_path = std::env::var("E2E_DB_PATH")
+    .ok()
+    .map(std::path::PathBuf::from)
+    .unwrap_or_else(|| project_root.join("db.sqlite"));
   if db_path.exists() && status != 404 {
     let conn = rusqlite::Connection::open(&db_path).unwrap();
     let mut stmt = conn
@@ -130,7 +133,7 @@ async fn e2e_prebuilt_audit_migration_and_events() {
 
   tokio::time::sleep(Duration::from_millis(100)).await;
 
-  assert!(db_path.exists(), "db.sqlite should exist (shared server)");
+  assert!(db_path.exists(), "e2e DB file should exist (shared server)");
 
   let conn = rusqlite::Connection::open(&db_path).expect("open db");
   let mut stmt = conn
@@ -168,4 +171,10 @@ async fn e2e_prebuilt_audit_migration_and_events() {
     "expected authz allowed event; rows: {:?}",
     rows
   );
+
+  if std::env::var("E2E_WEBDRIVER_URL").is_ok() {
+    forge_e2e_lib::browser::assert_app_root_loads(&base)
+      .await
+      .expect("browser must load app root");
+  }
 }

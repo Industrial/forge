@@ -55,24 +55,24 @@ version = "0.1.0"
 edition = "2024"
 
 [dependencies]
-forge = {{ path = "{}" }}
-db = {{ path = "../db" }}
-tokio = {{ version = "1", features = ["full"] }}
-serde = {{ version = "1.0", features = ["derive"] }}
+accept-language = "3.1"
 axum = {{ version = "0.8", features = ["ws"] }}
+axum-inertia = "0.9"
 axum-login = "0.17"
-sea-orm = {{ version = "1.1", features = ["runtime-tokio-rustls", "sqlx-sqlite", "macros"] }}
 chrono = {{ version = "0.4", features = ["serde"] }}
-uuid = {{ version = "1.0", features = ["v4", "serde"] }}
-validator = {{ version = "0.20", features = ["derive"] }}
+db = {{ path = "../db" }}
 fluent = "0.16"
 fluent-templates = "0.13"
-accept-language = "3.1"
-unic-langid = "0.9"
-axum-inertia = "0.9"
+forge = {{ path = "{}" }}
+sea-orm = {{ version = "1.1", features = ["runtime-tokio-rustls", "sqlx-sqlite", "macros"] }}
+serde = {{ version = "1.0", features = ["derive"] }}
 serde_json = "1.0"
+tokio = {{ version = "1", features = ["full"] }}
 tower-http = {{ version = "0.6", features = ["fs"] }}
 tracing = "0.1"
+unic-langid = "0.9"
+uuid = {{ version = "1.0", features = ["v4", "serde"] }}
+validator = {{ version = "0.20", features = ["derive"] }}
 "#,
     forge_crate_path.display()
   );
@@ -302,12 +302,14 @@ impl FromRef<AppState> for InertiaConfig {
   )?;
 
   // Create crates/app/src/handlers/inertia.rs (018: Inertia page handlers)
-  let inertia_rs = r#"use axum::{extract::State, response::IntoResponse};
+  let inertia_rs = r#"use axum::{extract::State, response::{IntoResponse, Redirect}};
 use axum::http::header::ACCEPT_LANGUAGE;
 use axum::http::HeaderMap;
 use axum_inertia::Inertia;
+use forge::token_auth::OptionalRequireAuth;
 use serde_json::json;
 
+use db::auth::Backend;
 use crate::state::AppState;
 
 const SUPPORTED: &[&str] = &["en-US", "de"];
@@ -342,8 +344,15 @@ pub async fn register_page(i: Inertia, State(_state): State<AppState>) -> impl I
   i.render("Pages/Auth/Register", json!({}))
 }
 
-pub async fn dashboard(i: Inertia, State(_state): State<AppState>) -> impl IntoResponse {
-  i.render("Pages/Dashboard", json!({ "message": "Welcome to the dashboard" }))
+pub async fn dashboard(
+  OptionalRequireAuth(maybe_user): OptionalRequireAuth<Backend>,
+  i: Inertia,
+  State(_state): State<AppState>,
+) -> impl IntoResponse {
+  match maybe_user {
+    Some(_) => i.render("Pages/Dashboard", json!({ "message": "Welcome to the dashboard" })).into_response(),
+    None => Redirect::to("/login").into_response(),
+  }
 }
 
 pub async fn ws_demo_page(i: Inertia, State(_state): State<AppState>) -> impl IntoResponse {

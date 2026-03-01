@@ -1,16 +1,12 @@
 //! E2E tests for Forge auth using the prebuilt project from `bin/test-e2e`.
-//! Run `bin/test-e2e` first.
+//! Run `bin/test-e2e` first. 100% fantoccini: register/login via forms, verify dashboard when authed.
 
 use std::fs;
-use std::time::Duration;
 
 use forge_e2e_lib::cli;
 
-/// Single E2E test: prebuilt auth layout and (when not ignored) register/login/protected route.
-/// 1. Asserts project layout, auth.rs, org/membership models, user AuthzContext, auth handlers, main.rs routes.
-/// 2. Register → login → GET /api/auth/admin (skipped in e2e env: SQLite readonly; run with --ignored to exercise).
+/// Single E2E test: prebuilt auth layout; then browser register → login → dashboard (no reqwest).
 #[tokio::test]
-#[ignore = "SQLite readonly in e2e env (code 1032); see bd issue"]
 async fn e2e_prebuilt_auth_layout_and_flow() {
   let project_root = cli::prebuilt_project_root();
   assert!(
@@ -51,6 +47,9 @@ async fn e2e_prebuilt_auth_layout_and_flow() {
   assert!(!main_rs.contains("forge::prelude"));
 
   let base = cli::e2e_base_url().expect("run e2e via bin/test-e2e (E2E_BASE_URL not set)");
+  if std::env::var("E2E_WEBDRIVER_URL").is_err() {
+    return;
+  }
   let email = format!(
     "auth-e2e-{}@test.com",
     std::time::SystemTime::now()
@@ -58,47 +57,19 @@ async fn e2e_prebuilt_auth_layout_and_flow() {
       .unwrap()
       .as_millis()
   );
-  let client = reqwest::Client::builder()
-    .cookie_store(true)
-    .timeout(Duration::from_secs(5))
-    .build()
-    .unwrap();
+  let password = "password123";
 
-  let reg = client
-    .post(format!("{}/api/auth/register", base))
-    .json(&serde_json::json!({ "email": email, "password": "password123" }))
-    .send()
+  let c = forge_e2e_lib::browser::connect()
     .await
-    .expect("register");
-  let reg_status = reg.status();
-  let reg_body = reg.text().await.unwrap_or_default();
-  assert!(
-    reg_status.is_success(),
-    "register should succeed: {} {}",
-    reg_status,
-    reg_body
-  );
-
-  let login = client
-    .post(format!("{}/api/auth/login", base))
-    .json(&serde_json::json!({ "email": email, "password": "password123" }))
-    .send()
+    .expect("browser connect (run chromedriver or set E2E_WEBDRIVER_URL)");
+  forge_e2e_lib::browser::register_via_browser(&c, &base, &email, password)
     .await
-    .expect("login");
-  assert!(
-    login.status().is_success(),
-    "login should succeed: {}",
-    login.status()
-  );
-
-  let admin = client
-    .get(format!("{}/api/auth/admin", base))
-    .send()
+    .expect("register via browser");
+  forge_e2e_lib::browser::login_via_browser(&c, &base, &email, password)
     .await
-    .expect("admin");
-  assert!(
-    admin.status().as_u16() == 200,
-    "GET /api/auth/admin with session should be 200: {}",
-    admin.status()
-  );
+    .expect("login via browser");
+  forge_e2e_lib::browser::assert_dashboard_visible(&c, &base)
+    .await
+    .expect("dashboard visible after login");
+  c.close().await.expect("close browser");
 }

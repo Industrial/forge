@@ -78,4 +78,10 @@ async fn e2e_prebuilt_validation_layout_and_422() {
     "invalid login should return 422: {}",
     login_invalid.status()
   );
+
+  if std::env::var("E2E_WEBDRIVER_URL").is_ok() {
+    forge_e2e_lib::browser::assert_app_root_loads(&base)
+      .await
+      .expect("browser must load app root");
+  }
 }

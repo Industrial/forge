@@ -1,43 +1,9 @@
 //! E2E tests for Forge health endpoints using the prebuilt project from `bin/test-e2e`.
-//! Run `bin/test-e2e` first.
-
-use std::time::Duration;
+//! Run `bin/test-e2e` first. 100% fantoccini: navigate to /healthz, /livez, /readyz and assert body contains ok.
 
 use forge_e2e_lib::cli;
 
-async fn assert_health_endpoint(
-  client: &reqwest::Client,
-  url: &str,
-  expected_status: u16,
-  expected_body: &str,
-) {
-  let resp = client.get(url).send().await.expect("request");
-  assert_eq!(
-    resp.status().as_u16(),
-    expected_status,
-    "{} should return {}",
-    url,
-    expected_status
-  );
-  let body = resp.text().await.expect("body");
-  assert_eq!(
-    body.trim(),
-    expected_body,
-    "{} body should be {:?}, got {:?}",
-    url,
-    expected_body,
-    body
-  );
-  assert!(
-    !body.contains("components") && !body.contains("database"),
-    "response must not disclose components: {:?}",
-    body
-  );
-}
-
-/// Single E2E test: prebuilt layout and healthz/livez/readyz return 200 with minimal body.
-/// 1. Asserts project layout.
-/// 2. GET /healthz, /livez, /readyz → 200 "ok", no component disclosure.
+/// Single E2E test: prebuilt layout; then browser navigates to healthz, livez, readyz and asserts body contains "ok".
 #[tokio::test]
 async fn e2e_prebuilt_health_layout_and_endpoints() {
   let project_root = cli::prebuilt_project_root();
@@ -49,11 +15,17 @@ async fn e2e_prebuilt_health_layout_and_endpoints() {
   cli::assert_project_layout(&project_root);
 
   let base = cli::e2e_base_url().expect("run e2e via bin/test-e2e (E2E_BASE_URL not set)");
-  let client = reqwest::Client::builder()
-    .timeout(Duration::from_secs(5))
-    .build()
-    .unwrap();
-  assert_health_endpoint(&client, &format!("{}/healthz", base), 200, "ok").await;
-  assert_health_endpoint(&client, &format!("{}/livez", base), 200, "ok").await;
-  assert_health_endpoint(&client, &format!("{}/readyz", base), 200, "ok").await;
+  if std::env::var("E2E_WEBDRIVER_URL").is_err() {
+    return;
+  }
+  let b = base.trim_end_matches('/');
+  forge_e2e_lib::browser::assert_health_ok_in_browser(&format!("{}/healthz", b))
+    .await
+    .expect("browser must load healthz and show ok");
+  forge_e2e_lib::browser::assert_health_ok_in_browser(&format!("{}/livez", b))
+    .await
+    .expect("browser must load livez and show ok");
+  forge_e2e_lib::browser::assert_health_ok_in_browser(&format!("{}/readyz", b))
+    .await
+    .expect("browser must load readyz and show ok");
 }

@@ -1,12 +1,12 @@
 //! E2E tests for Forge config using the prebuilt project from `bin/test-e2e`.
-//! Run `bin/test-e2e` first. Health endpoints are tested only in 008_health.
+//! Run `bin/test-e2e` first. Config file asserts stay in Rust; browser verifies app load.
 
 use std::fs;
 
 use forge_e2e_lib::cli;
 
-#[test]
-fn e2e_prebuilt_config_files_and_content() {
+#[tokio::test]
+async fn e2e_prebuilt_config_files_and_content() {
   let project_root = cli::prebuilt_project_root();
   assert!(
     project_root.exists(),
@@ -34,4 +34,12 @@ fn e2e_prebuilt_config_files_and_content() {
     db_content.contains("[database]"),
     "config/db.toml should have [database]"
   );
+
+  if let Some(base) = cli::e2e_base_url()
+    && std::env::var("E2E_WEBDRIVER_URL").is_ok()
+  {
+    forge_e2e_lib::browser::assert_app_root_loads(&base)
+      .await
+      .expect("browser must load app root");
+  }
 }

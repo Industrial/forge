@@ -40,6 +40,10 @@
     # AI
     inputs.nixpkgs-unstable.legacyPackages.${stdenv.hostPlatform.system}.beads
 
+    # E2E browser automation (fantoccini + chromedriver)
+    chromedriver
+    chromium
+
     # Rust tools
     clippy
     rust-analyzer

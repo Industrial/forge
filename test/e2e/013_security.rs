@@ -54,4 +54,10 @@ async fn e2e_prebuilt_security_headers() {
   assert_header(&resp, "content-security-policy", "frame-ancestors");
   assert_header(&resp, "permissions-policy", "geolocation=()");
   assert_header(&resp, "cross-origin-resource-policy", "same-site");
+
+  if std::env::var("E2E_WEBDRIVER_URL").is_ok() {
+    forge_e2e_lib::browser::assert_app_root_loads(&base)
+      .await
+      .expect("browser must load app root");
+  }
 }

@@ -45,10 +45,13 @@ port = $E2E_PORT
 [frontend]
 port = 3000
 EOF
-# Disable seed so tests control data; keep migrations and default db path
-cat > "$PREBUILT/config/db.toml" <<'EOF'
+# Use a writable DB path (TMPDIR) so SQLite is never readonly in Nix/CI or when .tmp is read-only
+E2E_DB_PATH="${TMPDIR:-/tmp}/forge_e2e_$$.sqlite"
+rm -f "$E2E_DB_PATH"
+# Disable seed so tests control data
+cat > "$PREBUILT/config/db.toml" <<EOF
 [database]
-url = "sqlite://db.sqlite?mode=rwc"
+url = "sqlite://${E2E_DB_PATH}?mode=rwc"
 max_connections = 5
 min_connections = 1
 connect_timeout = 10
@@ -56,11 +59,16 @@ idle_timeout = 600
 auto_migrate = true
 auto_seed = false
 EOF
-rm -f "$PREBUILT/db.sqlite"
+export E2E_DB_PATH
 
 # Start server once in background; kill on exit (success or failure)
 SERVER_PID=""
+CHROMEDRIVER_PID=""
 cleanup() {
+  if [[ -n "${CHROMEDRIVER_PID:-}" ]] && kill -0 "$CHROMEDRIVER_PID" 2>/dev/null; then
+    kill "$CHROMEDRIVER_PID" 2>/dev/null || true
+    wait "$CHROMEDRIVER_PID" 2>/dev/null || true
+  fi
   if [[ -n "${SERVER_PID:-}" ]] && kill -0 "$SERVER_PID" 2>/dev/null; then
     kill "$SERVER_PID" 2>/dev/null || true
     wait "$SERVER_PID" 2>/dev/null || true
@@ -85,9 +93,19 @@ for i in {1..50}; do
   sleep 0.2
 done
 
+# Start chromedriver for fantoccini (001_cli browser check)
+if command -v chromedriver &>/dev/null; then
+  echo "> test-e2e > starting chromedriver (port 9515)"
+  chromedriver --port=9515 --log-path=/dev/null 2>/dev/null &
+  CHROMEDRIVER_PID=$!
+  sleep 1
+  export E2E_WEBDRIVER_URL="http://localhost:9515"
+fi
+
 # Run all e2e tests in one go (shared server; no per-test spawn)
 echo "> test-e2e > cargo test (all e2e tests)"
 export E2E_BASE_URL
+export E2E_DB_PATH
 RUSTFLAGS='-D warnings' cargo test -p forge-e2e-tests
 EXIT=$?
 

@@ -100,7 +100,7 @@ async fn e2e_prebuilt_i18n_layout_and_accept_language() {
   );
 
   // Fallback: no Accept-Language -> default locale in props
-  let fallback_resp = client.get(base).send().await.expect("GET / no header");
+  let fallback_resp = client.get(&base).send().await.expect("GET / no header");
   assert!(
     fallback_resp.status().is_success(),
     "GET / (fallback) must succeed"
@@ -111,4 +111,10 @@ async fn e2e_prebuilt_i18n_layout_and_accept_language() {
     "fallback should return Inertia Home; got {:?}",
     fallback_body
   );
+
+  if std::env::var("E2E_WEBDRIVER_URL").is_ok() {
+    forge_e2e_lib::browser::assert_app_root_loads(&base)
+      .await
+      .expect("browser must load app root");
+  }
 }

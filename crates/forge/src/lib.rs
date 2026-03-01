@@ -23,7 +23,7 @@ pub mod validation;
 
 pub use forge_macros::*;
 
-pub use app::{init_tracing, App};
+pub use app::{App, init_tracing};
 pub use audit::{AuditError, AuditEvent, EventKind, Outcome};
 pub use cache::{AppCache, CacheConfig};
 pub use cache_http_layer::HttpResponseCacheLayer;
@@ -78,6 +78,9 @@ environment = "test"
 [server]
 host = "127.0.0.1"
 port = 3000
+
+[frontend]
+port = 3000
 "#,
       project_name
     );
@@ -85,6 +88,8 @@ port = 3000
 
     let db_toml_content = r#"[database]
 url = "sqlite::memory:"
+auto_migrate = true
+auto_seed = false
 "#;
     fs::write(config_dir.join("db.toml"), db_toml_content).unwrap();
   }
