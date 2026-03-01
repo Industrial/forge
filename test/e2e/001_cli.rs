@@ -4,8 +4,6 @@
 //! `bin/test-e2e`). Start the server and run tests against it. No `forge new` or `cargo build`
 //! in the test; run `bin/test-e2e` first.
 
-use std::fs;
-use std::process::Command;
 use std::time::Duration;
 
 use forge_e2e_lib::cli;
@@ -24,67 +22,17 @@ fn prebuilt_project_has_correct_layout() {
   cli::assert_project_layout(&project_root);
 }
 
-/// Start the server from the prebuilt project and run tests: GET /healthz → 200 "ok".
+/// GET /healthz → 200 "ok" (uses shared server when run via bin/test-e2e).
 #[tokio::test]
 async fn prebuilt_server_healthz_ok() {
-  let project_root = cli::prebuilt_project_root();
-  assert!(
-    project_root.exists(),
-    "prebuilt project not found at {} — run bin/test-e2e first",
-    project_root.display()
-  );
-
-  let port = cli::next_e2e_port();
-  let config_app = project_root.join("config/app.toml");
-  fs::write(
-    &config_app,
-    format!(
-      r#"[app]
-name = "e2e_prebuilt"
-environment = "development"
-
-[server]
-host = "127.0.0.1"
-port = {}
-"#,
-      port
-    ),
-  )
-  .unwrap();
-
-  let mut child = Command::new("cargo")
-    .args(["run", "--quiet"])
-    .current_dir(&project_root)
-    .stdout(std::process::Stdio::null())
-    .stderr(std::process::Stdio::piped())
-    .spawn()
-    .expect("spawn cargo run");
-
+  let base = cli::e2e_base_url().expect("run e2e via bin/test-e2e (E2E_BASE_URL not set)");
   let client = reqwest::Client::builder()
     .timeout(Duration::from_secs(5))
     .build()
     .unwrap();
-  let url = format!("http://127.0.0.1:{}/healthz", port);
-
-  for _ in 0..300 {
-    tokio::time::sleep(Duration::from_millis(200)).await;
-    if let Ok(resp) = client.get(&url).send().await
-      && resp.status().as_u16() == 200
-    {
-      let body = resp.text().await.unwrap_or_default();
-      assert_eq!(
-        body.trim(),
-        "ok",
-        "GET /healthz body should be 'ok', got {:?}",
-        body
-      );
-      let _ = child.kill();
-      let _ = child.wait();
-      return;
-    }
-  }
-
-  let _ = child.kill();
-  let _ = child.wait();
-  panic!("server did not respond with 200 on /healthz within 60s");
+  let url = format!("{}/healthz", base);
+  let resp = client.get(&url).send().await.expect("request");
+  assert_eq!(resp.status().as_u16(), 200, "GET /healthz");
+  let body = resp.text().await.unwrap_or_default();
+  assert_eq!(body.trim(), "ok", "GET /healthz body should be 'ok'");
 }

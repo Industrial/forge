@@ -2,7 +2,6 @@
 //! Run `bin/test-e2e` first.
 
 use std::fs;
-use std::process::Command;
 use std::time::Duration;
 
 use forge_e2e_lib::cli;
@@ -26,55 +25,11 @@ fn prebuilt_project_has_auth_routes_in_main() {
 
 #[tokio::test]
 async fn prebuilt_server_register_and_login_validation_422_for_invalid() {
-  let project_root = cli::prebuilt_project_root();
-  assert!(
-    project_root.exists(),
-    "prebuilt project not found at {} — run bin/test-e2e first",
-    project_root.display()
-  );
-
-  let port = cli::next_e2e_port();
-  std::fs::write(
-    project_root.join("config/app.toml"),
-    format!(
-      r#"[app]
-name = "e2e_prebuilt"
-environment = "development"
-
-[server]
-host = "127.0.0.1"
-port = {}
-"#,
-      port
-    ),
-  )
-  .unwrap();
-
-  let mut child = Command::new("cargo")
-    .args(["run", "-p", "app", "--quiet"])
-    .current_dir(&project_root)
-    .stdout(std::process::Stdio::null())
-    .stderr(std::process::Stdio::piped())
-    .spawn()
-    .expect("spawn cargo run");
-
+  let base = cli::e2e_base_url().expect("run e2e via bin/test-e2e (E2E_BASE_URL not set)");
   let client = reqwest::Client::builder()
     .timeout(Duration::from_secs(5))
     .build()
     .unwrap();
-  let base = format!("http://127.0.0.1:{}", port);
-
-  for i in 0..450 {
-    tokio::time::sleep(Duration::from_millis(200)).await;
-    if client.get(format!("{}/", base)).send().await.is_ok() {
-      break;
-    }
-    if i == 449 {
-      let _ = child.kill();
-      let _ = child.wait();
-      panic!("server did not become ready in time");
-    }
-  }
 
   let reg_invalid = client
     .post(format!("{}/api/auth/register", base))
@@ -95,9 +50,13 @@ port = {}
     body
   );
 
+  let unique = std::time::SystemTime::now()
+    .duration_since(std::time::UNIX_EPOCH)
+    .unwrap()
+    .as_millis();
   let reg_ok = client
     .post(format!("{}/api/auth/register", base))
-    .json(&serde_json::json!({ "email": "valid@example.com", "password": "password123" }))
+    .json(&serde_json::json!({ "email": format!("valid-{}@example.com", unique), "password": "password123" }))
     .send()
     .await
     .expect("register");
@@ -119,7 +78,4 @@ port = {}
     "invalid login should return 422: {}",
     login_invalid.status()
   );
-
-  let _ = child.kill();
-  let _ = child.wait();
 }

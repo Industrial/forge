@@ -1,6 +1,10 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
+E2E_PORT=30999
+E2E_BASE_URL="http://127.0.0.1:${E2E_PORT}"
+PREBUILT=".tmp/e2e_prebuilt"
+
 echo "> test-e2e"
 
 # Create and clear .tmp at repo root (matches forge-e2e-lib tmpdir)
@@ -18,26 +22,64 @@ ROOT="$(pwd)"
 
 # Build the generated project
 echo "> test-e2e > cargo build (e2e_prebuilt)"
-cargo build --manifest-path .tmp/e2e_prebuilt/Cargo.toml
+cargo build --manifest-path "$PREBUILT/Cargo.toml"
 
-# Run all e2e tests one by one (serial)
-TESTS=(
-  "001_cli"
-  "002_config"
-  "003_database"
-  "004_migrations"
-  "005_auth"
-  "006_authz"
-  "007_audit"
-  "008_health"
-  "009_rate_limiting"
-  "010_validation"
-  "011_jobs"
-)
+# Single config and DB for the whole e2e run (server started once below)
+echo "> test-e2e > writing config (port $E2E_PORT)"
+cat > "$PREBUILT/config/app.toml" <<EOF
+[app]
+name = "e2e_prebuilt"
+environment = "development"
 
-for test in "${TESTS[@]}"; do
-  echo "> test-e2e > cargo test --test $test"
-  RUSTFLAGS='-D warnings' cargo test -p forge-e2e-tests --test "$test"
+[server]
+host = "127.0.0.1"
+port = $E2E_PORT
+EOF
+# Disable seed so tests control data; keep migrations and default db path
+cat > "$PREBUILT/config/db.toml" <<'EOF'
+[database]
+url = "sqlite://db.sqlite?mode=rwc"
+max_connections = 5
+min_connections = 1
+connect_timeout = 10
+idle_timeout = 600
+auto_migrate = true
+auto_seed = false
+EOF
+rm -f "$PREBUILT/db.sqlite"
+
+# Start server once in background; kill on exit (success or failure)
+SERVER_PID=""
+cleanup() {
+  if [[ -n "${SERVER_PID:-}" ]] && kill -0 "$SERVER_PID" 2>/dev/null; then
+    kill "$SERVER_PID" 2>/dev/null || true
+    wait "$SERVER_PID" 2>/dev/null || true
+  fi
+}
+trap cleanup EXIT
+
+echo "> test-e2e > starting server (port $E2E_PORT)"
+(cd "$PREBUILT" && cargo run --quiet) &
+SERVER_PID=$!
+
+# Wait for server readiness (short polling)
+echo "> test-e2e > waiting for /healthz"
+for i in {1..50}; do
+  if curl -sf --max-time 1 "$E2E_BASE_URL/healthz" >/dev/null 2>&1; then
+    break
+  fi
+  if [[ $i -eq 50 ]]; then
+    echo "> test-e2e > server did not become ready in time"
+    exit 1
+  fi
+  sleep 0.2
 done
 
+# Run all e2e tests in one go (shared server; no per-test spawn)
+echo "> test-e2e > cargo test (all e2e tests)"
+export E2E_BASE_URL
+RUSTFLAGS='-D warnings' cargo test -p forge-e2e-tests
+EXIT=$?
+
 echo "> test-e2e > done"
+exit $EXIT

@@ -41,6 +41,12 @@ pub fn prebuilt_project_root() -> std::path::PathBuf {
     .join("e2e_prebuilt")
 }
 
+/// When set by `bin/test-e2e`, the shared server base URL (e.g. `http://127.0.0.1:30999`).
+/// Server tests use this and do not spawn their own server, so e2e stays sub-second.
+pub fn e2e_base_url() -> Option<String> {
+  std::env::var("E2E_BASE_URL").ok()
+}
+
 /// Run `forge new <name>` in `dir`; return the command output. Caller asserts success and path.
 pub fn run_forge_new(dir: &Path, name: &str) -> Output {
   Command::new(forge_binary())

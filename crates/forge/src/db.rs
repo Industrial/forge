@@ -1,5 +1,6 @@
 use sea_orm::{ConnectOptions, Database, DatabaseConnection, SqlxSqliteConnector};
-use sqlx::sqlite::SqlitePoolOptions;
+use sqlx::sqlite::{SqliteConnectOptions, SqlitePoolOptions};
+use std::str::FromStr;
 use std::time::Duration;
 
 use crate::config::DatabaseConfig;
@@ -27,7 +28,11 @@ pub async fn initialize_database(
       pool_options = pool_options.idle_timeout(Some(Duration::from_secs(timeout)));
     }
 
-    let pool = pool_options.connect(&config.url).await?;
+    let opts = SqliteConnectOptions::from_str(&config.url)?
+      .read_only(false)
+      .immutable(false)
+      .create_if_missing(true);
+    let pool = pool_options.connect_with(opts).await?;
     let db = SqlxSqliteConnector::from_sqlx_sqlite_pool(pool);
     Ok(db)
   } else {
