@@ -32,8 +32,11 @@ pub struct TokenUser<U>(pub U);
 /// looks up the user via the provided closure and inserts `TokenUser(user)` into request extensions.
 #[derive(Clone)]
 pub struct TokenAuthLayer<B> {
+  /// Database connection for the token lookup.
   db: DatabaseConnection,
+  /// Auth backend used to load the user by id after lookup.
   backend: Arc<B>,
+  /// Async closure that resolves a raw token to a user id.
   lookup: TokenLookupFn,
 }
 
@@ -66,9 +69,13 @@ where
 
 /// Service that runs the token lookup and inserts TokenUser into extensions when Bearer is valid.
 pub struct TokenAuthService<B, S> {
+  /// Database connection for the token lookup.
   db: DatabaseConnection,
+  /// Auth backend used to load the user by id after lookup.
   backend: Arc<B>,
+  /// Async closure that resolves a raw token to a user id.
   lookup: TokenLookupFn,
+  /// Inner service (router or next layer).
   inner: S,
 }
 
@@ -122,6 +129,7 @@ where
   }
 }
 
+/// Extracts the Bearer token value from an `Authorization` header, or None if missing/invalid.
 fn extract_bearer(value: Option<&axum::http::HeaderValue>) -> Option<String> {
   let v = value?.to_str().ok()?;
   let prefix = "Bearer ";
