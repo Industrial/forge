@@ -47,3 +47,7 @@ path = "006_authz.rs"
 [[test]]
 name = "007_audit"
 path = "007_audit.rs"
+
+[[test]]
+name = "008_health"
+path = "008_health.rs"

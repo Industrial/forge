@@ -241,6 +241,12 @@ impl App {
       router = installer(router, db_conn.clone()).await;
     }
 
+    // Health endpoints: status code + minimal body only (no component disclosure)
+    router = router
+      .route("/healthz", get(crate::health::healthz))
+      .route("/livez", get(crate::health::livez))
+      .route("/readyz", get(crate::health::readyz));
+
     // Inject database connection into state
     router.with_state(db_conn)
   }
@@ -465,6 +471,40 @@ url = "sqlite::memory:"
       let app = App::new();
       assert_eq!(app.config().server.host, "127.0.0.1");
       assert_eq!(app.config().server.port, 0);
+
+      std::env::set_current_dir(original_cwd).unwrap();
+    }
+
+    #[tokio::test]
+    async fn healthz_livez_readyz_return_200_minimal_body() {
+      let temp_dir = tempfile::tempdir().unwrap();
+      let original_cwd = std::env::current_dir().unwrap();
+      std::env::set_current_dir(temp_dir.path()).unwrap();
+      setup_test_config(temp_dir.path(), "health_test");
+
+      let app = App::new();
+      let router = app.into_router().await;
+      let listener = tokio::net::TcpListener::bind("127.0.0.1:0").await.unwrap();
+      let port = listener.local_addr().unwrap().port();
+      tokio::spawn(async move {
+        axum::serve(listener, router).await
+      });
+
+      tokio::time::sleep(std::time::Duration::from_millis(100)).await;
+
+      let client = reqwest::Client::new();
+      let base = format!("http://127.0.0.1:{}", port);
+      for path in ["/healthz", "/livez", "/readyz"] {
+        let resp = client.get(format!("{}{}", base, path)).send().await.unwrap();
+        assert!(resp.status().is_success(), "{}: {}", path, resp.status());
+        let body = resp.text().await.unwrap();
+        assert_eq!(body.trim(), "ok", "{} body: {:?}", path, body);
+        assert!(
+          !body.contains("components") && !body.contains("database"),
+          "no component disclosure: {:?}",
+          body
+        );
+      }
 
       std::env::set_current_dir(original_cwd).unwrap();
     }

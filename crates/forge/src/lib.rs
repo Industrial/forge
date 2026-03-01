@@ -9,6 +9,7 @@ pub mod authz;
 pub mod config;
 pub mod db;
 pub mod error;
+pub mod health;
 pub mod seed;
 
 pub use forge_macros::*;

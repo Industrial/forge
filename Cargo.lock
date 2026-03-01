@@ -969,6 +969,7 @@ dependencies = [
  "forge-authz",
  "forge-macros",
  "futures",
+ "reqwest",
  "sea-orm",
  "sea-orm-migration",
  "serde",

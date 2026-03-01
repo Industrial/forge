@@ -36,6 +36,7 @@ forge-macros = { path = "../forge-macros" }
 forge-authz = { path = "../forge-authz" }
 
 [dev-dependencies]
+reqwest = { version = "0.12", features = ["json"] }
 serde_json = "1.0"
 tempfile = "3.10"
 

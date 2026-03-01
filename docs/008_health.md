@@ -1,67 +1,46 @@
-# 008_health: Health Check Endpoints
+# 008_health: Health Check Endpoints (healthz, livez, readyz)
 
 ## Overview
 
-Forge exposes a **health endpoint** for liveness and readiness checks, using [axum-health](https://crates.io/crates/axum-health). This allows load balancers, Kubernetes, and other orchestrators to verify that the application and its dependencies (e.g. database) are up.
+Forge exposes three health endpoints with **no plugin or crate**: status code and minimal body only. No component or server details are disclosed (security).
 
 ## Goals
 
-- **Zero configuration**: Health is enabled by default when using `App::new()`.
-- **Convention**: Endpoint path is `/healthz` (common in Kubernetes and cloud environments).
-- **Database check**: When the app has a database connection, the health response includes a database component so readiness can reflect DB availability.
+- **Kubernetes-style**: Machines rely on HTTP status code; body is minimal.
+- **No information disclosure**: Responses do not reveal database, components, or stack.
+- **Correct lifecycle**: liveness vs readiness semantics.
 
-## Architecture
+## Endpoints
 
-### Endpoint
+| Path      | Method | Meaning | When 200 | When non-200 | Body |
+|-----------|--------|---------|----------|----------------|------|
+| **/livez**  | GET    | Process is alive | Always (process running) | — | `ok` |
+| **/readyz** | GET    | Ready to accept traffic | DB ping succeeds | 503 if DB unreachable | `ok` or `unavailable` |
+| **/healthz**| GET    | Legacy/simple health | Same as livez | — | `ok` |
 
-| Path      | Method | Purpose |
-|-----------|--------|---------|
-| `/healthz` | GET   | Combined liveness/readiness; returns overall status and component status (e.g. database). |
+- **livez**: No dependency checks. Used by orchestrators to decide whether to restart the process.
+- **readyz**: Pings the database; 200 = ready, 503 = not ready. Used to remove the instance from load balancing when it cannot serve traffic.
+- **healthz**: Returns 200 with minimal body for backward compatibility; no dependency checks.
 
-Response shape (JSON):
+All responses are **plain text** (`ok` or `unavailable`), not JSON. No `components`, `database`, or other internal details.
 
-```json
-{
-  "status": "UP",
-  "components": {
-    "database": { "status": "UP" }
-  }
-}
-```
+## Implementation
 
-If the database is unreachable, the component status will be `DOWN` and the overall status may be `DOWN` (depending on axum-health semantics).
-
-### Integration
-
-- Health is wired in `App::into_router()` after the database connection is established.
-- A `DatabaseHealthIndicator` (SeaORM) is registered with axum-health’s `Health` builder and the `/healthz` route is added to the main router before `with_state(db_conn)`.
-- No user code is required; the route is added automatically.
+- Handlers live in `crates/forge/src/health.rs` (no external health crate).
+- **livez** / **healthz**: return `(StatusCode::OK, "ok")`.
+- **readyz**: takes `State<DatabaseConnection>`, runs `db.execute_unprepared("SELECT 1").await`; on success returns 200 and `"ok"`, on failure 503 and `"unavailable"`.
 
 ## Configuration
 
-No dedicated config section is required. The health endpoint is always mounted when the app runs. Path is fixed at `/healthz` for now; future versions may allow configuration (e.g. in `config/app.toml`).
-
-## Usage
-
-Users do not need to call any method. After building the app and calling `serve()` or `into_router()`, `GET /healthz` is available:
-
-```bash
-curl http://127.0.0.1:3000/healthz
-```
-
-## Dependencies
-
-- **axum-health** (with `sea-orm` feature): provides `Health`, `Health::builder()`, and `DatabaseHealthIndicator` for SeaORM.
+None. Endpoints are always mounted when the app runs.
 
 ## Success Criteria
 
-1. `GET /healthz` returns 200 and JSON with `status` and `components`.
-2. When the database is available, the `database` component is `UP`.
-3. When the database is unavailable (e.g. wrong URL), the health response reflects the failure (e.g. component `DOWN`).
-4. No extra user code or config is required for basic health checks.
+1. GET /healthz returns 200 and body `ok` (no JSON, no components).
+2. GET /livez returns 200 and body `ok`.
+3. GET /readyz returns 200 and body `ok` when DB is reachable; 503 and body `unavailable` when DB is not.
+4. No response discloses database, components, or stack (E2E asserts no `components` or `database` in body).
 
-## Future Extensions
+## E2E
 
-- Optional separate `/live` and `/ready` endpoints (liveness vs readiness).
-- Configurable path(s) via `config/app.toml`.
-- Additional indicators (e.g. Redis, external API) as optional plugins.
+- `008_health.rs`: asserts 200 and body content for /healthz, /livez, /readyz when server and DB are up; asserts no component/database disclosure.
