@@ -26,6 +26,24 @@ pub fn verify_password(password: &str, hash: &str) -> Result<bool, Error> {
   Ok(is_valid)
 }
 
+/// Hashes an API token secret for storage (SHA-256). Only the hash is stored; the secret is shown once at creation.
+pub fn hash_api_token(secret: &str) -> String {
+  use sha2::{Digest, Sha256};
+  let mut hasher = Sha256::new();
+  hasher.update(secret.as_bytes());
+  hex::encode(hasher.finalize())
+}
+
+/// Verifies an API token against a stored hash using constant-time comparison.
+pub fn verify_api_token(secret: &str, hash: &str) -> bool {
+  use subtle::ConstantTimeEq;
+  let computed = hash_api_token(secret);
+  if computed.len() != hash.len() {
+    return false;
+  }
+  computed.as_bytes().ct_eq(hash.as_bytes()).into()
+}
+
 #[cfg(test)]
 mod tests {
   use super::*;

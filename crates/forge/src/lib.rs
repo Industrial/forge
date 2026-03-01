@@ -6,6 +6,7 @@ pub mod app;
 pub mod audit;
 pub mod auth;
 pub mod authz;
+pub mod token_auth;
 pub mod config;
 pub mod cron;
 pub mod db;
@@ -27,6 +28,7 @@ pub use error::Error;
 pub use jobs::ScheduledTaskJob;
 pub use rate_limit::RequesterOrgKey;
 pub use seed::Seeder;
+pub use token_auth::{OptionalRequireAuth, RequireAuth, TokenAuthLayer, TokenLookupFn, TokenUser};
 pub use validation::{Valid, Validate};
 
 // Re-exports for a unified API (Phase 3)

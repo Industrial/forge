@@ -127,6 +127,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
     .with_migrations(db::Migrator)
     .with_seed(|db| Box::pin(db::run_seeds(db)))
     .with_auth(|db| Backend::new(db))
+    .with_token_auth(db::token_lookup)
     .with_cron("heartbeat", CronSchedule::Interval(Duration::from_secs(60)), |_db| async move { Ok(()) });
 
   let app = if app.config().app.environment.eq_ignore_ascii_case("production") {
@@ -143,6 +144,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
     .post_route("/api/auth/login", handlers::auth::login)
     .route("/api/auth/logout", handlers::auth::logout)
     .route("/api/auth/profile", handlers::auth::profile)
+    .post_route("/api/auth/tokens", handlers::auth::create_token)
     .route("/api/auth/admin", handlers::auth::admin_only)
     .serve()
     .await
@@ -165,10 +167,12 @@ async fn main() -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
 };
 use axum_login::AuthSession;
 use chrono::Utc;
-use forge::auth::hash_password;
+use forge::auth::{hash_api_token, hash_password};
 use forge::audit::{AuditEvent, EventKind, Outcome};
-use forge::authz::{Action, AuthSessionGuardExt, AuthzContext, Role};
+use forge::authz::{guard_and_audit_user, Action, AuthzContext, Role};
 use forge::validation::Valid;
+use forge::token_auth::{OptionalRequireAuth, RequireAuth};
+use forge::authz::record_authz_denied;
 use forge::Error as ForgeError;
 use sea_orm::{ActiveModelTrait, DatabaseConnection, EntityTrait, Set, TransactionTrait};
 use serde::Deserialize;
@@ -176,7 +180,7 @@ use uuid::Uuid;
 use validator::Validate;
 
 use db::auth::Backend;
-use db::models::{organization, membership, user};
+use db::models::{api_token, organization, membership, user};
 
 #[derive(Deserialize, Validate)]
 pub struct RegisterRequest {
@@ -342,15 +346,48 @@ pub async fn profile(auth_session: AuthSession<Backend>) -> impl IntoResponse {
   }
 }
 
+#[derive(Deserialize, Validate)]
+pub struct CreateTokenRequest {
+  pub name: Option<String>,
+}
+
+pub async fn create_token(
+  RequireAuth(user): RequireAuth<Backend>,
+  State(db): State<DatabaseConnection>,
+  Valid(Json(payload)): Valid<Json<CreateTokenRequest>>,
+) -> Result<impl IntoResponse, ForgeError> {
+  let secret = format!("forge_{}", Uuid::new_v4().to_string().replace('-', ""));
+  let token_hash = hash_api_token(&secret);
+  let now = Utc::now().naive_utc();
+  let id = Uuid::new_v4();
+  let model = api_token::ActiveModel {
+    id: Set(id),
+    user_id: Set(user.id),
+    token_hash: Set(token_hash),
+    name: Set(payload.name),
+    last_used_at: Set(None),
+    expires_at: Set(None),
+    created_at: Set(now),
+    updated_at: Set(now),
+  };
+  api_token::Entity::insert(model).exec(&db).await?;
+  Ok(Json(forge::serde_json::json!({ "token": secret })))
+}
+
 /// Shallow Gate example: only users with Role::Owner (or Admin) can access. Audits the decision.
 pub async fn admin_only(
-  auth_session: AuthSession<Backend>,
+  OptionalRequireAuth(maybe_user): OptionalRequireAuth<Backend>,
   State(db): State<DatabaseConnection>,
 ) -> Result<impl IntoResponse, ForgeError> {
-  auth_session
-    .guard_and_audit(&db, Action::Manage, Role::Owner, "admin", None)
-    .await?;
-  Ok((StatusCode::OK, "Admin only: access granted"))
+  let user = match maybe_user {
+    Some(u) => u,
+    None => {
+      record_authz_denied(&db, Action::Manage, "admin", None).await;
+      return Ok((StatusCode::UNAUTHORIZED, "Authentication required").into_response());
+    }
+  };
+  guard_and_audit_user(&user, &db, Action::Manage, Role::Owner, "admin", None).await?;
+  Ok((StatusCode::OK, format!("Admin only: access granted for {}", user.email)).into_response())
 }
 "#;
   fs::write(
@@ -379,6 +416,7 @@ impl MigratorTrait for Migrator {
       Box::new(migrations::m20220101_000003_create_organizations_table::Migration),
       Box::new(migrations::m20220101_000004_create_memberships_table::Migration),
       Box::new(migrations::m20220101_000005_create_audit_log_table::Migration),
+      Box::new(migrations::m20220101_000006_create_api_tokens_table::Migration),
     ]
   }
 }
@@ -386,6 +424,24 @@ impl MigratorTrait for Migrator {
 pub async fn run_seeds(db: DatabaseConnection) -> Result<(), Box<dyn std::error::Error>> {
   seeds::s20220101_000001_seed_users::seed(&db).await?;
   Ok(())
+}
+
+/// Look up user id by raw API token (Bearer). Returns None if token invalid or expired.
+pub async fn token_lookup(db: DatabaseConnection, raw_token: String) -> Option<uuid::Uuid> {
+  use sea_orm::{ColumnTrait, EntityTrait, QueryFilter};
+  let hash = forge::auth::hash_api_token(&raw_token);
+  let row = crate::models::api_token::Entity::find()
+    .filter(crate::models::api_token::Column::TokenHash.eq(hash))
+    .one(&db)
+    .await
+    .ok()
+    .flatten()?;
+  if let Some(exp) = row.expires_at {
+    if exp < chrono::Utc::now().naive_utc() {
+      return None;
+    }
+  }
+  Some(row.user_id)
 }
 "#;
   fs::write(project_dir.join("crates/db/src/lib.rs"), db_lib_rs)?;
@@ -453,7 +509,7 @@ impl AuthnBackend for Backend {
   // Create crates/db/src/migrations/mod.rs
   fs::write(
     project_dir.join("crates/db/src/migrations/mod.rs"),
-    "pub mod m20220101_000001_create_user_table;\npub mod m20220101_000002_create_sessions_table;\npub mod m20220101_000003_create_organizations_table;\npub mod m20220101_000004_create_memberships_table;\npub mod m20220101_000005_create_audit_log_table;",
+    "pub mod m20220101_000001_create_user_table;\npub mod m20220101_000002_create_sessions_table;\npub mod m20220101_000003_create_organizations_table;\npub mod m20220101_000004_create_memberships_table;\npub mod m20220101_000005_create_audit_log_table;\npub mod m20220101_000006_create_api_tokens_table;",
   )?;
 
   // Create crates/db/src/migrations/m20220101_000001_create_user_table.rs
@@ -747,6 +803,76 @@ impl MigrationTrait for Migration {
     audit_log_migration_rs,
   )?;
 
+  // Create crates/db/src/migrations/m20220101_000006_create_api_tokens_table.rs (Phase 012)
+  let api_tokens_migration_rs = r#"use sea_orm_migration::prelude::*;
+
+#[derive(Iden)]
+pub enum ApiTokens {
+  Table,
+  Id,
+  UserId,
+  TokenHash,
+  Name,
+  LastUsedAt,
+  ExpiresAt,
+  CreatedAt,
+  UpdatedAt,
+}
+
+pub struct Migration;
+
+impl MigrationName for Migration {
+  fn name(&self) -> &str {
+    "m20220101_000006_create_api_tokens_table"
+  }
+}
+
+#[async_trait::async_trait]
+impl MigrationTrait for Migration {
+  async fn up(&self, manager: &SchemaManager) -> Result<(), DbErr> {
+    manager
+      .create_table(
+        Table::create()
+          .table(ApiTokens::Table)
+          .if_not_exists()
+          .col(
+            ColumnDef::new(ApiTokens::Id)
+              .uuid()
+              .not_null()
+              .primary_key(),
+          )
+          .col(ColumnDef::new(ApiTokens::UserId).uuid().not_null())
+          .col(ColumnDef::new(ApiTokens::TokenHash).string().not_null())
+          .col(ColumnDef::new(ApiTokens::Name).string())
+          .col(ColumnDef::new(ApiTokens::LastUsedAt).date_time())
+          .col(ColumnDef::new(ApiTokens::ExpiresAt).date_time())
+          .col(ColumnDef::new(ApiTokens::CreatedAt).date_time().not_null())
+          .col(ColumnDef::new(ApiTokens::UpdatedAt).date_time().not_null())
+          .foreign_key(
+            ForeignKey::create()
+              .name("fk_api_tokens_user_id")
+              .from_tbl(ApiTokens::Table)
+              .from_col(ApiTokens::UserId)
+              .to_tbl(Alias::new("user"))
+              .to_col(Alias::new("id")),
+          )
+          .to_owned(),
+      )
+      .await
+  }
+
+  async fn down(&self, manager: &SchemaManager) -> Result<(), DbErr> {
+    manager
+      .drop_table(Table::drop().table(ApiTokens::Table).to_owned())
+      .await
+  }
+}
+"#;
+  fs::write(
+    project_dir.join("crates/db/src/migrations/m20220101_000006_create_api_tokens_table.rs"),
+    api_tokens_migration_rs,
+  )?;
+
   // Create crates/db/src/seeds/mod.rs
   fs::write(
     project_dir.join("crates/db/src/seeds/mod.rs"),
@@ -823,7 +949,7 @@ pub async fn seed(db: &DatabaseConnection) -> Result<(), Box<dyn std::error::Err
   // Create crates/db/src/models/mod.rs
   fs::write(
     project_dir.join("crates/db/src/models/mod.rs"),
-    "pub mod user;\npub mod organization;\npub mod membership;",
+    "pub mod user;\npub mod organization;\npub mod membership;\npub mod api_token;",
   )?;
 
   // Create crates/db/src/models/user.rs
@@ -927,6 +1053,33 @@ impl ActiveModelBehavior for ActiveModel {}
   fs::write(
     project_dir.join("crates/db/src/models/membership.rs"),
     membership_model_rs,
+  )?;
+
+  let api_token_model_rs = r#"use sea_orm::entity::prelude::*;
+use serde::{Deserialize, Serialize};
+
+#[derive(Clone, Debug, PartialEq, DeriveEntityModel, Serialize, Deserialize)]
+#[sea_orm(table_name = "api_tokens")]
+pub struct Model {
+  #[sea_orm(primary_key, auto_increment = false)]
+  pub id: Uuid,
+  pub user_id: Uuid,
+  pub token_hash: String,
+  pub name: Option<String>,
+  pub last_used_at: Option<chrono::NaiveDateTime>,
+  pub expires_at: Option<chrono::NaiveDateTime>,
+  pub created_at: chrono::NaiveDateTime,
+  pub updated_at: chrono::NaiveDateTime,
+}
+
+#[derive(Copy, Clone, Debug, EnumIter, DeriveRelation)]
+pub enum Relation {}
+
+impl ActiveModelBehavior for ActiveModel {}
+"#;
+  fs::write(
+    project_dir.join("crates/db/src/models/api_token.rs"),
+    api_token_model_rs,
   )?;
 
   // Create config/app.toml

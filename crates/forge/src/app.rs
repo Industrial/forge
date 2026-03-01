@@ -1,8 +1,9 @@
 //! Forge App builder - the core of the web framework.
 
+use std::future::Future;
 use std::sync::Arc;
 
-use axum::{Router, handler::Handler, routing::get, routing::post};
+use axum::{Router, handler::Handler, routing::delete, routing::get, routing::post};
 use axum_login::AuthManagerLayerBuilder;
 use futures::future::BoxFuture;
 use governor::middleware::NoOpMiddleware;
@@ -23,6 +24,8 @@ use tracing::{info, warn};
 use crate::config::{self, ForgeConfig};
 use crate::cron::{CronRunner, CronSchedule, CronTaskBox};
 use crate::db;
+use crate::token_auth::TokenAuthLayer;
+use crate::token_auth::TokenLookupFn;
 
 /// Type alias for the idempotent seeding function.
 pub type SeedFn = Box<
@@ -36,12 +39,13 @@ pub type MigratorFn =
   Box<dyn Fn() -> BoxFuture<'static, Result<(), Box<dyn std::error::Error>>> + Send + Sync>;
 
 /// Type alias for the auth installer function.
-/// Third arg: optional per-user (per-org) rate limit requests per minute; applied inside auth layer.
+/// Args: router, db, optional per-user rate limit, optional token lookup for Bearer auth.
 pub type AuthInstallerFn = Box<
   dyn FnOnce(
       Router<DatabaseConnection>,
       DatabaseConnection,
       Option<u32>,
+      Option<TokenLookupFn>,
     ) -> BoxFuture<'static, Router<DatabaseConnection>>
     + Send,
 >;
@@ -66,6 +70,8 @@ pub struct App {
   rate_limit_per_ip: Option<Arc<GovernorConfig<PeerIpKeyExtractor, NoOpMiddleware>>>,
   /// Optional per-user (per-org) rate limit: requests per minute per (org, user). Requires auth.
   rate_limit_per_user: Option<u32>,
+  /// Optional token lookup for Bearer auth: (db, raw_token) -> Option<user_id>. Used when with_token_auth is set.
+  token_lookup: Option<TokenLookupFn>,
   /// Cron tasks to run in-process when serve() is used.
   cron_tasks: Vec<(String, CronSchedule, CronTaskBox)>,
 }
@@ -109,6 +115,7 @@ impl App {
       auth_installer: None,
       rate_limit_per_ip: None,
       rate_limit_per_user: None,
+      token_lookup: None,
       cron_tasks: Vec::new(),
     })
   }
@@ -166,11 +173,11 @@ impl App {
   /// Register authentication and session management.
   pub fn with_auth<B, F>(mut self, backend_factory: F) -> Self
   where
-    B: axum_login::AuthnBackend + Send + Sync + 'static,
-    B::User: axum_login::AuthUser<Id = uuid::Uuid> + crate::authz::AuthzContext,
+    B: axum_login::AuthnBackend + Send + Sync + Clone + 'static,
+    B::User: axum_login::AuthUser<Id = uuid::Uuid> + crate::authz::AuthzContext + Send + Clone + 'static,
     F: Fn(DatabaseConnection) -> B + Send + Sync + 'static,
   {
-    self.auth_installer = Some(Box::new(move |router, db_conn, rate_limit_per_user| {
+    self.auth_installer = Some(Box::new(move |router, db_conn, rate_limit_per_user, token_lookup| {
       Box::pin(async move {
         if db_conn.get_database_backend() != DbBackend::Sqlite {
           warn!("Authentication currently only supports SQLite session store out-of-the-box.");
@@ -190,8 +197,15 @@ impl App {
             tower_sessions::cookie::time::Duration::days(30),
           ));
 
-        let backend = backend_factory(db_conn);
-        let auth_layer = AuthManagerLayerBuilder::new(backend, session_layer).build();
+        let backend = backend_factory(db_conn.clone());
+        let auth_layer = AuthManagerLayerBuilder::new(backend.clone(), session_layer).build();
+
+        let router = if let Some(ref lookup) = token_lookup {
+          let token_layer = TokenAuthLayer::new(db_conn.clone(), backend, lookup.clone());
+          router.layer(token_layer).layer(auth_layer)
+        } else {
+          router.layer(auth_layer)
+        };
 
         if let Some(n) = rate_limit_per_user {
           let burst = n.max(1);
@@ -200,14 +214,26 @@ impl App {
           let mut builder2 =
             builder.key_extractor(crate::rate_limit::RequesterOrgKeyExtractor::<B>::new());
           let conf = builder2.finish().expect("GovernorConfigBuilder per-user");
-          router
-            .layer(GovernorLayer::new(Arc::new(conf)))
-            .layer(auth_layer)
+          router.layer(GovernorLayer::new(Arc::new(conf)))
         } else {
-          router.layer(auth_layer)
+          router
         }
       })
     }));
+    self
+  }
+
+  /// Enable API token (Bearer) authentication alongside session auth. The closure receives (db, raw_token)
+  /// and returns the user id if the token is valid (e.g. lookup by token hash in api_tokens table).
+  pub fn with_token_auth<F, Fut>(mut self, lookup: F) -> Self
+  where
+    F: Fn(DatabaseConnection, String) -> Fut + Send + Sync + 'static,
+    Fut: Future<Output = Option<uuid::Uuid>> + Send + 'static,
+  {
+    let lookup = Arc::new(move |db: DatabaseConnection, token: String| {
+      Box::pin(lookup(db, token)) as BoxFuture<'static, Option<uuid::Uuid>>
+    });
+    self.token_lookup = Some(lookup);
     self
   }
 
@@ -238,6 +264,16 @@ impl App {
     T: 'static,
   {
     self.router = self.router.route(path, post(handler));
+    self
+  }
+
+  /// Add a DELETE route to the application (e.g. for /api/auth/tokens/:id).
+  pub fn delete_route<H, T>(mut self, path: &str, handler: H) -> Self
+  where
+    H: Handler<T, DatabaseConnection>,
+    T: 'static,
+  {
+    self.router = self.router.route(path, delete(handler));
     self
   }
 
@@ -272,6 +308,7 @@ impl App {
       auth_installer,
       rate_limit_per_ip,
       rate_limit_per_user,
+      token_lookup,
       cron_tasks,
     } = self;
 
@@ -309,10 +346,10 @@ impl App {
       });
     }
 
-    // Install authentication if configured (and optional per-user rate limit inside auth)
+    // Install authentication if configured (and optional per-user rate limit and token auth)
     if let Some(installer) = auth_installer {
       info!("Installing authentication middleware...");
-      router = installer(router, db_conn.clone(), rate_limit_per_user).await;
+      router = installer(router, db_conn.clone(), rate_limit_per_user, token_lookup).await;
     }
 
     // Health endpoints: excluded from rate limiting (merged without the layer)

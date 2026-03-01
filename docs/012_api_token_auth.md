@@ -76,4 +76,4 @@ Forge currently supports **session-based authentication** only (cookies via `tow
 
 ## Status
 
-**Not yet implemented.** Forge currently supports only session-based authentication. This document serves as the design reference for adding API token / Bearer auth alongside it.
+**Implemented.** Forge supports dual auth: session (cookie) and API token (Bearer). Generated apps include `api_tokens` migration, token create/list/revoke routes, and `with_token_auth(db::token_lookup)`. E2E test: `test/e2e/012_api_tokens.rs`.

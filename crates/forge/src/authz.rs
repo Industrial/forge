@@ -76,3 +76,67 @@ where
     result
   }
 }
+
+/// Guard and audit for a concrete user (e.g. from [crate::token_auth::RequireAuth]). Use when the
+/// handler has the user from token or session and needs to enforce role and record the decision.
+pub async fn guard_and_audit_user<U: AuthzContext + Send>(
+  user: &U,
+  db: &DatabaseConnection,
+  action: Action,
+  role: Role,
+  resource_type: &str,
+  resource_id: Option<uuid::Uuid>,
+) -> Result<(), AuthzError> {
+  let result = guard_user(user, action, role);
+  let outcome = if result.is_ok() {
+    Outcome::Allowed
+  } else {
+    Outcome::Denied
+  };
+  let event = AuditEvent {
+    event_kind: EventKind::Authz,
+    actor_id: user.requester_id(),
+    subject_id: Some(user.subject_id()),
+    organization_id: user.organization_id(),
+    action,
+    resource_type: resource_type.to_string(),
+    resource_id,
+    outcome,
+    reason: None,
+  };
+  let _ = crate::audit::log(db, event).await;
+  result
+}
+
+/// Guard by role for a concrete user (no audit). Use with [guard_and_audit_user] for audit.
+fn guard_user<U: AuthzContext>(user: &U, _action: Action, role: Role) -> Result<(), AuthzError> {
+  match user.role() {
+    Some(user_role) if user_role == role => Ok(()),
+    Some(Role::Owner) => Ok(()),
+    Some(Role::Admin) if matches!(role, Role::Admin | Role::Editor | Role::Viewer) => Ok(()),
+    Some(Role::Editor) if matches!(role, Role::Editor | Role::Viewer) => Ok(()),
+    Some(Role::Viewer) if role == Role::Viewer => Ok(()),
+    _ => Err(AuthzError::Forbidden),
+  }
+}
+
+/// Record an authz denied event for unauthenticated or unauthorized access (e.g. before returning 401).
+pub async fn record_authz_denied(
+  db: &DatabaseConnection,
+  action: Action,
+  resource_type: &str,
+  resource_id: Option<uuid::Uuid>,
+) {
+  let event = AuditEvent {
+    event_kind: EventKind::Authz,
+    actor_id: uuid::Uuid::nil(),
+    subject_id: Some(uuid::Uuid::nil()),
+    organization_id: None,
+    action,
+    resource_type: resource_type.to_string(),
+    resource_id,
+    outcome: Outcome::Denied,
+    reason: None,
+  };
+  let _ = crate::audit::log(db, event).await;
+}
