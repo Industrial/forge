@@ -6,8 +6,11 @@ use std::time::Duration;
 
 use forge_e2e_lib::cli;
 
-#[test]
-fn prebuilt_project_has_db_config() {
+/// Single E2E test: prebuilt db config and server health.
+/// 1. Asserts project layout and config/db.toml with [database] and sqlite URL.
+/// 2. GET /healthz → 200 "ok".
+#[tokio::test]
+async fn e2e_prebuilt_database_and_healthz() {
   let project_root = cli::prebuilt_project_root();
   assert!(
     project_root.exists(),
@@ -21,10 +24,7 @@ fn prebuilt_project_has_db_config() {
   let content = fs::read_to_string(&db_config).unwrap();
   assert!(content.contains("[database]"));
   assert!(content.contains("sqlite://db.sqlite"));
-}
 
-#[tokio::test]
-async fn prebuilt_server_serves_with_database() {
   let base = cli::e2e_base_url().expect("run e2e via bin/test-e2e (E2E_BASE_URL not set)");
   let client = reqwest::Client::builder()
     .timeout(Duration::from_secs(5))
