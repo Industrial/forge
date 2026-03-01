@@ -16,16 +16,17 @@ fn prebuilt_project_has_correct_layout() {
   cli::assert_project_layout(&project_root);
 }
 
+/// In dev the app has no per-IP rate limit; repeated requests to a route succeed.
 #[tokio::test]
-async fn prebuilt_server_health_endpoints_not_rate_limited() {
+async fn prebuilt_server_root_not_rate_limited_in_dev() {
   let base = cli::e2e_base_url().expect("run e2e via bin/test-e2e (E2E_BASE_URL not set)");
   let client = reqwest::Client::builder()
     .timeout(Duration::from_secs(5))
     .build()
     .unwrap();
-  let url = format!("{}/healthz", base);
+  let url = format!("{}/", base);
   for _ in 0..5 {
     let r = client.get(&url).send().await.unwrap();
-    assert_eq!(r.status().as_u16(), 200, "healthz must not be rate limited");
+    assert_eq!(r.status().as_u16(), 200, "GET / must not be rate limited in dev");
   }
 }

@@ -1,16 +1,12 @@
 //! E2E tests for Forge config using the prebuilt project from `bin/test-e2e`.
-//! Run `bin/test-e2e` first.
+//! Run `bin/test-e2e` first. Health endpoints are tested only in 008_health.
 
 use std::fs;
-use std::time::Duration;
 
 use forge_e2e_lib::cli;
 
-/// Single E2E test: prebuilt config files/content and server health.
-/// 1. Asserts project layout and config/app.toml, config/db.toml exist with expected sections.
-/// 2. GET /healthz → 200 "ok".
-#[tokio::test]
-async fn e2e_prebuilt_config_and_healthz() {
+#[test]
+fn e2e_prebuilt_config_files_and_content() {
   let project_root = cli::prebuilt_project_root();
   assert!(
     project_root.exists(),
@@ -38,17 +34,4 @@ async fn e2e_prebuilt_config_and_healthz() {
     db_content.contains("[database]"),
     "config/db.toml should have [database]"
   );
-
-  let base = cli::e2e_base_url().expect("run e2e via bin/test-e2e (E2E_BASE_URL not set)");
-  let client = reqwest::Client::builder()
-    .timeout(Duration::from_secs(5))
-    .build()
-    .unwrap();
-  let resp = client
-    .get(format!("{}/healthz", base))
-    .send()
-    .await
-    .expect("request");
-  assert_eq!(resp.status().as_u16(), 200);
-  assert_eq!(resp.text().await.unwrap_or_default().trim(), "ok");
 }
