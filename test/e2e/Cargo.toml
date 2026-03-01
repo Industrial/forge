@@ -13,7 +13,7 @@ validator = { version = "0.20", features = ["derive"] }
 tower = { version = "0.4", features = ["util"] }
 http = "1.0"
 axum = "0.8"
-axum-login = "0.17"
+axum-login = "0.18"
 serde = "1.0"
 serde_json = "1.0"
 uuid = { version = "1", features = ["v4", "serde"] }
