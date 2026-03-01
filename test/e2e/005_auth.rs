@@ -6,8 +6,12 @@ use std::time::Duration;
 
 use forge_e2e_lib::cli;
 
-#[test]
-fn prebuilt_project_has_auth_layout() {
+/// Single E2E test: prebuilt auth layout and (when not ignored) register/login/protected route.
+/// 1. Asserts project layout, auth.rs, org/membership models, user AuthzContext, auth handlers, main.rs routes.
+/// 2. Register → login → GET /api/auth/admin (skipped in e2e env: SQLite readonly; run with --ignored to exercise).
+#[tokio::test]
+#[ignore = "SQLite readonly in e2e env (code 1032); see bd issue"]
+async fn e2e_prebuilt_auth_layout_and_flow() {
   let project_root = cli::prebuilt_project_root();
   assert!(
     project_root.exists(),
@@ -45,11 +49,7 @@ fn prebuilt_project_has_auth_layout() {
   let main_rs = fs::read_to_string(project_root.join("crates/app/src/main.rs")).unwrap();
   assert!(main_rs.contains("post_route") && main_rs.contains("/api/auth/admin"));
   assert!(!main_rs.contains("forge::prelude"));
-}
 
-#[tokio::test]
-#[ignore = "SQLite readonly in e2e env (code 1032); see bd issue"]
-async fn prebuilt_server_auth_flow_register_login_protected_route() {
   let base = cli::e2e_base_url().expect("run e2e via bin/test-e2e (E2E_BASE_URL not set)");
   let email = format!(
     "auth-e2e-{}@test.com",
