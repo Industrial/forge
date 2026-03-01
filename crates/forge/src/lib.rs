@@ -6,7 +6,6 @@ pub mod app;
 pub mod audit;
 pub mod auth;
 pub mod authz;
-pub mod token_auth;
 pub mod config;
 pub mod cron;
 pub mod db;
@@ -15,6 +14,7 @@ pub mod health;
 pub mod jobs;
 pub mod rate_limit;
 pub mod seed;
+pub mod token_auth;
 pub mod validation;
 
 pub use forge_macros::*;

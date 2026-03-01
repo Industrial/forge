@@ -98,7 +98,7 @@ async fn api_tokens_create_via_session_then_protected_route_with_bearer() {
   );
   let body = protected.text().await.unwrap_or_default();
   assert!(
-    body.contains(&email) || body.contains("admin") || body.len() > 0,
+    body.contains(&email) || body.contains("admin") || !body.is_empty(),
     "response should indicate correct identity or success; got: {}",
     body
   );

@@ -174,52 +174,55 @@ impl App {
   pub fn with_auth<B, F>(mut self, backend_factory: F) -> Self
   where
     B: axum_login::AuthnBackend + Send + Sync + Clone + 'static,
-    B::User: axum_login::AuthUser<Id = uuid::Uuid> + crate::authz::AuthzContext + Send + Clone + 'static,
+    B::User:
+      axum_login::AuthUser<Id = uuid::Uuid> + crate::authz::AuthzContext + Send + Clone + 'static,
     F: Fn(DatabaseConnection) -> B + Send + Sync + 'static,
   {
-    self.auth_installer = Some(Box::new(move |router, db_conn, rate_limit_per_user, token_lookup| {
-      Box::pin(async move {
-        if db_conn.get_database_backend() != DbBackend::Sqlite {
-          warn!("Authentication currently only supports SQLite session store out-of-the-box.");
-          return router;
-        }
+    self.auth_installer = Some(Box::new(
+      move |router, db_conn, rate_limit_per_user, token_lookup| {
+        Box::pin(async move {
+          if db_conn.get_database_backend() != DbBackend::Sqlite {
+            warn!("Authentication currently only supports SQLite session store out-of-the-box.");
+            return router;
+          }
 
-        let pool = db_conn.get_sqlite_connection_pool();
-        let session_store = SqliteStore::new(pool.clone());
+          let pool = db_conn.get_sqlite_connection_pool();
+          let session_store = SqliteStore::new(pool.clone());
 
-        if let Err(e) = session_store.migrate().await {
-          warn!("Failed to migrate sessions table: {}", e);
-        }
+          if let Err(e) = session_store.migrate().await {
+            warn!("Failed to migrate sessions table: {}", e);
+          }
 
-        let session_layer = SessionManagerLayer::new(session_store)
-          .with_secure(false)
-          .with_expiry(Expiry::OnInactivity(
-            tower_sessions::cookie::time::Duration::days(30),
-          ));
+          let session_layer = SessionManagerLayer::new(session_store)
+            .with_secure(false)
+            .with_expiry(Expiry::OnInactivity(
+              tower_sessions::cookie::time::Duration::days(30),
+            ));
 
-        let backend = backend_factory(db_conn.clone());
-        let auth_layer = AuthManagerLayerBuilder::new(backend.clone(), session_layer).build();
+          let backend = backend_factory(db_conn.clone());
+          let auth_layer = AuthManagerLayerBuilder::new(backend.clone(), session_layer).build();
 
-        let router = if let Some(ref lookup) = token_lookup {
-          let token_layer = TokenAuthLayer::new(db_conn.clone(), backend, lookup.clone());
-          router.layer(token_layer).layer(auth_layer)
-        } else {
-          router.layer(auth_layer)
-        };
+          let router = if let Some(ref lookup) = token_lookup {
+            let token_layer = TokenAuthLayer::new(db_conn.clone(), backend, lookup.clone());
+            router.layer(token_layer).layer(auth_layer)
+          } else {
+            router.layer(auth_layer)
+          };
 
-        if let Some(n) = rate_limit_per_user {
-          let burst = n.max(1);
-          let mut builder = GovernorConfigBuilder::default();
-          builder.per_second(1).burst_size(burst);
-          let mut builder2 =
-            builder.key_extractor(crate::rate_limit::RequesterOrgKeyExtractor::<B>::new());
-          let conf = builder2.finish().expect("GovernorConfigBuilder per-user");
-          router.layer(GovernorLayer::new(Arc::new(conf)))
-        } else {
-          router
-        }
-      })
-    }));
+          if let Some(n) = rate_limit_per_user {
+            let burst = n.max(1);
+            let mut builder = GovernorConfigBuilder::default();
+            builder.per_second(1).burst_size(burst);
+            let mut builder2 =
+              builder.key_extractor(crate::rate_limit::RequesterOrgKeyExtractor::<B>::new());
+            let conf = builder2.finish().expect("GovernorConfigBuilder per-user");
+            router.layer(GovernorLayer::new(Arc::new(conf)))
+          } else {
+            router
+          }
+        })
+      },
+    ));
     self
   }
 
