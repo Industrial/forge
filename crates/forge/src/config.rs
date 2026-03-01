@@ -23,7 +23,6 @@ pub struct FrontendConfig {
 #[derive(Debug, Clone, Deserialize)]
 pub struct AppConfig {
   pub name: String,
-  pub environment: String,
 }
 
 #[derive(Debug, Clone, Deserialize)]
@@ -41,6 +40,11 @@ pub struct DatabaseConfig {
   pub idle_timeout: Option<u64>,
   pub auto_migrate: bool,
   pub auto_seed: bool,
+}
+
+/// Effective environment for this process. Set by the CLI (`forge dev` / `forge serve`) via `FORGE_ENVIRONMENT`; defaults to `"development"`.
+pub fn effective_environment() -> String {
+  std::env::var("FORGE_ENVIRONMENT").unwrap_or_else(|_| "development".to_string())
 }
 
 pub fn load_config() -> Result<ForgeConfig, Box<dyn std::error::Error>> {

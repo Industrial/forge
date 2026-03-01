@@ -1,0 +1,24 @@
+[package]
+name = "app"
+version = "0.1.0"
+edition = "2024"
+
+[dependencies]
+accept-language = "3.1"
+axum = { version = "0.8", features = ["ws"] }
+axum-inertia = "0.9"
+axum-login = "0.17"
+chrono = { version = "0.4", features = ["serde"] }
+db = { path = "../db" }
+fluent = "0.16"
+fluent-templates = "0.13"
+forge = { path = "{{FORGE_PATH}}" }
+sea-orm = { version = "1.1", features = ["runtime-tokio-rustls", "sqlx-sqlite", "macros"] }
+serde = { version = "1.0", features = ["derive"] }
+serde_json = "1.0"
+tokio = { version = "1", features = ["full"] }
+tower-http = { version = "0.6", features = ["fs"] }
+tracing = "0.1"
+unic-langid = "0.9"
+uuid = { version = "1.0", features = ["v4", "serde"] }
+validator = { version = "0.20", features = ["derive"] }

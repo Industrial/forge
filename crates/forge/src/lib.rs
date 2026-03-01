@@ -73,7 +73,6 @@ mod tests {
     let app_toml_content = format!(
       r#"[app]
 name = "{}"
-environment = "test"
 
 [server]
 host = "127.0.0.1"

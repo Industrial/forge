@@ -10,6 +10,7 @@ publish = false
 [dependencies]
 forge = { path = "../forge" }
 clap = { version = "4", features = ["derive"] }
+include_dir = "0.7"
 
 [dev-dependencies]
 assert_cmd = "2"

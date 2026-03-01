@@ -604,7 +604,6 @@ mod tests {
     let app_toml_content = format!(
       r#"[app]
 name = "{}"
-environment = "test"
 
 [server]
 host = "127.0.0.1"
@@ -697,7 +696,6 @@ auto_seed = false
       fs::create_dir_all(&config_dir).unwrap();
       let app_toml_content = r#"[app]
 name = "test_app"
-environment = "test"
 
 [server]
 host = "127.0.0.1"

@@ -66,8 +66,7 @@ Choose at runtime using your Forge configuration’s **environment** option (`co
 ```rust
 use forge::config;
 
-let config = config::load_config().expect("config");
-let is_production = config.app.environment.eq_ignore_ascii_case("production");
+let is_production = config::effective_environment().eq_ignore_ascii_case("production");
 
 let inertia = if is_production {
     vite::Production::new("dist/.vite/manifest.json", "src/main.ts")
@@ -86,7 +85,7 @@ let inertia = if is_production {
 };
 ```
 
-Set `[app] environment = "production"` in `config/app.toml` for production; use `"development"` (or `"test"`) for dev.
+The effective environment is set by the CLI: `forge dev` → development, `forge serve` → production (via `FORGE_ENVIRONMENT`).
 
 ## App state: combining Forge and Inertia
 

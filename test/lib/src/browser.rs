@@ -95,19 +95,14 @@ pub async fn register(
   password: &str,
 ) -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
   let url = format!("{}/register", base_url.trim_end_matches('/'));
+  let email_locator = fantoccini::Locator::Css("input[type=email]");
+  let password_locator = fantoccini::Locator::Css("input[type=password]");
+  let submit_locator = fantoccini::Locator::Css("button[type=submit]");
   c.goto(&url).await?;
-  c.find(fantoccini::Locator::Css("input[type=email]"))
-    .await?
-    .send_keys(email)
-    .await?;
-  c.find(fantoccini::Locator::Css("input[type=password]"))
-    .await?
-    .send_keys(password)
-    .await?;
-  c.find(fantoccini::Locator::Css("button[type=submit]"))
-    .await?
-    .click()
-    .await?;
+  c.wait().for_element(email_locator).await?;
+  c.find(email_locator).await?.send_keys(email).await?;
+  c.find(password_locator).await?.send_keys(password).await?;
+  c.find(submit_locator).await?.click().await?;
   Ok(())
 }
 
@@ -124,18 +119,9 @@ pub async fn login(
   let submit_locator = fantoccini::Locator::Css("button[type=submit]");
   c.goto(&url).await?;
   c.wait().for_element(email_locator).await?;
-  c.find(email_locator)
-    .await?
-    .send_keys(email)
-    .await?;
-  c.find(password_locator)
-    .await?
-    .send_keys(password)
-    .await?;
-  c.find(submit_locator)
-    .await?
-    .click()
-    .await?;
+  c.find(email_locator).await?.send_keys(email).await?;
+  c.find(password_locator).await?.send_keys(password).await?;
+  c.find(submit_locator).await?.click().await?;
   Ok(())
 }
 

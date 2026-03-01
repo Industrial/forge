@@ -11,7 +11,7 @@
 
 You want to build a real web app in Rust — auth, database, background jobs, API tokens, real-time — without wiring every piece yourself. Forge gives you:
 
-- **One CLI to rule them all** — `forge new myapp`, `forge serve`, migrations, and generators
+- **One CLI to rule them all** — `forge new myapp`, `forge dev` / `forge serve`, migrations, and generators
 - **Convention over configuration** — sensible layout (`config/`, migrations, routes) so you spend time on features, not setup
 - **Auth and authorization** — sessions, login, roles, and API token auth out of the box
 - **Database that just works** — SeaORM + SQLite by default, config in `config/db.toml`
@@ -37,15 +37,17 @@ cargo install --git https://github.com/Industrial/forge forge-cli --bin forge
 forge new myapp
 cd myapp
 
-# Start the server (runs migrations and seeds idempotently)
-forge serve
+# Development: start backend + Vite (open http://localhost:3000)
+forge dev
 ```
+
+For production (build frontend and serve static assets): `forge serve`.
 
 *When we publish the CLI to crates.io, you’ll be able to run `cargo install forge-cli` instead.*
 
 ### Option 2: Create an app without installing the CLI
 
-From a clone of this repo you can generate an app without a global install. You’ll need the CLI (Option 1) to run `forge serve` from the app directory.
+From a clone of this repo you can generate an app without a global install. You’ll need the CLI (Option 1) to run `forge dev` or `forge serve` from the app directory.
 
 ```bash
 git clone https://github.com/Industrial/forge.git
@@ -53,7 +55,7 @@ cd forge
 cargo run -p forge-cli -- new myapp
 # myapp is created in the current directory; move it elsewhere if you like
 cd myapp
-forge serve   # requires forge on PATH (install once with Option 1)
+forge dev   # development; requires forge on PATH (install once with Option 1)
 ```
 
 Then open [http://localhost:3000](http://localhost:3000). See [docs/001_cli.md](docs/001_cli.md) and the rest of the [docs/](docs/) folder for details.
