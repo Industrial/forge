@@ -20,8 +20,16 @@ fn prebuilt_project_has_auth_layout() {
     project_root.join("crates/db/src/auth.rs").exists(),
     "crates/db/src/auth.rs missing"
   );
-  assert!(project_root.join("crates/db/src/models/organization.rs").exists());
-  assert!(project_root.join("crates/db/src/models/membership.rs").exists());
+  assert!(
+    project_root
+      .join("crates/db/src/models/organization.rs")
+      .exists()
+  );
+  assert!(
+    project_root
+      .join("crates/db/src/models/membership.rs")
+      .exists()
+  );
 
   let user_model = fs::read_to_string(project_root.join("crates/db/src/models/user.rs")).unwrap();
   assert!(user_model.contains("current_org_id") && user_model.contains("current_role"));

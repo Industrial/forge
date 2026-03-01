@@ -16,7 +16,11 @@ fn prebuilt_project_has_migrations_layout() {
   );
   cli::assert_project_layout(&project_root);
 
-  assert!(project_root.join("crates/db/src/migrations/mod.rs").exists());
+  assert!(
+    project_root
+      .join("crates/db/src/migrations/mod.rs")
+      .exists()
+  );
   assert!(project_root.join("crates/db/src/models/mod.rs").exists());
   assert!(project_root.join("crates/db/src/seeds/mod.rs").exists());
 
@@ -34,7 +38,11 @@ async fn prebuilt_server_readyz_after_migrations() {
     .timeout(Duration::from_secs(5))
     .build()
     .unwrap();
-  let resp = client.get(format!("{}/readyz", base)).send().await.expect("request");
+  let resp = client
+    .get(format!("{}/readyz", base))
+    .send()
+    .await
+    .expect("request");
   assert_eq!(resp.status().as_u16(), 200);
   assert_eq!(resp.text().await.unwrap_or_default().trim(), "ok");
 }

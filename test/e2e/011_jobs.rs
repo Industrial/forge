@@ -17,7 +17,8 @@ fn prebuilt_project_has_correct_layout() {
   cli::assert_project_layout(&project_root);
 
   let main_rs = fs::read_to_string(project_root.join("crates/app/src/main.rs")).unwrap();
-  let has_jobs = main_rs.contains("with_cron") || main_rs.contains("cron") || main_rs.contains("jobs");
+  let has_jobs =
+    main_rs.contains("with_cron") || main_rs.contains("cron") || main_rs.contains("jobs");
   if !has_jobs {
     eprintln!("note: generated app may not include jobs in main.rs; still asserting serve");
   }
@@ -30,7 +31,11 @@ async fn prebuilt_server_serves() {
     .timeout(Duration::from_secs(5))
     .build()
     .unwrap();
-  let resp = client.get(format!("{}/healthz", base)).send().await.expect("request");
+  let resp = client
+    .get(format!("{}/healthz", base))
+    .send()
+    .await
+    .expect("request");
   assert_eq!(resp.status().as_u16(), 200);
   assert_eq!(resp.text().await.unwrap_or_default().trim(), "ok");
 }

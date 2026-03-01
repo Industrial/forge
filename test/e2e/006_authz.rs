@@ -16,8 +16,16 @@ fn prebuilt_project_has_authz_layout() {
   );
   cli::assert_project_layout(&project_root);
 
-  assert!(project_root.join("crates/db/src/models/organization.rs").exists());
-  assert!(project_root.join("crates/db/src/models/membership.rs").exists());
+  assert!(
+    project_root
+      .join("crates/db/src/models/organization.rs")
+      .exists()
+  );
+  assert!(
+    project_root
+      .join("crates/db/src/models/membership.rs")
+      .exists()
+  );
   let user_model = fs::read_to_string(project_root.join("crates/db/src/models/user.rs")).unwrap();
   assert!(user_model.contains("impl AuthzContext"));
   let auth_handlers =

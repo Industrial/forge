@@ -30,7 +30,11 @@ async fn prebuilt_server_serves_with_database() {
     .timeout(Duration::from_secs(5))
     .build()
     .unwrap();
-  let resp = client.get(format!("{}/healthz", base)).send().await.expect("request");
+  let resp = client
+    .get(format!("{}/healthz", base))
+    .send()
+    .await
+    .expect("request");
   assert_eq!(resp.status().as_u16(), 200);
   assert_eq!(resp.text().await.unwrap_or_default().trim(), "ok");
 }

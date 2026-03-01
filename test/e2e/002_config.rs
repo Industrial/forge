@@ -22,7 +22,10 @@ fn prebuilt_project_has_config_files_and_content() {
   assert!(db_toml.exists(), "config/db.toml missing");
 
   let app_content = fs::read_to_string(&app_toml).unwrap();
-  assert!(app_content.contains("[app]"), "config/app.toml should have [app]");
+  assert!(
+    app_content.contains("[app]"),
+    "config/app.toml should have [app]"
+  );
   assert!(
     app_content.contains("[server]"),
     "config/app.toml should have [server]"
@@ -41,7 +44,11 @@ async fn prebuilt_server_serves_and_uses_config() {
     .timeout(Duration::from_secs(5))
     .build()
     .unwrap();
-  let resp = client.get(format!("{}/healthz", base)).send().await.expect("request");
+  let resp = client
+    .get(format!("{}/healthz", base))
+    .send()
+    .await
+    .expect("request");
   assert_eq!(resp.status().as_u16(), 200);
   assert_eq!(resp.text().await.unwrap_or_default().trim(), "ok");
 }

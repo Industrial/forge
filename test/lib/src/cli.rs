@@ -6,6 +6,7 @@ use std::path::Path;
 use std::process::{Command, Output};
 use std::sync::atomic::{AtomicU16, Ordering};
 
+/// Atomic counter used by [`next_e2e_port`] to allocate unique ports for E2E servers.
 static E2E_PORT_COUNTER: AtomicU16 = AtomicU16::new(0);
 
 /// Returns a unique port for E2E servers (30_000–30_999) so parallel tests do not collide.

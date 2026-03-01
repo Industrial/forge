@@ -16,8 +16,8 @@ fn prebuilt_project_has_audit_migration() {
   );
   cli::assert_project_layout(&project_root);
 
-  let migration_path = project_root
-    .join("crates/db/src/migrations/m20220101_000005_create_audit_log_table.rs");
+  let migration_path =
+    project_root.join("crates/db/src/migrations/m20220101_000005_create_audit_log_table.rs");
   assert!(
     migration_path.exists(),
     "audit_log migration must be generated"
@@ -59,14 +59,22 @@ async fn prebuilt_server_audit_events_recorded_for_auth_flow() {
     .send()
     .await
     .expect("login");
-  assert!(login_ok.status().is_success(), "login: {}", login_ok.status());
+  assert!(
+    login_ok.status().is_success(),
+    "login: {}",
+    login_ok.status()
+  );
 
   let admin_ok = client
     .get(format!("{}/api/auth/admin", base))
     .send()
     .await
     .expect("admin");
-  assert!(admin_ok.status().is_success(), "admin: {}", admin_ok.status());
+  assert!(
+    admin_ok.status().is_success(),
+    "admin: {}",
+    admin_ok.status()
+  );
 
   let _ = client
     .get(format!("{}/api/auth/logout", base))
@@ -166,6 +174,9 @@ async fn prebuilt_server_audit_authz_denied_recorded_when_guard_fails() {
       .unwrap()
       .map(|r| r.unwrap())
       .collect();
-    assert!(!denied.is_empty(), "expected at least one authz denied event");
+    assert!(
+      !denied.is_empty(),
+      "expected at least one authz denied event"
+    );
   }
 }
