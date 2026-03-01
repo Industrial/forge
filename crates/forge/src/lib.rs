@@ -10,6 +10,7 @@ pub mod config;
 pub mod db;
 pub mod error;
 pub mod health;
+pub mod rate_limit;
 pub mod seed;
 
 pub use forge_macros::*;
@@ -19,6 +20,7 @@ pub use audit::{AuditError, AuditEvent, EventKind, Outcome};
 pub use config::ForgeConfig;
 pub use db::initialize_database;
 pub use error::Error;
+pub use rate_limit::RequesterOrgKey;
 pub use seed::Seeder;
 
 // Re-exports for a unified API (Phase 3)

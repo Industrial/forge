@@ -1,13 +1,17 @@
 # 009_rate_limiting: Rate Limiting
 
+## Status
+Implemented: **per-IP** (health excluded; E2E in `test/e2e/009_rate_limiting.rs`); **per-user (per-org)** when auth is enabled.
+
 ## Overview
 
-Forge provides **rate limiting** via [tower-governor](https://crates.io/crates/tower-governor) (backed by [governor](https://crates.io/crates/governor)), so applications can protect endpoints from abuse. Both **per-IP** and **per-organization** (multi-tenant) limits are supported.
+Forge provides **rate limiting** via [tower-governor](https://crates.io/crates/tower-governor) (backed by [governor](https://crates.io/crates/governor)), so applications can protect endpoints from abuse. **Per-IP**, **per-organization**, and **per-requester (per user, per organization)** are supported.
 
 ## Goals
 
 - **Default: per-IP**: Unauthenticated or generic traffic is limited by client IP.
 - **Optional: per-org**: Authenticated requests can be limited by `organization_id` so one tenant cannot starve others.
+- **Optional: per-user (per-org)**: Authenticated requests limited by `(organization_id, user_id)` so individual users in an org can be throttled.
 - **Tower-native**: Middleware integrates with Axum and existing Forge layers.
 - **Configurable**: Limits (e.g. requests per minute) can be set in config or per-route.
 
@@ -19,11 +23,13 @@ Forge provides **rate limiting** via [tower-governor](https://crates.io/crates/t
 |----------|------------|----------|
 | **Per-IP** | Peer IP (or `X-Forwarded-For` when trusted) | Login, signup, public API. |
 | **Per-org** | `auth.organization_id()` from session | Authenticated API; fair usage across tenants. |
+| **Per-user (per-org)** | `(auth.organization_id(), auth.requester_id())` from session | Throttle individual users within an organization. |
 
 ### Integration
 
-- **Per-IP**: Use tower-governor’s built-in key extractor (peer IP). Applied as a layer to the router or to specific routes.
-- **Per-org**: Custom key extractor that uses `AuthSession` (or equivalent) to get `organization_id`; when missing, fall back to per-IP or a shared key. Requires auth to be installed.
+- **Per-IP**: Use tower-governor’s built-in key extractor (peer IP). Applied as a layer to the router; health routes are excluded.
+- **Per-org**: Custom key extractor that uses `AuthSession` to get `organization_id`; when missing, fall back to per-IP or a shared key. Requires auth to be installed. (Not yet implemented; doc only.)
+- **Per-user (per-org)**: `RequesterOrgKeyExtractor` reads `AuthSession` from request extensions (set by axum-login) and keys by `(organization_id, user_id)`. Applied inside the auth layer; unauthenticated requests get 401. Use `.with_rate_limit_per_user(n)` with `.with_auth(...)`.
 
 ### Response
 
@@ -55,7 +61,18 @@ App::new()
     .await
 ```
 
-**Per-org (when auth is enabled):**
+**Per-user (per-org, when auth is enabled):**
+
+```rust
+App::new()
+    .with_auth(db, backend_factory)
+    .with_rate_limit_per_user(60)  // 60 req/min per (org, user); throttles individual users
+    .route("/api/projects", handler)
+    .serve()
+    .await
+```
+
+**Per-org (when implemented):**
 
 ```rust
 App::new()
@@ -76,9 +93,10 @@ Routes that should not be rate-limited (e.g. `/healthz`) are added without the l
 ## Success Criteria
 
 1. Per-IP rate limiting returns 429 when the limit is exceeded.
-2. Per-org rate limiting uses `organization_id` when the user is authenticated; unauthenticated requests use per-IP or a default key.
-3. Health and other internal endpoints can be excluded from rate limiting.
-4. Limits are configurable (e.g. via `config/app.toml` or builder methods).
+2. Per-user (per-org) rate limiting uses `(organization_id, user_id)` when the user is authenticated; unauthenticated requests to rate-limited routes get 401.
+3. Per-org rate limiting (when implemented) uses `organization_id` when the user is authenticated; unauthenticated requests use per-IP or a default key.
+4. Health and other internal endpoints can be excluded from rate limiting.
+5. Limits are configurable (e.g. via `config/app.toml` or builder methods).
 
 ## Future Extensions
 

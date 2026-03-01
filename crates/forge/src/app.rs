@@ -1,5 +1,7 @@
 //! Forge App builder - the core of the web framework.
 
+use std::sync::Arc;
+
 use axum::{Router, handler::Handler, routing::get, routing::post};
 use axum_login::AuthManagerLayerBuilder;
 use futures::future::BoxFuture;
@@ -10,6 +12,12 @@ use tower::ServiceBuilder;
 use tower_http::trace::{DefaultMakeSpan, DefaultOnRequest, DefaultOnResponse, TraceLayer};
 use tower_sessions::{Expiry, SessionManagerLayer};
 use tower_sessions_sqlx_store::SqliteStore;
+use tower_governor::{
+  governor::{GovernorConfigBuilder, GovernorConfig},
+  key_extractor::PeerIpKeyExtractor,
+  GovernorLayer,
+};
+use governor::middleware::NoOpMiddleware;
 use tracing::{info, warn};
 
 use crate::config::{self, ForgeConfig};
@@ -27,10 +35,12 @@ pub type MigratorFn =
   Box<dyn Fn() -> BoxFuture<'static, Result<(), Box<dyn std::error::Error>>> + Send + Sync>;
 
 /// Type alias for the auth installer function.
+/// Third arg: optional per-user (per-org) rate limit requests per minute; applied inside auth layer.
 pub type AuthInstallerFn = Box<
   dyn FnOnce(
       Router<DatabaseConnection>,
       DatabaseConnection,
+      Option<u32>,
     ) -> BoxFuture<'static, Router<DatabaseConnection>>
     + Send,
 >;
@@ -51,6 +61,10 @@ pub struct App {
   seeder: Option<SeedFn>,
   /// Optional auth installer
   auth_installer: Option<AuthInstallerFn>,
+  /// Optional per-IP rate limit config (health routes are excluded)
+  rate_limit_per_ip: Option<Arc<GovernorConfig<PeerIpKeyExtractor, NoOpMiddleware>>>,
+  /// Optional per-user (per-org) rate limit: requests per minute per (org, user). Requires auth.
+  rate_limit_per_user: Option<u32>,
 }
 
 impl App {
@@ -90,7 +104,32 @@ impl App {
       migrator: None,
       seeder: None,
       auth_installer: None,
+      rate_limit_per_ip: None,
+      rate_limit_per_user: None,
     })
+  }
+
+  /// Enable per-requester (per user, per organization) rate limiting.
+  /// Only has effect when [`.with_auth`](Self::with_auth) is also used. Limits are applied
+  /// per (organization_id, user_id) so individual users in an org can be throttled.
+  /// Unauthenticated requests to rate-limited routes receive 401.
+  pub fn with_rate_limit_per_user(mut self, requests_per_minute: u32) -> Self {
+    self.rate_limit_per_user = Some(requests_per_minute.max(1));
+    self
+  }
+
+  /// Enable per-IP rate limiting. `requests_per_minute` sets burst size and replenishment
+  /// (e.g. 60 = 60 requests then 1 per second). Health endpoints (/healthz, /livez, /readyz)
+  /// are never rate limited.
+  pub fn with_rate_limit_per_ip(mut self, requests_per_minute: u32) -> Self {
+    let burst = requests_per_minute.max(1);
+    let conf = GovernorConfigBuilder::default()
+      .per_second(1)
+      .burst_size(burst)
+      .finish()
+      .expect("GovernorConfigBuilder");
+    self.rate_limit_per_ip = Some(Arc::new(conf));
+    self
   }
 
   /// Register a migrator to be run automatically on startup.
@@ -127,7 +166,7 @@ impl App {
     B::User: axum_login::AuthUser<Id = uuid::Uuid> + crate::authz::AuthzContext,
     F: Fn(DatabaseConnection) -> B + Send + Sync + 'static,
   {
-    self.auth_installer = Some(Box::new(move |router, db_conn| {
+    self.auth_installer = Some(Box::new(move |router, db_conn, rate_limit_per_user| {
       Box::pin(async move {
         if db_conn.get_database_backend() != DbBackend::Sqlite {
           warn!("Authentication currently only supports SQLite session store out-of-the-box.");
@@ -150,7 +189,22 @@ impl App {
         let backend = backend_factory(db_conn);
         let auth_layer = AuthManagerLayerBuilder::new(backend, session_layer).build();
 
-        router.layer(auth_layer)
+        let router = if let Some(n) = rate_limit_per_user {
+          let burst = n.max(1);
+          let mut builder = GovernorConfigBuilder::default();
+          builder.per_second(1).burst_size(burst);
+          let mut builder2 = builder.key_extractor(crate::rate_limit::RequesterOrgKeyExtractor::<B>::new());
+          let conf = builder2
+            .finish()
+            .expect("GovernorConfigBuilder per-user");
+          router
+            .layer(GovernorLayer::new(Arc::new(conf)))
+            .layer(auth_layer)
+        } else {
+          router.layer(auth_layer)
+        };
+
+        router
       })
     }));
     self
@@ -199,6 +253,8 @@ impl App {
       migrator,
       seeder,
       auth_installer,
+      rate_limit_per_ip,
+      rate_limit_per_user,
     } = self;
 
     // Initialize database
@@ -235,17 +291,24 @@ impl App {
       });
     }
 
-    // Install authentication if configured
+    // Install authentication if configured (and optional per-user rate limit inside auth)
     if let Some(installer) = auth_installer {
       info!("Installing authentication middleware...");
-      router = installer(router, db_conn.clone()).await;
+      router = installer(router, db_conn.clone(), rate_limit_per_user).await;
     }
 
-    // Health endpoints: status code + minimal body only (no component disclosure)
-    router = router
+    // Health endpoints: excluded from rate limiting (merged without the layer)
+    let health_routes = Router::new()
       .route("/healthz", get(crate::health::healthz))
       .route("/livez", get(crate::health::livez))
       .route("/readyz", get(crate::health::readyz));
+
+    router = if let Some(conf) = rate_limit_per_ip {
+      let limited = router.layer(GovernorLayer::new(conf));
+      limited.merge(health_routes)
+    } else {
+      router.merge(health_routes)
+    };
 
     // Inject database connection into state
     router.with_state(db_conn)
@@ -263,7 +326,9 @@ impl App {
       Ok(listener) => {
         Self::log_server_start(&host, port);
 
-        match axum::serve(listener, router)
+        let maker = router
+          .into_make_service_with_connect_info::<std::net::SocketAddr>();
+        match axum::serve(listener, maker)
           .with_graceful_shutdown(Self::shutdown_signal())
           .await
         {

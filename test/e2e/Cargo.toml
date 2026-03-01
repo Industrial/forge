@@ -51,3 +51,7 @@ path = "007_audit.rs"
 [[test]]
 name = "008_health"
 path = "008_health.rs"
+
+[[test]]
+name = "009_rate_limiting"
+path = "009_rate_limiting.rs"
