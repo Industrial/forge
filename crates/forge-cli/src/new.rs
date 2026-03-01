@@ -207,7 +207,10 @@ pub async fn handler(
   value.into_response()
 }
 "#;
-  fs::write(project_dir.join("crates/app/src/handlers/cache_demo.rs"), cache_demo_rs)?;
+  fs::write(
+    project_dir.join("crates/app/src/handlers/cache_demo.rs"),
+    cache_demo_rs,
+  )?;
 
   // Create crates/app/src/handlers/cached_page.rs (demo for HTTP response cache: unique per request, cached by middleware)
   let cached_page_rs = r#"use axum::{extract::State, response::IntoResponse};
@@ -218,7 +221,10 @@ pub async fn handler(State(_db): State<DatabaseConnection>) -> impl IntoResponse
   v.into_response()
 }
 "#;
-  fs::write(project_dir.join("crates/app/src/handlers/cached_page.rs"), cached_page_rs)?;
+  fs::write(
+    project_dir.join("crates/app/src/handlers/cached_page.rs"),
+    cached_page_rs,
+  )?;
 
   // Create crates/app/locales/en-US/main.ftl and de/main.ftl (i18n)
   fs::write(

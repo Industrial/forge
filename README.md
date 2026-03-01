@@ -58,6 +58,7 @@ Then open [http://localhost:3000](http://localhost:3000). See [docs/001_cli.md](
 | i18n | [015_i18n](docs/015_i18n.md) |
 | Caching | [016_caching](docs/016_caching.md) |
 | Inertia (SPA-style) | [018_inertia_rendering](docs/018_inertia_rendering.md) |
+| Deploy (Shuttle + Turso) | [019_deploy](docs/019_deploy.md) |
 
 ## 🤝 Contributing
 

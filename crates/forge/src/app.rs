@@ -381,7 +381,7 @@ impl App {
     let app_cache = config
       .cache
       .as_ref()
-      .and_then(|c| cache::AppCache::from_config(c))
+      .and_then(cache::AppCache::from_config)
       .map(Arc::new);
     if app_cache.is_some() {
       info!("Application cache enabled");
@@ -398,11 +398,12 @@ impl App {
     let mut router = router.with_state(db_conn.clone());
 
     // HTTP response cache: cache full GET responses (layer wraps router)
-    if let Some(cache_cfg) = config.cache.as_ref() {
-      if let Some(response_cache_layer) = cache_http_layer::HttpResponseCacheLayer::from_config(cache_cfg) {
-        info!("HTTP response cache enabled");
-        router = router.layer(response_cache_layer);
-      }
+    if let Some(cache_cfg) = config.cache.as_ref()
+      && let Some(response_cache_layer) =
+        cache_http_layer::HttpResponseCacheLayer::from_config(cache_cfg)
+    {
+      info!("HTTP response cache enabled");
+      router = router.layer(response_cache_layer);
     }
 
     let cron_runner = if cron_tasks.is_empty() {

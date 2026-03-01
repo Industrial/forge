@@ -55,10 +55,7 @@ async fn e2e_prebuilt_i18n_layout_and_accept_language() {
     .send()
     .await
     .expect("GET / en");
-  assert!(
-    en_resp.status().is_success(),
-    "GET / (en) must succeed"
-  );
+  assert!(en_resp.status().is_success(), "GET / (en) must succeed");
   let en_body = en_resp.text().await.expect("body");
   assert!(
     en_body.contains("Hello") && en_body.contains("World"),
@@ -72,10 +69,7 @@ async fn e2e_prebuilt_i18n_layout_and_accept_language() {
     .send()
     .await
     .expect("GET / de");
-  assert!(
-    de_resp.status().is_success(),
-    "GET / (de) must succeed"
-  );
+  assert!(de_resp.status().is_success(), "GET / (de) must succeed");
   let de_body = de_resp.text().await.expect("body");
   assert!(
     de_body.contains("Hallo") && de_body.contains("World"),
@@ -83,11 +77,7 @@ async fn e2e_prebuilt_i18n_layout_and_accept_language() {
     de_body
   );
 
-  let fallback_resp = client
-    .get(base)
-    .send()
-    .await
-    .expect("GET / no header");
+  let fallback_resp = client.get(base).send().await.expect("GET / no header");
   assert!(
     fallback_resp.status().is_success(),
     "GET / (fallback) must succeed"

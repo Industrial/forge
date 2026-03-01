@@ -24,7 +24,9 @@ async fn e2e_prebuilt_caching_config_and_app_cache() {
   );
   let content = std::fs::read_to_string(&cache_config).expect("read cache.toml");
   assert!(
-    content.contains("enabled") && content.contains("[application]") && content.contains("[http_response]"),
+    content.contains("enabled")
+      && content.contains("[application]")
+      && content.contains("[http_response]"),
     "config/cache.toml should define enabled and [application] and [http_response]; got {:?}",
     content
   );
@@ -37,12 +39,20 @@ async fn e2e_prebuilt_caching_config_and_app_cache() {
 
   // Application cache: GET /api/cache-demo twice returns identical body
   let url = format!("{}/api/cache-demo", base);
-  let r1 = client.get(&url).send().await.expect("GET /api/cache-demo first");
+  let r1 = client
+    .get(&url)
+    .send()
+    .await
+    .expect("GET /api/cache-demo first");
   assert!(r1.status().is_success(), "first GET must succeed");
   let body1 = r1.text().await.expect("body");
   assert!(!body1.is_empty(), "first response body must not be empty");
 
-  let r2 = client.get(&url).send().await.expect("GET /api/cache-demo second");
+  let r2 = client
+    .get(&url)
+    .send()
+    .await
+    .expect("GET /api/cache-demo second");
   assert!(r2.status().is_success(), "second GET must succeed");
   let body2 = r2.text().await.expect("body");
   assert_eq!(
@@ -53,8 +63,15 @@ async fn e2e_prebuilt_caching_config_and_app_cache() {
 
   // HTTP response cache: GET /api/cached-page twice returns identical body (full response cached)
   let cached_url = format!("{}/api/cached-page", base);
-  let resp1 = client.get(&cached_url).send().await.expect("GET /api/cached-page first");
-  assert!(resp1.status().is_success(), "first GET /api/cached-page must succeed");
+  let resp1 = client
+    .get(&cached_url)
+    .send()
+    .await
+    .expect("GET /api/cached-page first");
+  assert!(
+    resp1.status().is_success(),
+    "first GET /api/cached-page must succeed"
+  );
   let page1 = resp1.text().await.expect("body");
   assert!(
     page1.starts_with("cached-page-"),
@@ -62,8 +79,15 @@ async fn e2e_prebuilt_caching_config_and_app_cache() {
     page1
   );
 
-  let resp2 = client.get(&cached_url).send().await.expect("GET /api/cached-page second");
-  assert!(resp2.status().is_success(), "second GET /api/cached-page must succeed");
+  let resp2 = client
+    .get(&cached_url)
+    .send()
+    .await
+    .expect("GET /api/cached-page second");
+  assert!(
+    resp2.status().is_success(),
+    "second GET /api/cached-page must succeed"
+  );
   let cache_control = resp2
     .headers()
     .get("cache-control")
@@ -77,7 +101,8 @@ async fn e2e_prebuilt_caching_config_and_app_cache() {
     page1, page2
   );
   assert!(
-    cache_control.to_lowercase().contains("max-age") || cache_control.to_lowercase().contains("public"),
+    cache_control.to_lowercase().contains("max-age")
+      || cache_control.to_lowercase().contains("public"),
     "cached response should have Cache-Control (max-age or public); got {:?}",
     cache_control
   );

@@ -12,20 +12,25 @@ use moka::future::Cache;
 use tower::{Layer, Service};
 use tracing::debug;
 
-
 /// Cached response: status, headers, body. Stored in Moka for GET response cache.
 #[derive(Clone)]
 struct CachedResponse {
+  /// HTTP status code of the cached response.
   status: StatusCode,
+  /// Response headers (including Cache-Control when stored).
   headers: HeaderMap,
+  /// Response body bytes.
   body: Bytes,
 }
 
 /// Tower layer that caches full HTTP responses for GET requests.
 #[derive(Clone)]
 pub struct HttpResponseCacheLayer {
+  /// Moka cache for path+query -> CachedResponse.
   cache: Arc<Cache<String, CachedResponse>>,
+  /// TTL in seconds for cached entries.
   ttl_secs: u64,
+  /// Paths (exact "/" or prefix) to skip for caching.
   no_cache_paths: Vec<String>,
 }
 
@@ -48,6 +53,7 @@ impl HttpResponseCacheLayer {
     })
   }
 
+  /// Builds cache key from method (GET), path and optional query.
   fn cache_key(path: &str, query: Option<&str>) -> String {
     if let Some(q) = query {
       format!("GET:{}?{}", path, q)
@@ -73,13 +79,18 @@ impl<S> Layer<S> for HttpResponseCacheLayer {
 /// Service that wraps an inner service and caches GET responses.
 #[derive(Clone)]
 pub struct HttpResponseCacheService<S> {
+  /// Inner axum service.
   inner: S,
+  /// Shared Moka cache for responses.
   cache: Arc<Cache<String, CachedResponse>>,
+  /// TTL in seconds for stored entries.
   ttl_secs: u64,
+  /// Paths to exclude from caching.
   no_cache_paths: Vec<String>,
 }
 
 impl<S> HttpResponseCacheService<S> {
+  /// Returns true if this path should not be cached (exact or prefix match).
   fn should_skip(&self, path: &str) -> bool {
     self.no_cache_paths.iter().any(|prefix| {
       if prefix == "/" {
@@ -132,7 +143,8 @@ where
         if !headers.contains_key("cache-control") {
           let _ = headers.insert(
             "cache-control",
-            HeaderValue::try_from(format!("public, max-age={}", ttl_secs)).unwrap_or_else(|_| HeaderValue::from_static("public, max-age=60")),
+            HeaderValue::try_from(format!("public, max-age={}", ttl_secs))
+              .unwrap_or_else(|_| HeaderValue::from_static("public, max-age=60")),
           );
         }
         let response = Response::builder()
@@ -159,10 +171,12 @@ where
       let body_bytes = match body_bytes {
         Ok(b) => b,
         Err(()) => {
-          return Ok(Response::builder()
-            .status(StatusCode::INTERNAL_SERVER_ERROR)
-            .body(Body::empty())
-            .unwrap());
+          return Ok(
+            Response::builder()
+              .status(StatusCode::INTERNAL_SERVER_ERROR)
+              .body(Body::empty())
+              .unwrap(),
+          );
         }
       };
 
@@ -170,7 +184,8 @@ where
       let mut headers = parts.headers.clone();
       let _ = headers.insert(
         "cache-control",
-        HeaderValue::try_from(cache_control.as_str()).unwrap_or_else(|_| HeaderValue::from_static("public, max-age=60")),
+        HeaderValue::try_from(cache_control.as_str())
+          .unwrap_or_else(|_| HeaderValue::from_static("public, max-age=60")),
       );
 
       let cached = CachedResponse {

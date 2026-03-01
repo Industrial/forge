@@ -5,9 +5,9 @@
 pub mod app;
 pub mod audit;
 pub mod auth;
+pub mod authz;
 pub mod cache;
 pub mod cache_http_layer;
-pub mod authz;
 pub mod config;
 pub mod cron;
 pub mod db;

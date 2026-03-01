@@ -39,15 +39,22 @@ pub struct HttpResponseCacheConfig {
   pub no_cache_paths: Option<Vec<String>>,
 }
 
+/// Default for `enabled` in cache config (true).
 fn default_true() -> bool {
   true
 }
+
+/// Default max capacity for application cache entries.
 fn default_max_capacity() -> u64 {
   10_000
 }
+
+/// Default TTL in seconds for application cache.
 fn default_ttl_secs() -> u64 {
   300
 }
+
+/// Default TTL in seconds for HTTP response cache.
 fn default_http_ttl_secs() -> u64 {
   60
 }
@@ -55,6 +62,7 @@ fn default_http_ttl_secs() -> u64 {
 /// In-process application cache (key-value). When cache is disabled, use [NoOpAppCache].
 #[derive(Clone)]
 pub struct AppCache {
+  /// Moka cache backing key-value storage.
   inner: Arc<Cache<String, String>>,
 }
 
