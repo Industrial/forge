@@ -6,8 +6,12 @@ use std::time::Duration;
 
 use forge_e2e_lib::cli;
 
-#[test]
-fn prebuilt_project_has_audit_migration() {
+/// Single E2E test: audit migration layout, authz denied recorded, and auth flow events in audit_log.
+/// 1. Asserts project layout and audit_log migration file and mod/lib references.
+/// 2. Unauthed GET /api/auth/admin → 4xx/5xx/404; assert audit_log has authz denied.
+/// 3. Register, login, admin, logout, failed login; assert audit_log has auth login/logout/failed_login and authz allowed.
+#[tokio::test]
+async fn e2e_prebuilt_audit_migration_and_events() {
   let project_root = cli::prebuilt_project_root();
   assert!(
     project_root.exists(),
@@ -26,12 +30,47 @@ fn prebuilt_project_has_audit_migration() {
   assert!(mod_rs.contains("m20220101_000005_create_audit_log_table"));
   let db_lib = fs::read_to_string(project_root.join("crates/db/src/lib.rs")).unwrap();
   assert!(db_lib.contains("m20220101_000005_create_audit_log_table"));
-}
 
-#[tokio::test]
-async fn prebuilt_server_audit_events_recorded_for_auth_flow() {
   let base = cli::e2e_base_url().expect("run e2e via bin/test-e2e (E2E_BASE_URL not set)");
-  let project_root = cli::prebuilt_project_root();
+  let client = reqwest::Client::builder()
+    .cookie_store(true)
+    .timeout(Duration::from_secs(5))
+    .build()
+    .unwrap();
+
+  let admin_no_auth = client
+    .get(format!("{}/api/auth/admin", base))
+    .send()
+    .await
+    .unwrap();
+  let status = admin_no_auth.status().as_u16();
+  assert!(
+    status == 403 || status == 401 || status == 500 || status == 404,
+    "unauthenticated GET /api/auth/admin should be 4xx or 5xx (or 404): {}",
+    admin_no_auth.status()
+  );
+
+  tokio::time::sleep(Duration::from_millis(100)).await;
+
+  let db_path = project_root.join("db.sqlite");
+  if db_path.exists() && status != 404 {
+    let conn = rusqlite::Connection::open(&db_path).unwrap();
+    let mut stmt = conn
+      .prepare(
+        "SELECT event_kind, outcome FROM audit_log WHERE event_kind = 'authz' AND outcome = 'denied'",
+      )
+      .unwrap();
+    let denied: Vec<(String, String)> = stmt
+      .query_map([], |r| Ok((r.get(0)?, r.get(1)?)))
+      .unwrap()
+      .map(|r| r.unwrap())
+      .collect();
+    assert!(
+      !denied.is_empty(),
+      "expected at least one authz denied event"
+    );
+  }
+
   let email = format!(
     "audit-{}@test.com",
     std::time::SystemTime::now()
@@ -39,11 +78,6 @@ async fn prebuilt_server_audit_events_recorded_for_auth_flow() {
       .unwrap()
       .as_millis()
   );
-  let client = reqwest::Client::builder()
-    .cookie_store(true)
-    .timeout(Duration::from_secs(5))
-    .build()
-    .unwrap();
 
   let reg = client
     .post(format!("{}/api/auth/register", base))
@@ -96,7 +130,6 @@ async fn prebuilt_server_audit_events_recorded_for_auth_flow() {
 
   tokio::time::sleep(Duration::from_millis(100)).await;
 
-  let db_path = project_root.join("db.sqlite");
   assert!(db_path.exists(), "db.sqlite should exist (shared server)");
 
   let conn = rusqlite::Connection::open(&db_path).expect("open db");
@@ -135,48 +168,4 @@ async fn prebuilt_server_audit_events_recorded_for_auth_flow() {
     "expected authz allowed event; rows: {:?}",
     rows
   );
-}
-
-#[tokio::test]
-async fn prebuilt_server_audit_authz_denied_recorded_when_guard_fails() {
-  let base = cli::e2e_base_url().expect("run e2e via bin/test-e2e (E2E_BASE_URL not set)");
-  let project_root = cli::prebuilt_project_root();
-  let client = reqwest::Client::builder()
-    .cookie_store(true)
-    .timeout(Duration::from_secs(5))
-    .build()
-    .unwrap();
-
-  let admin_no_auth = client
-    .get(format!("{}/api/auth/admin", base))
-    .send()
-    .await
-    .unwrap();
-  let status = admin_no_auth.status().as_u16();
-  assert!(
-    status == 403 || status == 401 || status == 500 || status == 404,
-    "unauthenticated GET /api/auth/admin should be 4xx or 5xx (or 404): {}",
-    admin_no_auth.status()
-  );
-
-  tokio::time::sleep(Duration::from_millis(100)).await;
-
-  let db_path = project_root.join("db.sqlite");
-  if db_path.exists() && status != 404 {
-    let conn = rusqlite::Connection::open(&db_path).unwrap();
-    let mut stmt = conn
-      .prepare(
-        "SELECT event_kind, outcome FROM audit_log WHERE event_kind = 'authz' AND outcome = 'denied'",
-      )
-      .unwrap();
-    let denied: Vec<(String, String)> = stmt
-      .query_map([], |r| Ok((r.get(0)?, r.get(1)?)))
-      .unwrap()
-      .map(|r| r.unwrap())
-      .collect();
-    assert!(
-      !denied.is_empty(),
-      "expected at least one authz denied event"
-    );
-  }
 }
