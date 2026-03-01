@@ -5,8 +5,11 @@ use std::time::Duration;
 
 use forge_e2e_lib::cli;
 
-#[test]
-fn prebuilt_project_has_correct_layout() {
+/// Single E2E test: prebuilt layout and root not rate limited in dev.
+/// 1. Asserts project layout.
+/// 2. Repeated GET / (5x) → 200; in dev there is no per-IP rate limit.
+#[tokio::test]
+async fn e2e_prebuilt_rate_limiting_layout_and_health_ok() {
   let project_root = cli::prebuilt_project_root();
   assert!(
     project_root.exists(),
@@ -14,11 +17,7 @@ fn prebuilt_project_has_correct_layout() {
     project_root.display()
   );
   cli::assert_project_layout(&project_root);
-}
 
-/// In dev the app has no per-IP rate limit; repeated requests to a route succeed.
-#[tokio::test]
-async fn prebuilt_server_root_not_rate_limited_in_dev() {
   let base = cli::e2e_base_url().expect("run e2e via bin/test-e2e (E2E_BASE_URL not set)");
   let client = reqwest::Client::builder()
     .timeout(Duration::from_secs(5))
