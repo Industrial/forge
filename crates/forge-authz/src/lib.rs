@@ -107,7 +107,7 @@ pub trait ForgePolicy<R> {
     context: &C,
     action: Action,
     resource: &R,
-    db: &sea_orm::DatabaseConnection,
+    db: &impl sea_orm::ConnectionTrait,
   ) -> Result<bool, AuthzError>;
 }
 

@@ -1,5 +1,6 @@
 use futures::future::BoxFuture;
-use sea_orm::DatabaseConnection;
+
+use crate::DbConnection;
 
 /// Orchestrator for running database seeds.
 ///
@@ -10,11 +11,9 @@ pub struct Seeder;
 
 impl Seeder {
   /// Run the provided seeding function.
-  pub async fn run<F>(db: &DatabaseConnection, seed_fn: F) -> Result<(), Box<dyn std::error::Error>>
+  pub async fn run<F>(db: &DbConnection, seed_fn: F) -> Result<(), Box<dyn std::error::Error>>
   where
-    F: Fn(DatabaseConnection) -> BoxFuture<'static, Result<(), Box<dyn std::error::Error>>>
-      + Send
-      + Sync,
+    F: Fn(DbConnection) -> BoxFuture<'static, Result<(), Box<dyn std::error::Error>>> + Send + Sync,
   {
     seed_fn(db.clone()).await
   }

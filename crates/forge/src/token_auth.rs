@@ -14,15 +14,15 @@ use axum_login::AuthSession;
 use axum_login::AuthUser;
 use axum_login::AuthnBackend;
 use futures::future::BoxFuture;
-use sea_orm::DatabaseConnection;
 use tower::{Layer, Service};
 use uuid::Uuid;
 
+use crate::DbConnection;
 use crate::authz::AuthzContext;
 
 /// Type alias for the token lookup closure: (db, raw_token) -> Option<user_id>.
 pub type TokenLookupFn =
-  Arc<dyn Fn(DatabaseConnection, String) -> BoxFuture<'static, Option<Uuid>> + Send + Sync>;
+  Arc<dyn Fn(DbConnection, String) -> BoxFuture<'static, Option<Uuid>> + Send + Sync>;
 
 /// Wrapper to store token-authenticated user in request extensions (avoids type key collision).
 #[derive(Clone, Debug)]
@@ -33,7 +33,7 @@ pub struct TokenUser<U>(pub U);
 #[derive(Clone)]
 pub struct TokenAuthLayer<B> {
   /// Database connection for the token lookup.
-  db: DatabaseConnection,
+  db: DbConnection,
   /// Auth backend used to load the user by id after lookup.
   backend: Arc<B>,
   /// Async closure that resolves a raw token to a user id.
@@ -41,7 +41,7 @@ pub struct TokenAuthLayer<B> {
 }
 
 impl<B> TokenAuthLayer<B> {
-  pub fn new(db: DatabaseConnection, backend: B, lookup: TokenLookupFn) -> Self {
+  pub fn new(db: DbConnection, backend: B, lookup: TokenLookupFn) -> Self {
     Self {
       db,
       backend: Arc::new(backend),
@@ -70,7 +70,7 @@ where
 /// Service that runs the token lookup and inserts TokenUser into extensions when Bearer is valid.
 pub struct TokenAuthService<B, S> {
   /// Database connection for the token lookup.
-  db: DatabaseConnection,
+  db: DbConnection,
   /// Auth backend used to load the user by id after lookup.
   backend: Arc<B>,
   /// Async closure that resolves a raw token to a user id.

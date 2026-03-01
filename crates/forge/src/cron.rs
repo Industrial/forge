@@ -3,8 +3,9 @@
 //! Uses tokio + chrono for next-run calculation; tasks run in-process alongside the server.
 
 use chrono::Utc;
-use sea_orm::DatabaseConnection;
 use std::future::Future;
+
+use crate::DbConnection;
 use std::pin::Pin;
 use tokio::time::Instant;
 use tracing::error;
@@ -23,7 +24,7 @@ pub enum CronSchedule {
 /// Type-erased cron task: takes DB, returns a future.
 pub type CronTaskBox = Box<
   dyn Fn(
-      DatabaseConnection,
+      DbConnection,
     )
       -> Pin<Box<dyn Future<Output = Result<(), Box<dyn std::error::Error + Send + Sync>>> + Send>>
     + Send
@@ -85,7 +86,7 @@ pub struct CronRunner {
 
 impl CronRunner {
   /// Spawns the scheduler (enqueues [crate::jobs::ScheduledTaskJob] on schedule) and worker (runs jobs by name).
-  pub fn spawn(self, db: DatabaseConnection) {
+  pub fn spawn(self, db: DbConnection) {
     let url = self.job_pool_url.clone();
     let tasks = self.tasks;
     tokio::spawn(async move {

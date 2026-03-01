@@ -2,8 +2,9 @@
 
 use apalis::prelude::*;
 use apalis_sqlite::SqliteStorage;
-use sea_orm::DatabaseConnection;
 use std::collections::HashMap;
+
+use crate::DbConnection;
 use std::sync::Arc;
 use tracing::{error, info};
 
@@ -28,7 +29,7 @@ fn normalize_job_pool_url(url: &str) -> &str {
 /// Uses the same SQLite URL as the app DB for the job queue; [SqliteStorage::setup] creates job tables.
 pub async fn run_scheduler_and_worker(
   db_url: &str,
-  db: DatabaseConnection,
+  db: DbConnection,
   tasks: Vec<(String, CronSchedule, CronTaskBox)>,
 ) -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
   use apalis_sqlite::SqlitePool;
@@ -96,9 +97,9 @@ pub async fn run_scheduler_and_worker(
 /// Runs a single scheduled task job by name from the registry.
 async fn run_scheduled_task(
   job: ScheduledTaskJob,
-  data: Data<(Arc<HashMap<String, CronTaskBox>>, DatabaseConnection)>,
+  data: Data<(Arc<HashMap<String, CronTaskBox>>, DbConnection)>,
 ) -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
-  let (registry, db): &(Arc<HashMap<String, CronTaskBox>>, DatabaseConnection) = &data;
+  let (registry, db): &(Arc<HashMap<String, CronTaskBox>>, DbConnection) = &data;
   if let Some(task) = registry.get(&job.task_name) {
     if let Err(e) = (task)(db.clone()).await {
       error!(task = %job.task_name, error = %e, "scheduled task failed");

@@ -5,7 +5,9 @@
 use axum::extract::State;
 use axum::http::StatusCode;
 use axum::response::IntoResponse;
-use sea_orm::{ConnectionTrait, DatabaseConnection};
+use sea_orm::ConnectionTrait;
+
+use crate::DbConnection;
 
 /// **Liveness**: process is running. No dependency checks.
 /// Returns 200 with minimal body. Used by orchestrators to decide whether to restart the process.
@@ -15,7 +17,7 @@ pub async fn livez() -> impl IntoResponse {
 
 /// **Readiness**: service is ready to accept traffic (e.g. DB reachable).
 /// Returns 200 if ready, 503 if not. Minimal body; no component details.
-pub async fn readyz(State(db): State<DatabaseConnection>) -> impl IntoResponse {
+pub async fn readyz(State(db): State<DbConnection>) -> impl IntoResponse {
   match db.execute_unprepared("SELECT 1").await {
     Ok(_) => (StatusCode::OK, "ok"),
     Err(_) => (StatusCode::SERVICE_UNAVAILABLE, "unavailable"),

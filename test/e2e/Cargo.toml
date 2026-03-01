@@ -86,3 +86,7 @@ path = "015_i18n.rs"
 [[test]]
 name = "016_caching"
 path = "016_caching.rs"
+
+[[test]]
+name = "017_observability"
+path = "017_observability.rs"

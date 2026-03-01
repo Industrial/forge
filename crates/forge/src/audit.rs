@@ -4,7 +4,7 @@
 //! audit failures must not fail the user request.
 
 use chrono::{DateTime, Duration, Utc};
-use sea_orm::{ConnectionTrait, DatabaseConnection, DbBackend, Statement};
+use sea_orm::{ConnectionTrait, DbBackend, Statement};
 use tracing::warn;
 use uuid::Uuid;
 
@@ -90,7 +90,7 @@ impl std::fmt::Display for AuditError {
 impl std::error::Error for AuditError {}
 
 /// Write one audit event. Best-effort: on failure, logs and returns Ok(()) so the request is not failed.
-pub async fn log(db: &DatabaseConnection, event: AuditEvent) -> Result<(), AuditError> {
+pub async fn log(db: &impl ConnectionTrait, event: AuditEvent) -> Result<(), AuditError> {
   let id = Uuid::new_v4();
   let occurred_at = Utc::now().naive_utc();
 
@@ -135,7 +135,7 @@ pub async fn log(db: &DatabaseConnection, event: AuditEvent) -> Result<(), Audit
 /// Delete audit log rows older than the given cutoff (for retention policy).
 /// Returns the number of rows deleted. Run from a scheduled job.
 pub async fn retention_purge(
-  db: &DatabaseConnection,
+  db: &impl ConnectionTrait,
   older_than: Duration,
 ) -> Result<u64, sea_orm::DbErr> {
   let cutoff: DateTime<Utc> = Utc::now() - older_than;
@@ -161,7 +161,7 @@ pub async fn retention_purge(
 /// If `replace_with` is Some(uuid), sets actor_id to that UUID; if None, deletes the rows.
 /// Returns the number of rows updated or deleted.
 pub async fn anonymize_actor(
-  db: &DatabaseConnection,
+  db: &impl ConnectionTrait,
   actor_id: Uuid,
   replace_with: Option<Uuid>,
 ) -> Result<u64, sea_orm::DbErr> {

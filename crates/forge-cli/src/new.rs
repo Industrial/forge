@@ -148,6 +148,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
     .route("/", handlers::i18n::hello)
     .route("/api/cache-demo", handlers::cache_demo::handler)
     .route("/api/cached-page", handlers::cached_page::handler)
+    .route("/api/observability/trace-id", handlers::observability::trace_id)
     .route("/ws", handlers::ws::handler)
     .post_route("/api/auth/register", handlers::auth::register)
     .post_route("/api/auth/login", handlers::auth::login)
@@ -164,7 +165,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
   // Create crates/app/src/handlers/mod.rs
   fs::write(
     project_dir.join("crates/app/src/handlers/mod.rs"),
-    "pub mod auth;\npub mod cache_demo;\npub mod cached_page;\npub mod i18n;\npub mod ws;",
+    "pub mod auth;\npub mod cache_demo;\npub mod cached_page;\npub mod i18n;\npub mod observability;\npub mod ws;",
   )?;
 
   // Create config/cache.toml (application + HTTP response cache config)
@@ -178,19 +179,19 @@ default_ttl_secs = 300
 [http_response]
 enabled = true
 default_ttl_secs = 60
-no_cache_paths = ["/", "/api/auth", "/healthz", "/livez", "/readyz"]
+no_cache_paths = ["/", "/api/auth", "/api/observability", "/healthz", "/livez", "/readyz"]
 "#;
   fs::write(project_dir.join("config").join("cache.toml"), cache_toml)?;
 
   // Create crates/app/src/handlers/cache_demo.rs (demo route using app cache)
   let cache_demo_rs = r#"use axum::{extract::State, response::IntoResponse};
-use forge::{sea_orm::DatabaseConnection, AppCache};
+use forge::{DbConnection, AppCache};
 use std::sync::Arc;
 
 const CACHE_KEY: &str = "demo";
 
 pub async fn handler(
-  State(_db): State<DatabaseConnection>,
+  State(_db): State<DbConnection>,
   cache: axum::extract::Extension<Option<Arc<AppCache>>>,
 ) -> impl IntoResponse {
   let value = if let Some(c) = cache.0.as_ref() {
@@ -214,9 +215,9 @@ pub async fn handler(
 
   // Create crates/app/src/handlers/cached_page.rs (demo for HTTP response cache: unique per request, cached by middleware)
   let cached_page_rs = r#"use axum::{extract::State, response::IntoResponse};
-use forge::sea_orm::DatabaseConnection;
+use forge::DbConnection;
 
-pub async fn handler(State(_db): State<DatabaseConnection>) -> impl IntoResponse {
+pub async fn handler(State(_db): State<DbConnection>) -> impl IntoResponse {
   let v = format!("cached-page-{}", forge::uuid::Uuid::new_v4());
   v.into_response()
 }
@@ -224,6 +225,31 @@ pub async fn handler(State(_db): State<DatabaseConnection>) -> impl IntoResponse
   fs::write(
     project_dir.join("crates/app/src/handlers/cached_page.rs"),
     cached_page_rs,
+  )?;
+
+  // Create crates/app/src/handlers/observability.rs (017: current trace id for e2e)
+  let observability_rs = r#"use axum::{
+  extract::Request,
+  response::IntoResponse,
+};
+use forge::{find_current_trace_id, trace_id_from_traceparent};
+
+/// Returns the current OpenTelemetry trace id (for e2e and debugging).
+/// Prefers trace id from traceparent header when present, then current context.
+pub async fn trace_id(req: Request) -> impl IntoResponse {
+  let from_header = req
+    .headers()
+    .get("traceparent")
+    .and_then(|v| v.to_str().ok())
+    .and_then(|s| trace_id_from_traceparent(Some(s)));
+  from_header
+    .or_else(find_current_trace_id)
+    .unwrap_or_else(|| "".to_string())
+}
+"#;
+  fs::write(
+    project_dir.join("crates/app/src/handlers/observability.rs"),
+    observability_rs,
   )?;
 
   // Create crates/app/locales/en-US/main.ftl and de/main.ftl (i18n)
@@ -247,7 +273,7 @@ use std::borrow::Cow;
 use std::collections::HashMap;
 use unic_langid::LanguageIdentifier;
 
-use forge::sea_orm::DatabaseConnection;
+use forge::DbConnection;
 
 static_loader! {
     static LOCALES = {
@@ -266,7 +292,7 @@ fn resolve_locale(accept_language: Option<&str>) -> LanguageIdentifier {
 }
 
 pub async fn hello(
-    State(_db): State<DatabaseConnection>,
+    State(_db): State<DbConnection>,
     headers: HeaderMap,
 ) -> impl IntoResponse {
     let value = headers.get(ACCEPT_LANGUAGE).and_then(|v| v.to_str().ok());
@@ -324,8 +350,8 @@ use forge::authz::{guard_and_audit_user, Action, AuthzContext, Role};
 use forge::validation::Valid;
 use forge::token_auth::{OptionalRequireAuth, RequireAuth};
 use forge::authz::record_authz_denied;
-use forge::Error as ForgeError;
-use sea_orm::{ActiveModelTrait, DatabaseConnection, EntityTrait, Set, TransactionTrait};
+use forge::{DbConnection, Error as ForgeError};
+use sea_orm::{ActiveModelTrait, EntityTrait, Set, TransactionTrait};
 use serde::Deserialize;
 use uuid::Uuid;
 use validator::Validate;
@@ -342,7 +368,7 @@ pub struct RegisterRequest {
 }
 
 pub async fn register(
-  State(db): State<DatabaseConnection>,
+  State(db): State<DbConnection>,
   Valid(Json(payload)): Valid<Json<RegisterRequest>>,
 ) -> Result<impl IntoResponse, ForgeError> {
   let password_hash = hash_password(&payload.password)?;
@@ -407,7 +433,7 @@ pub struct LoginRequest {
 
 pub async fn login(
   mut auth_session: AuthSession<Backend>,
-  State(db): State<DatabaseConnection>,
+  State(db): State<DbConnection>,
   Valid(Json(payload)): Valid<Json<LoginRequest>>,
 ) -> Result<impl IntoResponse, ForgeError> {
   let credentials = db::auth::Credentials {
@@ -463,7 +489,7 @@ pub async fn login(
 
 pub async fn logout(
   mut auth_session: AuthSession<Backend>,
-  State(db): State<DatabaseConnection>,
+  State(db): State<DbConnection>,
 ) -> impl IntoResponse {
   let actor_id = auth_session.requester_id();
   let org_id = auth_session.organization_id();
@@ -504,7 +530,7 @@ pub struct CreateTokenRequest {
 
 pub async fn create_token(
   RequireAuth(user): RequireAuth<Backend>,
-  State(db): State<DatabaseConnection>,
+  State(db): State<DbConnection>,
   Valid(Json(payload)): Valid<Json<CreateTokenRequest>>,
 ) -> Result<impl IntoResponse, ForgeError> {
   let secret = format!("forge_{}", Uuid::new_v4().to_string().replace('-', ""));
@@ -528,7 +554,7 @@ pub async fn create_token(
 /// Shallow Gate example: only users with Role::Owner (or Admin) can access. Audits the decision.
 pub async fn admin_only(
   OptionalRequireAuth(maybe_user): OptionalRequireAuth<Backend>,
-  State(db): State<DatabaseConnection>,
+  State(db): State<DbConnection>,
 ) -> Result<impl IntoResponse, ForgeError> {
   let user = match maybe_user {
     Some(u) => u,
@@ -548,7 +574,7 @@ pub async fn admin_only(
 
   // Create crates/db/src/lib.rs
   let db_lib_rs = r#"use async_trait::async_trait;
-use sea_orm::DatabaseConnection;
+use forge::DbConnection;
 use sea_orm_migration::prelude::{MigrationTrait, MigratorTrait};
 
 pub mod migrations;
@@ -572,13 +598,13 @@ impl MigratorTrait for Migrator {
   }
 }
 
-pub async fn run_seeds(db: DatabaseConnection) -> Result<(), Box<dyn std::error::Error>> {
+pub async fn run_seeds(db: DbConnection) -> Result<(), Box<dyn std::error::Error>> {
   seeds::s20220101_000001_seed_users::seed(&db).await?;
   Ok(())
 }
 
 /// Look up user id by raw API token (Bearer). Returns None if token invalid or expired.
-pub async fn token_lookup(db: DatabaseConnection, raw_token: String) -> Option<uuid::Uuid> {
+pub async fn token_lookup(db: DbConnection, raw_token: String) -> Option<uuid::Uuid> {
   use sea_orm::{ColumnTrait, EntityTrait, QueryFilter};
   let hash = forge::auth::hash_api_token(&raw_token);
   let row = crate::models::api_token::Entity::find()
@@ -600,19 +626,19 @@ pub async fn token_lookup(db: DatabaseConnection, raw_token: String) -> Option<u
   // Create crates/db/src/auth.rs
   let db_auth_rs = r#"use async_trait::async_trait;
 use forge::auth::verify_password;
-use forge::{axum_login::AuthnBackend, Error};
-use sea_orm::{ColumnTrait, DatabaseConnection, EntityTrait, QueryFilter};
+use forge::{axum_login::AuthnBackend, DbConnection, Error};
+use sea_orm::{ColumnTrait, EntityTrait, QueryFilter};
 use serde::Deserialize;
 
 use crate::models::user;
 
 #[derive(Clone, Debug)]
 pub struct Backend {
-  db: DatabaseConnection,
+  db: DbConnection,
 }
 
 impl Backend {
-  pub fn new(db: DatabaseConnection) -> Self {
+  pub fn new(db: DbConnection) -> Self {
     Self { db }
   }
 }
@@ -1033,13 +1059,14 @@ impl MigrationTrait for Migration {
   // Create crates/db/src/seeds/s20220101_000001_seed_users.rs
   let seed_rs = r#"use chrono::Utc;
 use forge::auth::hash_password;
-use sea_orm::{ColumnTrait, DatabaseConnection, EntityTrait, QueryFilter, Set};
+use forge::DbConnection;
+use sea_orm::{ColumnTrait, EntityTrait, QueryFilter, Set};
 use tracing::info;
 use uuid::Uuid;
 
 use crate::models::{organization, membership, user};
 
-pub async fn seed(db: &DatabaseConnection) -> Result<(), Box<dyn std::error::Error>> {
+pub async fn seed(db: &DbConnection) -> Result<(), Box<dyn std::error::Error>> {
   let email = "root@localhost";
 
   let existing = user::Entity::find()

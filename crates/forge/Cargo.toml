@@ -54,6 +54,13 @@ apalis-sqlite = { version = "1.0.0-rc.4", features = [
 moka = { version = "0.12", features = ["future"] }
 bytes = "1.0"
 http = "1.0"
+# Health observability (017): distributed tracing, W3C trace context (0.31 to match axum-tracing-opentelemetry)
+axum-tracing-opentelemetry = "0.33"
+tracing-opentelemetry-instrumentation-sdk = "0.32"
+tracing-opentelemetry = "0.32"
+opentelemetry = "0.31"
+opentelemetry_sdk = { version = "0.31", features = ["rt-tokio"] }
+sea-orm-tracing = "0.2"
 
 [dev-dependencies]
 reqwest = { version = "0.12", features = ["json"] }

@@ -2,7 +2,7 @@ pub use forge_authz::*;
 
 use async_trait::async_trait;
 use axum_login::{AuthSession, AuthnBackend};
-use sea_orm::DatabaseConnection;
+use sea_orm::ConnectionTrait;
 
 use crate::audit::{AuditEvent, EventKind, Outcome};
 
@@ -17,7 +17,7 @@ pub trait AuthSessionGuardExt {
   /// Guard and record the decision in the audit log (authz event, allowed/denied).
   async fn guard_and_audit(
     &self,
-    db: &DatabaseConnection,
+    db: &impl ConnectionTrait,
     action: Action,
     role: Role,
     resource_type: &str,
@@ -49,7 +49,7 @@ where
 
   async fn guard_and_audit(
     &self,
-    db: &DatabaseConnection,
+    db: &impl ConnectionTrait,
     action: Action,
     role: Role,
     resource_type: &str,
@@ -81,7 +81,7 @@ where
 /// handler has the user from token or session and needs to enforce role and record the decision.
 pub async fn guard_and_audit_user<U: AuthzContext + Send>(
   user: &U,
-  db: &DatabaseConnection,
+  db: &impl ConnectionTrait,
   action: Action,
   role: Role,
   resource_type: &str,
@@ -122,7 +122,7 @@ fn guard_user<U: AuthzContext>(user: &U, _action: Action, role: Role) -> Result<
 
 /// Record an authz denied event for unauthenticated or unauthorized access (e.g. before returning 401).
 pub async fn record_authz_denied(
-  db: &DatabaseConnection,
+  db: &impl ConnectionTrait,
   action: Action,
   resource_type: &str,
   resource_id: Option<uuid::Uuid>,

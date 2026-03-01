@@ -1,61 +1,37 @@
-use sea_orm::{ConnectOptions, Database, DatabaseConnection, SqlxSqliteConnector};
-use sqlx::sqlite::{SqliteConnectOptions, SqlitePoolOptions};
-use std::str::FromStr;
+use sea_orm::{ConnectOptions, Database, DatabaseConnection};
 use std::time::Duration;
 
 use crate::config::DatabaseConfig;
 
 /// Initialize the database connection from configuration.
+/// Uses SeaORM [ConnectOptions] for all backends (SQLite, PostgreSQL, etc.) so that
+/// DB-level OpenTelemetry (e.g. the sea-orm-tracing crate wrapping the connection)
+/// can apply to SQLite and non-SQLite alike.
 pub async fn initialize_database(
   config: &DatabaseConfig,
 ) -> Result<DatabaseConnection, Box<dyn std::error::Error>> {
-  if config.url.starts_with("sqlite") {
-    let mut pool_options = SqlitePoolOptions::new();
+  let mut opt = ConnectOptions::new(config.url.clone());
 
-    if let Some(max) = config.max_connections {
-      pool_options = pool_options.max_connections(max);
-    }
-
-    if let Some(min) = config.min_connections {
-      pool_options = pool_options.min_connections(min);
-    }
-
-    if let Some(timeout) = config.connect_timeout {
-      pool_options = pool_options.acquire_timeout(Duration::from_secs(timeout));
-    }
-
-    if let Some(timeout) = config.idle_timeout {
-      pool_options = pool_options.idle_timeout(Some(Duration::from_secs(timeout)));
-    }
-
-    let opts = SqliteConnectOptions::from_str(&config.url)?
-      .read_only(false)
-      .immutable(false)
-      .create_if_missing(true);
-    let pool = pool_options.connect_with(opts).await?;
-    let db = SqlxSqliteConnector::from_sqlx_sqlite_pool(pool);
-    Ok(db)
-  } else {
-    // For other databases, fallback to default SeaORM connection
-    let mut opt = ConnectOptions::new(config.url.clone());
-
-    if let Some(max) = config.max_connections {
-      opt.max_connections(max);
-    }
-
-    if let Some(min) = config.min_connections {
-      opt.min_connections(min);
-    }
-
-    if let Some(timeout) = config.connect_timeout {
-      opt.connect_timeout(Duration::from_secs(timeout));
-    }
-
-    if let Some(timeout) = config.idle_timeout {
-      opt.idle_timeout(Duration::from_secs(timeout));
-    }
-
-    let db = Database::connect(opt).await?;
-    Ok(db)
+  if let Some(max) = config.max_connections {
+    opt.max_connections(max);
   }
+
+  if let Some(min) = config.min_connections {
+    opt.min_connections(min);
+  }
+
+  if let Some(timeout) = config.connect_timeout {
+    opt.connect_timeout(Duration::from_secs(timeout));
+  }
+
+  if let Some(timeout) = config.idle_timeout {
+    opt.idle_timeout(Duration::from_secs(timeout));
+  }
+
+  // DB-level OTel: SeaORM 1.1 does not expose set_auto_tracing on ConnectOptions.
+  // For SQLite and other backends, you can add spans via sea-orm-tracing (wrap the
+  // returned DatabaseConnection with TracedConnection) or a future SeaORM release.
+
+  let db = Database::connect(opt).await?;
+  Ok(db)
 }

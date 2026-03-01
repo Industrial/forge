@@ -14,6 +14,7 @@ pub mod db;
 pub mod error;
 pub mod health;
 pub mod jobs;
+pub mod observability;
 pub mod rate_limit;
 pub mod security_headers;
 pub mod seed;
@@ -30,10 +31,14 @@ pub use cron::CronSchedule;
 pub use db::initialize_database;
 pub use error::Error;
 pub use jobs::ScheduledTaskJob;
+pub use observability::{find_current_trace_id, trace_id_from_traceparent};
 pub use rate_limit::RequesterOrgKey;
 pub use seed::Seeder;
 pub use token_auth::{OptionalRequireAuth, RequireAuth, TokenAuthLayer, TokenLookupFn, TokenUser};
 pub use validation::{Valid, Validate};
+
+/// Database connection type: [sea_orm_tracing::TracedConnection] for OpenTelemetry spans on all DB operations (SQLite and others).
+pub use sea_orm_tracing::TracedConnection as DbConnection;
 
 // Re-exports for a unified API (Phase 3)
 pub use async_trait;

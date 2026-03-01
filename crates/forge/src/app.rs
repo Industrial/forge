@@ -7,7 +7,9 @@ use axum::{Router, handler::Handler, routing::delete, routing::get, routing::pos
 use axum_login::AuthManagerLayerBuilder;
 use futures::future::BoxFuture;
 use governor::middleware::NoOpMiddleware;
-use sea_orm::{ConnectionTrait, DatabaseConnection, DbBackend};
+use sea_orm::{ConnectionTrait, DbBackend};
+
+use crate::DbConnection;
 use sea_orm_migration::MigratorTrait;
 use tokio::signal;
 use tower::ServiceBuilder;
@@ -20,21 +22,23 @@ use tower_http::trace::{DefaultMakeSpan, DefaultOnRequest, DefaultOnResponse, Tr
 use tower_sessions::{Expiry, SessionManagerLayer};
 use tower_sessions_sqlx_store::SqliteStore;
 use tracing::{info, warn};
+use tracing_subscriber::prelude::*;
+
+use axum_tracing_opentelemetry::middleware::{OtelAxumLayer, OtelInResponseLayer};
 
 use crate::cache;
 use crate::cache_http_layer;
 use crate::config::{self, ForgeConfig};
 use crate::cron::{CronRunner, CronSchedule, CronTaskBox};
 use crate::db;
+use crate::observability;
 use crate::security_headers;
 use crate::token_auth::TokenAuthLayer;
 use crate::token_auth::TokenLookupFn;
 
 /// Type alias for the idempotent seeding function.
 pub type SeedFn = Box<
-  dyn Fn(DatabaseConnection) -> BoxFuture<'static, Result<(), Box<dyn std::error::Error>>>
-    + Send
-    + Sync,
+  dyn Fn(DbConnection) -> BoxFuture<'static, Result<(), Box<dyn std::error::Error>>> + Send + Sync,
 >;
 
 /// Type alias for the migrator function.
@@ -45,11 +49,11 @@ pub type MigratorFn =
 /// Args: router, db, optional per-user rate limit, optional token lookup for Bearer auth.
 pub type AuthInstallerFn = Box<
   dyn FnOnce(
-      Router<DatabaseConnection>,
-      DatabaseConnection,
+      Router<DbConnection>,
+      DbConnection,
       Option<u32>,
       Option<TokenLookupFn>,
-    ) -> BoxFuture<'static, Router<DatabaseConnection>>
+    ) -> BoxFuture<'static, Router<DbConnection>>
     + Send,
 >;
 
@@ -58,11 +62,11 @@ pub type AuthInstallerFn = Box<
 /// Provides a fluent API for configuring and running Axum-based web applications.
 pub struct App {
   /// The Axum router containing all configured routes and middleware.
-  router: Router<DatabaseConnection>,
+  router: Router<DbConnection>,
   /// Application configuration loaded from `config/app.toml` and `config/db.toml`
   config: ForgeConfig,
   /// Database connection (if configured)
-  db: Option<DatabaseConnection>,
+  db: Option<DbConnection>,
   /// Optional migrator function to run on startup
   migrator: Option<MigratorFn>,
   /// Optional seeder to run on startup
@@ -97,9 +101,9 @@ impl App {
     info!("Server config: {:?}", config.server);
     info!("Database config: {:?}", config.database);
 
-    let router: Router<DatabaseConnection> = Router::new();
+    let router: Router<DbConnection> = Router::new();
 
-    // Add tracing middleware for HTTP request logging
+    // HTTP request logging (tower-http)
     let trace_layer = TraceLayer::new_for_http()
       .make_span_with(DefaultMakeSpan::new().level(tracing::Level::INFO))
       .on_request(DefaultOnRequest::new().level(tracing::Level::INFO))
@@ -164,7 +168,7 @@ impl App {
   /// Register an idempotent seeding function to be run automatically on startup.
   pub fn with_seed<F>(mut self, seeder: F) -> Self
   where
-    F: Fn(DatabaseConnection) -> BoxFuture<'static, Result<(), Box<dyn std::error::Error>>>
+    F: Fn(DbConnection) -> BoxFuture<'static, Result<(), Box<dyn std::error::Error>>>
       + Send
       + Sync
       + 'static,
@@ -179,7 +183,7 @@ impl App {
     B: axum_login::AuthnBackend + Send + Sync + Clone + 'static,
     B::User:
       axum_login::AuthUser<Id = uuid::Uuid> + crate::authz::AuthzContext + Send + Clone + 'static,
-    F: Fn(DatabaseConnection) -> B + Send + Sync + 'static,
+    F: Fn(DbConnection) -> B + Send + Sync + 'static,
   {
     self.auth_installer = Some(Box::new(
       move |router, db_conn, rate_limit_per_user, token_lookup| {
@@ -189,7 +193,7 @@ impl App {
             return router;
           }
 
-          let pool = db_conn.get_sqlite_connection_pool();
+          let pool = db_conn.inner().get_sqlite_connection_pool();
           let session_store = SqliteStore::new(pool.clone());
 
           if let Err(e) = session_store.migrate().await {
@@ -234,10 +238,10 @@ impl App {
   /// and returns the user id if the token is valid (e.g. lookup by token hash in api_tokens table).
   pub fn with_token_auth<F, Fut>(mut self, lookup: F) -> Self
   where
-    F: Fn(DatabaseConnection, String) -> Fut + Send + Sync + 'static,
+    F: Fn(DbConnection, String) -> Fut + Send + Sync + 'static,
     Fut: Future<Output = Option<uuid::Uuid>> + Send + 'static,
   {
-    let lookup = Arc::new(move |db: DatabaseConnection, token: String| {
+    let lookup = Arc::new(move |db: DbConnection, token: String| {
       Box::pin(lookup(db, token)) as BoxFuture<'static, Option<uuid::Uuid>>
     });
     self.token_lookup = Some(lookup);
@@ -250,14 +254,14 @@ impl App {
   }
 
   /// Get a reference to the database connection (if available).
-  pub fn db(&self) -> Option<&DatabaseConnection> {
+  pub fn db(&self) -> Option<&DbConnection> {
     self.db.as_ref()
   }
 
   /// Add a GET route to the application.
   pub fn route<H, T>(mut self, path: &str, handler: H) -> Self
   where
-    H: Handler<T, DatabaseConnection>,
+    H: Handler<T, DbConnection>,
     T: 'static,
   {
     self.router = self.router.route(path, get(handler));
@@ -267,7 +271,7 @@ impl App {
   /// Add a POST route to the application (e.g. for /api/auth/register, /api/auth/login).
   pub fn post_route<H, T>(mut self, path: &str, handler: H) -> Self
   where
-    H: Handler<T, DatabaseConnection>,
+    H: Handler<T, DbConnection>,
     T: 'static,
   {
     self.router = self.router.route(path, post(handler));
@@ -277,7 +281,7 @@ impl App {
   /// Add a DELETE route to the application (e.g. for /api/auth/tokens/:id).
   pub fn delete_route<H, T>(mut self, path: &str, handler: H) -> Self
   where
-    H: Handler<T, DatabaseConnection>,
+    H: Handler<T, DbConnection>,
     T: 'static,
   {
     self.router = self.router.route(path, delete(handler));
@@ -288,7 +292,7 @@ impl App {
   /// The task receives the app's database connection. No external cron library; uses Interval / Hourly / Daily.
   pub fn with_cron<F, Fut>(mut self, name: &str, schedule: CronSchedule, f: F) -> Self
   where
-    F: Fn(DatabaseConnection) -> Fut + Send + Sync + 'static,
+    F: Fn(DbConnection) -> Fut + Send + Sync + 'static,
     Fut: std::future::Future<Output = Result<(), Box<dyn std::error::Error + Send + Sync>>>
       + Send
       + 'static,
@@ -302,7 +306,7 @@ impl App {
   /// When cron tasks are registered, the second element is `Some((db, runner))` so [`.serve`](Self::serve) can spawn them.
   /// For tests that only need the router, use `let (router, _) = app.into_router().await`.
   /// The returned router has state applied and is `Router<()>`, so it can be used with `into_make_service_with_connect_info`.
-  pub async fn into_router(self) -> (Router<()>, Option<(DatabaseConnection, CronRunner)>) {
+  pub async fn into_router(self) -> (Router<()>, Option<(DbConnection, CronRunner)>) {
     // Initialize tracing subscriber if not already initialized
     Self::init_tracing();
 
@@ -330,6 +334,7 @@ impl App {
         eprintln!("Database connection error: {}", e);
         std::process::exit(1);
       });
+    let db_conn = DbConnection::from(db_conn);
 
     // Run migrations if enabled and provided
     if config.database.auto_migrate
@@ -376,6 +381,13 @@ impl App {
     router = router.layer(tower::util::MapResponseLayer::new(
       security_headers::add_security_headers,
     ));
+
+    // OpenTelemetry: W3C trace context propagation and request spans (017).
+    // Propagation layer innermost so traceparent is attached just before handlers (not overwritten by OtelAxumLayer).
+    router = router
+      .layer(observability::TraceContextPropagationLayer)
+      .layer(OtelInResponseLayer)
+      .layer(OtelAxumLayer::default());
 
     // Optional application cache: inject into request extensions for handlers (Option<Arc<AppCache>>)
     let app_cache = config
@@ -457,14 +469,13 @@ impl App {
     }
   }
 
-  /// Initialize the tracing subscriber for logging.
+  /// Initialize the tracing subscriber for logging and OpenTelemetry (017).
   fn init_tracing() {
-    let _ = tracing_subscriber::fmt()
-      .with_env_filter(
-        tracing_subscriber::EnvFilter::from_default_env()
-          .add_directive("forge=info".parse().unwrap())
-          .add_directive("tower_http=info".parse().unwrap()),
-      )
+    observability::init_otel();
+    let _ = tracing_subscriber::registry()
+      .with(observability::otel_layer())
+      .with(observability::env_filter())
+      .with(tracing_subscriber::fmt::layer())
       .try_init();
   }
 
