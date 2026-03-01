@@ -6,8 +6,11 @@ use std::time::Duration;
 
 use forge_e2e_lib::cli;
 
-#[test]
-fn prebuilt_project_has_migrations_layout() {
+/// Single E2E test: prebuilt migrations layout and server readyz.
+/// 1. Asserts project layout, db migrations/models/seeds mod.rs, and workspace Cargo.toml.
+/// 2. GET /readyz → 200 "ok".
+#[tokio::test]
+async fn e2e_prebuilt_migrations_and_readyz() {
   let project_root = cli::prebuilt_project_root();
   assert!(
     project_root.exists(),
@@ -29,10 +32,7 @@ fn prebuilt_project_has_migrations_layout() {
     cargo_toml.contains("[workspace]"),
     "root Cargo.toml should be a workspace"
   );
-}
 
-#[tokio::test]
-async fn prebuilt_server_readyz_after_migrations() {
   let base = cli::e2e_base_url().expect("run e2e via bin/test-e2e (E2E_BASE_URL not set)");
   let client = reqwest::Client::builder()
     .timeout(Duration::from_secs(5))
