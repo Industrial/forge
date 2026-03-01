@@ -11,6 +11,25 @@ pub struct ForgeConfig {
   pub database: DatabaseConfig,
   #[serde(default)]
   pub cache: Option<crate::cache::CacheConfig>,
+  /// Frontend (Vite) dev server port. Used by Inertia and `forge serve`.
+  #[serde(default)]
+  pub frontend: FrontendConfig,
+}
+
+#[derive(Debug, Clone, Deserialize)]
+pub struct FrontendConfig {
+  #[serde(default = "default_frontend_port")]
+  pub port: u16,
+}
+
+impl Default for FrontendConfig {
+  fn default() -> Self {
+    Self { port: default_frontend_port() }
+  }
+}
+
+fn default_frontend_port() -> u16 {
+  3000
 }
 
 #[derive(Debug, Clone, Deserialize)]

@@ -41,6 +41,9 @@ environment = "development"
 [server]
 host = "127.0.0.1"
 port = $E2E_PORT
+
+[frontend]
+port = 3000
 EOF
 # Disable seed so tests control data; keep migrations and default db path
 cat > "$PREBUILT/config/db.toml" <<'EOF'

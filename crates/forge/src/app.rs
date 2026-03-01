@@ -57,6 +57,22 @@ pub type AuthInstallerFn = Box<
     + Send,
 >;
 
+/// Initialize the tracing subscriber for logging and OpenTelemetry (017).
+/// Call this at the start of `main` when using `into_router_before_state()` so that
+/// server start and other logs are visible.
+pub fn init_tracing() {
+  init_tracing_impl();
+}
+
+fn init_tracing_impl() {
+  observability::init_otel();
+  let _ = tracing_subscriber::registry()
+    .with(observability::otel_layer())
+    .with(observability::env_filter())
+    .with(tracing_subscriber::fmt::layer())
+    .try_init();
+}
+
 /// The main Forge application builder.
 ///
 /// Provides a fluent API for configuring and running Axum-based web applications.
@@ -506,17 +522,12 @@ impl App {
 
   /// Initialize the tracing subscriber for logging and OpenTelemetry (017).
   fn init_tracing() {
-    observability::init_otel();
-    let _ = tracing_subscriber::registry()
-      .with(observability::otel_layer())
-      .with(observability::env_filter())
-      .with(tracing_subscriber::fmt::layer())
-      .try_init();
+    init_tracing_impl();
   }
 
   /// Log server start message.
   fn log_server_start(host: &str, port: u16) {
-    info!("Forge server running on http://{}:{}", host, port);
+    info!("HTTP server listening on http://{}:{}", host, port);
   }
 
   /// Log server stop message.

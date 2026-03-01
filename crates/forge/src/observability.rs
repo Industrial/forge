@@ -128,9 +128,10 @@ pub fn otel_layer() -> impl tracing_subscriber::Layer<tracing_subscriber::Regist
   tracing_opentelemetry::layer().with_tracer(tracer)
 }
 
-/// Build env filter for the tracing subscriber (forge, tower_http, optional RUST_LOG).
+/// Build env filter for the tracing subscriber (forge, app binary, tower_http, optional RUST_LOG).
 pub fn env_filter() -> EnvFilter {
   EnvFilter::from_default_env()
     .add_directive("forge=info".parse().unwrap())
+    .add_directive("app=info".parse().unwrap())
     .add_directive("tower_http=info".parse().unwrap())
 }

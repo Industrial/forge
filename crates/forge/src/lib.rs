@@ -23,7 +23,7 @@ pub mod validation;
 
 pub use forge_macros::*;
 
-pub use app::App;
+pub use app::{init_tracing, App};
 pub use audit::{AuditError, AuditEvent, EventKind, Outcome};
 pub use cache::{AppCache, CacheConfig};
 pub use cache_http_layer::HttpResponseCacheLayer;

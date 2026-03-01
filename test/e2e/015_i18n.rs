@@ -69,6 +69,12 @@ async fn e2e_prebuilt_i18n_layout_and_accept_language() {
     "en response should contain Pages/Home and locale en-US in props; got {:?}",
     en_body
   );
+  // i18n: server-translated greeting in props (en-US -> "Hello, World!")
+  assert!(
+    en_body.contains("Hello") && en_body.contains("World"),
+    "en response should contain translated greeting in props; got {:?}",
+    en_body
+  );
 
   // GET / with Accept-Language de: locale "de" in page props
   let de_resp = client
@@ -84,6 +90,12 @@ async fn e2e_prebuilt_i18n_layout_and_accept_language() {
     de_body.contains("Pages/Home")
       && (de_body.contains("\"de\"") || de_body.contains("locale&quot;:&quot;de")),
     "de response should contain Pages/Home and locale de in props; got {:?}",
+    de_body
+  );
+  // i18n: server-translated greeting in props (de -> "Hallo, World!")
+  assert!(
+    de_body.contains("Hallo") && de_body.contains("World"),
+    "de response should contain translated greeting (Hallo) in props; got {:?}",
     de_body
   );
 

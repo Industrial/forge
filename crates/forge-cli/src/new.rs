@@ -72,6 +72,7 @@ axum-inertia = "0.9"
 serde_json = "1.0"
 tower-http = {{ version = "0.6", features = ["fs"] }}
 tracing = "0.1"
+axum-reverse-proxy = {{ version = "1", default-features = false }}
 "#,
     forge_crate_path.display()
   );
@@ -130,6 +131,40 @@ frontend/dist/
 "#;
   fs::write(project_dir.join(".gitignore"), gitignore)?;
 
+  // devenv.nix and devenv.yaml (Bun + Rust; run `devenv shell` in project)
+  let devenv_yaml = r#"inputs:
+  nixpkgs:
+    url: github:NixOS/nixpkgs/nixos-unstable
+"#;
+  fs::write(project_dir.join("devenv.yaml"), devenv_yaml)?;
+  let devenv_nix = format!(
+    r#"{{ inputs, pkgs, ... }}: {{
+  name = "{}";
+
+  languages = {{
+    javascript = {{
+      enable = true;
+      bun.enable = true;
+    }};
+    rust = {{
+      enable = true;
+      channel = "stable";
+      components = [ "cargo" "rustc" "rustfmt" "rust-analyzer" ];
+    }};
+  }};
+
+  env = {{
+    RUST_BACKTRACE = "1";
+    CARGO_TERM_COLOR = "always";
+  }};
+
+  packages = with pkgs; [ git ];
+}}
+"#,
+    name
+  );
+  fs::write(project_dir.join("devenv.nix"), devenv_nix)?;
+
   // Create crates/app/src/main.rs (018: Inertia + into_router_before_state)
   let main_rs = r#"use std::time::Duration;
 
@@ -146,6 +181,7 @@ use state::AppState;
 
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
+  forge::init_tracing();
   let app = App::new()
     .with_migrations(db::Migrator)
     .with_seed(|db| Box::pin(db::run_seeds(db)))
@@ -164,6 +200,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
   let is_production = app.config().app.environment.eq_ignore_ascii_case("production");
   let host = app.config().server.host.clone();
   let port = app.config().server.port;
+  let frontend_port = app.config().frontend.port;
 
   let app = app
     .route("/api/cache-demo", handlers::cache_demo::handler)
@@ -187,7 +224,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
       .into_config()
   } else {
     vite::Development::default()
-      .port(5173)
+      .port(port)
       .main("src/main.tsx")
       .lang("en")
       .title("App")
@@ -196,17 +233,23 @@ async fn main() -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
   };
 
   let api_router = router.with_state(db_conn.clone());
+  let app_state = AppState {
+    db: db_conn,
+    inertia,
+  };
   let inertia_router = axum::Router::new()
     .route("/", get(handlers::inertia::home))
     .route("/login", get(handlers::inertia::login_page))
     .route("/register", get(handlers::inertia::register_page))
     .route("/dashboard", get(handlers::inertia::dashboard))
     .route("/ws-demo", get(handlers::inertia::ws_demo_page))
-    .with_state(AppState {
-      db: db_conn,
-      inertia,
-    });
+    .with_state(app_state);
   let mut router = api_router.merge(inertia_router);
+  if !is_production {
+    let upstream = format!("http://127.0.0.1:{}", frontend_port);
+    let vite_fallback: axum::Router = axum_reverse_proxy::ReverseProxy::new("/", &upstream).into();
+    router = router.merge(vite_fallback);
+  }
 
   if let Some(cache_layer) = response_cache {
     router = router.layer(cache_layer);
@@ -222,7 +265,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
 
   let addr = format!("{}:{}", host, port);
   let listener = tokio::net::TcpListener::bind(&addr).await?;
-  tracing::info!("Forge server running on http://{}", addr);
+  tracing::info!(target: "forge::app", "HTTP server listening on http://{}", addr);
   axum::serve(listener, router.into_make_service_with_connect_info::<std::net::SocketAddr>())
     .with_graceful_shutdown(forge::app::shutdown_signal_future())
     .await?;
@@ -292,7 +335,8 @@ pub async fn home(
   State(_state): State<AppState>,
 ) -> impl IntoResponse {
   let locale = resolve_locale(&headers);
-  i.render("Pages/Home", json!({ "locale": locale }))
+  let greeting = crate::handlers::i18n::greeting(&locale);
+  i.render("Pages/Home", json!({ "locale": locale, "greeting": greeting }))
 }
 
 pub async fn login_page(i: Inertia, State(_state): State<AppState>) -> impl IntoResponse {
@@ -361,9 +405,9 @@ export default defineConfig({
     },
   },
   server: {
-    port: 5173,
+    port: 3000,
     strictPort: true,
-    origin: 'http://localhost:5173',
+    origin: 'http://localhost:3000',
   },
 });
 "#;
@@ -408,12 +452,12 @@ createInertiaApp({
 
   let frontend_pages_home = r#"import React from 'react';
 
-type Props = { locale: string };
+type Props = { locale: string; greeting: string };
 
-export default function Home({ locale }: Props) {
+export default function Home({ locale, greeting }: Props) {
   return (
     <div>
-      <h1>Home</h1>
+      <h1>{greeting}</h1>
       <p>Locale: {locale}</p>
       <nav>
         <a href="/login">Login</a> | <a href="/register">Register</a> | <a href="/dashboard">Dashboard</a> | <a href="/ws-demo">WebSocket</a>
@@ -647,9 +691,34 @@ pub async fn trace_id(req: Request) -> impl IntoResponse {
     "greeting = Hallo, { $name }!\n",
   )?;
 
-  // Create crates/app/src/handlers/i18n.rs (stub; locale for Inertia pages is in handlers::inertia)
-  let i18n_rs = r#"//! i18n: locale for Inertia pages is resolved in `handlers::inertia` from Accept-Language.
-//! Use this module for API routes that need server-side translation (e.g. fluent_templates).
+  // Create crates/app/src/handlers/i18n.rs (server-side lookup for Inertia; used by inertia::home)
+  let i18n_rs = r#"//! Server-side i18n: fluent_templates lookup for Inertia page props (e.g. greeting on Home).
+
+use fluent_templates::{fluent_bundle::FluentValue, Loader, static_loader};
+use std::borrow::Cow;
+use std::collections::HashMap;
+use unic_langid::LanguageIdentifier;
+
+static_loader! {
+    static LOCALES = {
+        locales: "./locales",
+        fallback_language: "en-US",
+    };
+}
+
+/// Look up the greeting string for the given locale (e.g. "en-US" -> "Hello, World!", "de" -> "Hallo, World!").
+pub fn greeting(locale: &str) -> String {
+    let lang: LanguageIdentifier = locale.parse().unwrap_or_else(|_| "en-US".parse().unwrap());
+    let mut args = HashMap::new();
+    args.insert(Cow::Borrowed("name"), FluentValue::String(Cow::Borrowed("World")));
+    LOCALES
+        .try_lookup_with_args(&lang, "greeting", &args)
+        .unwrap_or_else(|| {
+            LOCALES
+                .try_lookup_with_args(LOCALES.fallback(), "greeting", &args)
+                .unwrap_or_else(|| "Hello, World!".into())
+        })
+}
 "#;
   fs::write(project_dir.join("crates/app/src/handlers/i18n.rs"), i18n_rs)?;
 
@@ -1602,7 +1671,7 @@ impl ActiveModelBehavior for ActiveModel {}
     api_token_model_rs,
   )?;
 
-  // Create config/app.toml
+  // Create config/app.toml (backend 4000, frontend/Vite 3000)
   let app_toml = format!(
     r#"[app]
 name = "{}"
@@ -1610,6 +1679,9 @@ environment = "development"
 
 [server]
 host = "0.0.0.0"
+port = 4000
+
+[frontend]
 port = 3000
 "#,
     name
@@ -1628,6 +1700,32 @@ auto_migrate = true
 auto_seed = true
 "#;
   fs::write(project_dir.join("config").join("db.toml"), db_toml)?;
+
+  // README with development instructions (018: explain two-server setup)
+  let readme = format!(
+    r#"# {}
+
+Rust full-stack app built with [Forge](https://github.com/your-org/forge).
+
+## Development
+
+Run both the API and the Vite frontend in one command:
+
+```bash
+forge serve
+```
+
+This starts the backend (port 4000) and the Vite dev server (port 3000). If you run only the backend (e.g. `cargo run -p app`), the app page at http://localhost:3000 will stay blank until the Vite dev server is also running. Ports are set in `config/app.toml` ([server] and [frontend]).
+
+## Commands
+
+- `forge serve` — start backend + Vite dev server
+- `cargo run -p app` — backend only (listens on port 4000 by default)
+- `bun run dev` (in `frontend/`) — Vite only (port 3000)
+"#,
+    name
+  );
+  fs::write(project_dir.join("README.md"), readme)?;
 
   // Initialize git repository
   Command::new("git")
