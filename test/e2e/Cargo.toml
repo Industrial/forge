@@ -62,5 +62,5 @@ name = "010_validation"
 path = "010_validation.rs"
 
 [[test]]
-name = "011_cron"
-path = "011_cron.rs"
+name = "011_jobs"
+path = "011_jobs.rs"

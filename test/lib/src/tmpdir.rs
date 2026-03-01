@@ -17,6 +17,11 @@ pub fn tmpdir() -> std::io::Result<tempfile::TempDir> {
   tempfile::Builder::new().prefix("e2e-").tempdir_in(base)
 }
 
+/// Workspace root: from CARGO_MANIFEST_DIR (test/lib) go up to repo root so .tmp is at repo root.
 fn workspace_root() -> PathBuf {
-  std::env::current_dir().unwrap_or_else(|_| PathBuf::from("."))
+  let manifest_dir = PathBuf::from(env!("CARGO_MANIFEST_DIR"));
+  manifest_dir
+    .join("../..")
+    .canonicalize()
+    .unwrap_or_else(|_| std::env::current_dir().unwrap_or_else(|_| PathBuf::from(".")))
 }

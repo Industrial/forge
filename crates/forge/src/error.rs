@@ -15,6 +15,8 @@ pub enum Error {
   Generic(String),
   /// Database error
   Database(sea_orm::DbErr),
+  /// Authorization error (maps to 403 Forbidden or 404 Not Found)
+  Authz(crate::authz::AuthzError),
 }
 
 impl IntoResponse for Error {
@@ -33,6 +35,13 @@ impl IntoResponse for Error {
         StatusCode::INTERNAL_SERVER_ERROR,
         format!("Database error: {}", err),
       ),
+      Error::Authz(ref e) => match e {
+        crate::authz::AuthzError::Forbidden => (StatusCode::FORBIDDEN, e.to_string()),
+        crate::authz::AuthzError::NotFound => (StatusCode::NOT_FOUND, e.to_string()),
+        crate::authz::AuthzError::DatabaseError(_) => {
+          (StatusCode::INTERNAL_SERVER_ERROR, e.to_string())
+        }
+      },
     };
 
     (status, message).into_response()
@@ -46,6 +55,7 @@ impl fmt::Display for Error {
       Error::Http(err) => write!(f, "HTTP error: {}", err),
       Error::Generic(msg) => write!(f, "{}", msg),
       Error::Database(err) => write!(f, "Database error: {}", err),
+      Error::Authz(err) => write!(f, "{}", err),
     }
   }
 }
@@ -57,6 +67,7 @@ impl std::error::Error for Error {
       Error::Http(err) => Some(err),
       Error::Generic(_) => None,
       Error::Database(err) => Some(err),
+      Error::Authz(err) => Some(err),
     }
   }
 }
@@ -81,7 +92,7 @@ impl From<axum::Error> for Error {
 
 impl From<crate::authz::AuthzError> for Error {
   fn from(err: crate::authz::AuthzError) -> Self {
-    Error::Generic(err.to_string())
+    Error::Authz(err)
   }
 }
 

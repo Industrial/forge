@@ -1,15 +1,5 @@
-//! E2E tests for Forge migrations: real scenarios only.
-//!
-//! **Pattern**: Every test uses the real `forge` and `cargo` CLIs. We generate a project
-//! with `forge new`, then run `cargo check` / `cargo run` on the generated tree and assert
-//! on real outcomes (exit codes, file layout, HTTP responses). No in-process mocks.
-//!
-//! **Structure**:
-//! 1. Create a temp dir (project `.tmp/` via `forge_e2e_lib::tmpdir`).
-//! 2. Run `forge new <name>` in that dir; assert success.
-//! 3. Assert generated workspace and migrations structure.
-//! 4. Run `cargo check` or `cargo run` in the project dir (target is `project_dir/target`, under `.tmp/`).
-//! 5. For “run” scenarios: start the app, wait for readiness, hit an endpoint, then cleanup.
+//! E2E tests for Forge migrations using the prebuilt project from `bin/test-e2e`.
+//! Run `bin/test-e2e` first.
 
 use std::fs;
 use std::process::Command;
@@ -17,29 +7,17 @@ use std::time::Duration;
 
 use forge_e2e_lib::cli;
 
-// --- Tests (real CLI scenarios) ---
-
-/// Real scenario: `forge new` → assert workspace and migrations layout → `cargo check` succeeds.
 #[test]
-fn forge_new_generates_workspace_and_migrations_and_builds() {
-  let workspace = forge_e2e_lib::tmpdir::tmpdir().unwrap();
-  let project_name = "migrations_test_app";
-
-  let out = cli::run_forge_new(workspace.path(), project_name);
+fn prebuilt_project_has_migrations_layout() {
+  let project_root = cli::prebuilt_project_root();
   assert!(
-    out.status.success(),
-    "forge new failed: stderr={}",
-    String::from_utf8_lossy(&out.stderr)
+    project_root.exists(),
+    "prebuilt project not found at {} — run bin/test-e2e first",
+    project_root.display()
   );
-
-  let project_root = workspace.path().join(project_name);
   cli::assert_project_layout(&project_root);
 
-  assert!(
-    project_root
-      .join("crates/db/src/migrations/mod.rs")
-      .exists()
-  );
+  assert!(project_root.join("crates/db/src/migrations/mod.rs").exists());
   assert!(project_root.join("crates/db/src/models/mod.rs").exists());
   assert!(project_root.join("crates/db/src/seeds/mod.rs").exists());
 
@@ -48,42 +26,23 @@ fn forge_new_generates_workspace_and_migrations_and_builds() {
     cargo_toml.contains("[workspace]"),
     "root Cargo.toml should be a workspace"
   );
-
-  let check_out = cli::run_cargo_check(&project_root);
-  if !check_out.status.success() {
-    eprintln!(
-      "cargo check STDERR: {}",
-      String::from_utf8_lossy(&check_out.stderr)
-    );
-  }
-  assert!(
-    check_out.status.success(),
-    "generated project must pass cargo check"
-  );
 }
 
-/// Real scenario: `forge new` → patch port → `cargo run` → GET /readyz → 200 (migrations run on startup).
 #[tokio::test]
-async fn forge_new_project_serves_and_readyz_after_migrations() {
-  let workspace = forge_e2e_lib::tmpdir::tmpdir().unwrap();
-  let project_name = "migrations_serve_test";
-
-  let out = cli::run_forge_new(workspace.path(), project_name);
+async fn prebuilt_server_readyz_after_migrations() {
+  let project_root = cli::prebuilt_project_root();
   assert!(
-    out.status.success(),
-    "forge new failed: stderr={}",
-    String::from_utf8_lossy(&out.stderr)
+    project_root.exists(),
+    "prebuilt project not found at {} — run bin/test-e2e first",
+    project_root.display()
   );
 
-  let project_root = workspace.path().join(project_name);
-  cli::assert_project_layout(&project_root);
-
-  let port = 30_000u16 + (std::process::id() % 1000) as u16;
+  let port = cli::next_e2e_port();
   fs::write(
     project_root.join("config/app.toml"),
     format!(
       r#"[app]
-name = "migrations_serve_test"
+name = "e2e_prebuilt"
 environment = "development"
 
 [server]

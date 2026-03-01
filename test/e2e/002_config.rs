@@ -1,15 +1,5 @@
-//! E2E tests for Forge config: real scenarios only.
-//!
-//! **Pattern**: Every test uses the real `forge` and `cargo` CLIs. We generate a project
-//! with `forge new`, then run `cargo check` / `cargo run` on the generated tree and assert
-//! on real outcomes (exit codes, file layout, HTTP responses). No in-process mocks.
-//!
-//! **Structure**:
-//! 1. Create a temp dir (project `.tmp/` via `forge_e2e_lib::tmpdir`).
-//! 2. Run `forge new <name>` in that dir; assert success.
-//! 3. Assert generated config files and content.
-//! 4. Run `cargo check` or `cargo run` in the project dir (target is `project_dir/target`, under `.tmp/`).
-//! 5. For “run” scenarios: start the app, wait for readiness, hit an endpoint, then cleanup.
+//! E2E tests for Forge config using the prebuilt project from `bin/test-e2e`.
+//! Run `bin/test-e2e` first.
 
 use std::fs;
 use std::process::Command;
@@ -17,22 +7,14 @@ use std::time::Duration;
 
 use forge_e2e_lib::cli;
 
-// --- Tests (real CLI scenarios) ---
-
-/// Real scenario: `forge new` → assert config files exist and content → `cargo check` succeeds.
 #[test]
-fn forge_new_generates_config_files_and_builds() {
-  let workspace = forge_e2e_lib::tmpdir::tmpdir().unwrap();
-  let project_name = "config_test_app";
-
-  let out = cli::run_forge_new(workspace.path(), project_name);
+fn prebuilt_project_has_config_files_and_content() {
+  let project_root = cli::prebuilt_project_root();
   assert!(
-    out.status.success(),
-    "forge new failed: stderr={}",
-    String::from_utf8_lossy(&out.stderr)
+    project_root.exists(),
+    "prebuilt project not found at {} — run bin/test-e2e first",
+    project_root.display()
   );
-
-  let project_root = workspace.path().join(project_name);
   cli::assert_project_layout(&project_root);
 
   let app_toml = project_root.join("config/app.toml");
@@ -41,10 +23,7 @@ fn forge_new_generates_config_files_and_builds() {
   assert!(db_toml.exists(), "config/db.toml missing");
 
   let app_content = fs::read_to_string(&app_toml).unwrap();
-  assert!(
-    app_content.contains("[app]"),
-    "config/app.toml should have [app]"
-  );
+  assert!(app_content.contains("[app]"), "config/app.toml should have [app]");
   assert!(
     app_content.contains("[server]"),
     "config/app.toml should have [server]"
@@ -54,42 +33,23 @@ fn forge_new_generates_config_files_and_builds() {
     db_content.contains("[database]"),
     "config/db.toml should have [database]"
   );
-
-  let check_out = cli::run_cargo_check(&project_root);
-  if !check_out.status.success() {
-    eprintln!(
-      "cargo check STDERR: {}",
-      String::from_utf8_lossy(&check_out.stderr)
-    );
-  }
-  assert!(
-    check_out.status.success(),
-    "generated project must pass cargo check"
-  );
 }
 
-/// Real scenario: `forge new` → patch port → `cargo run` → GET /healthz → 200 (app loads config).
 #[tokio::test]
-async fn forge_new_project_serves_and_uses_config() {
-  let workspace = forge_e2e_lib::tmpdir::tmpdir().unwrap();
-  let project_name = "config_serve_test";
-
-  let out = cli::run_forge_new(workspace.path(), project_name);
+async fn prebuilt_server_serves_and_uses_config() {
+  let project_root = cli::prebuilt_project_root();
   assert!(
-    out.status.success(),
-    "forge new failed: stderr={}",
-    String::from_utf8_lossy(&out.stderr)
+    project_root.exists(),
+    "prebuilt project not found at {} — run bin/test-e2e first",
+    project_root.display()
   );
 
-  let project_root = workspace.path().join(project_name);
-  cli::assert_project_layout(&project_root);
-
-  let port = 30_000u16 + (std::process::id() % 1000) as u16;
+  let port = cli::next_e2e_port();
   fs::write(
     project_root.join("config/app.toml"),
     format!(
       r#"[app]
-name = "config_serve_test"
+name = "e2e_prebuilt"
 environment = "development"
 
 [server]

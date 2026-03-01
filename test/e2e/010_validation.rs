@@ -1,15 +1,5 @@
-//! E2E tests for Forge validation: real scenarios only.
-//!
-//! **Pattern**: Every test uses the real `forge` and `cargo` CLIs. We generate a project
-//! with `forge new`, then run `cargo check` / `cargo run` on the generated tree and assert
-//! on real outcomes (exit codes, file layout, HTTP responses). No in-process mocks.
-//!
-//! **Structure**:
-//! 1. Create a temp dir (project `.tmp/` via `forge_e2e_lib::tmpdir`).
-//! 2. Run `forge new <name>` in that dir; assert success.
-//! 3. Assert generated app has auth routes (register/login with validation).
-//! 4. Run `cargo run` in the project dir (target is `project_dir/target`, under `.tmp/`).
-//! 5. Invalid register/login → 422 with error details; valid register → success.
+//! E2E tests for Forge validation using the prebuilt project from `bin/test-e2e`.
+//! Run `bin/test-e2e` first.
 
 use std::fs;
 use std::process::Command;
@@ -17,22 +7,14 @@ use std::time::Duration;
 
 use forge_e2e_lib::cli;
 
-// --- Tests (real CLI scenarios) ---
-
-/// Real scenario: `forge new` → assert main.rs has /api/auth/register → `cargo check` succeeds.
 #[test]
-fn forge_new_validation_project_builds() {
-  let workspace = forge_e2e_lib::tmpdir::tmpdir().unwrap();
-  let project_name = "validation_build_test";
-
-  let out = cli::run_forge_new(workspace.path(), project_name);
+fn prebuilt_project_has_auth_routes_in_main() {
+  let project_root = cli::prebuilt_project_root();
   assert!(
-    out.status.success(),
-    "forge new failed: stderr={}",
-    String::from_utf8_lossy(&out.stderr)
+    project_root.exists(),
+    "prebuilt project not found at {} — run bin/test-e2e first",
+    project_root.display()
   );
-
-  let project_root = workspace.path().join(project_name);
   cli::assert_project_layout(&project_root);
 
   let main_rs = fs::read_to_string(project_root.join("crates/app/src/main.rs")).unwrap();
@@ -40,40 +22,23 @@ fn forge_new_validation_project_builds() {
     main_rs.contains("/api/auth/register"),
     "generated main.rs must contain /api/auth/register"
   );
-
-  let check_out = cli::run_cargo_check(&project_root);
-  if !check_out.status.success() {
-    eprintln!(
-      "cargo check STDERR: {}",
-      String::from_utf8_lossy(&check_out.stderr)
-    );
-  }
-  assert!(
-    check_out.status.success(),
-    "generated project must pass cargo check"
-  );
 }
 
-/// Real scenario: `forge new` → run → invalid register 422, valid register success, invalid login 422.
 #[tokio::test]
-async fn generated_app_register_and_login_validation_422_for_invalid() {
-  let workspace = forge_e2e_lib::tmpdir::tmpdir().unwrap();
-  let project_name = "validation_serve_test";
-
-  let out = cli::run_forge_new(workspace.path(), project_name);
+async fn prebuilt_server_register_and_login_validation_422_for_invalid() {
+  let project_root = cli::prebuilt_project_root();
   assert!(
-    out.status.success(),
-    "forge new failed: stderr={}",
-    String::from_utf8_lossy(&out.stderr)
+    project_root.exists(),
+    "prebuilt project not found at {} — run bin/test-e2e first",
+    project_root.display()
   );
 
-  let project_root = workspace.path().join(project_name);
-  let port = 30_000u16 + (std::process::id() % 1000) as u16;
+  let port = cli::next_e2e_port();
   std::fs::write(
     project_root.join("config/app.toml"),
     format!(
       r#"[app]
-name = "validation_serve_test"
+name = "e2e_prebuilt"
 environment = "development"
 
 [server]

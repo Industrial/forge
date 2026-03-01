@@ -3,8 +3,27 @@ set -euo pipefail
 
 echo "> test-e2e"
 
+# Create and clear .tmp at repo root (matches forge-e2e-lib tmpdir)
 mkdir -p .tmp
 rm -rf .tmp/*
 
-echo "> test-e2e > cargo nextest (e2e only)"
-RUSTFLAGS='-D warnings' cargo nextest run --all-features -p forge-e2e-tests
+# Build forge CLI so we can run it
+echo "> test-e2e > building forge CLI"
+cargo build -p forge-cli
+
+# Create project in .tmp using forge (run from .tmp so project is .tmp/e2e_prebuilt)
+echo "> test-e2e > forge new e2e_prebuilt in .tmp"
+ROOT="$(pwd)"
+(cd .tmp && "$ROOT/target/debug/forge" new e2e_prebuilt)
+
+# Build the generated project
+echo "> test-e2e > cargo build (e2e_prebuilt)"
+cargo build --manifest-path .tmp/e2e_prebuilt/Cargo.toml
+
+# Run all e2e tests one by one (serial)
+for test in 001_cli 002_config 003_database 004_migrations 005_auth 006_authz 007_audit 008_health 009_rate_limiting 010_validation 011_jobs; do
+  echo "> test-e2e > cargo test --test $test"
+  RUSTFLAGS='-D warnings' cargo test -p forge-e2e-tests --test "$test"
+done
+
+echo "> test-e2e > done"

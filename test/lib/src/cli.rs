@@ -4,6 +4,14 @@
 use std::fs;
 use std::path::Path;
 use std::process::{Command, Output};
+use std::sync::atomic::{AtomicU16, Ordering};
+
+static E2E_PORT_COUNTER: AtomicU16 = AtomicU16::new(0);
+
+/// Returns a unique port for E2E servers (30_000–30_999) so parallel tests do not collide.
+pub fn next_e2e_port() -> u16 {
+  30_000u16.saturating_add(E2E_PORT_COUNTER.fetch_add(1, Ordering::Relaxed) % 1000)
+}
 
 /// Path to the `forge` binary (from `CARGO_BIN_EXE_forge` or workspace `target/debug/forge`).
 pub fn forge_binary() -> std::path::PathBuf {
@@ -24,6 +32,13 @@ pub fn forge_binary() -> std::path::PathBuf {
     std::env::current_dir().unwrap()
   };
   workspace_root.join("target").join("debug").join("forge")
+}
+
+/// Path to the prebuilt project created by `bin/test-e2e` (`.tmp/e2e_prebuilt`). Panics if `.tmp` cannot be created.
+pub fn prebuilt_project_root() -> std::path::PathBuf {
+  crate::tmpdir::project_tmp_dir()
+    .expect(".tmp dir")
+    .join("e2e_prebuilt")
 }
 
 /// Run `forge new <name>` in `dir`; return the command output. Caller asserts success and path.
