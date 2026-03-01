@@ -388,39 +388,25 @@ pub async fn ws_demo_page(i: Inertia, State(_state): State<AppState>) -> impl In
 import react from '@vitejs/plugin-react';
 import { createProxyMiddleware } from 'http-proxy-middleware';
 
-function isViteAsset(pathname: string): boolean {
-  return (
-    pathname.startsWith('/@vite') ||
-    pathname.startsWith('/src') ||
-    pathname.startsWith('/node_modules') ||
-    pathname.startsWith('/@react-refresh') ||
-    pathname.startsWith('/assets')
-  );
-}
-
 export default defineConfig({
   plugins: [
     react(),
     {
-      name: 'proxy-backend-first',
+      name: 'proxy-backend-fallback',
       configureServer(server) {
         const backendUrl = process.env.VITE_BACKEND_URL;
         if (!backendUrl) throw new Error('VITE_BACKEND_URL is required in dev. Run with `forge serve` or set it to your backend URL (e.g. http://localhost:4000).');
-        const backendProxy = createProxyMiddleware({
-          target: backendUrl,
-          changeOrigin: true,
-          ws: true,
-        });
-        const handler = (req: any, res: any, next: any) => {
-          const pathname = req.url?.split('?')[0] ?? '/';
-          if (isViteAsset(pathname)) return next();
-          backendProxy(req, res, next);
-        };
-        server.middlewares.stack.unshift({ route: '', handle: handler });
+        server.middlewares.use(
+          createProxyMiddleware({
+            target: backendUrl,
+            changeOrigin: true,
+            ws: true,
+          })
+        );
       },
     },
   ],
-  base: '/assets/',
+  base: '/',
   root: '.',
   build: {
     outDir: 'dist',
