@@ -6,8 +6,11 @@ use std::time::Duration;
 
 use forge_e2e_lib::cli;
 
-#[test]
-fn prebuilt_project_has_authz_layout() {
+/// Single E2E test: prebuilt authz layout and protected route requires auth.
+/// 1. Asserts project layout, org/membership models, user AuthzContext, auth handlers with guard.
+/// 2. Unauthed GET /api/auth/admin → 401/403/404; register+login; authed GET → 200/403/404.
+#[tokio::test]
+async fn e2e_prebuilt_authz_layout_and_protected_route() {
   let project_root = cli::prebuilt_project_root();
   assert!(
     project_root.exists(),
@@ -31,10 +34,7 @@ fn prebuilt_project_has_authz_layout() {
   let auth_handlers =
     fs::read_to_string(project_root.join("crates/app/src/handlers/auth.rs")).unwrap();
   assert!(auth_handlers.contains("guard") || auth_handlers.contains("guard_and_audit"));
-}
 
-#[tokio::test]
-async fn prebuilt_server_protected_route_requires_auth() {
   let base = cli::e2e_base_url().expect("run e2e via bin/test-e2e (E2E_BASE_URL not set)");
   let email = format!(
     "authz-e2e-{}@test.com",
