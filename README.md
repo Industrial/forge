@@ -14,11 +14,11 @@ You want to build a real web app in Rust — auth, database, background jobs, AP
 - **Real-time** — WebSockets support
 - **Rust all the way** — Axum, Tokio, Tower; no JS build step required unless you add a frontend
 
-## Status: early and growing
+## 🌱 Status: early and growing
 
 Forge is a **new project**. We’re building in the open and are upfront about it: not every edge is polished yet, and the API may evolve. If you like the direction and want to shape it, this is the right time to jump in — issues, docs, and code are all welcome.
 
-## Quick start
+## 🚀 Quick start
 
 ```bash
 # Create a new app (requires Rust toolchain)
@@ -32,7 +32,7 @@ forge serve
 
 Then open [http://localhost:3000](http://localhost:3000). See [docs/001_cli.md](docs/001_cli.md) and the rest of the [docs/](docs/) folder for details.
 
-## Documentation
+## 📚 Documentation
 
 | Topic | Doc |
 |-------|-----|
@@ -54,7 +54,7 @@ Then open [http://localhost:3000](http://localhost:3000). See [docs/001_cli.md](
 | Caching | [016_caching](docs/016_caching.md) |
 | Inertia (SPA-style) | [018_inertia_rendering](docs/018_inertia_rendering.md) |
 
-## Contributing
+## 🤝 Contributing
 
 We’re **open source** and **community-first**. Contributions are welcome: code, docs, issues, and ideas. Check open issues, comment on design discussions, or open a PR. Be respectful and constructive; we’ll do the same.
 
@@ -64,7 +64,7 @@ We’re **open source** and **community-first**. Contributions are welcome: code
 
 By contributing, you agree that your contributions will be licensed under the same license as the project (see [License](#license)).
 
-## Contributors
+## 👏 Contributors
 
 Thanks to everyone who has contributed to Forge:
 
@@ -74,7 +74,7 @@ Thanks to everyone who has contributed to Forge:
 
 [![Star History Chart](https://api.star-history.com/svg?repos=Industrial/forge&type=Date)](https://star-history.com/#Industrial/forge)
 
-## Development
+## 🔧 Development
 
 - **Rust**: 2024 edition, format with `cargo fmt`, lint with `cargo clippy`.
 - **Nix / devenv**: Use `devenv shell` for the intended environment; run commands inside it (e.g. `devenv shell -- cargo test`).
@@ -82,7 +82,7 @@ Thanks to everyone who has contributed to Forge:
 
 See the repo root and [.cursor/rules](.cursor/rules) for formatting, testing, and workflow details.
 
-## License
+## ⚖️ License
 
 This project is licensed under the **Creative Commons Attribution-ShareAlike 4.0 International (CC BY-SA 4.0)**. You may share and adapt the material for any purpose, including commercially, as long as you give appropriate credit and distribute your contributions under the same license. See [LICENSE](LICENSE) and [Creative Commons BY-SA 4.0](https://creativecommons.org/licenses/by-sa/4.0/) for the full text.
 
