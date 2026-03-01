@@ -77,7 +77,9 @@ pub(crate) fn next_daily_run(hour: u32, minute: u32) -> Instant {
 
 /// Runner that starts the job-based scheduler and worker (cron as a use case of jobs).
 pub struct CronRunner {
+  /// Registered cron tasks: (name, schedule, task closure).
   pub(crate) tasks: Vec<(String, CronSchedule, CronTaskBox)>,
+  /// URL of the job pool used by the scheduler and worker.
   pub(crate) job_pool_url: String,
 }
 

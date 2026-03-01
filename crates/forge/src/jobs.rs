@@ -93,6 +93,7 @@ pub async fn run_scheduler_and_worker(
   Ok(())
 }
 
+/// Runs a single scheduled task job by name from the registry.
 async fn run_scheduled_task(
   job: ScheduledTaskJob,
   data: Data<(Arc<HashMap<String, CronTaskBox>>, DatabaseConnection)>,

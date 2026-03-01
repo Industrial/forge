@@ -25,6 +25,7 @@ pub struct RequesterOrgKey {
 /// If there is no session or no user, returns `GovernorError` with 401.
 #[derive(Clone, Debug)]
 pub struct RequesterOrgKeyExtractor<B> {
+  /// Phantom data for the backend type `B` (no runtime value).
   _backend: std::marker::PhantomData<B>,
 }
 
