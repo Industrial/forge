@@ -72,7 +72,6 @@ axum-inertia = "0.9"
 serde_json = "1.0"
 tower-http = {{ version = "0.6", features = ["fs"] }}
 tracing = "0.1"
-axum-reverse-proxy = {{ version = "1", default-features = false }}
 "#,
     forge_crate_path.display()
   );
@@ -224,7 +223,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
       .into_config()
   } else {
     vite::Development::default()
-      .port(port)
+      .port(frontend_port)
       .main("src/main.tsx")
       .lang("en")
       .title("App")
@@ -245,11 +244,6 @@ async fn main() -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
     .route("/ws-demo", get(handlers::inertia::ws_demo_page))
     .with_state(app_state);
   let mut router = api_router.merge(inertia_router);
-  if !is_production {
-    let upstream = format!("http://127.0.0.1:{}", frontend_port);
-    let vite_fallback: axum::Router = axum_reverse_proxy::ReverseProxy::new("/", &upstream).into();
-    router = router.merge(vite_fallback);
-  }
 
   if let Some(cache_layer) = response_cache {
     router = router.layer(cache_layer);
@@ -379,6 +373,7 @@ pub async fn ws_demo_page(i: Inertia, State(_state): State<AppState>) -> impl In
     "@types/react": "^18.2.0",
     "@types/react-dom": "^18.2.0",
     "@vitejs/plugin-react": "^4.2.0",
+    "http-proxy-middleware": "^3.0.0",
     "typescript": "^5.0.0",
     "vite": "^5.0.0"
   }
@@ -391,9 +386,40 @@ pub async fn ws_demo_page(i: Inertia, State(_state): State<AppState>) -> impl In
 
   let frontend_vite_config = r#"import { defineConfig } from 'vite';
 import react from '@vitejs/plugin-react';
+import { createProxyMiddleware } from 'http-proxy-middleware';
+
+function isViteAsset(pathname: string): boolean {
+  return (
+    pathname.startsWith('/@vite') ||
+    pathname.startsWith('/src') ||
+    pathname.startsWith('/node_modules') ||
+    pathname.startsWith('/@react-refresh') ||
+    pathname.startsWith('/assets')
+  );
+}
 
 export default defineConfig({
-  plugins: [react()],
+  plugins: [
+    react(),
+    {
+      name: 'proxy-backend-first',
+      configureServer(server) {
+        const backendUrl = process.env.VITE_BACKEND_URL;
+        if (!backendUrl) throw new Error('VITE_BACKEND_URL is required in dev. Run with `forge serve` or set it to your backend URL (e.g. http://localhost:4000).');
+        const backendProxy = createProxyMiddleware({
+          target: backendUrl,
+          changeOrigin: true,
+          ws: true,
+        });
+        const handler = (req: any, res: any, next: any) => {
+          const pathname = req.url?.split('?')[0] ?? '/';
+          if (isViteAsset(pathname)) return next();
+          backendProxy(req, res, next);
+        };
+        server.middlewares.stack.unshift({ route: '', handle: handler });
+      },
+    },
+  ],
   base: '/assets/',
   root: '.',
   build: {
@@ -706,18 +732,16 @@ static_loader! {
     };
 }
 
-/// Look up the greeting string for the given locale (e.g. "en-US" -> "Hello, World!", "de" -> "Hallo, World!").
+/// Look up the greeting string for the given locale. Fails if locale or translation is missing.
 pub fn greeting(locale: &str) -> String {
-    let lang: LanguageIdentifier = locale.parse().unwrap_or_else(|_| "en-US".parse().unwrap());
+    let lang: LanguageIdentifier = locale
+        .parse()
+        .unwrap_or_else(|_| panic!("invalid locale: {}", locale));
     let mut args = HashMap::new();
     args.insert(Cow::Borrowed("name"), FluentValue::String(Cow::Borrowed("World")));
     LOCALES
         .try_lookup_with_args(&lang, "greeting", &args)
-        .unwrap_or_else(|| {
-            LOCALES
-                .try_lookup_with_args(LOCALES.fallback(), "greeting", &args)
-                .unwrap_or_else(|| "Hello, World!".into())
-        })
+        .unwrap_or_else(|| panic!("missing translation 'greeting' for locale {}", locale))
 }
 "#;
   fs::write(project_dir.join("crates/app/src/handlers/i18n.rs"), i18n_rs)?;
@@ -926,9 +950,9 @@ pub async fn logout(
 pub async fn profile(auth_session: AuthSession<Backend>) -> impl IntoResponse {
   match &auth_session.user {
     Some(user) => {
-      let org = auth_session.organization_id().map(|id| id.to_string()).unwrap_or_else(|| "none".to_string());
-      let role = auth_session.role().map(|r| format!("{:?}", r)).unwrap_or_else(|| "none".to_string());
-      format!("Hello, {}! org={} role={}", user.email, org, role).into_response()
+      let org_id = auth_session.organization_id().expect("profile requires organization_id");
+      let role = auth_session.role().expect("profile requires role");
+      format!("Hello, {}! org={} role={:?}", user.email, org_id, role).into_response()
     }
     None => (StatusCode::UNAUTHORIZED, "Not logged in").into_response(),
   }
@@ -1678,7 +1702,7 @@ name = "{}"
 environment = "development"
 
 [server]
-host = "0.0.0.0"
+host = "localhost"
 port = 4000
 
 [frontend]
@@ -1715,13 +1739,13 @@ Run both the API and the Vite frontend in one command:
 forge serve
 ```
 
-This starts the backend (port 4000) and the Vite dev server (port 3000). If you run only the backend (e.g. `cargo run -p app`), the app page at http://localhost:3000 will stay blank until the Vite dev server is also running. Ports are set in `config/app.toml` ([server] and [frontend]).
+This starts the backend (port 4000) and the Vite dev server (port 3000). **Open http://localhost:3000** — Vite is the single entry point and proxies `/api` and page routes to the backend. Ports and backend URL come from `config/app.toml` ([server], [frontend]). `forge serve` sets `VITE_BACKEND_URL` from config when starting Vite; if you run `bun run dev` alone, set that env var to your backend URL.
 
 ## Commands
 
-- `forge serve` — start backend + Vite dev server
-- `cargo run -p app` — backend only (listens on port 4000 by default)
-- `bun run dev` (in `frontend/`) — Vite only (port 3000)
+- `forge serve` — start backend + Vite; open http://localhost:3000
+- `cargo run -p app` — backend only (port 4000)
+- `bun run dev` (in `frontend/`) — Vite only (port 3000); ensure backend is running for API/pages
 "#,
     name
   );

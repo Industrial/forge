@@ -86,17 +86,23 @@ pub fn serve_project(config: &ForgeConfig) -> Result<(), Box<dyn std::error::Err
       return Err(e);
     }
     eprintln!("HTTP server is up. Starting Vite dev server (bun run dev)…");
+    let backend_url = if host == "0.0.0.0" {
+      format!("http://127.0.0.1:{}", port)
+    } else {
+      format!("http://{}:{}", host, port)
+    };
     match Command::new("bun")
       .arg("run")
       .arg("dev")
       .current_dir(frontend_dir)
+      .env("VITE_BACKEND_URL", &backend_url)
       .spawn()
     {
       Ok(child) => {
         vite_child = Some(child);
         let vite_port = config.frontend.port;
-        eprintln!("  App:  http://{}:{}", host, port);
-        eprintln!("  Vite: http://localhost:{}", vite_port);
+        eprintln!("  App (open this): http://localhost:{}", vite_port);
+        eprintln!("  Backend (proxied): http://{}:{}", host, port);
       }
       Err(e) => {
         eprintln!("Warning: could not start Vite ({}). Run manually in frontend/ if needed.", e);

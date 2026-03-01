@@ -11,25 +11,13 @@ pub struct ForgeConfig {
   pub database: DatabaseConfig,
   #[serde(default)]
   pub cache: Option<crate::cache::CacheConfig>,
-  /// Frontend (Vite) dev server port. Used by Inertia and `forge serve`.
-  #[serde(default)]
+  /// Frontend (Vite) dev server port. Used by Inertia and `forge serve`. Set in config/app.toml [frontend].
   pub frontend: FrontendConfig,
 }
 
 #[derive(Debug, Clone, Deserialize)]
 pub struct FrontendConfig {
-  #[serde(default = "default_frontend_port")]
   pub port: u16,
-}
-
-impl Default for FrontendConfig {
-  fn default() -> Self {
-    Self { port: default_frontend_port() }
-  }
-}
-
-fn default_frontend_port() -> u16 {
-  3000
 }
 
 #[derive(Debug, Clone, Deserialize)]
@@ -51,15 +39,8 @@ pub struct DatabaseConfig {
   pub min_connections: Option<u32>,
   pub connect_timeout: Option<u64>,
   pub idle_timeout: Option<u64>,
-  #[serde(default = "default_true")]
   pub auto_migrate: bool,
-  #[serde(default = "default_true")]
   pub auto_seed: bool,
-}
-
-/// Default value for boolean configuration fields.
-fn default_true() -> bool {
-  true
 }
 
 pub fn load_config() -> Result<ForgeConfig, Box<dyn std::error::Error>> {
