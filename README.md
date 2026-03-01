@@ -30,8 +30,7 @@ Forge is a **new project**. We’re building in the open and are upfront about i
 forge new myapp
 cd myapp
 
-# Run migrations and start the server
-forge migrate
+# Start the server (runs migrations and seeds idempotently)
 forge serve
 ```
 
