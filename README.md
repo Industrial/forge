@@ -3,7 +3,7 @@
 [![CI](https://github.com/Industrial/forge/actions/workflows/ci.yml/badge.svg)](https://github.com/Industrial/forge/actions/workflows/ci.yml)
 [![crates.io](https://img.shields.io/crates/v/forge.svg)](https://crates.io/crates/forge)
 [![docs.rs](https://img.shields.io/docsrs/forge)](https://docs.rs/forge)
-[![License: MIT OR Apache-2.0](https://img.shields.io/badge/License-MIT%20OR%20Apache--2.0-blue.svg)](LICENSE)
+[![License: CC BY-SA 4.0](https://img.shields.io/badge/License-CC%20BY--SA%204.0-lightgrey.svg)](https://creativecommons.org/licenses/by-sa/4.0/)
 
 **A full-stack web framework for Rust** — batteries-included, convention over configuration, and built for getting from zero to shipped without the boilerplate. Think Django or Rails, but with Rust’s speed, safety, and async-first stack.
 
