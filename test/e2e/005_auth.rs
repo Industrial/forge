@@ -1,275 +1,173 @@
-//! End-to-End tests for Forge Authentication and Session Management
+//! E2E tests for Forge auth: real scenarios only.
+//!
+//! **Pattern**: Every test uses the real `forge` and `cargo` CLIs. We generate a project
+//! with `forge new`, then run `cargo check` / `cargo run` on the generated tree and assert
+//! on real outcomes (exit codes, file layout, HTTP responses). No in-process mocks.
+//!
+//! **Structure**:
+//! 1. Create a temp dir (project `.tmp/` via `forge_e2e_lib::tmpdir`).
+//! 2. Run `forge new <name>` in that dir; assert success.
+//! 3. Assert generated auth-related files and content.
+//! 4. Run `cargo check` or `cargo run` in the project dir (target is `project_dir/target`, under `.tmp/`).
+//! 5. For “run” scenarios: start the app, register/login, hit protected endpoint, then cleanup.
 
-use async_trait::async_trait;
-use axum_login::{AuthSession, AuthnBackend};
-use forge::authz::AuthzContext;
-use forge::{App, Error as ForgeError, ForgeAuthUser};
-use http::{Request, StatusCode, header};
-use serde::Deserialize;
 use std::fs;
 use std::process::Command;
-use tower::ServiceExt;
-use uuid::Uuid;
+use std::time::Duration;
 
-/// Helper function to get the path to the forge binary
-fn get_forge_binary_path() -> std::path::PathBuf {
-  if let Ok(path) = std::env::var("CARGO_BIN_EXE_forge") {
-    std::path::PathBuf::from(path)
-  } else {
-    let mut current_dir = std::env::current_exe().unwrap();
-    while current_dir.file_name().and_then(|s| s.to_str()) != Some("target") {
-      if let Some(parent) = current_dir.parent() {
-        current_dir = parent.to_path_buf();
-      } else {
-        break;
-      }
-    }
-    let workspace_root = if current_dir.file_name().and_then(|s| s.to_str()) == Some("target") {
-      current_dir.parent().unwrap().to_path_buf()
-    } else {
-      std::env::current_dir().unwrap()
-    };
+use forge_e2e_lib::cli;
 
-    workspace_root.join("target").join("debug").join("forge")
-  }
-}
+// --- Tests (real CLI scenarios) ---
 
-#[tokio::test]
-async fn forge_new_generates_auth_ready_workspace() {
-  let temp_dir = tempfile::tempdir().unwrap();
+/// Real scenario: `forge new` → assert auth workspace (auth.rs, org, membership, user, handlers) → `cargo check` succeeds.
+#[test]
+fn forge_new_generates_auth_workspace_and_builds() {
+  let workspace = forge_e2e_lib::tmpdir::tmpdir().unwrap();
   let project_name = "auth_test_app";
-  let forge_binary = get_forge_binary_path();
 
-  let new_result = Command::new(&forge_binary)
-    .arg("new")
-    .arg(project_name)
-    .current_dir(&temp_dir)
-    .output()
-    .expect("Failed to run forge new");
-
-  if !new_result.status.success() {
-    println!("STDOUT: {}", String::from_utf8_lossy(&new_result.stdout));
-    println!("STDERR: {}", String::from_utf8_lossy(&new_result.stderr));
-  }
-  assert!(new_result.status.success());
-  let root = temp_dir.path().join(project_name);
-
-  // Check for auth-related files
+  let out = cli::run_forge_new(workspace.path(), project_name);
   assert!(
-    root.join("crates/db/src/auth.rs").exists(),
+    out.status.success(),
+    "forge new failed: stderr={}",
+    String::from_utf8_lossy(&out.stderr)
+  );
+
+  let project_root = workspace.path().join(project_name);
+  cli::assert_project_layout(&project_root);
+
+  assert!(
+    project_root.join("crates/db/src/auth.rs").exists(),
     "crates/db/src/auth.rs missing"
   );
+  assert!(
+    project_root
+      .join("crates/db/src/models/organization.rs")
+      .exists()
+  );
+  assert!(
+    project_root
+      .join("crates/db/src/models/membership.rs")
+      .exists()
+  );
 
-  // Check for authz: organizations, memberships, user with current_org_id/current_role
-  assert!(
-    root.join("crates/db/src/models/organization.rs").exists(),
-    "crates/db/src/models/organization.rs missing"
-  );
-  assert!(
-    root.join("crates/db/src/models/membership.rs").exists(),
-    "crates/db/src/models/membership.rs missing"
-  );
-  let user_model = fs::read_to_string(root.join("crates/db/src/models/user.rs")).unwrap();
-  assert!(
-    user_model.contains("current_org_id") && user_model.contains("current_role"),
-    "user model must have current_org_id and current_role for authz"
-  );
-  assert!(
-    user_model.contains("impl AuthzContext"),
-    "user model must implement AuthzContext"
-  );
-  let auth_handlers = fs::read_to_string(root.join("crates/app/src/handlers/auth.rs")).unwrap();
+  let user_model = fs::read_to_string(project_root.join("crates/db/src/models/user.rs")).unwrap();
+  assert!(user_model.contains("current_org_id") && user_model.contains("current_role"));
+  assert!(user_model.contains("impl AuthzContext"));
+
+  let auth_handlers =
+    fs::read_to_string(project_root.join("crates/app/src/handlers/auth.rs")).unwrap();
   assert!(
     auth_handlers.contains("guard_and_audit")
-      || auth_handlers.contains("guard(Action::Manage, Role::Owner)"),
-    "handlers must demonstrate Shallow Gate (guard or guard_and_audit)"
-  );
-  let main_rs = fs::read_to_string(root.join("crates/app/src/main.rs")).unwrap();
-  assert!(
-    main_rs.contains("post_route") && main_rs.contains("/api/auth/admin"),
-    "main must use post_route for register/login and route for auth/admin"
-  );
-  assert!(
-    !main_rs.contains("forge::prelude"),
-    "generated app must use explicit imports"
+      || auth_handlers.contains("guard(Action::Manage, Role::Owner)")
   );
 
-  let cargo_toml = fs::read_to_string(root.join("crates/db/Cargo.toml")).unwrap();
-  assert!(
-    cargo_toml.contains("sea-orm-migration"),
-    "db/Cargo.toml should list sea-orm-migration explicitly"
-  );
-  let app_cargo = fs::read_to_string(root.join("crates/app/Cargo.toml")).unwrap();
-  assert!(
-    app_cargo.contains("axum") && app_cargo.contains("sea-orm"),
-    "app/Cargo.toml should list axum and sea-orm explicitly"
-  );
+  let main_rs = fs::read_to_string(project_root.join("crates/app/src/main.rs")).unwrap();
+  assert!(main_rs.contains("post_route") && main_rs.contains("/api/auth/admin"));
+  assert!(!main_rs.contains("forge::prelude"));
 
-  // 3. Verify project builds (smoke test)
-  let check_result = Command::new("cargo")
-    .arg("check")
-    .current_dir(&root)
-    .output()
-    .expect("Failed to run cargo check");
-
-  if !check_result.status.success() {
-    println!("STDOUT: {}", String::from_utf8_lossy(&check_result.stdout));
-    println!("STDERR: {}", String::from_utf8_lossy(&check_result.stderr));
+  let check_out = cli::run_cargo_check(&project_root);
+  if !check_out.status.success() {
+    eprintln!(
+      "cargo check STDERR: {}",
+      String::from_utf8_lossy(&check_out.stderr)
+    );
   }
   assert!(
-    check_result.status.success(),
-    "Generated auth project failed cargo check"
+    check_out.status.success(),
+    "generated auth project must pass cargo check"
   );
 }
 
-#[derive(Clone, Debug, ForgeAuthUser)]
-struct MockUser {
-  id: Uuid,
-  email: String,
-  password_hash: String,
-}
-
-impl AuthzContext for MockUser {
-  fn requester_id(&self) -> Uuid {
-    self.id
-  }
-  fn subject_id(&self) -> Uuid {
-    self.id
-  }
-  fn organization_id(&self) -> Option<Uuid> {
-    None
-  }
-}
-
-#[derive(Clone, Debug)]
-struct MockBackend;
-
-#[derive(Debug, Deserialize)]
-struct Credentials {
-  #[allow(dead_code)]
-  email: String,
-}
-
-#[async_trait]
-impl AuthnBackend for MockBackend {
-  type User = MockUser;
-  type Credentials = Credentials;
-  type Error = ForgeError;
-
-  async fn authenticate(
-    &self,
-    creds: Self::Credentials,
-  ) -> Result<Option<Self::User>, Self::Error> {
-    Ok(Some(MockUser {
-      id: Uuid::new_v4(),
-      email: creds.email,
-      password_hash: "hash".to_string(),
-    }))
-  }
-
-  async fn get_user(
-    &self,
-    _user_id: &forge::axum_login::UserId<Self>,
-  ) -> Result<Option<Self::User>, Self::Error> {
-    Ok(Some(MockUser {
-      id: Uuid::new_v4(),
-      email: "test@example.com".to_string(),
-      password_hash: "hash".to_string(),
-    }))
-  }
-}
-
+/// Real scenario: `forge new` → patch port → `cargo run` → register → login → GET /api/auth/admin with cookie → 200.
 #[tokio::test]
-async fn forge_app_handles_full_auth_flow_in_process() {
-  let temp_dir = tempfile::tempdir().unwrap();
-  let original_cwd = std::env::current_dir().unwrap();
-  std::env::set_current_dir(temp_dir.path()).unwrap();
+async fn forge_new_project_auth_flow_register_login_protected_route() {
+  let workspace = forge_e2e_lib::tmpdir::tmpdir().unwrap();
+  let project_name = "auth_serve_test";
 
-  // 1. Manually setup the environment
-  fs::create_dir_all("config").unwrap();
+  let out = cli::run_forge_new(workspace.path(), project_name);
+  assert!(
+    out.status.success(),
+    "forge new failed: stderr={}",
+    String::from_utf8_lossy(&out.stderr)
+  );
+
+  let project_root = workspace.path().join(project_name);
+  cli::assert_project_layout(&project_root);
+
+  let port = 30_000u16 + (std::process::id() % 1000) as u16;
   fs::write(
-    "config/app.toml",
-    r#"[app]
-name = "auth_test"
-environment = "test"
+    project_root.join("config/app.toml"),
+    format!(
+      r#"[app]
+name = "auth_serve_test"
+environment = "development"
+
 [server]
 host = "127.0.0.1"
-port = 3000
+port = {}
 "#,
-  )
-  .unwrap();
-  fs::write(
-    "config/db.toml",
-    r#"[database]
-url = "sqlite::memory:"
-auto_migrate = true
-auto_seed = false
-"#,
+      port
+    ),
   )
   .unwrap();
 
-  // 2. Initialize App with auth
-  let app = App::new()
-    .with_auth(|_db| MockBackend)
-    .route(
-      "/api/auth/login",
-      |mut session: AuthSession<MockBackend>| async move {
-        let creds = Credentials {
-          email: "test@example.com".to_string(),
-        };
-        let user = session.authenticate(creds).await.unwrap().unwrap();
-        session.login(&user).await.unwrap();
-        StatusCode::OK
-      },
-    )
-    .route(
-      "/api/auth/profile",
-      |session: AuthSession<MockBackend>| async move {
-        if let Some(user) = session.user {
-          format!("Hello, {}!", user.email)
-        } else {
-          "Not logged in".to_string()
-        }
-      },
-    );
+  let mut child = Command::new("cargo")
+    .args(["run", "--quiet"])
+    .current_dir(&project_root)
+    .stdout(std::process::Stdio::null())
+    .stderr(std::process::Stdio::piped())
+    .spawn()
+    .expect("spawn cargo run");
 
-  let (router, _) = app.into_router().await;
-
-  // 3. Test login and session
-  let response = router
-    .clone()
-    .oneshot(
-      Request::builder()
-        .method("GET")
-        .uri("/api/auth/login")
-        .body(axum::body::Body::empty())
-        .unwrap(),
-    )
-    .await
+  let client = reqwest::Client::builder()
+    .cookie_store(true)
+    .timeout(Duration::from_secs(5))
+    .build()
     .unwrap();
-  assert_eq!(response.status(), StatusCode::OK);
+  let base = format!("http://127.0.0.1:{}", port);
 
-  let cookie = response
-    .headers()
-    .get(header::SET_COOKIE)
-    .expect("No session cookie returned");
+  for _ in 0..300 {
+    tokio::time::sleep(Duration::from_millis(200)).await;
+    if client.get(format!("{}/", base)).send().await.is_ok() {
+      break;
+    }
+  }
 
-  // 4. Test profile access with cookie
-  let response = router
-    .oneshot(
-      Request::builder()
-        .uri("/api/auth/profile")
-        .header(header::COOKIE, cookie)
-        .body(axum::body::Body::empty())
-        .unwrap(),
-    )
+  let reg = client
+    .post(format!("{}/api/auth/register", base))
+    .json(&serde_json::json!({ "email": "auth-e2e@test.com", "password": "password123" }))
+    .send()
     .await
-    .unwrap();
-  assert_eq!(response.status(), StatusCode::OK);
-  let body = axum::body::to_bytes(response.into_body(), usize::MAX)
-    .await
-    .unwrap();
-  assert!(String::from_utf8_lossy(&body).contains("test@example.com"));
+    .expect("register");
+  assert!(
+    reg.status().is_success(),
+    "register should succeed: {}",
+    reg.status()
+  );
 
-  std::env::set_current_dir(original_cwd).unwrap();
+  let login = client
+    .post(format!("{}/api/auth/login", base))
+    .json(&serde_json::json!({ "email": "auth-e2e@test.com", "password": "password123" }))
+    .send()
+    .await
+    .expect("login");
+  assert!(
+    login.status().is_success(),
+    "login should succeed: {}",
+    login.status()
+  );
+
+  let admin = client
+    .get(format!("{}/api/auth/admin", base))
+    .send()
+    .await
+    .expect("admin");
+  assert!(
+    admin.status().as_u16() == 200,
+    "GET /api/auth/admin with session should be 200: {}",
+    admin.status()
+  );
+
+  let _ = child.kill();
+  let _ = child.wait();
 }

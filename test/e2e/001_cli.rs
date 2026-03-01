@@ -1,74 +1,124 @@
-//! End-to-End tests for Forge CLI basic commands
+//! E2E tests for Forge CLI: real scenarios only.
+//!
+//! **Pattern**: Every test uses the real `forge` and `cargo` CLIs. We generate a project
+//! with `forge new`, then run `cargo check` / `cargo run` on the generated tree and assert
+//! on real outcomes (exit codes, file layout, HTTP responses). No in-process mocks.
+//!
+//! **Structure**:
+//! 1. Create a temp dir (project `.tmp/` via `forge_e2e_lib::tmpdir`).
+//! 2. Run `forge new <name>` in that dir; assert success.
+//! 3. Assert generated files and content.
+//! 4. Run `cargo check` or `cargo run` in the project dir (target is `project_dir/target`, under `.tmp/`).
+//! 5. For “run” scenarios: start the app, wait for readiness, hit an endpoint, then cleanup.
 
 use std::fs;
 use std::process::Command;
+use std::time::Duration;
 
-/// Helper function to get the path to the forge binary
-fn get_forge_binary_path() -> std::path::PathBuf {
-  if let Ok(path) = std::env::var("CARGO_BIN_EXE_forge") {
-    std::path::PathBuf::from(path)
-  } else {
-    let mut current_dir = std::env::current_exe().unwrap();
-    while current_dir.file_name().and_then(|s| s.to_str()) != Some("target") {
-      if let Some(parent) = current_dir.parent() {
-        current_dir = parent.to_path_buf();
-      } else {
-        break;
-      }
-    }
-    let workspace_root = if current_dir.file_name().and_then(|s| s.to_str()) == Some("target") {
-      current_dir.parent().unwrap().to_path_buf()
-    } else {
-      std::env::current_dir().unwrap()
-    };
+use forge_e2e_lib::cli;
 
-    workspace_root.join("target").join("debug").join("forge")
-  }
-}
+// --- Tests (real CLI scenarios) ---
 
+/// Real scenario: `forge new` → assert layout and content → `cargo check` succeeds.
 #[test]
-fn forge_project_creation_file_verification() {
-  let temp_dir = tempfile::tempdir().unwrap();
-  let project_name = "cli_test_app";
-  let forge_binary = get_forge_binary_path();
+fn forge_new_creates_project_that_builds() {
+  let workspace = forge_e2e_lib::tmpdir::tmpdir().unwrap();
+  let project_name = "cli_build_test";
 
-  // 1. Create project
-  let new_result = Command::new(&forge_binary)
-    .arg("new")
-    .arg(project_name)
-    .current_dir(&temp_dir)
-    .output()
-    .expect("Failed to run forge new");
+  let out = cli::run_forge_new(workspace.path(), project_name);
+  assert!(
+    out.status.success(),
+    "forge new failed: stderr={}",
+    String::from_utf8_lossy(&out.stderr)
+  );
 
-  assert!(new_result.status.success());
+  let project_root = workspace.path().join(project_name);
+  cli::assert_project_layout(&project_root);
 
-  let project_path = temp_dir.path().join(project_name);
-
-  // 2. Verify files exist and have content
-  assert!(project_path.join("Cargo.toml").exists());
-  assert!(project_path.join("crates/app/src/main.rs").exists());
-  assert!(project_path.join("crates/db/src/lib.rs").exists());
-  assert!(project_path.join("config/app.toml").exists());
-  assert!(project_path.join("config/db.toml").exists());
-  assert!(project_path.join(".gitignore").exists());
-
-  let main_rs = fs::read_to_string(project_path.join("crates/app/src/main.rs")).unwrap();
-  assert!(main_rs.contains("App::new()"));
-  assert!(main_rs.contains(".serve()"));
-
-  // 3. Verify project builds (smoke test)
-  let check_result = Command::new("cargo")
-    .arg("check")
-    .current_dir(&project_path)
-    .output()
-    .expect("Failed to run cargo check");
-
-  if !check_result.status.success() {
-    println!("STDOUT: {}", String::from_utf8_lossy(&check_result.stdout));
-    println!("STDERR: {}", String::from_utf8_lossy(&check_result.stderr));
+  let check_out = cli::run_cargo_check(&project_root);
+  if !check_out.status.success() {
+    eprintln!(
+      "cargo check STDOUT: {}",
+      String::from_utf8_lossy(&check_out.stdout)
+    );
+    eprintln!(
+      "cargo check STDERR: {}",
+      String::from_utf8_lossy(&check_out.stderr)
+    );
   }
   assert!(
-    check_result.status.success(),
-    "Generated project failed cargo check"
+    check_out.status.success(),
+    "generated project must pass cargo check"
   );
+}
+
+/// Real scenario: `forge new` → patch port → `cargo run` → GET /healthz → 200 "ok".
+#[tokio::test]
+async fn forge_new_creates_project_that_serves() {
+  let workspace = forge_e2e_lib::tmpdir::tmpdir().unwrap();
+  let project_name = "cli_serve_test";
+
+  let out = cli::run_forge_new(workspace.path(), project_name);
+  assert!(
+    out.status.success(),
+    "forge new failed: stderr={}",
+    String::from_utf8_lossy(&out.stderr)
+  );
+
+  let project_root = workspace.path().join(project_name);
+  cli::assert_project_layout(&project_root);
+
+  let port = 30_000u16 + (std::process::id() % 1000) as u16;
+  let config_app = project_root.join("config/app.toml");
+  fs::write(
+    &config_app,
+    format!(
+      r#"[app]
+name = "cli_serve_test"
+environment = "development"
+
+[server]
+host = "127.0.0.1"
+port = {}
+"#,
+      port
+    ),
+  )
+  .unwrap();
+
+  let mut child = Command::new("cargo")
+    .args(["run", "--quiet"])
+    .current_dir(&project_root)
+    .stdout(std::process::Stdio::null())
+    .stderr(std::process::Stdio::piped())
+    .spawn()
+    .expect("spawn cargo run");
+
+  let client = reqwest::Client::builder()
+    .timeout(Duration::from_secs(5))
+    .build()
+    .unwrap();
+  let url = format!("http://127.0.0.1:{}/healthz", port);
+
+  for _ in 0..300 {
+    tokio::time::sleep(Duration::from_millis(200)).await;
+    if let Ok(resp) = client.get(&url).send().await
+      && resp.status().as_u16() == 200
+    {
+      let body = resp.text().await.unwrap_or_default();
+      assert_eq!(
+        body.trim(),
+        "ok",
+        "GET /healthz body should be 'ok', got {:?}",
+        body
+      );
+      let _ = child.kill();
+      let _ = child.wait();
+      return;
+    }
+  }
+
+  let _ = child.kill();
+  let _ = child.wait();
+  panic!("server did not respond with 200 on /healthz within 60s");
 }

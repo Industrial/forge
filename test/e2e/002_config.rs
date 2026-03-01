@@ -1,100 +1,134 @@
-//! End-to-End tests for Forge CLI config module
+//! E2E tests for Forge config: real scenarios only.
+//!
+//! **Pattern**: Every test uses the real `forge` and `cargo` CLIs. We generate a project
+//! with `forge new`, then run `cargo check` / `cargo run` on the generated tree and assert
+//! on real outcomes (exit codes, file layout, HTTP responses). No in-process mocks.
+//!
+//! **Structure**:
+//! 1. Create a temp dir (project `.tmp/` via `forge_e2e_lib::tmpdir`).
+//! 2. Run `forge new <name>` in that dir; assert success.
+//! 3. Assert generated config files and content.
+//! 4. Run `cargo check` or `cargo run` in the project dir (target is `project_dir/target`, under `.tmp/`).
+//! 5. For “run” scenarios: start the app, wait for readiness, hit an endpoint, then cleanup.
 
-use forge::App;
 use std::fs;
 use std::process::Command;
+use std::time::Duration;
 
-/// Helper function to get the path to the forge binary
-fn get_forge_binary_path() -> std::path::PathBuf {
-  if let Ok(path) = std::env::var("CARGO_BIN_EXE_forge") {
-    std::path::PathBuf::from(path)
-  } else {
-    let mut current_dir = std::env::current_exe().unwrap();
-    while current_dir.file_name().and_then(|s| s.to_str()) != Some("target") {
-      if let Some(parent) = current_dir.parent() {
-        current_dir = parent.to_path_buf();
-      } else {
-        break;
-      }
-    }
-    let workspace_root = if current_dir.file_name().and_then(|s| s.to_str()) == Some("target") {
-      current_dir.parent().unwrap().to_path_buf()
-    } else {
-      std::env::current_dir().unwrap()
-    };
+use forge_e2e_lib::cli;
 
-    workspace_root.join("target").join("debug").join("forge")
-  }
-}
+// --- Tests (real CLI scenarios) ---
 
-#[tokio::test]
-async fn forge_new_generates_config_file() {
-  let temp_dir = tempfile::tempdir().unwrap();
+/// Real scenario: `forge new` → assert config files exist and content → `cargo check` succeeds.
+#[test]
+fn forge_new_generates_config_files_and_builds() {
+  let workspace = forge_e2e_lib::tmpdir::tmpdir().unwrap();
   let project_name = "config_test_app";
-  let forge_binary = get_forge_binary_path();
 
-  let new_result = Command::new(&forge_binary)
-    .arg("new")
-    .arg(project_name)
-    .current_dir(&temp_dir)
-    .output()
-    .expect("Failed to run forge new");
+  let out = cli::run_forge_new(workspace.path(), project_name);
+  assert!(
+    out.status.success(),
+    "forge new failed: stderr={}",
+    String::from_utf8_lossy(&out.stderr)
+  );
 
-  assert!(new_result.status.success());
+  let project_root = workspace.path().join(project_name);
+  cli::assert_project_layout(&project_root);
 
-  let config_path = temp_dir.path().join(project_name).join("config/app.toml");
-  assert!(config_path.exists());
-  let db_config_path = temp_dir.path().join(project_name).join("config/db.toml");
-  assert!(db_config_path.exists());
+  let app_toml = project_root.join("config/app.toml");
+  let db_toml = project_root.join("config/db.toml");
+  assert!(app_toml.exists(), "config/app.toml missing");
+  assert!(db_toml.exists(), "config/db.toml missing");
+
+  let app_content = fs::read_to_string(&app_toml).unwrap();
+  assert!(
+    app_content.contains("[app]"),
+    "config/app.toml should have [app]"
+  );
+  assert!(
+    app_content.contains("[server]"),
+    "config/app.toml should have [server]"
+  );
+  let db_content = fs::read_to_string(&db_toml).unwrap();
+  assert!(
+    db_content.contains("[database]"),
+    "config/db.toml should have [database]"
+  );
+
+  let check_out = cli::run_cargo_check(&project_root);
+  if !check_out.status.success() {
+    eprintln!(
+      "cargo check STDERR: {}",
+      String::from_utf8_lossy(&check_out.stderr)
+    );
+  }
+  assert!(
+    check_out.status.success(),
+    "generated project must pass cargo check"
+  );
 }
 
+/// Real scenario: `forge new` → patch port → `cargo run` → GET /healthz → 200 (app loads config).
 #[tokio::test]
-async fn forge_app_loads_config_in_process() {
-  let temp_dir = tempfile::tempdir().unwrap();
-  let original_cwd = std::env::current_dir().unwrap();
-  std::env::set_current_dir(temp_dir.path()).unwrap();
+async fn forge_new_project_serves_and_uses_config() {
+  let workspace = forge_e2e_lib::tmpdir::tmpdir().unwrap();
+  let project_name = "config_serve_test";
 
-  fs::create_dir_all("config").unwrap();
+  let out = cli::run_forge_new(workspace.path(), project_name);
+  assert!(
+    out.status.success(),
+    "forge new failed: stderr={}",
+    String::from_utf8_lossy(&out.stderr)
+  );
+
+  let project_root = workspace.path().join(project_name);
+  cli::assert_project_layout(&project_root);
+
+  let port = 30_000u16 + (std::process::id() % 1000) as u16;
   fs::write(
-    "config/app.toml",
-    r#"[app]
-name = "custom_app"
-environment = "production"
+    project_root.join("config/app.toml"),
+    format!(
+      r#"[app]
+name = "config_serve_test"
+environment = "development"
+
 [server]
-host = "1.2.3.4"
-port = 8080
+host = "127.0.0.1"
+port = {}
 "#,
-  )
-  .unwrap();
-  fs::write(
-    "config/db.toml",
-    r#"[database]
-url = "sqlite::memory:"
-"#,
+      port
+    ),
   )
   .unwrap();
 
-  let app = App::new();
-  assert_eq!(app.config().app.name, "custom_app");
-  assert_eq!(app.config().server.port, 8080);
-  assert_eq!(app.config().server.host, "1.2.3.4");
+  let mut child = Command::new("cargo")
+    .args(["run", "--quiet"])
+    .current_dir(&project_root)
+    .stdout(std::process::Stdio::null())
+    .stderr(std::process::Stdio::piped())
+    .spawn()
+    .expect("spawn cargo run");
 
-  std::env::set_current_dir(original_cwd).unwrap();
-}
+  let client = reqwest::Client::builder()
+    .timeout(Duration::from_secs(5))
+    .build()
+    .unwrap();
+  let url = format!("http://127.0.0.1:{}/healthz", port);
 
-#[tokio::test]
-async fn forge_serve_fails_without_config() {
-  let temp_dir = tempfile::tempdir().unwrap();
-  let original_cwd = std::env::current_dir().unwrap();
-  std::env::set_current_dir(temp_dir.path()).unwrap();
+  for _ in 0..300 {
+    tokio::time::sleep(Duration::from_millis(200)).await;
+    if let Ok(resp) = client.get(&url).send().await
+      && resp.status().as_u16() == 200
+    {
+      let body = resp.text().await.unwrap_or_default();
+      assert_eq!(body.trim(), "ok");
+      let _ = child.kill();
+      let _ = child.wait();
+      return;
+    }
+  }
 
-  // No config files created here.
-
-  // App::new() should exit(1) which we can't easily catch in-process without refactoring error handling.
-  // But we can test that config::load_config() returns an error.
-  let result = forge::config::load_config();
-  assert!(result.is_err());
-  assert!(result.unwrap_err().to_string().contains("app.toml"));
-
-  std::env::set_current_dir(original_cwd).unwrap();
+  let _ = child.kill();
+  let _ = child.wait();
+  panic!("server did not respond with 200 on /healthz within 60s");
 }

@@ -1139,6 +1139,13 @@ dependencies = [
 ]
 
 [[package]]
+name = "forge-e2e-lib"
+version = "0.1.0"
+dependencies = [
+ "tempfile",
+]
+
+[[package]]
 name = "forge-e2e-tests"
 version = "0.1.0"
 dependencies = [
@@ -1147,12 +1154,12 @@ dependencies = [
  "axum-login",
  "dashmap",
  "forge",
+ "forge-e2e-lib",
  "http",
  "reqwest",
  "rusqlite",
  "serde",
  "serde_json",
- "tempfile",
  "tokio",
  "tower 0.4.13",
  "uuid",

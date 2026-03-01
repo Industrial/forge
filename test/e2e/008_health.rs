@@ -1,34 +1,21 @@
-//! E2E tests for Forge health endpoints (008).
+//! E2E tests for Forge health endpoints: real scenarios only.
 //!
-//! Covers: GET /healthz, /livez, /readyz return correct status and minimal body;
-//! no component or server details in responses (security).
+//! **Pattern**: Every test uses the real `forge` and `cargo` CLIs. We generate a project
+//! with `forge new`, then run `cargo check` / `cargo run` on the generated tree and assert
+//! on real outcomes (exit codes, file layout, HTTP responses). No in-process mocks.
+//!
+//! **Structure**:
+//! 1. Create a temp dir (project `.tmp/` via `forge_e2e_lib::tmpdir`).
+//! 2. Run `forge new <name>` in that dir; assert success.
+//! 3. Assert generated layout.
+//! 4. Run `cargo check` or `cargo run` in the project dir (target is `project_dir/target`, under `.tmp/`).
+//! 5. For “run” scenarios: start the app, GET healthz/livez/readyz (200, minimal body, no component disclosure), then cleanup.
 
-use std::fs;
 use std::process::Command;
 use std::time::Duration;
 
-fn get_forge_binary_path() -> std::path::PathBuf {
-  if let Ok(path) = std::env::var("CARGO_BIN_EXE_forge") {
-    std::path::PathBuf::from(path)
-  } else {
-    let mut current_dir = std::env::current_exe().unwrap();
-    while current_dir.file_name().and_then(|s| s.to_str()) != Some("target") {
-      if let Some(parent) = current_dir.parent() {
-        current_dir = parent.to_path_buf();
-      } else {
-        break;
-      }
-    }
-    let workspace_root = if current_dir.file_name().and_then(|s| s.to_str()) == Some("target") {
-      current_dir.parent().unwrap().to_path_buf()
-    } else {
-      std::env::current_dir().unwrap()
-    };
-    workspace_root.join("target").join("debug").join("forge")
-  }
-}
+use forge_e2e_lib::cli;
 
-/// Assert GET url returns status and body (no component disclosure).
 async fn assert_health_endpoint(
   client: &reqwest::Client,
   url: &str,
@@ -59,82 +46,59 @@ async fn assert_health_endpoint(
   );
 }
 
-/// E2E: in-process server (config + db + router), then GET health endpoints.
-#[tokio::test]
-async fn healthz_livez_readyz_return_200_with_minimal_body() {
-  let temp_dir = tempfile::tempdir().unwrap();
-  let original_cwd = std::env::current_dir().unwrap();
-  std::env::set_current_dir(temp_dir.path()).unwrap();
+// --- Tests (real CLI scenarios) ---
 
-  let config_dir = temp_dir.path().join("config");
-  fs::create_dir_all(&config_dir).unwrap();
-  fs::write(
-    config_dir.join("app.toml"),
-    r#"[app]
-name = "health_e2e"
-environment = "test"
+/// Real scenario: `forge new` → assert layout → `cargo check` succeeds.
+#[test]
+fn forge_new_health_project_builds() {
+  let workspace = forge_e2e_lib::tmpdir::tmpdir().unwrap();
+  let project_name = "health_build_test";
 
-[server]
-host = "127.0.0.1"
-port = 0
-"#,
-  )
-  .unwrap();
-  fs::write(
-    config_dir.join("db.toml"),
-    r#"[database]
-url = "sqlite::memory:"
-"#,
-  )
-  .unwrap();
-
-  let app = forge::App::new();
-  let (router, _) = app.into_router().await;
-  let listener = tokio::net::TcpListener::bind("127.0.0.1:0").await.unwrap();
-  let port = listener.local_addr().unwrap().port();
-  tokio::spawn(async move { axum::serve(listener, router).await });
-
-  tokio::time::sleep(Duration::from_millis(100)).await;
-
-  let client = reqwest::Client::builder()
-    .timeout(Duration::from_secs(5))
-    .build()
-    .unwrap();
-  let base = format!("http://127.0.0.1:{}", port);
-
-  assert_health_endpoint(&client, &format!("{}/healthz", base), 200, "ok").await;
-  assert_health_endpoint(&client, &format!("{}/livez", base), 200, "ok").await;
-  assert_health_endpoint(&client, &format!("{}/readyz", base), 200, "ok").await;
-
-  std::env::set_current_dir(original_cwd).unwrap();
-}
-
-/// E2E: full flow with `forge new` + run generated app (optional; can be slow).
-#[tokio::test]
-#[ignore = "slow: forge new + cargo run; run with --ignored"]
-async fn health_endpoints_from_generated_app() {
-  let temp_dir = tempfile::tempdir().unwrap();
-  let forge_binary = get_forge_binary_path();
-  let port = 30997u16 + (std::process::id() % 1000) as u16;
-
-  let out = Command::new(&forge_binary)
-    .arg("new")
-    .arg("health_e2e_app")
-    .current_dir(&temp_dir)
-    .output()
-    .expect("forge new");
+  let out = cli::run_forge_new(workspace.path(), project_name);
   assert!(
     out.status.success(),
-    "forge new: {}",
+    "forge new failed: stderr={}",
     String::from_utf8_lossy(&out.stderr)
   );
 
-  let project_dir = temp_dir.path().join("health_e2e_app");
-  fs::write(
-    project_dir.join("config/app.toml"),
+  let project_root = workspace.path().join(project_name);
+  cli::assert_project_layout(&project_root);
+
+  let check_out = cli::run_cargo_check(&project_root);
+  if !check_out.status.success() {
+    eprintln!(
+      "cargo check STDERR: {}",
+      String::from_utf8_lossy(&check_out.stderr)
+    );
+  }
+  assert!(
+    check_out.status.success(),
+    "generated project must pass cargo check"
+  );
+}
+
+/// Real scenario: `forge new` → patch port → `cargo run` → GET healthz, livez, readyz → 200 "ok", no component disclosure.
+#[tokio::test]
+async fn forge_new_project_health_endpoints_200_minimal_body() {
+  let workspace = forge_e2e_lib::tmpdir::tmpdir().unwrap();
+  let project_name = "health_serve_test";
+
+  let out = cli::run_forge_new(workspace.path(), project_name);
+  assert!(
+    out.status.success(),
+    "forge new failed: stderr={}",
+    String::from_utf8_lossy(&out.stderr)
+  );
+
+  let project_root = workspace.path().join(project_name);
+  cli::assert_project_layout(&project_root);
+
+  let port = 30_000u16 + (std::process::id() % 1000) as u16;
+  std::fs::write(
+    project_root.join("config/app.toml"),
     format!(
       r#"[app]
-name = "health_e2e"
+name = "health_serve_test"
 environment = "development"
 
 [server]
@@ -148,7 +112,7 @@ port = {}
 
   let mut child = Command::new("cargo")
     .args(["run", "--quiet"])
-    .current_dir(&project_dir)
+    .current_dir(&project_root)
     .stdout(std::process::Stdio::null())
     .stderr(std::process::Stdio::piped())
     .spawn()
@@ -161,7 +125,7 @@ port = {}
   let base = format!("http://127.0.0.1:{}", port);
 
   for i in 0..300 {
-    tokio::time::sleep(Duration::from_millis(400)).await;
+    tokio::time::sleep(Duration::from_millis(200)).await;
     if client.get(format!("{}/healthz", base)).send().await.is_ok() {
       assert_health_endpoint(&client, &format!("{}/healthz", base), 200, "ok").await;
       assert_health_endpoint(&client, &format!("{}/livez", base), 200, "ok").await;
@@ -176,6 +140,5 @@ port = {}
       panic!("server did not become ready in time");
     }
   }
-  // Loop exited without return/panic (unreachable); ensure child is reaped
   let _ = child.wait();
 }

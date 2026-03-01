@@ -1,8 +1,8 @@
 #!/usr/bin/env bash
 set -euo pipefail
-exec > >(tee log/test.log) 2>&1 
+exec > >(tee log/test.log) 2>&1
 
 echo "> test"
 
-echo "> test > cargo nextest"
-RUSTFLAGS='-D warnings' cargo nextest run --all-features
+echo "> test > cargo nextest (unit tests only, excludes e2e)"
+RUSTFLAGS='-D warnings' cargo nextest run --all-features -p forge -p forge-cli

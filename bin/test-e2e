@@ -1,0 +1,10 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+echo "> test-e2e"
+
+mkdir -p .tmp
+rm -rf .tmp/*
+
+echo "> test-e2e > cargo nextest (e2e only)"
+RUSTFLAGS='-D warnings' cargo nextest run --all-features -p forge-e2e-tests

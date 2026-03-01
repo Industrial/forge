@@ -5,7 +5,7 @@ edition = "2024"
 publish = false
 
 [dependencies]
-tempfile = "3"
+forge-e2e-lib = { path = "../lib" }
 reqwest = { version = "0.12", features = ["blocking", "cookies", "json"] }
 tokio = { version = "1", features = ["full"] }
 forge = { path = "../../crates/forge" }

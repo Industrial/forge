@@ -22,7 +22,7 @@
 .idea
 .idea/
 .serena/
-.tmp
+.tmp/
 .vscode/
 Thumbs.db
 abc/
