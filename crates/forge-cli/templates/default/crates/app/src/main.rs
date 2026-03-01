@@ -83,7 +83,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
   }
 
   if is_production {
-    router = router.nest_service("/assets", ServeDir::new("frontend/dist"));
+    router = router.nest_service("/assets", ServeDir::new("frontend/dist/assets"));
   }
 
   if let Some((db, runner)) = cron_runner {
