@@ -9,8 +9,8 @@ env:
 permissions:
   contents: read
 jobs:
-  check:
-    name: Check
+  pre-push:
+    name: Pre-push
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v6
@@ -18,52 +18,5 @@ jobs:
       - uses: DeterminateSystems/magic-nix-cache-action@main
       - name: Install devenv
         run: nix profile install nixpkgs#devenv
-      - name: Check workspace
-        run: devenv shell -- ./bin/check
-  test:
-    name: Test
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v6
-      - uses: DeterminateSystems/nix-installer-action@main
-      - uses: DeterminateSystems/magic-nix-cache-action@main
-      - name: Install devenv
-        run: nix profile install nixpkgs#devenv
-      - name: Test workspace
-        run: devenv shell -- ./bin/test
-  lint:
-    name: Lint
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v6
-      - uses: DeterminateSystems/nix-installer-action@main
-      - uses: DeterminateSystems/magic-nix-cache-action@main
-      - name: Install devenv
-        run: nix profile install nixpkgs#devenv
-      - name: Lint workspace
-        run: devenv shell -- ./bin/lint
-  format:
-    name: Format
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v6
-      - uses: DeterminateSystems/nix-installer-action@main
-      - uses: DeterminateSystems/magic-nix-cache-action@main
-      - name: Install devenv
-        run: nix profile install nixpkgs#devenv
-      - name: Format workspace
-        run: devenv shell -- ./bin/format
-  docs:
-    name: Docs
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v6
-      - uses: DeterminateSystems/nix-installer-action@main
-      - uses: DeterminateSystems/magic-nix-cache-action@main
-      - name: Install devenv
-        run: nix profile install nixpkgs#devenv
-      - name: Build docs
-        run: devenv shell -- ./bin/docs
-      - name: Check docs (missing docs)
-        run: devenv shell -- ./bin/check-docs
-        continue-on-error: true
+      - name: Run pre-push (format, fix, check, lint, build, test, test-e2e, audit, check-docs)
+        run: devenv shell -- ./bin/pre-push
