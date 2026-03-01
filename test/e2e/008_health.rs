@@ -35,8 +35,11 @@ async fn assert_health_endpoint(
   );
 }
 
-#[test]
-fn prebuilt_project_has_correct_layout() {
+/// Single E2E test: prebuilt layout and healthz/livez/readyz return 200 with minimal body.
+/// 1. Asserts project layout.
+/// 2. GET /healthz, /livez, /readyz → 200 "ok", no component disclosure.
+#[tokio::test]
+async fn e2e_prebuilt_health_layout_and_endpoints() {
   let project_root = cli::prebuilt_project_root();
   assert!(
     project_root.exists(),
@@ -44,10 +47,7 @@ fn prebuilt_project_has_correct_layout() {
     project_root.display()
   );
   cli::assert_project_layout(&project_root);
-}
 
-#[tokio::test]
-async fn prebuilt_server_health_endpoints_200_minimal_body() {
   let base = cli::e2e_base_url().expect("run e2e via bin/test-e2e (E2E_BASE_URL not set)");
   let client = reqwest::Client::builder()
     .timeout(Duration::from_secs(5))
