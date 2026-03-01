@@ -25,13 +25,35 @@ Forge is a **new project**. We’re building in the open and are upfront about i
 
 ## 🚀 Quick start
 
+Rust doesn’t have an `npx`/`bunx`-style “run without installing.” You can either install the CLI once (recommended) or run it from a clone without installing.
+
+### Option 1: Install the CLI (recommended)
+
 ```bash
-# Create a new app (requires Rust toolchain)
+# One-time install (binary name is `forge`)
+cargo install --git https://github.com/Industrial/forge forge-cli --bin forge
+
+# Create a new app
 forge new myapp
 cd myapp
 
 # Start the server (runs migrations and seeds idempotently)
 forge serve
+```
+
+*When we publish the CLI to crates.io, you’ll be able to run `cargo install forge-cli` instead.*
+
+### Option 2: Create an app without installing the CLI
+
+From a clone of this repo you can generate an app without a global install. You’ll need the CLI (Option 1) to run `forge serve` from the app directory.
+
+```bash
+git clone https://github.com/Industrial/forge.git
+cd forge
+cargo run -p forge-cli -- new myapp
+# myapp is created in the current directory; move it elsewhere if you like
+cd myapp
+forge serve   # requires forge on PATH (install once with Option 1)
 ```
 
 Then open [http://localhost:3000](http://localhost:3000). See [docs/001_cli.md](docs/001_cli.md) and the rest of the [docs/](docs/) folder for details.
