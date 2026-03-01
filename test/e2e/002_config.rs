@@ -6,8 +6,11 @@ use std::time::Duration;
 
 use forge_e2e_lib::cli;
 
-#[test]
-fn prebuilt_project_has_config_files_and_content() {
+/// Single E2E test: prebuilt config files/content and server health.
+/// 1. Asserts project layout and config/app.toml, config/db.toml exist with expected sections.
+/// 2. GET /healthz → 200 "ok".
+#[tokio::test]
+async fn e2e_prebuilt_config_and_healthz() {
   let project_root = cli::prebuilt_project_root();
   assert!(
     project_root.exists(),
@@ -35,10 +38,7 @@ fn prebuilt_project_has_config_files_and_content() {
     db_content.contains("[database]"),
     "config/db.toml should have [database]"
   );
-}
 
-#[tokio::test]
-async fn prebuilt_server_serves_and_uses_config() {
   let base = cli::e2e_base_url().expect("run e2e via bin/test-e2e (E2E_BASE_URL not set)");
   let client = reqwest::Client::builder()
     .timeout(Duration::from_secs(5))
