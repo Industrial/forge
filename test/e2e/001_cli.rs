@@ -8,11 +8,11 @@ use std::time::Duration;
 
 use forge_e2e_lib::cli;
 
-// --- Tests (run against prebuilt server) ---
-
-/// Assert the prebuilt project exists and has the expected layout.
-#[test]
-fn prebuilt_project_has_correct_layout() {
+/// Single E2E test: prebuilt project layout and server health.
+/// 1. Asserts the prebuilt project exists and has the expected layout.
+/// 2. GET /healthz → 200 "ok" (uses shared server when run via bin/test-e2e).
+#[tokio::test]
+async fn e2e_prebuilt_project_and_healthz() {
   let project_root = cli::prebuilt_project_root();
   assert!(
     project_root.exists(),
@@ -20,11 +20,7 @@ fn prebuilt_project_has_correct_layout() {
     project_root.display()
   );
   cli::assert_project_layout(&project_root);
-}
 
-/// GET /healthz → 200 "ok" (uses shared server when run via bin/test-e2e).
-#[tokio::test]
-async fn prebuilt_server_healthz_ok() {
   let base = cli::e2e_base_url().expect("run e2e via bin/test-e2e (E2E_BASE_URL not set)");
   let client = reqwest::Client::builder()
     .timeout(Duration::from_secs(5))
