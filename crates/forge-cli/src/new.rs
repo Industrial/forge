@@ -22,6 +22,7 @@ pub fn create_new_project(name: &str) -> Result<(), Box<dyn std::error::Error>> 
   fs::create_dir_all(project_dir.join("config"))?;
   // 018: Inertia + Vite frontend (bun)
   fs::create_dir_all(project_dir.join("frontend/src/pages"))?;
+  fs::create_dir_all(project_dir.join("frontend/src/assets"))?;
   fs::create_dir_all(project_dir.join("frontend/public"))?;
 
   // Get the absolute path to the forge crate relative to this executable
@@ -373,7 +374,6 @@ pub async fn ws_demo_page(i: Inertia, State(_state): State<AppState>) -> impl In
     "@types/react": "^18.2.0",
     "@types/react-dom": "^18.2.0",
     "@vitejs/plugin-react": "^4.2.0",
-    "http-proxy-middleware": "^3.0.0",
     "typescript": "^5.0.0",
     "vite": "^5.0.0"
   }
@@ -386,28 +386,14 @@ pub async fn ws_demo_page(i: Inertia, State(_state): State<AppState>) -> impl In
 
   let frontend_vite_config = r#"import { defineConfig } from 'vite';
 import react from '@vitejs/plugin-react';
-import { createProxyMiddleware } from 'http-proxy-middleware';
+
+const backend = process.env.VITE_BACKEND_URL ?? 'http://localhost:4000';
 
 export default defineConfig({
-  plugins: [
-    react(),
-    {
-      name: 'proxy-backend-fallback',
-      configureServer(server) {
-        const backendUrl = process.env.VITE_BACKEND_URL;
-        if (!backendUrl) throw new Error('VITE_BACKEND_URL is required in dev. Run with `forge serve` or set it to your backend URL (e.g. http://localhost:4000).');
-        server.middlewares.use(
-          createProxyMiddleware({
-            target: backendUrl,
-            changeOrigin: true,
-            ws: true,
-          })
-        );
-      },
-    },
-  ],
+  plugins: [react()],
   base: '/',
   root: '.',
+  publicDir: 'public',
   build: {
     outDir: 'dist',
     emptyOutDir: true,
@@ -420,6 +406,10 @@ export default defineConfig({
     port: 3000,
     strictPort: true,
     origin: 'http://localhost:3000',
+    proxy: {
+      '/api': { target: backend, changeOrigin: true },
+      '/ws': { target: backend, changeOrigin: true, ws: true },
+    },
   },
 });
 "#;
@@ -433,6 +423,7 @@ export default defineConfig({
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <link rel="icon" href="/src/assets/favicon.ico" type="image/x-icon" />
     <title>App</title>
   </head>
   <body>
@@ -442,6 +433,11 @@ export default defineConfig({
 </html>
 "#;
   fs::write(project_dir.join("frontend/index.html"), frontend_index_html)?;
+
+  fs::write(
+    project_dir.join("frontend/src/assets/favicon.ico"),
+    include_bytes!("../assets/favicon.ico"),
+  )?;
 
   let frontend_main_tsx = r#"import { createInertiaApp } from '@inertiajs/react';
 import React from 'react';
@@ -734,7 +730,7 @@ pub fn greeting(locale: &str) -> String {
 
   // Create crates/app/src/handlers/ws.rs (WebSocket echo for real-time /ws)
   let ws_rs = r#"use axum::{
-  extract::ws::{WebSocket, WebSocketUpgrade},
+  extract::ws::{Message, WebSocket, WebSocketUpgrade},
   response::Response,
 };
 
@@ -748,6 +744,14 @@ async fn handle_socket(mut socket: WebSocket) {
       Ok(m) => m,
       Err(_) => return,
     };
+    match &msg {
+      Message::Text(t) => {
+        tracing::info!(target: "forge::ws", "received: {}", t);
+        tracing::info!(target: "forge::ws", "sending: {}", t);
+      }
+      Message::Binary(b) => tracing::info!(target: "forge::ws", "received: {} bytes, sending", b.len()),
+      _ => {}
+    }
     if socket.send(msg).await.is_err() {
       return;
     }
