@@ -19,13 +19,13 @@ async fn e2e_prebuilt_health_layout_and_endpoints() {
     return;
   }
   let b = base.trim_end_matches('/');
-  forge_e2e_lib::browser::assert_health_ok_in_browser(&format!("{}/healthz", b))
+  forge_e2e_lib::browser::assert_health_ok(&format!("{}/healthz", b))
     .await
     .expect("browser must load healthz and show ok");
-  forge_e2e_lib::browser::assert_health_ok_in_browser(&format!("{}/livez", b))
+  forge_e2e_lib::browser::assert_health_ok(&format!("{}/livez", b))
     .await
     .expect("browser must load livez and show ok");
-  forge_e2e_lib::browser::assert_health_ok_in_browser(&format!("{}/readyz", b))
+  forge_e2e_lib::browser::assert_health_ok(&format!("{}/readyz", b))
     .await
     .expect("browser must load readyz and show ok");
 }

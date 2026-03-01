@@ -1264,6 +1264,7 @@ name = "forge-e2e-lib"
 version = "0.1.0"
 dependencies = [
  "fantoccini",
+ "serde_json",
  "tempfile",
  "tokio",
 ]

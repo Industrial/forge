@@ -32,11 +32,12 @@ if [[ -f "$PREBUILT/frontend/package.json" ]]; then
 fi
 
 # Single config and DB for the whole e2e run (server started once below)
+# Use production so the server serves built frontend from frontend/dist (no Vite dev server in e2e)
 echo "> test-e2e > writing config (port $E2E_PORT)"
 cat > "$PREBUILT/config/app.toml" <<EOF
 [app]
 name = "e2e_prebuilt"
-environment = "development"
+environment = "production"
 
 [server]
 host = "127.0.0.1"

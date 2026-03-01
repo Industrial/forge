@@ -1,13 +1,27 @@
 //! Browser (fantoccini) helpers for E2E. Requires chromedriver and E2E_WEBDRIVER_URL when used.
+//! Chrome is always started in headless mode so no window is shown.
 
 /// Returns E2E_WEBDRIVER_URL env var or default `http://localhost:9515`.
 fn webdriver_url() -> String {
   std::env::var("E2E_WEBDRIVER_URL").unwrap_or_else(|_| "http://localhost:9515".to_string())
 }
 
-/// Connect to WebDriver. Caller must call `c.close().await?` when done.
+/// Headless Chrome capabilities so no browser window is shown.
+fn headless_chrome_capabilities() -> fantoccini::wd::Capabilities {
+  serde_json::from_value(serde_json::json!({
+    "browserName": "chrome",
+    "goog:chromeOptions": {
+      "args": ["--headless=new", "--disable-gpu", "--no-sandbox", "--disable-dev-shm-usage"]
+    }
+  }))
+  .expect("valid headless chrome capabilities")
+}
+
+/// Connect to WebDriver (Chrome in headless mode). Caller must call `c.close().await?` when done.
 pub async fn connect() -> Result<fantoccini::Client, Box<dyn std::error::Error + Send + Sync>> {
+  let caps = headless_chrome_capabilities();
   let c = fantoccini::ClientBuilder::native()
+    .capabilities(caps)
     .connect(&webdriver_url())
     .await?;
   Ok(c)
@@ -74,7 +88,7 @@ pub async fn goto_path_and_assert_app(
 }
 
 /// Fill and submit the register form at `/register`. Uses input[type=email], input[type=password], button[type=submit].
-pub async fn register_via_browser(
+pub async fn register(
   c: &fantoccini::Client,
   base_url: &str,
   email: &str,
@@ -94,32 +108,34 @@ pub async fn register_via_browser(
     .await?
     .click()
     .await?;
-  tokio::time::sleep(std::time::Duration::from_millis(500)).await;
   Ok(())
 }
 
 /// Fill and submit the login form at `/login`.
-pub async fn login_via_browser(
+pub async fn login(
   c: &fantoccini::Client,
   base_url: &str,
   email: &str,
   password: &str,
 ) -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
   let url = format!("{}/login", base_url.trim_end_matches('/'));
+  let email_locator = fantoccini::Locator::Css("input[type=email]");
+  let password_locator = fantoccini::Locator::Css("input[type=password]");
+  let submit_locator = fantoccini::Locator::Css("button[type=submit]");
   c.goto(&url).await?;
-  c.find(fantoccini::Locator::Css("input[type=email]"))
+  c.wait().for_element(email_locator).await?;
+  c.find(email_locator)
     .await?
     .send_keys(email)
     .await?;
-  c.find(fantoccini::Locator::Css("input[type=password]"))
+  c.find(password_locator)
     .await?
     .send_keys(password)
     .await?;
-  c.find(fantoccini::Locator::Css("button[type=submit]"))
+  c.find(submit_locator)
     .await?
     .click()
     .await?;
-  tokio::time::sleep(std::time::Duration::from_millis(500)).await;
   Ok(())
 }
 
@@ -167,7 +183,7 @@ pub async fn assert_dashboard_redirects_to_login(
 }
 
 /// Connect to WebDriver, goto health URL, assert body contains "ok" and does not disclose components.
-pub async fn assert_health_ok_in_browser(
+pub async fn assert_health_ok(
   health_url: &str,
 ) -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
   let c = connect().await?;

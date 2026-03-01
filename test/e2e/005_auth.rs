@@ -62,10 +62,10 @@ async fn e2e_prebuilt_auth_layout_and_flow() {
   let c = forge_e2e_lib::browser::connect()
     .await
     .expect("browser connect (run chromedriver or set E2E_WEBDRIVER_URL)");
-  forge_e2e_lib::browser::register_via_browser(&c, &base, &email, password)
+  forge_e2e_lib::browser::register(&c, &base, &email, password)
     .await
     .expect("register via browser");
-  forge_e2e_lib::browser::login_via_browser(&c, &base, &email, password)
+  forge_e2e_lib::browser::login(&c, &base, &email, password)
     .await
     .expect("login via browser");
   forge_e2e_lib::browser::assert_dashboard_visible(&c, &base)

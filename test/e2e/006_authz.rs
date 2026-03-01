@@ -51,10 +51,10 @@ async fn e2e_prebuilt_authz_layout_and_protected_route() {
   forge_e2e_lib::browser::assert_dashboard_redirects_to_login(&c, &base)
     .await
     .expect("unauthed /dashboard must redirect to login");
-  forge_e2e_lib::browser::register_via_browser(&c, &base, &email, password)
+  forge_e2e_lib::browser::register(&c, &base, &email, password)
     .await
     .expect("register via browser");
-  forge_e2e_lib::browser::login_via_browser(&c, &base, &email, password)
+  forge_e2e_lib::browser::login(&c, &base, &email, password)
     .await
     .expect("login via browser");
   forge_e2e_lib::browser::assert_dashboard_visible(&c, &base)
