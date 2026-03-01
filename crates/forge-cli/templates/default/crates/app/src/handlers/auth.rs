@@ -1,7 +1,7 @@
 use axum::{
   extract::State,
   http::StatusCode,
-  response::IntoResponse,
+  response::{IntoResponse, Redirect},
   Json,
 };
 use axum_login::AuthSession;
@@ -128,7 +128,7 @@ pub async fn login(
       },
     )
     .await;
-    Ok(StatusCode::OK.into_response())
+    Ok(Redirect::to("/dashboard").into_response())
   } else {
     let _ = forge::audit::log(
       &db,

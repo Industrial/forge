@@ -52,10 +52,7 @@ async fn e2e_prebuilt_audit_migration_and_events() {
 
   tokio::time::sleep(Duration::from_millis(100)).await;
 
-  let db_path = std::env::var("E2E_DB_PATH")
-    .ok()
-    .map(std::path::PathBuf::from)
-    .unwrap_or_else(|| project_root.join("db.sqlite"));
+  let db_path = cli::e2e_db_path(&project_root);
   if db_path.exists() && status != 404 {
     let conn = rusqlite::Connection::open(&db_path).unwrap();
     let mut stmt = conn

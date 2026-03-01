@@ -122,23 +122,28 @@ pub async fn login(
   c.find(email_locator).await?.send_keys(email).await?;
   c.find(password_locator).await?.send_keys(password).await?;
   c.find(submit_locator).await?.click().await?;
+  // Wait for post-login redirect to dashboard so session is established before caller navigates.
+  let dashboard_h1 = fantoccini::Locator::XPath("//h1[contains(text(),'Dashboard')]");
+  c.wait().for_element(dashboard_h1).await?;
   Ok(())
 }
 
-/// Goto /dashboard, assert #app and that page source contains "Welcome" or "dashboard".
+/// Goto /dashboard, wait for the dashboard heading (client-rendered), then assert it.
 pub async fn assert_dashboard_visible(
   c: &fantoccini::Client,
   base_url: &str,
 ) -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
   let url = format!("{}/dashboard", base_url.trim_end_matches('/'));
   c.goto(&url).await?;
-  let _ = c.find(fantoccini::Locator::Css("#app")).await?;
-  let body = c.source().await?;
-  if !body.contains("Welcome") && !body.contains("dashboard") && !body.contains("Dashboard") {
+  let h1 = fantoccini::Locator::Css("h1");
+  c.wait().for_element(h1).await?;
+  let el = c.find(h1).await?;
+  let text = el.text().await?;
+  if !text.contains("Dashboard") {
     return Err(
       format!(
-        "dashboard page should contain Welcome or dashboard; got {:?}",
-        &body[..body.len().min(400)]
+        "dashboard page h1 should contain 'Dashboard'; got {:?}",
+        text
       )
       .into(),
     );

@@ -48,6 +48,26 @@ pub fn e2e_base_url() -> Option<String> {
   std::env::var("E2E_BASE_URL").ok()
 }
 
+/// Path to the SQLite DB used by the prebuilt server. Prefer E2E_DB_PATH; else parse config/db.toml so tests use the same DB as the server.
+pub fn e2e_db_path(project_root: &Path) -> std::path::PathBuf {
+  if let Ok(p) = std::env::var("E2E_DB_PATH") {
+    return std::path::PathBuf::from(p);
+  }
+  let db_toml = project_root.join("config").join("db.toml");
+  let content = fs::read_to_string(&db_toml).unwrap_or_default();
+  for line in content.lines() {
+    let line = line.trim();
+    if let Some(url) = line.strip_prefix("url = ") {
+      let url = url.trim().trim_matches('"');
+      if let Some(path) = url.strip_prefix("sqlite://") {
+        let path = path.split('?').next().unwrap_or(path);
+        return std::path::PathBuf::from(path);
+      }
+    }
+  }
+  project_root.join("db.sqlite")
+}
+
 /// Run `forge new <name>` in `dir`; return the command output. Caller asserts success and path.
 pub fn run_forge_new(dir: &Path, name: &str) -> Output {
   Command::new(forge_binary())

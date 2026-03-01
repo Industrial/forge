@@ -1,18 +1,26 @@
 use sea_orm_migration::prelude::*;
 
+/// Audit log table. Column names must match forge::audit::log raw SQL (snake_case).
 #[derive(Iden)]
 pub enum AuditLog {
   Table,
   Id,
+  #[iden = "event_kind"]
   EventKind,
+  #[iden = "actor_id"]
   ActorId,
+  #[iden = "subject_id"]
   SubjectId,
+  #[iden = "organization_id"]
   OrganizationId,
   Action,
+  #[iden = "resource_type"]
   ResourceType,
+  #[iden = "resource_id"]
   ResourceId,
   Outcome,
   Reason,
+  #[iden = "occurred_at"]
   OccurredAt,
 }
 
