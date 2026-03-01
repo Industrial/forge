@@ -26,6 +26,10 @@ async fn e2e_prebuilt_rate_limiting_layout_and_health_ok() {
   let url = format!("{}/", base);
   for _ in 0..5 {
     let r = client.get(&url).send().await.unwrap();
-    assert_eq!(r.status().as_u16(), 200, "GET / must not be rate limited in dev");
+    assert_eq!(
+      r.status().as_u16(),
+      200,
+      "GET / must not be rate limited in dev"
+    );
   }
 }
