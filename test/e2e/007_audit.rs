@@ -146,7 +146,7 @@ port = 30999
 
   // 1. Register
   let reg = client
-    .post(format!("{}/auth/register", base))
+    .post(format!("{}/api/auth/register", base))
     .json(&serde_json::json!({ "email": "audit@test.com", "password": "secret123" }))
     .send()
     .await
@@ -155,7 +155,7 @@ port = 30999
 
   // 2. Login success -> should produce auth event (login, success)
   let login_ok = client
-    .post(format!("{}/auth/login", base))
+    .post(format!("{}/api/auth/login", base))
     .json(&serde_json::json!({ "email": "audit@test.com", "password": "secret123" }))
     .send()
     .await
@@ -166,9 +166,9 @@ port = 30999
     login_ok.status()
   );
 
-  // 3. Hit /auth/admin (guard_and_audit) -> authz event allowed
+  // 3. Hit /api/auth/admin (guard_and_audit) -> authz event allowed
   let admin_ok = client
-    .get(format!("{}/auth/admin", base))
+    .get(format!("{}/api/auth/admin", base))
     .send()
     .await
     .expect("admin");
@@ -180,14 +180,14 @@ port = 30999
 
   // 4. Logout -> auth event (logout)
   let _logout = client
-    .get(format!("{}/auth/logout", base))
+    .get(format!("{}/api/auth/logout", base))
     .send()
     .await
     .expect("logout");
 
   // 5. Failed login -> auth event (failed_login, failure)
   let login_fail = client
-    .post(format!("{}/auth/login", base))
+    .post(format!("{}/api/auth/login", base))
     .json(&serde_json::json!({ "email": "audit@test.com", "password": "wrong" }))
     .send()
     .await
@@ -298,16 +298,16 @@ port = 30998
     }
   }
 
-  // Hit /auth/admin without logging in -> unauthenticated -> guard_and_audit logs denied
+  // Hit /api/auth/admin without logging in -> unauthenticated -> guard_and_audit logs denied
   let admin_no_auth = client
-    .get(format!("{}/auth/admin", base))
+    .get(format!("{}/api/auth/admin", base))
     .send()
     .await
     .unwrap();
   let status = admin_no_auth.status().as_u16();
   assert!(
     status == 403 || status == 401 || status == 500,
-    "unauthenticated request to /auth/admin should be 4xx or 5xx, got {}",
+    "unauthenticated request to /api/auth/admin should be 4xx or 5xx, got {}",
     admin_no_auth.status()
   );
 

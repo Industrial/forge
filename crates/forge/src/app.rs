@@ -230,7 +230,7 @@ impl App {
     self
   }
 
-  /// Add a POST route to the application (e.g. for /auth/register, /auth/login).
+  /// Add a POST route to the application (e.g. for /api/auth/register, /api/auth/login).
   pub fn post_route<H, T>(mut self, path: &str, handler: H) -> Self
   where
     H: Handler<T, DatabaseConnection>,

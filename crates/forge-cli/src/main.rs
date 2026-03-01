@@ -332,7 +332,7 @@ mod tests {
       assert!(main_content.contains("App::new()"));
       assert!(main_content.contains(".with_migrations(db::Migrator)"));
       assert!(main_content.contains(".post_route"));
-      assert!(main_content.contains(".route(\"/auth/admin\""));
+      assert!(main_content.contains(".route(\"/api/auth/admin\""));
       assert!(main_content.contains(".serve()"));
 
       // Restore original directory

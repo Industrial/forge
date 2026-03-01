@@ -1,5 +1,7 @@
 # 010_validation: Request Validation
 
+**Status:** Implemented. E2E tests in `test/e2e/010_validation.rs`. Forge re-exports `Valid` and `Validate`; uses axum-valid with `422` and `into_json` so invalid requests return 422 with a JSON error body.
+
 ## Overview
 
 Forge integrates **request validation** using [validator](https://crates.io/crates/validator) (Keats) and [axum-valid](https://crates.io/crates/axum-valid), so handlers receive typed, validated extractors and invalid requests get a consistent **422 Unprocessable Entity** response with error details.
@@ -35,10 +37,10 @@ Exact shape depends on axum-valid/validator; Forge documents the chosen format a
 
 ### Re-exports
 
-- `forge::validation` (or similar) re-exports:
-  - `validator::Validate` (derive macro)
-  - `axum_valid::Valid`
-  - Common validator attributes (`email`, `length`, etc.) for documentation.
+- `forge::validation` re-exports:
+  - `axum_valid::Valid` — use as `Valid<Json<T>>` or `Valid<Query<T>>` in handlers.
+  - `validator::Validate` — derive on request structs; use `validator::Validate` in app code (or add `validator` with `derive` to your crate).
+- Validator attributes (`#[validate(email)]`, `#[validate(length(min = 8))]`, etc.) come from the `validator` crate; see [validator docs](https://docs.rs/validator).
 
 ## Configuration
 
@@ -77,8 +79,8 @@ Invalid requests never reach the handler; they receive 422 and the error list.
 
 ## Dependencies
 
-- **validator** (with `derive`): validation trait and rules.
-- **axum-valid** (with `validator` feature): extractors `Valid<Json<T>>`, `Valid<Query<T>>`, etc.
+- **validator** (with `derive`): validation trait and rules (forge depends on it; apps can use `forge::validation::Validate` or add `validator` for the derive).
+- **axum-valid** (forge uses features `422` and `into_json`): extractors `Valid<Json<T>>`, `Valid<Query<T>>`; returns 422 with JSON body on validation failure.
 
 ## Success Criteria
 

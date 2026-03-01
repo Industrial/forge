@@ -86,7 +86,7 @@ async fn forge_new_generates_auth_ready_workspace() {
   );
   let main_rs = fs::read_to_string(root.join("crates/app/src/main.rs")).unwrap();
   assert!(
-    main_rs.contains("post_route") && main_rs.contains("/auth/admin"),
+    main_rs.contains("post_route") && main_rs.contains("/api/auth/admin"),
     "main must use post_route for register/login and route for auth/admin"
   );
   assert!(
@@ -212,7 +212,7 @@ auto_seed = false
   let app = App::new()
     .with_auth(|_db| MockBackend)
     .route(
-      "/auth/login",
+      "/api/auth/login",
       |mut session: AuthSession<MockBackend>| async move {
         let creds = Credentials {
           email: "test@example.com".to_string(),
@@ -223,7 +223,7 @@ auto_seed = false
       },
     )
     .route(
-      "/auth/profile",
+      "/api/auth/profile",
       |session: AuthSession<MockBackend>| async move {
         if let Some(user) = session.user {
           format!("Hello, {}!", user.email)
@@ -241,7 +241,7 @@ auto_seed = false
     .oneshot(
       Request::builder()
         .method("GET")
-        .uri("/auth/login")
+        .uri("/api/auth/login")
         .body(axum::body::Body::empty())
         .unwrap(),
     )
@@ -258,7 +258,7 @@ auto_seed = false
   let response = router
     .oneshot(
       Request::builder()
-        .uri("/auth/profile")
+        .uri("/api/auth/profile")
         .header(header::COOKIE, cookie)
         .body(axum::body::Body::empty())
         .unwrap(),

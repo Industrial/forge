@@ -12,6 +12,7 @@ pub mod error;
 pub mod health;
 pub mod rate_limit;
 pub mod seed;
+pub mod validation;
 
 pub use forge_macros::*;
 
@@ -22,6 +23,7 @@ pub use db::initialize_database;
 pub use error::Error;
 pub use rate_limit::RequesterOrgKey;
 pub use seed::Seeder;
+pub use validation::{Valid, Validate};
 
 // Re-exports for a unified API (Phase 3)
 pub use async_trait;

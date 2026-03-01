@@ -58,6 +58,7 @@ axum-login = "0.17"
 sea-orm = {{ version = "1.1", features = ["runtime-tokio-rustls", "sqlx-sqlite", "macros"] }}
 chrono = {{ version = "0.4", features = ["serde"] }}
 uuid = {{ version = "1.0", features = ["v4", "serde"] }}
+validator = {{ version = "0.20", features = ["derive"] }}
 "#,
     forge_crate_path.display()
   );
@@ -135,11 +136,11 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 
   app
     .route("/", || async { "Hello from Forge!" })
-    .post_route("/auth/register", handlers::auth::register)
-    .post_route("/auth/login", handlers::auth::login)
-    .route("/auth/logout", handlers::auth::logout)
-    .route("/auth/profile", handlers::auth::profile)
-    .route("/auth/admin", handlers::auth::admin_only)
+    .post_route("/api/auth/register", handlers::auth::register)
+    .post_route("/api/auth/login", handlers::auth::login)
+    .route("/api/auth/logout", handlers::auth::logout)
+    .route("/api/auth/profile", handlers::auth::profile)
+    .route("/api/auth/admin", handlers::auth::admin_only)
     .serve()
     .await
 }
@@ -164,23 +165,27 @@ use chrono::Utc;
 use forge::auth::hash_password;
 use forge::audit::{AuditEvent, EventKind, Outcome};
 use forge::authz::{Action, AuthSessionGuardExt, AuthzContext, Role};
+use forge::validation::Valid;
 use forge::Error as ForgeError;
 use sea_orm::{ActiveModelTrait, DatabaseConnection, EntityTrait, Set, TransactionTrait};
 use serde::Deserialize;
 use uuid::Uuid;
+use validator::Validate;
 
 use db::auth::Backend;
 use db::models::{organization, membership, user};
 
-#[derive(Deserialize)]
+#[derive(Deserialize, Validate)]
 pub struct RegisterRequest {
+  #[validate(email)]
   pub email: String,
+  #[validate(length(min = 8))]
   pub password: String,
 }
 
 pub async fn register(
   State(db): State<DatabaseConnection>,
-  Json(payload): Json<RegisterRequest>,
+  Valid(Json(payload)): Valid<Json<RegisterRequest>>,
 ) -> Result<impl IntoResponse, ForgeError> {
   let password_hash = hash_password(&payload.password)?;
   let now = Utc::now().naive_utc();
@@ -234,16 +239,18 @@ pub async fn register(
   Ok((StatusCode::CREATED, "User registered successfully"))
 }
 
-#[derive(Deserialize)]
+#[derive(Deserialize, Validate)]
 pub struct LoginRequest {
+  #[validate(email)]
   pub email: String,
+  #[validate(length(min = 1))]
   pub password: String,
 }
 
 pub async fn login(
   mut auth_session: AuthSession<Backend>,
   State(db): State<DatabaseConnection>,
-  Json(payload): Json<LoginRequest>,
+  Valid(Json(payload)): Valid<Json<LoginRequest>>,
 ) -> Result<impl IntoResponse, ForgeError> {
   let credentials = db::auth::Credentials {
     email: payload.email,
