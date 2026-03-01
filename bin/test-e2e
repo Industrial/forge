@@ -21,7 +21,21 @@ echo "> test-e2e > cargo build (e2e_prebuilt)"
 cargo build --manifest-path .tmp/e2e_prebuilt/Cargo.toml
 
 # Run all e2e tests one by one (serial)
-for test in 001_cli 002_config 003_database 004_migrations 005_auth 006_authz 007_audit 008_health 009_rate_limiting 010_validation 011_jobs; do
+TESTS=(
+  "001_cli"
+  "002_config"
+  "003_database"
+  "004_migrations"
+  "005_auth"
+  "006_authz"
+  "007_audit"
+  "008_health"
+  "009_rate_limiting"
+  "010_validation"
+  "011_jobs"
+)
+
+for test in "${TESTS[@]}"; do
   echo "> test-e2e > cargo test --test $test"
   RUSTFLAGS='-D warnings' cargo test -p forge-e2e-tests --test "$test"
 done

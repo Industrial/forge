@@ -69,16 +69,19 @@ port = {}
     .build()
     .unwrap();
   let base = format!("http://127.0.0.1:{}", port);
+  let healthz = format!("{}/healthz", base);
 
-  for i in 0..450 {
+  for i in 0..300 {
     tokio::time::sleep(Duration::from_millis(200)).await;
-    if client.get(format!("{}/", base)).send().await.is_ok() {
+    if let Ok(resp) = client.get(&healthz).send().await
+      && resp.status().as_u16() == 200
+    {
       break;
     }
-    if i == 449 {
+    if i == 299 {
       let _ = child.kill();
       let _ = child.wait();
-      panic!("server did not become ready in time");
+      panic!("server did not respond with 200 on /healthz within 60s");
     }
   }
 
@@ -208,16 +211,19 @@ port = {}
     .build()
     .unwrap();
   let base = format!("http://127.0.0.1:{}", port);
+  let healthz = format!("{}/healthz", base);
 
   for i in 0..300 {
     tokio::time::sleep(Duration::from_millis(200)).await;
-    if client.get(format!("{}/", base)).send().await.is_ok() {
+    if let Ok(resp) = client.get(&healthz).send().await
+      && resp.status().as_u16() == 200
+    {
       break;
     }
     if i == 299 {
       let _ = child.kill();
       let _ = child.wait();
-      panic!("server did not become ready in time");
+      panic!("server did not respond with 200 on /healthz within 60s");
     }
   }
 
