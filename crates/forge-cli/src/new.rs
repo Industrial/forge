@@ -120,10 +120,20 @@ mod handlers;
 
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn std::error::Error>> {
-  App::new()
+  let app = App::new()
     .with_migrations(db::Migrator)
     .with_seed(|db| Box::pin(db::run_seeds(db)))
-    .with_auth(|db| Backend::new(db))
+    .with_auth(|db| Backend::new(db));
+
+  let app = if app.config().app.environment.eq_ignore_ascii_case("production") {
+    app
+      .with_rate_limit_per_ip(60)
+      .with_rate_limit_per_user(60)
+  } else {
+    app
+  };
+
+  app
     .route("/", || async { "Hello from Forge!" })
     .post_route("/auth/register", handlers::auth::register)
     .post_route("/auth/login", handlers::auth::login)
