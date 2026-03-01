@@ -82,3 +82,7 @@ path = "014_websockets.rs"
 [[test]]
 name = "015_i18n"
 path = "015_i18n.rs"
+
+[[test]]
+name = "016_caching"
+path = "016_caching.rs"

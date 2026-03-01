@@ -5,6 +5,8 @@
 pub mod app;
 pub mod audit;
 pub mod auth;
+pub mod cache;
+pub mod cache_http_layer;
 pub mod authz;
 pub mod config;
 pub mod cron;
@@ -22,6 +24,7 @@ pub use forge_macros::*;
 
 pub use app::App;
 pub use audit::{AuditError, AuditEvent, EventKind, Outcome};
+pub use cache::{AppCache, CacheConfig};
 pub use config::ForgeConfig;
 pub use cron::CronSchedule;
 pub use db::initialize_database;

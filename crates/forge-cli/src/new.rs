@@ -146,6 +146,8 @@ async fn main() -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
 
   app
     .route("/", handlers::i18n::hello)
+    .route("/api/cache-demo", handlers::cache_demo::handler)
+    .route("/api/cached-page", handlers::cached_page::handler)
     .route("/ws", handlers::ws::handler)
     .post_route("/api/auth/register", handlers::auth::register)
     .post_route("/api/auth/login", handlers::auth::login)
@@ -162,8 +164,61 @@ async fn main() -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
   // Create crates/app/src/handlers/mod.rs
   fs::write(
     project_dir.join("crates/app/src/handlers/mod.rs"),
-    "pub mod auth;\npub mod i18n;\npub mod ws;",
+    "pub mod auth;\npub mod cache_demo;\npub mod cached_page;\npub mod i18n;\npub mod ws;",
   )?;
+
+  // Create config/cache.toml (application + HTTP response cache config)
+  let cache_toml = r#"enabled = true
+
+[application]
+enabled = true
+max_capacity = 10_000
+default_ttl_secs = 300
+
+[http_response]
+enabled = true
+default_ttl_secs = 60
+no_cache_paths = ["/", "/api/auth", "/healthz", "/livez", "/readyz"]
+"#;
+  fs::write(project_dir.join("config").join("cache.toml"), cache_toml)?;
+
+  // Create crates/app/src/handlers/cache_demo.rs (demo route using app cache)
+  let cache_demo_rs = r#"use axum::{extract::State, response::IntoResponse};
+use forge::{sea_orm::DatabaseConnection, AppCache};
+use std::sync::Arc;
+
+const CACHE_KEY: &str = "demo";
+
+pub async fn handler(
+  State(_db): State<DatabaseConnection>,
+  cache: axum::extract::Extension<Option<Arc<AppCache>>>,
+) -> impl IntoResponse {
+  let value = if let Some(c) = cache.0.as_ref() {
+    if let Some(v) = c.get(CACHE_KEY).await {
+      v
+    } else {
+      let v = format!("cached-{}", forge::uuid::Uuid::new_v4());
+      c.set(CACHE_KEY, v.clone()).await;
+      v
+    }
+  } else {
+    "cache-disabled".to_string()
+  };
+  value.into_response()
+}
+"#;
+  fs::write(project_dir.join("crates/app/src/handlers/cache_demo.rs"), cache_demo_rs)?;
+
+  // Create crates/app/src/handlers/cached_page.rs (demo for HTTP response cache: unique per request, cached by middleware)
+  let cached_page_rs = r#"use axum::{extract::State, response::IntoResponse};
+use forge::sea_orm::DatabaseConnection;
+
+pub async fn handler(State(_db): State<DatabaseConnection>) -> impl IntoResponse {
+  let v = format!("cached-page-{}", forge::uuid::Uuid::new_v4());
+  v.into_response()
+}
+"#;
+  fs::write(project_dir.join("crates/app/src/handlers/cached_page.rs"), cached_page_rs)?;
 
   // Create crates/app/locales/en-US/main.ftl and de/main.ftl (i18n)
   fs::write(

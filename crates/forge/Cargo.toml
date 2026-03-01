@@ -51,6 +51,9 @@ apalis-sqlite = { version = "1.0.0-rc.4", features = [
   "migrate",
   "json",
 ] }
+moka = { version = "0.12", features = ["future"] }
+bytes = "1.0"
+http = "1.0"
 
 [dev-dependencies]
 reqwest = { version = "0.12", features = ["json"] }

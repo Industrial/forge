@@ -77,4 +77,7 @@ default_ttl_secs = 60
 
 ## Status
 
-**Design only.** Forge does not yet implement the cache layer or load `config/cache.toml`. This document describes the intended behavior: Moka (async), config/cache.toml, application + HTTP response cache, configurable enable/disable and TTL, and manual cache busting with an easy, non-enforced API.
+- **Application cache:** Implemented. Forge loads optional `config/cache.toml`; when `enabled` and `[application].enabled` are true, a Moka `future::Cache` is created and injected into request extensions as `Option<Arc<AppCache>>`. Handlers use `Extension<Option<Arc<AppCache>>>` to get/set/delete. API: `get(key)`, `set(key, value)`, `delete(key)`.
+- **HTTP response cache:** Implemented. When `[http_response].enabled` is true, a Tower layer caches full GET responses (by method + path). Cached responses get a `Cache-Control: public, max-age=<ttl>` header. Config supports `no_cache_paths` (e.g. `/`, `/api/auth`, `/healthz`) so localized or auth routes are not cached. Layer wraps the router; only 2xx responses are cached; body read limit 10 MiB.
+- **Scaffold:** `forge new` generates `config/cache.toml` (enabled, [application], [http_response] with `no_cache_paths`), GET `/api/cache-demo` (app cache), and GET `/api/cached-page` (response-cache demo; two requests return same body).
+- **E2E:** `test/e2e/016_caching.rs` asserts config shape, app cache (same body twice for `/api/cache-demo`), response cache (same body twice for `/api/cached-page`), and presence of `Cache-Control` on the cached response.

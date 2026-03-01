@@ -9,6 +9,8 @@ pub struct ForgeConfig {
   pub app: AppConfig,
   pub server: ServerConfig,
   pub database: DatabaseConfig,
+  #[serde(default)]
+  pub cache: Option<crate::cache::CacheConfig>,
 }
 
 #[derive(Debug, Clone, Deserialize)]
@@ -61,15 +63,27 @@ pub fn load_config() -> Result<ForgeConfig, Box<dyn std::error::Error>> {
     .into());
   }
 
-  Figment::new()
+  let mut config: ForgeConfig = Figment::new()
     .merge(Toml::file(app_config_path))
     .merge(Toml::file(db_config_path))
     .extract()
-    .map_err(|e| {
+    .map_err(|e| -> Box<dyn std::error::Error> {
       format!(
         "Failed to parse configuration files. Ensure they contain the required [app], [server], and [database] sections. Error: {}",
         e
       )
       .into()
-    })
+    })?;
+
+  let cache_config_path = "config/cache.toml";
+  if std::path::Path::new(cache_config_path).exists() {
+    config.cache = Some(
+      Figment::new()
+        .merge(Toml::file(cache_config_path))
+        .extract::<crate::cache::CacheConfig>()
+        .map_err(|e| format!("Failed to parse {}. Error: {}", cache_config_path, e))?,
+    );
+  }
+
+  Ok(config)
 }

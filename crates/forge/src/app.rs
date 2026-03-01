@@ -21,6 +21,8 @@ use tower_sessions::{Expiry, SessionManagerLayer};
 use tower_sessions_sqlx_store::SqliteStore;
 use tracing::{info, warn};
 
+use crate::cache;
+use crate::cache_http_layer;
 use crate::config::{self, ForgeConfig};
 use crate::cron::{CronRunner, CronSchedule, CronTaskBox};
 use crate::db;
@@ -375,8 +377,34 @@ impl App {
       security_headers::add_security_headers,
     ));
 
+    // Optional application cache: inject into request extensions for handlers (Option<Arc<AppCache>>)
+    let app_cache = config
+      .cache
+      .as_ref()
+      .and_then(|c| cache::AppCache::from_config(c))
+      .map(Arc::new);
+    if app_cache.is_some() {
+      info!("Application cache enabled");
+    }
+    let cache_ext = app_cache.clone();
+    router = router.layer(tower::util::MapRequestLayer::new(
+      move |mut req: axum::extract::Request| {
+        req.extensions_mut().insert(cache_ext.clone());
+        req
+      },
+    ));
+
     // Inject database connection into state
-    let router = router.with_state(db_conn.clone());
+    let mut router = router.with_state(db_conn.clone());
+
+    // HTTP response cache: cache full GET responses (layer wraps router)
+    if let Some(cache_cfg) = config.cache.as_ref() {
+      if let Some(response_cache_layer) = cache_http_layer::HttpResponseCacheLayer::from_config(cache_cfg) {
+        info!("HTTP response cache enabled");
+        router = router.layer(response_cache_layer);
+      }
+    }
+
     let cron_runner = if cron_tasks.is_empty() {
       None
     } else {
