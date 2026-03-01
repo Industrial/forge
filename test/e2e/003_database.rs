@@ -90,7 +90,7 @@ url = "sqlite::memory:"
     },
   );
 
-  let router = app.into_router().await;
+  let (router, _) = app.into_router().await;
 
   // 3. Send a virtual request
   let response = router

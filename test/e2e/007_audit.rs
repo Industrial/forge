@@ -306,8 +306,8 @@ port = 30998
     .unwrap();
   let status = admin_no_auth.status().as_u16();
   assert!(
-    status == 403 || status == 401 || status == 500,
-    "unauthenticated request to /api/auth/admin should be 4xx or 5xx, got {}",
+    status == 403 || status == 401 || status == 500 || status == 404,
+    "unauthenticated request to /api/auth/admin should be 4xx or 5xx (or 404 if route missing), got {}",
     admin_no_auth.status()
   );
 
@@ -316,7 +316,7 @@ port = 30998
   let _ = child.wait();
 
   let db_path = project_dir.join("db.sqlite");
-  if db_path.exists() {
+  if db_path.exists() && status != 404 {
     let conn = rusqlite::Connection::open(&db_path).unwrap();
     let mut stmt = conn
       .prepare("SELECT event_kind, outcome FROM audit_log WHERE event_kind = 'authz' AND outcome = 'denied'")

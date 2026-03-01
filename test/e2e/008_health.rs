@@ -89,12 +89,10 @@ url = "sqlite::memory:"
   .unwrap();
 
   let app = forge::App::new();
-  let router = app.into_router().await;
+  let (router, _) = app.into_router().await;
   let listener = tokio::net::TcpListener::bind("127.0.0.1:0").await.unwrap();
   let port = listener.local_addr().unwrap().port();
-  tokio::spawn(async move {
-    axum::serve(listener, router).await
-  });
+  tokio::spawn(async move { axum::serve(listener, router).await });
 
   tokio::time::sleep(Duration::from_millis(100)).await;
 
@@ -125,7 +123,11 @@ async fn health_endpoints_from_generated_app() {
     .current_dir(&temp_dir)
     .output()
     .expect("forge new");
-  assert!(out.status.success(), "forge new: {}", String::from_utf8_lossy(&out.stderr));
+  assert!(
+    out.status.success(),
+    "forge new: {}",
+    String::from_utf8_lossy(&out.stderr)
+  );
 
   let project_dir = temp_dir.path().join("health_e2e_app");
   fs::write(
@@ -174,4 +176,6 @@ port = {}
       panic!("server did not become ready in time");
     }
   }
+  // Loop exited without return/panic (unreachable); ensure child is reaped
+  let _ = child.wait();
 }

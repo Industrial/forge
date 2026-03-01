@@ -3,9 +3,9 @@
 //! Covers: Valid<Json<T>> returns 200 for valid input, 422 with structured errors for invalid input;
 //! generated app auth endpoints use validation (register/login return 422 for invalid body).
 
+use axum::Json;
 use axum::extract::State;
 use axum::http::StatusCode;
-use axum::Json;
 use forge::sea_orm::DatabaseConnection;
 use forge::validation::Valid;
 use serde::Deserialize;
@@ -60,7 +60,7 @@ url = "sqlite::memory:"
   .unwrap();
 
   let app = forge::App::new().post_route("/users", create_user);
-  let router = app.into_router().await;
+  let (router, _) = app.into_router().await;
   let listener = tokio::net::TcpListener::bind("127.0.0.1:0").await.unwrap();
   let port = listener.local_addr().unwrap().port();
   tokio::spawn(async move {
@@ -129,7 +129,7 @@ url = "sqlite::memory:"
   .unwrap();
 
   let app = forge::App::new().post_route("/users", create_user);
-  let router = app.into_router().await;
+  let (router, _) = app.into_router().await;
   let listener = tokio::net::TcpListener::bind("127.0.0.1:0").await.unwrap();
   let port = listener.local_addr().unwrap().port();
   tokio::spawn(async move {

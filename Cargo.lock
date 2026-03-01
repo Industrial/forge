@@ -112,6 +112,83 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "7f202df86484c868dbad7eaa557ef785d5c66295e41b460ef922eca0723b842c"
 
 [[package]]
+name = "apalis"
+version = "1.0.0-rc.4"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "715f15d294758af4ef93447224a9b23f9f16ccd230061d30783c3b29870d9c11"
+dependencies = [
+ "apalis-core",
+ "futures-util",
+ "pin-project",
+ "thiserror 2.0.18",
+ "tower 0.5.3",
+ "tracing",
+]
+
+[[package]]
+name = "apalis-codec"
+version = "0.1.0-rc.4"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "7044b64a1cf157936c016768aeb5be6b5fd3b551ce113c39f8a3bbf2611f661b"
+dependencies = [
+ "apalis-core",
+ "serde",
+ "serde_json",
+]
+
+[[package]]
+name = "apalis-core"
+version = "1.0.0-rc.4"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "d0f76544e368008495c859a2dcab9ae98456b492154e17dbb06c05e2a3ec47b9"
+dependencies = [
+ "futures-channel",
+ "futures-core",
+ "futures-sink",
+ "futures-timer",
+ "futures-util",
+ "pin-project",
+ "serde",
+ "thiserror 2.0.18",
+ "tower-layer",
+ "tower-service",
+ "tracing",
+]
+
+[[package]]
+name = "apalis-sql"
+version = "1.0.0-rc.4"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "9466baa9eb65d1daa7eb2f98e2718aa6044a0ea95429457e1298d436722cbe48"
+dependencies = [
+ "apalis-core",
+ "chrono",
+ "serde",
+ "serde_json",
+ "thiserror 2.0.18",
+]
+
+[[package]]
+name = "apalis-sqlite"
+version = "1.0.0-rc.4"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "2a16a88f8105f05035a83ea2ae15901978e55dadcaa7c0589b219ed4accbe961"
+dependencies = [
+ "apalis-codec",
+ "apalis-core",
+ "apalis-sql",
+ "futures",
+ "log",
+ "pin-project",
+ "serde",
+ "serde_json",
+ "sqlx",
+ "thiserror 2.0.18",
+ "tokio",
+ "ulid",
+]
+
+[[package]]
 name = "argon2"
 version = "0.5.3"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -1003,6 +1080,8 @@ checksum = "00b0228411908ca8685dba7fc2cdd70ec9990a6e753e89b6ac91a84c40fbaf4b"
 name = "forge"
 version = "0.1.0"
 dependencies = [
+ "apalis",
+ "apalis-sqlite",
  "argon2",
  "async-trait",
  "axum 0.8.8",
@@ -4044,6 +4123,17 @@ name = "typenum"
 version = "1.19.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "562d481066bde0658276a35467c4af00bdc6ee726305698a55b86e61d7ad82bb"
+
+[[package]]
+name = "ulid"
+version = "1.2.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "470dbf6591da1b39d43c14523b2b469c86879a53e8b758c8e090a470fe7b1fbe"
+dependencies = [
+ "rand 0.9.2",
+ "serde",
+ "web-time",
+]
 
 [[package]]
 name = "uncased"

@@ -60,3 +60,7 @@ path = "009_rate_limiting.rs"
 [[test]]
 name = "010_validation"
 path = "010_validation.rs"
+
+[[test]]
+name = "011_cron"
+path = "011_cron.rs"

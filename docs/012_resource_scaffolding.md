@@ -37,6 +37,26 @@ Forge provides **resource scaffolding** via the CLI: `forge generate resource <n
 - Stubs that take `State<DatabaseConnection>` and (for scoped resources) `AuthSession`; perform find_all, find_by_id, insert, update, delete.
 - Return JSON or Inertia responses (convention: JSON for API, or document both).
 
+## Generator Set
+
+Forge provides the following generators. **Scaffold** is a compound of several others; the rest are single-purpose or small compounds.
+
+| Generator | Purpose |
+|-----------|---------|
+| **Migration** | Standalone migration file (schema change). |
+| **Seed** | Seed data snippet or seeder for a table/resource. |
+| **Entity** | SeaORM entity only (no migration, no handlers). |
+| **Job** | Background job struct + handler; cron supported via parameterization (e.g. register with `CronSchedule`). |
+| **Handler** | New handler module with N actions and route snippet (no entity/migration). |
+| **View** | View stubs (e.g. Inertia/React/Vue page or component). |
+| **Resource** | Migration + Entity + Handlers (CRUD) + route snippet; no views. |
+| **Scaffold** | Compound: Resource + View stubs + optional validation/policy (full-stack resource). |
+| **Policy** | `ForgePolicy<Resource>` stub for an entity (authz). |
+| **RequestValidation** | Request DTO with `Validate` and validator attrs (e.g. create/update body). |
+| **ResponseValidation** | Response DTO or serializer for an entity (e.g. JSON shape). |
+
+Not in scope for now: **Helper** (skipped), **Mailer** (deferred until mail API exists). Naming: we use **Handler** (not Controller) to match the codebase (axum handlers).
+
 ## Configuration
 
 None. Generator runs in the current directory and expects a Forge workspace (e.g. `crates/app`, `crates/db`). If not found, print an error and suggest `forge new`.
@@ -75,6 +95,8 @@ forge generate resource Project name:string organization_id:uuid description:tex
 
 ## Future Extensions
 
-- `forge generate migration`, `forge generate entity` (smaller scopes).
-- Inertia/React/Vue view stubs.
-- Seed snippet for the new resource.
+- Implement the full generator set: **Migration**, **Seed**, **Entity**, **Job** (cron via parameterization), **Handler**, **View**, **Resource**, **Scaffold**, **Policy**, **RequestValidation**, **ResponseValidation**.
+- **Job**: Forge has jobs (Apalis + SQLite); cron is a use case (scheduled tasks enqueued on a schedule). Generator produces job struct + run impl; optional params register it as a cron task.
+- **Scaffold**: Compound of Resource + View stubs; optionally include RequestValidation, ResponseValidation, and Policy stubs.
+- Inertia/React/Vue view stubs (View generator).
+- Seed snippet for the new resource (Seed generator).

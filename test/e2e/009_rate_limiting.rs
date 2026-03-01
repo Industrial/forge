@@ -40,7 +40,7 @@ url = "sqlite::memory:"
     .with_rate_limit_per_ip(2)
     .route("/api/ping", || async { "pong" });
 
-  let router = app.into_router().await;
+  let (router, _) = app.into_router().await;
   let listener = tokio::net::TcpListener::bind("127.0.0.1:0").await.unwrap();
   let port = listener.local_addr().unwrap().port();
   tokio::spawn(async move {
@@ -60,13 +60,25 @@ url = "sqlite::memory:"
   let base = format!("http://127.0.0.1:{}", port);
 
   // First two requests succeed
-  let r1 = client.get(format!("{}/api/ping", base)).send().await.unwrap();
-  let r2 = client.get(format!("{}/api/ping", base)).send().await.unwrap();
+  let r1 = client
+    .get(format!("{}/api/ping", base))
+    .send()
+    .await
+    .unwrap();
+  let r2 = client
+    .get(format!("{}/api/ping", base))
+    .send()
+    .await
+    .unwrap();
   assert_eq!(r1.status().as_u16(), 200, "first request should be 200");
   assert_eq!(r2.status().as_u16(), 200, "second request should be 200");
 
   // Third request is rate limited
-  let r3 = client.get(format!("{}/api/ping", base)).send().await.unwrap();
+  let r3 = client
+    .get(format!("{}/api/ping", base))
+    .send()
+    .await
+    .unwrap();
   assert_eq!(
     r3.status().as_u16(),
     429,
@@ -109,7 +121,7 @@ url = "sqlite::memory:"
     .with_rate_limit_per_ip(2)
     .route("/api/ping", || async { "pong" });
 
-  let router = app.into_router().await;
+  let (router, _) = app.into_router().await;
   let listener = tokio::net::TcpListener::bind("127.0.0.1:0").await.unwrap();
   let port = listener.local_addr().unwrap().port();
   tokio::spawn(async move {
@@ -129,14 +141,30 @@ url = "sqlite::memory:"
   let base = format!("http://127.0.0.1:{}", port);
 
   // Exhaust rate limit on /api/ping
-  let _ = client.get(format!("{}/api/ping", base)).send().await.unwrap();
-  let _ = client.get(format!("{}/api/ping", base)).send().await.unwrap();
-  let r3 = client.get(format!("{}/api/ping", base)).send().await.unwrap();
+  let _ = client
+    .get(format!("{}/api/ping", base))
+    .send()
+    .await
+    .unwrap();
+  let _ = client
+    .get(format!("{}/api/ping", base))
+    .send()
+    .await
+    .unwrap();
+  let r3 = client
+    .get(format!("{}/api/ping", base))
+    .send()
+    .await
+    .unwrap();
   assert_eq!(r3.status().as_u16(), 429);
 
   // Health endpoints remain 200 regardless of rate limit
   for _ in 0..5 {
-    let r = client.get(format!("{}/healthz", base)).send().await.unwrap();
+    let r = client
+      .get(format!("{}/healthz", base))
+      .send()
+      .await
+      .unwrap();
     assert_eq!(r.status().as_u16(), 200, "healthz must not be rate limited");
     let r = client.get(format!("{}/livez", base)).send().await.unwrap();
     assert_eq!(r.status().as_u16(), 200, "livez must not be rate limited");

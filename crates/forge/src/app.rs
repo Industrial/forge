@@ -5,22 +5,23 @@ use std::sync::Arc;
 use axum::{Router, handler::Handler, routing::get, routing::post};
 use axum_login::AuthManagerLayerBuilder;
 use futures::future::BoxFuture;
+use governor::middleware::NoOpMiddleware;
 use sea_orm::{ConnectionTrait, DatabaseConnection, DbBackend};
 use sea_orm_migration::MigratorTrait;
 use tokio::signal;
 use tower::ServiceBuilder;
+use tower_governor::{
+  GovernorLayer,
+  governor::{GovernorConfig, GovernorConfigBuilder},
+  key_extractor::PeerIpKeyExtractor,
+};
 use tower_http::trace::{DefaultMakeSpan, DefaultOnRequest, DefaultOnResponse, TraceLayer};
 use tower_sessions::{Expiry, SessionManagerLayer};
 use tower_sessions_sqlx_store::SqliteStore;
-use tower_governor::{
-  governor::{GovernorConfigBuilder, GovernorConfig},
-  key_extractor::PeerIpKeyExtractor,
-  GovernorLayer,
-};
-use governor::middleware::NoOpMiddleware;
 use tracing::{info, warn};
 
 use crate::config::{self, ForgeConfig};
+use crate::cron::{CronRunner, CronSchedule, CronTaskBox};
 use crate::db;
 
 /// Type alias for the idempotent seeding function.
@@ -65,6 +66,8 @@ pub struct App {
   rate_limit_per_ip: Option<Arc<GovernorConfig<PeerIpKeyExtractor, NoOpMiddleware>>>,
   /// Optional per-user (per-org) rate limit: requests per minute per (org, user). Requires auth.
   rate_limit_per_user: Option<u32>,
+  /// Cron tasks to run in-process when serve() is used.
+  cron_tasks: Vec<(String, CronSchedule, CronTaskBox)>,
 }
 
 impl App {
@@ -106,6 +109,7 @@ impl App {
       auth_installer: None,
       rate_limit_per_ip: None,
       rate_limit_per_user: None,
+      cron_tasks: Vec::new(),
     })
   }
 
@@ -189,22 +193,19 @@ impl App {
         let backend = backend_factory(db_conn);
         let auth_layer = AuthManagerLayerBuilder::new(backend, session_layer).build();
 
-        let router = if let Some(n) = rate_limit_per_user {
+        if let Some(n) = rate_limit_per_user {
           let burst = n.max(1);
           let mut builder = GovernorConfigBuilder::default();
           builder.per_second(1).burst_size(burst);
-          let mut builder2 = builder.key_extractor(crate::rate_limit::RequesterOrgKeyExtractor::<B>::new());
-          let conf = builder2
-            .finish()
-            .expect("GovernorConfigBuilder per-user");
+          let mut builder2 =
+            builder.key_extractor(crate::rate_limit::RequesterOrgKeyExtractor::<B>::new());
+          let conf = builder2.finish().expect("GovernorConfigBuilder per-user");
           router
             .layer(GovernorLayer::new(Arc::new(conf)))
             .layer(auth_layer)
         } else {
           router.layer(auth_layer)
-        };
-
-        router
+        }
       })
     }));
     self
@@ -240,9 +241,25 @@ impl App {
     self
   }
 
-  /// Consumes the App and returns the underlying Axum router.
-  /// This is useful for testing or for manual server management.
-  pub async fn into_router(self) -> Router {
+  /// Register a cron task that runs on the given schedule (in-process when [`.serve`](Self::serve) is used).
+  /// The task receives the app's database connection. No external cron library; uses Interval / Hourly / Daily.
+  pub fn with_cron<F, Fut>(mut self, name: &str, schedule: CronSchedule, f: F) -> Self
+  where
+    F: Fn(DatabaseConnection) -> Fut + Send + Sync + 'static,
+    Fut: std::future::Future<Output = Result<(), Box<dyn std::error::Error + Send + Sync>>>
+      + Send
+      + 'static,
+  {
+    let task: CronTaskBox = Box::new(move |db| Box::pin(f(db)));
+    self.cron_tasks.push((name.to_string(), schedule, task));
+    self
+  }
+
+  /// Consumes the App and returns the underlying Axum router and optionally a cron runner.
+  /// When cron tasks are registered, the second element is `Some((db, runner))` so [`.serve`](Self::serve) can spawn them.
+  /// For tests that only need the router, use `let (router, _) = app.into_router().await`.
+  /// The returned router has state applied and is `Router<()>`, so it can be used with `into_make_service_with_connect_info`.
+  pub async fn into_router(self) -> (Router<()>, Option<(DatabaseConnection, CronRunner)>) {
     // Initialize tracing subscriber if not already initialized
     Self::init_tracing();
 
@@ -255,6 +272,7 @@ impl App {
       auth_installer,
       rate_limit_per_ip,
       rate_limit_per_user,
+      cron_tasks,
     } = self;
 
     // Initialize database
@@ -311,23 +329,37 @@ impl App {
     };
 
     // Inject database connection into state
-    router.with_state(db_conn)
+    let router = router.with_state(db_conn.clone());
+    let cron_runner = if cron_tasks.is_empty() {
+      None
+    } else {
+      Some((
+        db_conn,
+        CronRunner {
+          tasks: cron_tasks,
+          job_pool_url: config.database.url.clone(),
+        },
+      ))
+    };
+    (router, cron_runner)
   }
 
   /// Start the server and serve the application.
-  pub async fn serve(self) -> Result<(), Box<dyn std::error::Error>> {
+  pub async fn serve(self) -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
     let host = self.config.server.host.clone();
     let port = self.config.server.port;
     let addr = format!("{}:{}", host, port);
 
-    let router = self.into_router().await;
+    let (router, cron_runner) = self.into_router().await;
+    if let Some((db, runner)) = cron_runner {
+      runner.spawn(db);
+    }
 
     match Self::bind_listener(&addr).await {
       Ok(listener) => {
         Self::log_server_start(&host, port);
 
-        let maker = router
-          .into_make_service_with_connect_info::<std::net::SocketAddr>();
+        let maker = router.into_make_service_with_connect_info::<std::net::SocketAddr>();
         match axum::serve(listener, maker)
           .with_graceful_shutdown(Self::shutdown_signal())
           .await
@@ -548,11 +580,12 @@ url = "sqlite::memory:"
       setup_test_config(temp_dir.path(), "health_test");
 
       let app = App::new();
-      let router = app.into_router().await;
+      let (router, _) = app.into_router().await;
       let listener = tokio::net::TcpListener::bind("127.0.0.1:0").await.unwrap();
       let port = listener.local_addr().unwrap().port();
+      let maker = router.into_make_service_with_connect_info::<std::net::SocketAddr>();
       tokio::spawn(async move {
-        axum::serve(listener, router).await
+        let _ = axum::serve(listener, maker).await;
       });
 
       tokio::time::sleep(std::time::Duration::from_millis(100)).await;
@@ -560,7 +593,11 @@ url = "sqlite::memory:"
       let client = reqwest::Client::new();
       let base = format!("http://127.0.0.1:{}", port);
       for path in ["/healthz", "/livez", "/readyz"] {
-        let resp = client.get(format!("{}{}", base, path)).send().await.unwrap();
+        let resp = client
+          .get(format!("{}{}", base, path))
+          .send()
+          .await
+          .unwrap();
         assert!(resp.status().is_success(), "{}: {}", path, resp.status());
         let body = resp.text().await.unwrap();
         assert_eq!(body.trim(), "ok", "{} body: {:?}", path, body);

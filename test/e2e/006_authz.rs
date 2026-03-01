@@ -239,7 +239,7 @@ auto_seed = false
       },
     );
 
-  let router = app.into_router().await;
+  let (router, _) = app.into_router().await;
 
   // 1. Login as User A
   let response = router
