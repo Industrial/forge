@@ -5,6 +5,15 @@ use std::fs;
 use std::path::Path;
 use std::process::Command;
 
+/// Directories that must not be copied into new projects (local caches, etc.).
+fn should_skip_dir(rel_path: &Path) -> bool {
+  rel_path
+    .components()
+    .next()
+    .map(|c| c.as_os_str() == ".devenv")
+    .unwrap_or(false)
+}
+
 static TEMPLATE: Dir<'_> = include_dir::include_dir!("$CARGO_MANIFEST_DIR/templates/default");
 
 pub fn create_new_project(name: &str) -> Result<(), Box<dyn std::error::Error>> {
@@ -60,6 +69,9 @@ fn copy_template_dir(
 
     match entry {
       DirEntry::Dir(d) => {
+        if should_skip_dir(rel_path) {
+          continue;
+        }
         fs::create_dir_all(&dest_path)?;
         copy_template_dir(d.entries(), dest, project_name, forge_path)?;
       }

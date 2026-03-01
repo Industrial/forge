@@ -121,4 +121,37 @@ pub async fn ws_demo_page(
   // Pass maybe_user by value (not .as_ref()) for Rust 2024 lifetime rules.
   inertia_shared::render_with_shared(i, session, maybe_user, "Pages/WsDemo", json!({ "wsUrl": "/ws" }))
     .await
+}
+
+pub async fn photos_page(
+  i: Inertia,
+  session: Session,
+  OptionalRequireAuth(maybe_user): OptionalRequireAuth<Backend>,
+  State(_state): State<AppState>,
+) -> impl IntoResponse {
+  tracing::debug!(target: "app::handlers", "route: GET /photos");
+  inertia_shared::render_with_shared(i, session, maybe_user, "Pages/Photos", json!({}))
+    .await
+}
+
+pub async fn ideas_page(
+  i: Inertia,
+  session: Session,
+  OptionalRequireAuth(maybe_user): OptionalRequireAuth<Backend>,
+  State(_state): State<AppState>,
+) -> impl IntoResponse {
+  tracing::debug!(target: "app::handlers", "route: GET /ideas");
+  inertia_shared::render_with_shared(i, session, maybe_user, "Pages/Ideas", json!({}))
+    .await
+}
+
+pub async fn files_page(
+  i: Inertia,
+  session: Session,
+  OptionalRequireAuth(maybe_user): OptionalRequireAuth<Backend>,
+  State(_state): State<AppState>,
+) -> impl IntoResponse {
+  tracing::debug!(target: "app::handlers", "route: GET /files");
+  inertia_shared::render_with_shared(i, session, maybe_user, "Pages/Files", json!({}))
+    .await
 } 

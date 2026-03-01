@@ -83,6 +83,9 @@ async fn main() -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
     .route("/register", get(handlers::inertia::register_page))
     .route("/dashboard", get(handlers::inertia::dashboard))
     .route("/ws-demo", get(handlers::inertia::ws_demo_page))
+    .route("/photos", get(handlers::inertia::photos_page))
+    .route("/ideas", get(handlers::inertia::ideas_page))
+    .route("/files", get(handlers::inertia::files_page))
     .with_state(app_state);
 
   let inertia_router = if db_conn.get_database_backend() == DbBackend::Sqlite {

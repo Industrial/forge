@@ -1,5 +1,10 @@
-import React from 'react';
+import { Content, Heading, InlineAlert, Text } from '@react-spectrum/s2';
+import { style } from '@react-spectrum/s2/style' with { type: 'macro' };
 import { usePage } from '@inertiajs/react';
+import React from 'react';
+import AppShell from './AppShell';
+import Navbar from './Navbar';
+import Sidebar from './Sidebar';
 
 type SharedProps = {
   auth: { user: { id: string; email: string } | null };
@@ -9,29 +14,53 @@ type SharedProps = {
 
 type LayoutProps = { children: React.ReactNode };
 
+function pathnameToSidebarActiveKey(pathname: string): string | undefined {
+  if (pathname === '/' || pathname === '') return 'home';
+  if (pathname.startsWith('/photos')) return 'photos';
+  if (pathname.startsWith('/ideas')) return 'ideas';
+  return undefined;
+}
+
 export default function Layout({ children }: LayoutProps) {
-  const { auth, flash } = usePage().props as SharedProps;
+  const page = usePage();
+  const { auth, flash, appName } = page.props as SharedProps;
+  const pathname =
+    typeof page.url === 'string'
+      ? (() => {
+          try {
+            return new URL(page.url, 'http://_').pathname;
+          } catch {
+            return '/';
+          }
+        })()
+      : '/';
+  const sidebarActiveKey = pathnameToSidebarActiveKey(pathname);
 
   return (
-    <main>
-      <header>
-        {auth?.user && (
-          <span>Logged in as {auth.user.email}</span>
-        )}
-      </header>
-      <article>
-        {flash?.message && (
-          <div className="alert alert-success" role="alert">
-            {flash.message}
-          </div>
-        )}
-        {flash?.error && (
-          <div className="alert alert-error" role="alert">
-            {flash.error}
-          </div>
+    <AppShell
+      navbar={
+        <Navbar appName={appName} user={auth?.user ?? undefined} />
+      }
+      sidebar={<Sidebar activeKey={sidebarActiveKey} />}
+    >
+      <div className={style({ display: 'flex', flexDirection: 'column', gap: 16, margin: 16 })}>
+        {(flash?.message ?? flash?.error) != null && (
+          <>
+            {flash.message != null && (
+              <InlineAlert variant="positive">
+                <Content>{flash.message}</Content>
+              </InlineAlert>
+            )}
+            {flash.error != null && (
+              <InlineAlert variant="negative">
+                <Heading>Error</Heading>
+                <Content>{flash.error}</Content>
+              </InlineAlert>
+            )}
+          </>
         )}
         {children}
-      </article>
-    </main>
+      </div>
+    </AppShell>
   );
 }
