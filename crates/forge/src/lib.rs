@@ -4,6 +4,7 @@
 
 pub mod app;
 pub mod audit;
+pub mod security_headers;
 pub mod auth;
 pub mod authz;
 pub mod config;

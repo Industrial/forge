@@ -68,3 +68,7 @@ path = "011_jobs.rs"
 [[test]]
 name = "012_api_tokens"
 path = "012_api_tokens.rs"
+
+[[test]]
+name = "013_security"
+path = "013_security.rs"

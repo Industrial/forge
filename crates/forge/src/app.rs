@@ -24,6 +24,7 @@ use tracing::{info, warn};
 use crate::config::{self, ForgeConfig};
 use crate::cron::{CronRunner, CronSchedule, CronTaskBox};
 use crate::db;
+use crate::security_headers;
 use crate::token_auth::TokenAuthLayer;
 use crate::token_auth::TokenLookupFn;
 
@@ -195,6 +196,7 @@ impl App {
 
           let session_layer = SessionManagerLayer::new(session_store)
             .with_secure(false)
+            .with_same_site(tower_sessions::cookie::SameSite::Lax)
             .with_expiry(Expiry::OnInactivity(
               tower_sessions::cookie::time::Duration::days(30),
             ));
@@ -367,6 +369,11 @@ impl App {
     } else {
       router.merge(health_routes)
     };
+
+    // OWASP-aligned security headers on all responses (after merge so health routes are included)
+    router = router.layer(
+      tower::util::MapResponseLayer::new(security_headers::add_security_headers),
+    );
 
     // Inject database connection into state
     let router = router.with_state(db_conn.clone());

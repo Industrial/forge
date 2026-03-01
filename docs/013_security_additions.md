@@ -146,30 +146,30 @@ Implement the following for highest alignment with OWASP and modern best practic
 
 ### Phase 1: Low-risk headers (no app logic change)
 
-- [ ] **X-Content-Type-Options: nosniff** — all responses.
-- [ ] **X-Frame-Options: DENY** (or configurable).
-- [ ] **Referrer-Policy: strict-origin-when-cross-origin**.
-- [ ] **Permissions-Policy** — disable unneeded features (e.g. geolocation, camera, microphone).
-- [ ] **Cross-Origin-Resource-Policy: same-site** (or same-origin).
-- [ ] Remove or genericize **Server** / **X-Powered-By** if present.
+- [x] **X-Content-Type-Options: nosniff** — all responses.
+- [x] **X-Frame-Options: DENY** (or configurable).
+- [x] **Referrer-Policy: strict-origin-when-cross-origin**.
+- [x] **Permissions-Policy** — disable unneeded features (e.g. geolocation, camera, microphone).
+- [x] **Cross-Origin-Resource-Policy: same-site** (or same-origin).
+- [x] Remove or genericize **Server** / **X-Powered-By** — stripped from all responses.
 
 ### Phase 2: CSP and framing in CSP
 
-- [ ] **Content-Security-Policy** with at least `default-src 'none'; frame-ancestors 'none';` (or `'self'`) and minimal fetch directives for the app (e.g. `script-src 'self'; connect-src 'self'`). Prefer strict CSP (nonce/hash) for HTML.
-- [ ] Ensure **frame-ancestors** is set so clickjacking is covered by CSP where supported.
+- [x] **Content-Security-Policy** with at least `default-src 'none'; frame-ancestors 'none';` (already set in Phase 1). Stricter directives (e.g. `script-src 'self'`) are app-specific and can break CDNs/inline scripts; use report-only to tune.
+- [x] **frame-ancestors** is set in CSP (clickjacking covered).
 
 ### Phase 3: CSRF
 
-- [ ] **SameSite** on session cookie (`Lax` or `Strict`).
-- [ ] **CSRF token** (synchronizer or signed double-submit, session-bound) for state-changing requests, with validation middleware.
-- [ ] **Fetch Metadata** check for state-changing methods: reject `Sec-Fetch-Site: cross-site` when token is not present; fallback to Origin/Referer when Fetch Metadata absent.
-- [ ] Config to exempt paths (e.g. webhooks, token-authenticated API).
+- [x] **SameSite** on session cookie — Forge sets `SameSite=Lax` on the session cookie when auth is used (tower-sessions default is Strict; we use Lax for better compatibility with top-level navigations).
+- [ ] **CSRF token** (synchronizer or signed double-submit, session-bound) for state-changing requests, with validation middleware. Requires token generation, injection (forms/SPA), and middleware; no single sane default without app cooperation.
+- [ ] **Fetch Metadata** check for state-changing methods: reject `Sec-Fetch-Site: cross-site` when token is not present; fallback to Origin/Referer when Fetch Metadata absent. Goes with CSRF token.
+- [ ] Config to exempt paths (e.g. webhooks, token-authenticated API). Goes with CSRF.
 
 ### Phase 4: HSTS and optional hardening
 
-- [ ] **Strict-Transport-Security** when TLS is mandatory and correctly configured.
-- [ ] **Cross-Origin-Opener-Policy: same-origin** if compatible with app (e.g. no cross-origin popups that need to communicate).
-- [ ] **CSP report-uri** / **report-to** for monitoring and tightening.
+- [ ] **Strict-Transport-Security** — only when TLS is correctly configured; enabling by default on HTTP would be wrong. Sane default: enable only when app config indicates HTTPS (e.g. production + TLS).
+- [x] **Cross-Origin-Opener-Policy: same-origin** — set on all responses (sane default; opt-out possible later if apps need cross-origin popup communication).
+- [ ] **CSP report-uri** / **report-to** — requires a report URL; no framework default without config.
 
 ---
 
@@ -184,4 +184,11 @@ Implement the following for highest alignment with OWASP and modern best practic
 
 ## 7. Status
 
-**Not yet implemented.** Forge currently does not set CSRF protection, X-Frame-Options, CSP, or the full set of OWASP-recommended headers. This document is the design and standard reference for adding them to achieve high security standards.
+**Phases 1–2 and partial 3–4 implemented with sane defaults.** Forge now:
+
+- **Phase 1:** Sets OWASP-recommended headers on all responses (X-Content-Type-Options, X-Frame-Options, Referrer-Policy, CSP with frame-ancestors, Permissions-Policy, Cross-Origin-Resource-Policy), strips Server/X-Powered-By, and sets Cross-Origin-Opener-Policy: same-origin.
+- **Phase 2:** CSP already includes `default-src 'none'; frame-ancestors 'none'`; stricter script/connect directives are app-specific.
+- **Phase 3:** Session cookie uses `SameSite=Lax` when auth is used. CSRF token + Fetch Metadata + exempt paths are not yet implemented (require app-level token injection and config).
+- **Phase 4:** COOP is set. HSTS is not set by default (only safe when TLS is correctly configured). CSP report-uri/report-to require a configured URL.
+
+E2E test `013_security` asserts the security headers. Remaining open work: CSRF token flow, HSTS (opt-in when TLS), and report-uri (opt-in with URL).
