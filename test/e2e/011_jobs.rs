@@ -70,8 +70,8 @@ async fn jobs_layout_config_cron_and_server_with_worker() {
   );
   let body = resp.text().await.unwrap_or_default();
   assert!(
-    body.contains("Hello"),
-    "root route should return Hello from Forge; got: {}",
+    (body.contains("id=\"app\"") || body.contains("id='app'")) && body.contains("Pages/Home"),
+    "root route should return Inertia shell with Pages/Home; got: {}",
     body
   );
 }

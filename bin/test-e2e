@@ -24,6 +24,13 @@ ROOT="$(pwd)"
 echo "> test-e2e > cargo build (e2e_prebuilt)"
 cargo build --manifest-path "$PREBUILT/Cargo.toml"
 
+# 018: Build frontend with bun (Inertia/Vite)
+if [[ -f "$PREBUILT/frontend/package.json" ]]; then
+  echo "> test-e2e > bun install + build (frontend)"
+  (cd "$PREBUILT/frontend" && bun install --frozen-lockfile 2>/dev/null || bun install)
+  (cd "$PREBUILT/frontend" && bun run build)
+fi
+
 # Single config and DB for the whole e2e run (server started once below)
 echo "> test-e2e > writing config (port $E2E_PORT)"
 cat > "$PREBUILT/config/app.toml" <<EOF

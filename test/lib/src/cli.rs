@@ -99,5 +99,8 @@ pub fn assert_project_layout(project_root: &Path) {
     main_rs.contains("App::new()"),
     "main.rs should use App::new()"
   );
-  assert!(main_rs.contains(".serve()"), "main.rs should call .serve()");
+  assert!(
+    main_rs.contains(".serve()") || main_rs.contains("into_router_before_state"),
+    "main.rs should call .serve() or into_router_before_state"
+  );
 }

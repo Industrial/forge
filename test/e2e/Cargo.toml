@@ -90,3 +90,7 @@ path = "016_caching.rs"
 [[test]]
 name = "017_observability"
 path = "017_observability.rs"
+
+[[test]]
+name = "018_inertia"
+path = "018_inertia.rs"

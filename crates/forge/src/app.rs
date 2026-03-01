@@ -302,12 +302,16 @@ impl App {
     self
   }
 
-  /// Consumes the App and returns the underlying Axum router and optionally a cron runner.
-  /// When cron tasks are registered, the second element is `Some((db, runner))` so [`.serve`](Self::serve) can spawn them.
-  /// For tests that only need the router, use `let (router, _) = app.into_router().await`.
-  /// The returned router has state applied and is `Router<()>`, so it can be used with `into_make_service_with_connect_info`.
-  pub async fn into_router(self) -> (Router<()>, Option<(DbConnection, CronRunner)>) {
-    // Initialize tracing subscriber if not already initialized
+  /// Builds the router and returns it **before** applying state and HTTP response cache.
+  /// Used by [`.into_router`](Self::into_router) and by apps that need custom state (e.g. Inertia with `(DbConnection, InertiaConfig)`).
+  async fn build_router_until_state(
+    self,
+  ) -> (
+    Router<DbConnection>,
+    DbConnection,
+    Option<(DbConnection, CronRunner)>,
+    Option<cache_http_layer::HttpResponseCacheLayer>,
+  ) {
     Self::init_tracing();
 
     let App {
@@ -323,7 +327,6 @@ impl App {
       cron_tasks,
     } = self;
 
-    // Initialize database
     info!(
       "Initializing database connection to {}",
       config.database.url
@@ -336,7 +339,6 @@ impl App {
       });
     let db_conn = DbConnection::from(db_conn);
 
-    // Run migrations if enabled and provided
     if config.database.auto_migrate
       && let Some(run_migrations) = migrator
     {
@@ -347,7 +349,6 @@ impl App {
       });
     }
 
-    // Run seeder if enabled and provided
     if config.database.auto_seed
       && let Some(seeder_fn) = seeder
     {
@@ -358,13 +359,11 @@ impl App {
       });
     }
 
-    // Install authentication if configured (and optional per-user rate limit and token auth)
     if let Some(installer) = auth_installer {
       info!("Installing authentication middleware...");
       router = installer(router, db_conn.clone(), rate_limit_per_user, token_lookup).await;
     }
 
-    // Health endpoints: excluded from rate limiting (merged without the layer)
     let health_routes = Router::new()
       .route("/healthz", get(crate::health::healthz))
       .route("/livez", get(crate::health::livez))
@@ -377,19 +376,15 @@ impl App {
       router.merge(health_routes)
     };
 
-    // OWASP-aligned security headers on all responses (after merge so health routes are included)
     router = router.layer(tower::util::MapResponseLayer::new(
       security_headers::add_security_headers,
     ));
 
-    // OpenTelemetry: W3C trace context propagation and request spans (017).
-    // Propagation layer innermost so traceparent is attached just before handlers (not overwritten by OtelAxumLayer).
     router = router
       .layer(observability::TraceContextPropagationLayer)
       .layer(OtelInResponseLayer)
       .layer(OtelAxumLayer::default());
 
-    // Optional application cache: inject into request extensions for handlers (Option<Arc<AppCache>>)
     let app_cache = config
       .cache
       .as_ref()
@@ -406,30 +401,70 @@ impl App {
       },
     ));
 
-    // Inject database connection into state
-    let mut router = router.with_state(db_conn.clone());
-
-    // HTTP response cache: cache full GET responses (layer wraps router)
-    if let Some(cache_cfg) = config.cache.as_ref()
-      && let Some(response_cache_layer) =
-        cache_http_layer::HttpResponseCacheLayer::from_config(cache_cfg)
-    {
-      info!("HTTP response cache enabled");
-      router = router.layer(response_cache_layer);
-    }
+    let response_cache_layer = config.cache.as_ref().and_then(|cache_cfg| {
+      let layer = cache_http_layer::HttpResponseCacheLayer::from_config(cache_cfg);
+      if layer.is_some() {
+        info!("HTTP response cache enabled");
+      }
+      layer
+    });
 
     let cron_runner = if cron_tasks.is_empty() {
       None
     } else {
       Some((
-        db_conn,
+        db_conn.clone(),
         CronRunner {
           tasks: cron_tasks,
           job_pool_url: config.database.url.clone(),
         },
       ))
     };
+
+    (router, db_conn, cron_runner, response_cache_layer)
+  }
+
+  /// Consumes the App and returns the underlying Axum router and optionally a cron runner.
+  /// When cron tasks are registered, the second element is `Some((db, runner))` so [`.serve`](Self::serve) can spawn them.
+  /// For tests that only need the router, use `let (router, _) = app.into_router().await`.
+  /// The returned router has state applied and is `Router<()>`, so it can be used with `into_make_service_with_connect_info`.
+  pub async fn into_router(self) -> (Router<()>, Option<(DbConnection, CronRunner)>) {
+    let (router, db_conn, cron_runner, response_cache_layer) =
+      self.build_router_until_state().await;
+
+    let mut router: Router<()> = router.with_state(db_conn);
+
+    if let Some(layer) = response_cache_layer {
+      router = router.layer(layer);
+    }
+
     (router, cron_runner)
+  }
+
+  /// Returns the router **before** state and HTTP response cache are applied, so you can apply custom state (e.g. `(DbConnection, InertiaConfig)` for [Inertia](https://docs.rs/axum-inertia) apps).
+  ///
+  /// Use this when you need combined app state (e.g. DB + Inertia). Then apply state with `router.with_state((db_conn, inertia_config))`, then apply the returned cache layer if `Some`, then run the server (or use your own `serve` flow).
+  ///
+  /// # Example (Inertia)
+  ///
+  /// ```ignore
+  /// let (router, db_conn, cron_runner, response_cache) = app.into_router_before_state().await;
+  /// let inertia = build_inertia_config(&config); // vite dev or prod
+  /// let router = router.with_state((db_conn.clone(), inertia));
+  /// if let Some(cache) = response_cache {
+  ///     router = router.layer(cache);
+  /// }
+  /// // run server with router; spawn cron_runner if desired
+  /// ```
+  pub async fn into_router_before_state(
+    self,
+  ) -> (
+    Router<DbConnection>,
+    DbConnection,
+    Option<(DbConnection, CronRunner)>,
+    Option<cache_http_layer::HttpResponseCacheLayer>,
+  ) {
+    self.build_router_until_state().await
   }
 
   /// Start the server and serve the application.
@@ -506,29 +541,35 @@ impl App {
 
   /// Create a future that completes when a shutdown signal is received.
   async fn shutdown_signal() {
-    let ctrl_c = signal::ctrl_c();
-    let terminate = async {
-      #[cfg(unix)]
-      {
-        signal::unix::signal(signal::unix::SignalKind::terminate())
-          .expect("failed to install signal handler")
-          .recv()
-          .await;
-      }
-      #[cfg(not(unix))]
-      {
-        std::future::pending::<()>().await;
-      }
-    };
+    shutdown_signal_future().await;
+  }
+}
 
-    tokio::select! {
-      _ = ctrl_c => {
-        info!("Received Ctrl+C signal, initiating graceful shutdown");
-      },
-      _ = terminate => {
-        info!("Received SIGTERM signal, initiating graceful shutdown");
-      },
+/// Public shutdown signal for custom server loops (e.g. Inertia apps using `into_router_before_state`).
+/// Completes when Ctrl+C or SIGTERM is received.
+pub async fn shutdown_signal_future() {
+  let ctrl_c = signal::ctrl_c();
+  let terminate = async {
+    #[cfg(unix)]
+    {
+      signal::unix::signal(signal::unix::SignalKind::terminate())
+        .expect("failed to install signal handler")
+        .recv()
+        .await;
     }
+    #[cfg(not(unix))]
+    {
+      std::future::pending::<()>().await;
+    }
+  };
+
+  tokio::select! {
+    _ = ctrl_c => {
+      info!("Received Ctrl+C signal, initiating graceful shutdown");
+    },
+    _ = terminate => {
+      info!("Received SIGTERM signal, initiating graceful shutdown");
+    },
   }
 }
 

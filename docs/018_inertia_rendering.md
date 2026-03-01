@@ -178,4 +178,4 @@ Until then, use the **AppState + FromRef** pattern above and assemble the router
 
 ## Status
 
-**Documentation only.** Forge does not yet add axum-inertia or a `with_inertia` helper. This document describes how to use **axum-inertia** with Vite and how to combine its state with Forge’s **DatabaseConnection** in your app.
+**Forge:** `into_router_before_state()` is available so apps can apply custom state (e.g. `(DbConnection, InertiaConfig)`). Forge does not add axum-inertia as a dependency; your app adds it and uses the pattern above. The scaffold (018.2–018.4) generates a Vite+Inertia frontend with combined state, demo SPA pages (Home, Auth, WebSocket, Dashboard), and E2E tests; use **bun** for the frontend build (`bun install`, `bun run build`).

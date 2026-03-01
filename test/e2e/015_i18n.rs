@@ -1,11 +1,12 @@
-//! E2E test for Forge i18n (015): locales layout, GET / (localized), Accept-Language resolution.
-//! Run via `bin/test-e2e`. One test: layout, locale files, en-US and de responses.
+//! E2E test for Forge i18n (015): locales layout, GET / (Inertia Home with locale prop), Accept-Language.
+//! Run via `bin/test-e2e`. One test: layout, locale files, en-US and de in Inertia page props.
 
 use std::time::Duration;
 
 use forge_e2e_lib::cli;
 
-/// Single E2E test: prebuilt layout, locales dir with en-US and de, GET / respects Accept-Language.
+/// Single E2E test: prebuilt layout, locales dir with en-US and de, GET / returns Inertia HTML
+/// with locale prop from Accept-Language.
 #[tokio::test]
 async fn e2e_prebuilt_i18n_layout_and_accept_language() {
   let project_root = cli::prebuilt_project_root();
@@ -49,6 +50,7 @@ async fn e2e_prebuilt_i18n_layout_and_accept_language() {
     .build()
     .unwrap();
 
+  // GET / with Accept-Language en-US: Inertia shell with Pages/Home and locale "en-US" in props
   let en_resp = client
     .get(base.clone())
     .header("Accept-Language", "en-US,en;q=0.9")
@@ -58,11 +60,17 @@ async fn e2e_prebuilt_i18n_layout_and_accept_language() {
   assert!(en_resp.status().is_success(), "GET / (en) must succeed");
   let en_body = en_resp.text().await.expect("body");
   assert!(
-    en_body.contains("Hello") && en_body.contains("World"),
-    "en response should contain Hello and World; got {:?}",
+    en_body.contains("id=\"app\"") || en_body.contains("id='app'"),
+    "en response should contain Inertia app root; got {:?}",
+    en_body
+  );
+  assert!(
+    en_body.contains("Pages/Home") && en_body.contains("en-US"),
+    "en response should contain Pages/Home and locale en-US in props; got {:?}",
     en_body
   );
 
+  // GET / with Accept-Language de: locale "de" in page props
   let de_resp = client
     .get(base.clone())
     .header("Accept-Language", "de,en;q=0.9")
@@ -71,12 +79,15 @@ async fn e2e_prebuilt_i18n_layout_and_accept_language() {
     .expect("GET / de");
   assert!(de_resp.status().is_success(), "GET / (de) must succeed");
   let de_body = de_resp.text().await.expect("body");
+  // In HTML, page props are escaped (e.g. &quot;de&quot;) so check for locale value in context
   assert!(
-    de_body.contains("Hallo") && de_body.contains("World"),
-    "de response should contain Hallo and World; got {:?}",
+    de_body.contains("Pages/Home")
+      && (de_body.contains("\"de\"") || de_body.contains("locale&quot;:&quot;de")),
+    "de response should contain Pages/Home and locale de in props; got {:?}",
     de_body
   );
 
+  // Fallback: no Accept-Language -> default locale in props
   let fallback_resp = client.get(base).send().await.expect("GET / no header");
   assert!(
     fallback_resp.status().is_success(),
@@ -84,8 +95,8 @@ async fn e2e_prebuilt_i18n_layout_and_accept_language() {
   );
   let fallback_body = fallback_resp.text().await.expect("body");
   assert!(
-    fallback_body.contains("Hello"),
-    "fallback should be English; got {:?}",
+    fallback_body.contains("Pages/Home"),
+    "fallback should return Inertia Home; got {:?}",
     fallback_body
   );
 }

@@ -20,6 +20,9 @@ pub fn create_new_project(name: &str) -> Result<(), Box<dyn std::error::Error>> 
   fs::create_dir_all(project_dir.join("crates/db/src/seeds"))?;
   fs::create_dir_all(project_dir.join("crates/db/src/models"))?;
   fs::create_dir_all(project_dir.join("config"))?;
+  // 018: Inertia + Vite frontend (bun)
+  fs::create_dir_all(project_dir.join("frontend/src/pages"))?;
+  fs::create_dir_all(project_dir.join("frontend/public"))?;
 
   // Get the absolute path to the forge crate relative to this executable
   let exe_path = std::env::current_exe().unwrap();
@@ -65,6 +68,10 @@ fluent = "0.16"
 fluent-templates = "0.13"
 accept-language = "3.1"
 unic-langid = "0.9"
+axum-inertia = "0.9"
+serde_json = "1.0"
+tower-http = {{ version = "0.6", features = ["fs"] }}
+tracing = "0.1"
 "#,
     forge_crate_path.display()
   );
@@ -116,16 +123,26 @@ Thumbs.db
 *.db
 *.sqlite
 *.sqlite3
+
+# Frontend (018)
+frontend/node_modules/
+frontend/dist/
 "#;
   fs::write(project_dir.join(".gitignore"), gitignore)?;
 
-  // Create crates/app/src/main.rs
+  // Create crates/app/src/main.rs (018: Inertia + into_router_before_state)
   let main_rs = r#"use std::time::Duration;
 
-use forge::{App, CronSchedule};
+use axum::routing::get;
+use axum_inertia::{vite, InertiaConfig};
 use db::auth::Backend;
+use forge::{App, CronSchedule};
+use tower_http::services::ServeDir;
 
 mod handlers;
+mod state;
+
+use state::AppState;
 
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
@@ -144,8 +161,11 @@ async fn main() -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
     app
   };
 
-  app
-    .route("/", handlers::i18n::hello)
+  let is_production = app.config().app.environment.eq_ignore_ascii_case("production");
+  let host = app.config().server.host.clone();
+  let port = app.config().server.port;
+
+  let app = app
     .route("/api/cache-demo", handlers::cache_demo::handler)
     .route("/api/cached-page", handlers::cached_page::handler)
     .route("/api/observability/trace-id", handlers::observability::trace_id)
@@ -155,17 +175,382 @@ async fn main() -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
     .route("/api/auth/logout", handlers::auth::logout)
     .route("/api/auth/profile", handlers::auth::profile)
     .post_route("/api/auth/tokens", handlers::auth::create_token)
-    .route("/api/auth/admin", handlers::auth::admin_only)
-    .serve()
-    .await
+    .route("/api/auth/admin", handlers::auth::admin_only);
+
+  let (router, db_conn, cron_runner, response_cache) = app.into_router_before_state().await;
+
+  let inertia: InertiaConfig = if is_production {
+    vite::Production::new("frontend/dist/.vite/manifest.json", "src/main.tsx")
+      .map_err(|e| format!("Inertia production config: {}", e))?
+      .lang("en")
+      .title("App")
+      .into_config()
+  } else {
+    vite::Development::default()
+      .port(5173)
+      .main("src/main.tsx")
+      .lang("en")
+      .title("App")
+      .react()
+      .into_config()
+  };
+
+  let api_router = router.with_state(db_conn.clone());
+  let inertia_router = axum::Router::new()
+    .route("/", get(handlers::inertia::home))
+    .route("/login", get(handlers::inertia::login_page))
+    .route("/register", get(handlers::inertia::register_page))
+    .route("/dashboard", get(handlers::inertia::dashboard))
+    .route("/ws-demo", get(handlers::inertia::ws_demo_page))
+    .with_state(AppState {
+      db: db_conn,
+      inertia,
+    });
+  let mut router = api_router.merge(inertia_router);
+
+  if let Some(cache_layer) = response_cache {
+    router = router.layer(cache_layer);
+  }
+
+  if is_production {
+    router = router.nest_service("/assets", ServeDir::new("frontend/dist"));
+  }
+
+  if let Some((db, runner)) = cron_runner {
+    runner.spawn(db);
+  }
+
+  let addr = format!("{}:{}", host, port);
+  let listener = tokio::net::TcpListener::bind(&addr).await?;
+  tracing::info!("Forge server running on http://{}", addr);
+  axum::serve(listener, router.into_make_service_with_connect_info::<std::net::SocketAddr>())
+    .with_graceful_shutdown(forge::app::shutdown_signal_future())
+    .await?;
+  Ok(())
 }
 "#;
   fs::write(project_dir.join("crates/app/src/main.rs"), main_rs)?;
 
+  // Create crates/app/src/state.rs (018: shared state for Inertia with FromRef)
+  let state_rs = r#"use axum::extract::FromRef;
+use axum_inertia::InertiaConfig;
+use forge::DbConnection;
+
+/// Combined state for Inertia routes so both DbConnection and InertiaConfig can be extracted.
+#[derive(Clone)]
+pub struct AppState {
+  pub db: DbConnection,
+  pub inertia: InertiaConfig,
+}
+
+impl FromRef<AppState> for DbConnection {
+  fn from_ref(input: &AppState) -> DbConnection {
+    input.db.clone()
+  }
+}
+
+impl FromRef<AppState> for InertiaConfig {
+  fn from_ref(input: &AppState) -> InertiaConfig {
+    input.inertia.clone()
+  }
+}
+"#;
+  fs::write(project_dir.join("crates/app/src/state.rs"), state_rs)?;
+
   // Create crates/app/src/handlers/mod.rs
   fs::write(
     project_dir.join("crates/app/src/handlers/mod.rs"),
-    "pub mod auth;\npub mod cache_demo;\npub mod cached_page;\npub mod i18n;\npub mod observability;\npub mod ws;",
+    "pub mod auth;\npub mod cache_demo;\npub mod cached_page;\npub mod i18n;\npub mod inertia;\npub mod observability;\npub mod ws;",
+  )?;
+
+  // Create crates/app/src/handlers/inertia.rs (018: Inertia page handlers)
+  let inertia_rs = r#"use axum::{extract::State, response::IntoResponse};
+use axum::http::header::ACCEPT_LANGUAGE;
+use axum::http::HeaderMap;
+use axum_inertia::Inertia;
+use serde_json::json;
+
+use crate::state::AppState;
+
+const SUPPORTED: &[&str] = &["en-US", "de"];
+
+fn resolve_locale(headers: &HeaderMap) -> String {
+  let header = headers
+    .get(ACCEPT_LANGUAGE)
+    .and_then(|v| v.to_str().ok())
+    .unwrap_or("en-US");
+  let chosen = accept_language::intersection(header, SUPPORTED);
+  chosen
+    .first()
+    .map(|s| s.as_str().to_string())
+    .unwrap_or_else(|| "en-US".to_string())
+}
+
+pub async fn home(
+  i: Inertia,
+  headers: HeaderMap,
+  State(_state): State<AppState>,
+) -> impl IntoResponse {
+  let locale = resolve_locale(&headers);
+  i.render("Pages/Home", json!({ "locale": locale }))
+}
+
+pub async fn login_page(i: Inertia, State(_state): State<AppState>) -> impl IntoResponse {
+  i.render("Pages/Auth/Login", json!({}))
+}
+
+pub async fn register_page(i: Inertia, State(_state): State<AppState>) -> impl IntoResponse {
+  i.render("Pages/Auth/Register", json!({}))
+}
+
+pub async fn dashboard(i: Inertia, State(_state): State<AppState>) -> impl IntoResponse {
+  i.render("Pages/Dashboard", json!({ "message": "Welcome to the dashboard" }))
+}
+
+pub async fn ws_demo_page(i: Inertia, State(_state): State<AppState>) -> impl IntoResponse {
+  i.render("Pages/WsDemo", json!({ "wsUrl": "/ws" }))
+}
+"#;
+  fs::write(
+    project_dir.join("crates/app/src/handlers/inertia.rs"),
+    inertia_rs,
+  )?;
+
+  // --- 018: Frontend (Vite + React + Inertia, bun) ---
+  let frontend_package_json = r#"{
+  "name": "app-frontend",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "vite",
+    "build": "vite build",
+    "preview": "vite preview"
+  },
+  "dependencies": {
+    "@inertiajs/react": "^1.0.0",
+    "react": "^18.2.0",
+    "react-dom": "^18.2.0"
+  },
+  "devDependencies": {
+    "@types/react": "^18.2.0",
+    "@types/react-dom": "^18.2.0",
+    "@vitejs/plugin-react": "^4.2.0",
+    "typescript": "^5.0.0",
+    "vite": "^5.0.0"
+  }
+}
+"#;
+  fs::write(
+    project_dir.join("frontend/package.json"),
+    frontend_package_json,
+  )?;
+
+  let frontend_vite_config = r#"import { defineConfig } from 'vite';
+import react from '@vitejs/plugin-react';
+
+export default defineConfig({
+  plugins: [react()],
+  base: '/assets/',
+  root: '.',
+  build: {
+    outDir: 'dist',
+    emptyOutDir: true,
+    manifest: true,
+    rollupOptions: {
+      input: 'src/main.tsx',
+    },
+  },
+  server: {
+    port: 5173,
+    strictPort: true,
+    origin: 'http://localhost:5173',
+  },
+});
+"#;
+  fs::write(
+    project_dir.join("frontend/vite.config.ts"),
+    frontend_vite_config,
+  )?;
+
+  let frontend_index_html = r#"<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>App</title>
+  </head>
+  <body>
+    <div id="app"></div>
+    <script type="module" src="/src/main.tsx"></script>
+  </body>
+</html>
+"#;
+  fs::write(project_dir.join("frontend/index.html"), frontend_index_html)?;
+
+  let frontend_main_tsx = r#"import { createInertiaApp } from '@inertiajs/react';
+import React from 'react';
+import { createRoot } from 'react-dom/client';
+
+createInertiaApp({
+  resolve: (name) => {
+    const pages = import.meta.glob('./pages/**/*.tsx', { eager: true });
+    const path = `./pages/${name.replace(/^Pages\//, '').replace(/\./g, '/')}.tsx`;
+    const mod = pages[path];
+    if (!mod) throw new Error(`Page not found: ${name}`);
+    return mod;
+  },
+  setup({ el, App, props }) {
+    createRoot(el).render(<App {...props} />);
+  },
+});
+"#;
+  fs::write(project_dir.join("frontend/src/main.tsx"), frontend_main_tsx)?;
+
+  let frontend_pages_home = r#"import React from 'react';
+
+type Props = { locale: string };
+
+export default function Home({ locale }: Props) {
+  return (
+    <div>
+      <h1>Home</h1>
+      <p>Locale: {locale}</p>
+      <nav>
+        <a href="/login">Login</a> | <a href="/register">Register</a> | <a href="/dashboard">Dashboard</a> | <a href="/ws-demo">WebSocket</a>
+      </nav>
+    </div>
+  );
+}
+"#;
+  fs::write(
+    project_dir.join("frontend/src/pages/Home.tsx"),
+    frontend_pages_home,
+  )?;
+
+  fs::create_dir_all(project_dir.join("frontend/src/pages/Auth"))?;
+
+  let frontend_pages_login = r#"import React, { useState } from 'react';
+import { router } from '@inertiajs/react';
+
+export default function Login() {
+  const [email, setEmail] = useState('');
+  const [password, setPassword] = useState('');
+
+  const submit = (e: React.FormEvent) => {
+    e.preventDefault();
+    router.post('/api/auth/login', { email, password });
+  };
+
+  return (
+    <div>
+      <h1>Login</h1>
+      <form onSubmit={submit}>
+        <input type="email" value={email} onChange={(e) => setEmail(e.target.value)} placeholder="Email" required />
+        <input type="password" value={password} onChange={(e) => setPassword(e.target.value)} placeholder="Password" required />
+        <button type="submit">Log in</button>
+      </form>
+      <a href="/register">Register</a> | <a href="/">Home</a>
+    </div>
+  );
+}
+"#;
+  fs::write(
+    project_dir.join("frontend/src/pages/Auth/Login.tsx"),
+    frontend_pages_login,
+  )?;
+
+  let frontend_pages_register = r#"import React, { useState } from 'react';
+import { router } from '@inertiajs/react';
+
+export default function Register() {
+  const [email, setEmail] = useState('');
+  const [password, setPassword] = useState('');
+
+  const submit = (e: React.FormEvent) => {
+    e.preventDefault();
+    router.post('/api/auth/register', { email, password });
+  };
+
+  return (
+    <div>
+      <h1>Register</h1>
+      <form onSubmit={submit}>
+        <input type="email" value={email} onChange={(e) => setEmail(e.target.value)} placeholder="Email" required />
+        <input type="password" value={password} onChange={(e) => setPassword(e.target.value)} placeholder="Password" required />
+        <button type="submit">Register</button>
+      </form>
+      <a href="/login">Login</a> | <a href="/">Home</a>
+    </div>
+  );
+}
+"#;
+  fs::write(
+    project_dir.join("frontend/src/pages/Auth/Register.tsx"),
+    frontend_pages_register,
+  )?;
+
+  let frontend_pages_dashboard = r#"import React from 'react';
+
+type Props = { message: string };
+
+export default function Dashboard({ message }: Props) {
+  return (
+    <div>
+      <h1>Dashboard</h1>
+      <p>{message}</p>
+      <nav>
+        <a href="/">Home</a> | <a href="/login">Login</a> | <a href="/ws-demo">WebSocket</a>
+      </nav>
+    </div>
+  );
+}
+"#;
+  fs::write(
+    project_dir.join("frontend/src/pages/Dashboard.tsx"),
+    frontend_pages_dashboard,
+  )?;
+
+  let frontend_pages_ws_demo = r#"import React, { useState, useEffect, useRef } from 'react';
+
+type Props = { wsUrl: string };
+
+export default function WsDemo({ wsUrl }: Props) {
+  const [messages, setMessages] = useState<string[]>([]);
+  const [input, setInput] = useState('');
+  const wsRef = useRef<WebSocket | null>(null);
+
+  useEffect(() => {
+    const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
+    const url = `${protocol}//${window.location.host}${wsUrl}`;
+    const ws = new WebSocket(url);
+    wsRef.current = ws;
+    ws.onmessage = (e) => setMessages((m) => [...m, e.data]);
+    ws.onclose = () => (wsRef.current = null);
+    return () => { ws.close(); };
+  }, [wsUrl]);
+
+  const send = () => {
+    if (wsRef.current?.readyState === WebSocket.OPEN && input.trim()) {
+      wsRef.current.send(input);
+      setInput('');
+    }
+  };
+
+  return (
+    <div>
+      <h1>WebSocket Demo</h1>
+      <p>Connected to {wsUrl}. Type and send messages.</p>
+      <input value={input} onChange={(e) => setInput(e.target.value)} onKeyDown={(e) => e.key === 'Enter' && send()} />
+      <button onClick={send}>Send</button>
+      <ul>{messages.map((msg, i) => <li key={i}>{msg}</li>)}</ul>
+      <a href="/">Home</a>
+    </div>
+  );
+}
+"#;
+  fs::write(
+    project_dir.join("frontend/src/pages/WsDemo.tsx"),
+    frontend_pages_ws_demo,
   )?;
 
   // Create config/cache.toml (application + HTTP response cache config)
@@ -179,7 +564,7 @@ default_ttl_secs = 300
 [http_response]
 enabled = true
 default_ttl_secs = 60
-no_cache_paths = ["/", "/api/auth", "/api/observability", "/healthz", "/livez", "/readyz"]
+no_cache_paths = ["/", "/login", "/register", "/dashboard", "/ws-demo", "/api/auth", "/api/observability", "/healthz", "/livez", "/readyz"]
 "#;
   fs::write(project_dir.join("config").join("cache.toml"), cache_toml)?;
 
@@ -262,52 +647,9 @@ pub async fn trace_id(req: Request) -> impl IntoResponse {
     "greeting = Hallo, { $name }!\n",
   )?;
 
-  // Create crates/app/src/handlers/i18n.rs (locale from Accept-Language, /hello)
-  let i18n_rs = r#"use axum::{
-  extract::State,
-  http::{header::ACCEPT_LANGUAGE, HeaderMap},
-  response::IntoResponse,
-};
-use fluent_templates::{fluent_bundle::FluentValue, Loader, static_loader};
-use std::borrow::Cow;
-use std::collections::HashMap;
-use unic_langid::LanguageIdentifier;
-
-use forge::DbConnection;
-
-static_loader! {
-    static LOCALES = {
-        locales: "./locales",
-        fallback_language: "en-US",
-    };
-}
-
-const SUPPORTED: &[&str] = &["en-US", "de"];
-
-fn resolve_locale(accept_language: Option<&str>) -> LanguageIdentifier {
-    let header = accept_language.unwrap_or("en-US");
-    let chosen = accept_language::intersection(header, SUPPORTED);
-    let tag = chosen.first().map(|s| s.as_str()).unwrap_or("en-US");
-    tag.parse().unwrap_or_else(|_| "en-US".parse().unwrap())
-}
-
-pub async fn hello(
-    State(_db): State<DbConnection>,
-    headers: HeaderMap,
-) -> impl IntoResponse {
-    let value = headers.get(ACCEPT_LANGUAGE).and_then(|v| v.to_str().ok());
-    let locale = resolve_locale(value);
-    let mut args = HashMap::new();
-    args.insert(Cow::Borrowed("name"), FluentValue::String(Cow::Borrowed("World")));
-    let text = LOCALES
-        .try_lookup_with_args(&locale, "greeting", &args)
-        .unwrap_or_else(|| {
-            LOCALES
-                .try_lookup_with_args(LOCALES.fallback(), "greeting", &args)
-                .unwrap_or_else(|| "Hello, World!".into())
-        });
-    axum::response::Html(text)
-}
+  // Create crates/app/src/handlers/i18n.rs (stub; locale for Inertia pages is in handlers::inertia)
+  let i18n_rs = r#"//! i18n: locale for Inertia pages is resolved in `handlers::inertia` from Accept-Language.
+//! Use this module for API routes that need server-side translation (e.g. fluent_templates).
 "#;
   fs::write(project_dir.join("crates/app/src/handlers/i18n.rs"), i18n_rs)?;
 
