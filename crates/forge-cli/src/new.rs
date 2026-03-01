@@ -14,6 +14,8 @@ pub fn create_new_project(name: &str) -> Result<(), Box<dyn std::error::Error>> 
 
   // Create workspace structure
   fs::create_dir_all(project_dir.join("crates/app/src/handlers"))?;
+  fs::create_dir_all(project_dir.join("crates/app/locales/en-US"))?;
+  fs::create_dir_all(project_dir.join("crates/app/locales/de"))?;
   fs::create_dir_all(project_dir.join("crates/db/src/migrations"))?;
   fs::create_dir_all(project_dir.join("crates/db/src/seeds"))?;
   fs::create_dir_all(project_dir.join("crates/db/src/models"))?;
@@ -59,6 +61,10 @@ sea-orm = {{ version = "1.1", features = ["runtime-tokio-rustls", "sqlx-sqlite",
 chrono = {{ version = "0.4", features = ["serde"] }}
 uuid = {{ version = "1.0", features = ["v4", "serde"] }}
 validator = {{ version = "0.20", features = ["derive"] }}
+fluent = "0.16"
+fluent-templates = "0.13"
+accept-language = "3.1"
+unic-langid = "0.9"
 "#,
     forge_crate_path.display()
   );
@@ -139,7 +145,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
   };
 
   app
-    .route("/", || async { "Hello from Forge!" })
+    .route("/", handlers::i18n::hello)
     .route("/ws", handlers::ws::handler)
     .post_route("/api/auth/register", handlers::auth::register)
     .post_route("/api/auth/login", handlers::auth::login)
@@ -156,8 +162,67 @@ async fn main() -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
   // Create crates/app/src/handlers/mod.rs
   fs::write(
     project_dir.join("crates/app/src/handlers/mod.rs"),
-    "pub mod auth;\npub mod ws;",
+    "pub mod auth;\npub mod i18n;\npub mod ws;",
   )?;
+
+  // Create crates/app/locales/en-US/main.ftl and de/main.ftl (i18n)
+  fs::write(
+    project_dir.join("crates/app/locales/en-US/main.ftl"),
+    "greeting = Hello, { $name }!\n",
+  )?;
+  fs::write(
+    project_dir.join("crates/app/locales/de/main.ftl"),
+    "greeting = Hallo, { $name }!\n",
+  )?;
+
+  // Create crates/app/src/handlers/i18n.rs (locale from Accept-Language, /hello)
+  let i18n_rs = r#"use axum::{
+  extract::State,
+  http::{header::ACCEPT_LANGUAGE, HeaderMap},
+  response::IntoResponse,
+};
+use fluent_templates::{fluent_bundle::FluentValue, Loader, static_loader};
+use std::borrow::Cow;
+use std::collections::HashMap;
+use unic_langid::LanguageIdentifier;
+
+use forge::sea_orm::DatabaseConnection;
+
+static_loader! {
+    static LOCALES = {
+        locales: "./locales",
+        fallback_language: "en-US",
+    };
+}
+
+const SUPPORTED: &[&str] = &["en-US", "de"];
+
+fn resolve_locale(accept_language: Option<&str>) -> LanguageIdentifier {
+    let header = accept_language.unwrap_or("en-US");
+    let chosen = accept_language::intersection(header, SUPPORTED);
+    let tag = chosen.first().map(|s| s.as_str()).unwrap_or("en-US");
+    tag.parse().unwrap_or_else(|_| "en-US".parse().unwrap())
+}
+
+pub async fn hello(
+    State(_db): State<DatabaseConnection>,
+    headers: HeaderMap,
+) -> impl IntoResponse {
+    let value = headers.get(ACCEPT_LANGUAGE).and_then(|v| v.to_str().ok());
+    let locale = resolve_locale(value);
+    let mut args = HashMap::new();
+    args.insert(Cow::Borrowed("name"), FluentValue::String(Cow::Borrowed("World")));
+    let text = LOCALES
+        .try_lookup_with_args(&locale, "greeting", &args)
+        .unwrap_or_else(|| {
+            LOCALES
+                .try_lookup_with_args(LOCALES.fallback(), "greeting", &args)
+                .unwrap_or_else(|| "Hello, World!".into())
+        });
+    axum::response::Html(text)
+}
+"#;
+  fs::write(project_dir.join("crates/app/src/handlers/i18n.rs"), i18n_rs)?;
 
   // Create crates/app/src/handlers/ws.rs (WebSocket echo for real-time /ws)
   let ws_rs = r#"use axum::{
