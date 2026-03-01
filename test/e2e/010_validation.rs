@@ -6,8 +6,11 @@ use std::time::Duration;
 
 use forge_e2e_lib::cli;
 
-#[test]
-fn prebuilt_project_has_auth_routes_in_main() {
+/// Single E2E test: prebuilt auth routes in main and register/login validation (422 for invalid).
+/// 1. Asserts project layout and main.rs contains /api/auth/register.
+/// 2. Invalid register → 422 with error details; valid register → success; invalid login → 422.
+#[tokio::test]
+async fn e2e_prebuilt_validation_layout_and_422() {
   let project_root = cli::prebuilt_project_root();
   assert!(
     project_root.exists(),
@@ -21,10 +24,7 @@ fn prebuilt_project_has_auth_routes_in_main() {
     main_rs.contains("/api/auth/register"),
     "generated main.rs must contain /api/auth/register"
   );
-}
 
-#[tokio::test]
-async fn prebuilt_server_register_and_login_validation_422_for_invalid() {
   let base = cli::e2e_base_url().expect("run e2e via bin/test-e2e (E2E_BASE_URL not set)");
   let client = reqwest::Client::builder()
     .timeout(Duration::from_secs(5))

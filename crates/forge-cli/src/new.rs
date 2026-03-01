@@ -114,7 +114,9 @@ Thumbs.db
   fs::write(project_dir.join(".gitignore"), gitignore)?;
 
   // Create crates/app/src/main.rs
-  let main_rs = r#"use forge::App;
+  let main_rs = r#"use std::time::Duration;
+
+use forge::{App, CronSchedule};
 use db::auth::Backend;
 
 mod handlers;
@@ -124,7 +126,8 @@ async fn main() -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
   let app = App::new()
     .with_migrations(db::Migrator)
     .with_seed(|db| Box::pin(db::run_seeds(db)))
-    .with_auth(|db| Backend::new(db));
+    .with_auth(|db| Backend::new(db))
+    .with_cron("heartbeat", CronSchedule::Interval(Duration::from_secs(60)), |_db| async move { Ok(()) });
 
   let app = if app.config().app.environment.eq_ignore_ascii_case("production") {
     app
