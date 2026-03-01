@@ -371,9 +371,9 @@ impl App {
     };
 
     // OWASP-aligned security headers on all responses (after merge so health routes are included)
-    router = router.layer(
-      tower::util::MapResponseLayer::new(security_headers::add_security_headers),
-    );
+    router = router.layer(tower::util::MapResponseLayer::new(
+      security_headers::add_security_headers,
+    ));
 
     // Inject database connection into state
     let router = router.with_state(db_conn.clone());

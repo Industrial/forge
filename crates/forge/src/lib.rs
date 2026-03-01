@@ -4,7 +4,6 @@
 
 pub mod app;
 pub mod audit;
-pub mod security_headers;
 pub mod auth;
 pub mod authz;
 pub mod config;
@@ -14,6 +13,7 @@ pub mod error;
 pub mod health;
 pub mod jobs;
 pub mod rate_limit;
+pub mod security_headers;
 pub mod seed;
 pub mod token_auth;
 pub mod validation;

@@ -13,7 +13,9 @@ fn assert_header(resp: &reqwest::Response, name: &str, expected_substr: &str) {
     .and_then(|v| v.to_str().ok())
     .unwrap_or("");
   assert!(
-    value.to_lowercase().contains(&expected_substr.to_lowercase()),
+    value
+      .to_lowercase()
+      .contains(&expected_substr.to_lowercase()),
     "header {} should contain {:?}, got {:?}",
     name,
     expected_substr,
