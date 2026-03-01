@@ -61,10 +61,13 @@ let inertia = vite::Production::new(
 .into_config();
 ```
 
-Choose at runtime (e.g. via `APP_ENV` or `NODE_ENV`):
+Choose at runtime using your Forge configuration’s **environment** option (`config/app.toml`):
 
 ```rust
-let is_production = std::env::var("APP_ENV").as_deref() == Ok("production");
+use forge::config;
+
+let config = config::load_config().expect("config");
+let is_production = config.app.environment.eq_ignore_ascii_case("production");
 
 let inertia = if is_production {
     vite::Production::new("dist/.vite/manifest.json", "src/main.ts")
@@ -82,6 +85,8 @@ let inertia = if is_production {
         .into_config()
 };
 ```
+
+Set `[app] environment = "production"` in `config/app.toml` for production; use `"development"` (or `"test"`) for dev.
 
 ## App state: combining Forge and Inertia
 
