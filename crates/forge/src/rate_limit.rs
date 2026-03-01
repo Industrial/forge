@@ -4,7 +4,6 @@
 //! Per-requester (per user per organization) uses `RequesterOrgKeyExtractor`,
 //! which reads `AuthSession` from request extensions (set by axum-login's layer).
 
-use axum::http::StatusCode;
 use axum_login::{AuthSession, AuthnBackend};
 use tower_governor::{errors::GovernorError, key_extractor::KeyExtractor};
 
@@ -21,8 +20,9 @@ pub struct RequesterOrgKey {
 /// Extracts `(organization_id, user_id)` from `AuthSession` in request extensions.
 /// Used for rate limiting per requester (per user, per organization).
 ///
-/// Requires auth to be installed so that `AuthSession<B>` is in extensions.
-/// If there is no session or no user, returns `GovernorError` with 401.
+/// Authenticated requests are keyed by (org_id, user_id). Unauthenticated requests
+/// use a sentinel key `(None, nil)` so they are rate-limited in a single bucket
+/// but not rejected (register/login must work without auth).
 #[derive(Clone, Debug)]
 pub struct RequesterOrgKeyExtractor<B> {
   /// Phantom data for the backend type `B` (no runtime value).
@@ -51,22 +51,18 @@ where
   type Key = RequesterOrgKey;
 
   fn extract<T>(&self, req: &axum::http::Request<T>) -> Result<Self::Key, GovernorError> {
-    let auth = req
+    let key = req
       .extensions()
       .get::<AuthSession<B>>()
-      .ok_or_else(|| GovernorError::Other {
-        code: StatusCode::UNAUTHORIZED,
-        msg: Some("Rate limit requires authentication".to_string()),
-        headers: None,
-      })?;
-    let user = auth.user.as_ref().ok_or_else(|| GovernorError::Other {
-      code: StatusCode::UNAUTHORIZED,
-      msg: Some("Rate limit requires authenticated user".to_string()),
-      headers: None,
-    })?;
-    Ok(RequesterOrgKey {
-      organization_id: user.organization_id(),
-      user_id: user.requester_id(),
-    })
+      .and_then(|auth| auth.user.as_ref())
+      .map(|user| RequesterOrgKey {
+        organization_id: user.organization_id(),
+        user_id: user.requester_id(),
+      })
+      .unwrap_or(RequesterOrgKey {
+        organization_id: None,
+        user_id: uuid::Uuid::nil(),
+      });
+    Ok(key)
   }
 }

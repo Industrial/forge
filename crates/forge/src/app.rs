@@ -147,7 +147,7 @@ impl App {
   /// Enable per-requester (per user, per organization) rate limiting.
   /// Only has effect when [`.with_auth`](Self::with_auth) is also used. Limits are applied
   /// per (organization_id, user_id) so individual users in an org can be throttled.
-  /// Unauthenticated requests to rate-limited routes receive 401.
+  /// Unauthenticated requests share a single rate-limit bucket so register/login work.
   pub fn with_rate_limit_per_user(mut self, requests_per_minute: u32) -> Self {
     self.rate_limit_per_user = Some(requests_per_minute.max(1));
     self

@@ -50,26 +50,7 @@ async fn e2e_prebuilt_audit_migration_and_events() {
     admin_no_auth.status()
   );
 
-  tokio::time::sleep(Duration::from_millis(100)).await;
-
   let db_path = cli::e2e_db_path(&project_root);
-  if db_path.exists() && status != 404 {
-    let conn = rusqlite::Connection::open(&db_path).unwrap();
-    let mut stmt = conn
-      .prepare(
-        "SELECT event_kind, outcome FROM audit_log WHERE event_kind = 'authz' AND outcome = 'denied'",
-      )
-      .unwrap();
-    let denied: Vec<(String, String)> = stmt
-      .query_map([], |r| Ok((r.get(0)?, r.get(1)?)))
-      .unwrap()
-      .map(|r| r.unwrap())
-      .collect();
-    assert!(
-      !denied.is_empty(),
-      "expected at least one authz denied event"
-    );
-  }
 
   let email = format!(
     "audit-{}@test.com",
@@ -166,6 +147,11 @@ async fn e2e_prebuilt_audit_migration_and_events() {
   assert!(
     rows.iter().any(|(k, o, _)| k == "authz" && o == "allowed"),
     "expected authz allowed event; rows: {:?}",
+    rows
+  );
+  assert!(
+    rows.iter().any(|(k, o, _)| k == "authz" && o == "denied"),
+    "expected at least one authz denied event (e.g. unauthed GET /api/auth/admin); rows: {:?}",
     rows
   );
 
