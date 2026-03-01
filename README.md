@@ -1,4 +1,4 @@
-# Forge
+# 🔥 Forge
 
 **A full-stack web framework for Rust** — batteries-included, convention over configuration, and built for getting from zero to shipped without the boilerplate. Think Django or Rails, but with Rust’s speed, safety, and async-first stack.
 
