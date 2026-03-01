@@ -11,6 +11,7 @@ pub fn add_security_headers<B>(mut res: Response<B>) -> Response<B> {
   res
 }
 
+/// Inserts or removes OWASP-recommended security headers in the given map (used by [`add_security_headers`]).
 fn add_security_headers_to_map(headers: &mut HeaderMap) {
   // OWASP: reduce fingerprinting — remove or genericize server-identifying headers
   headers.remove(HeaderName::from_static("server"));

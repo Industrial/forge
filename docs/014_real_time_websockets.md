@@ -104,6 +104,9 @@ To push events from in-process pub/sub (e.g. `tokio::sync::broadcast`), create a
 
 ## Status
 
-**Implemented:** Forge enables Axum’s `ws` and `sse` features. Application code can register WebSocket and SSE handlers using the patterns above. No Forge-specific real-time API layer is provided; use Axum’s APIs directly.
+**Implemented:** Forge enables Axum’s `ws` feature. Application code can register WebSocket (and SSE, if the app adds the `sse` feature) handlers using the patterns above. No Forge-specific real-time API layer is provided; use Axum’s APIs directly.
+
+- **Scaffold:** `forge new` generates an app with a `/ws` route and an echo handler (`handlers::ws::handler`) so new projects can use WebSockets out of the box. The app’s `axum` dependency includes the `ws` feature.
+- **E2E:** Test `014_websockets` connects to `ws://base/ws`, sends a text message, and asserts the echo response.
 
 **Not in scope (this document):** Redis Pub/Sub, multi-node scaling, or typed WebSocket message crates. Those can be added at the application layer.

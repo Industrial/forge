@@ -53,7 +53,7 @@ forge = {{ path = "{}" }}
 db = {{ path = "../db" }}
 tokio = {{ version = "1", features = ["full"] }}
 serde = {{ version = "1.0", features = ["derive"] }}
-axum = "0.8"
+axum = {{ version = "0.8", features = ["ws"] }}
 axum-login = "0.17"
 sea-orm = {{ version = "1.1", features = ["runtime-tokio-rustls", "sqlx-sqlite", "macros"] }}
 chrono = {{ version = "0.4", features = ["serde"] }}
@@ -140,6 +140,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
 
   app
     .route("/", || async { "Hello from Forge!" })
+    .route("/ws", handlers::ws::handler)
     .post_route("/api/auth/register", handlers::auth::register)
     .post_route("/api/auth/login", handlers::auth::login)
     .route("/api/auth/logout", handlers::auth::logout)
@@ -155,8 +156,32 @@ async fn main() -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
   // Create crates/app/src/handlers/mod.rs
   fs::write(
     project_dir.join("crates/app/src/handlers/mod.rs"),
-    "pub mod auth;",
+    "pub mod auth;\npub mod ws;",
   )?;
+
+  // Create crates/app/src/handlers/ws.rs (WebSocket echo for real-time /ws)
+  let ws_rs = r#"use axum::{
+  extract::ws::{WebSocket, WebSocketUpgrade},
+  response::Response,
+};
+
+pub async fn handler(ws: WebSocketUpgrade) -> Response {
+  ws.on_upgrade(handle_socket)
+}
+
+async fn handle_socket(mut socket: WebSocket) {
+  while let Some(msg) = socket.recv().await {
+    let msg = match msg {
+      Ok(m) => m,
+      Err(_) => return,
+    };
+    if socket.send(msg).await.is_err() {
+      return;
+    }
+  }
+}
+"#;
+  fs::write(project_dir.join("crates/app/src/handlers/ws.rs"), ws_rs)?;
 
   // Create crates/app/src/handlers/auth.rs
   let auth_handlers_rs = r#"use axum::{

@@ -20,6 +20,8 @@ uuid = { version = "1", features = ["v4", "serde"] }
 async-trait = "0.1"
 dashmap = "6"
 rusqlite = "0.32"
+tokio-tungstenite = { version = "0.24", features = ["native-tls"] }
+futures-util = "0.3"
 
 [[test]]
 name = "001_cli"
@@ -72,3 +74,7 @@ path = "012_api_tokens.rs"
 [[test]]
 name = "013_security"
 path = "013_security.rs"
+
+[[test]]
+name = "014_websockets"
+path = "014_websockets.rs"
