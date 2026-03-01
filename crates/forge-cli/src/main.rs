@@ -322,15 +322,20 @@ mod tests {
       let result = create_new_project(project_name);
       assert!(result.is_ok());
 
-      // Then: main.rs should have correct Forge app code (explicit imports)
+      // Then: main.rs should have correct Forge app code (explicit imports, cron)
       let main_content = fs::read_to_string("main_test/crates/app/src/main.rs").unwrap();
-      assert!(main_content.contains("use forge::App;"));
+      assert!(
+        main_content.contains("use forge::") && main_content.contains("App"),
+        "generated app should use explicit forge imports"
+      );
       assert!(
         !main_content.contains("forge::prelude"),
         "generated app should use explicit imports"
       );
       assert!(main_content.contains("App::new()"));
       assert!(main_content.contains(".with_migrations(db::Migrator)"));
+      assert!(main_content.contains(".with_cron"));
+      assert!(main_content.contains("CronSchedule"));
       assert!(main_content.contains(".post_route"));
       assert!(main_content.contains(".route(\"/api/auth/admin\""));
       assert!(main_content.contains(".serve()"));
