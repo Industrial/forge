@@ -112,10 +112,7 @@ function App() {
 						<Route index element={<DashboardPage />} />
 						<Route path="organizations" element={<OrganizationsPage />} />
 						<Route path="users" element={<UsersPage />} />
-						<Route
-							path="roles-and-permissions"
-							element={<PermissionsPage />}
-						/>
+						<Route path="roles-and-permissions" element={<PermissionsPage />} />
 					</Route>
 					<Route
 						path="/profile"

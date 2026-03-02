@@ -77,39 +77,20 @@ export default function Sidebar({ expanded, onToggle }: SidebarProps) {
 					width: 240,
 				})
 			: style({
-					width: 52,
+					width: 72,
 				}),
 		"dashboard-sidebar",
 	].join(" ");
 
 	return (
 		<aside className={asideClassNames} aria-label="Dashboard navigation">
-			<div
-				className={[
-					style({
-						display: "flex",
-						alignItems: "center",
-						paddingBlockEnd: 8,
-						marginBlockEnd: 8,
-					}),
-					expanded
-						? "dashboard-toggle-bar--expanded"
-						: "dashboard-toggle-bar--collapsed",
-				].join(" ")}
-			>
-				<ActionButton
-					isQuiet
-					aria-label={expanded ? "Collapse sidebar" : "Expand sidebar"}
-					onPress={onToggle}
-				>
-					{expanded ? <ChevronLeftIcon /> : <ChevronRightIcon />}
-				</ActionButton>
-			</div>
 			<nav
 				className={style({
 					display: "flex",
 					flexDirection: "column",
 					gap: 4,
+					flexGrow: 1,
+					minHeight: 0,
 				})}
 			>
 				{navItems.map(({ to, label, end, icon: Icon }) => (
@@ -132,6 +113,27 @@ export default function Sidebar({ expanded, onToggle }: SidebarProps) {
 					</NavLink>
 				))}
 			</nav>
+			<div
+				className={[
+					style({
+						display: "flex",
+						alignItems: "center",
+						paddingBlock: 8,
+					}),
+					expanded
+						? "dashboard-toggle-bar--expanded"
+						: "dashboard-toggle-bar--collapsed",
+				].join(" ")}
+			>
+				<ActionButton
+					isQuiet
+					aria-label={expanded ? "Collapse sidebar" : "Expand sidebar"}
+					size="M"
+					onPress={onToggle}
+				>
+					{expanded ? <ChevronLeftIcon /> : <ChevronRightIcon />}
+				</ActionButton>
+			</div>
 		</aside>
 	);
 }
