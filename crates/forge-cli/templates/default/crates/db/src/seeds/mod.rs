@@ -1,1 +1,2 @@
 pub mod s20220101_000001_seed_users;
+pub mod s20220101_000002_seed_role_permissions;

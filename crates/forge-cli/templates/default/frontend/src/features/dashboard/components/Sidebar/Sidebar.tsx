@@ -11,21 +11,36 @@ import Dashboard from "@mui/icons-material/Dashboard";
 import Business from "@mui/icons-material/Business";
 import People from "@mui/icons-material/People";
 import Lock from "@mui/icons-material/Lock";
+import { useSession } from "../../../../context/Session";
 
-const navItems = [
-	{ to: "/dashboard", label: "Dashboard", end: true, icon: Dashboard },
+const NAV_ITEMS = [
+	{
+		to: "/dashboard",
+		label: "Dashboard",
+		end: true,
+		icon: Dashboard,
+		permission: "dashboard",
+	},
 	{
 		to: "/dashboard/organizations",
 		label: "Organizations",
 		end: false,
 		icon: Business,
+		permission: "dashboard.organizations",
 	},
-	{ to: "/dashboard/users", label: "Users", end: false, icon: People },
+	{
+		to: "/dashboard/users",
+		label: "Users",
+		end: false,
+		icon: People,
+		permission: "dashboard.users",
+	},
 	{
 		to: "/dashboard/roles-and-permissions",
 		label: "Permissions",
 		end: false,
 		icon: Lock,
+		permission: "dashboard.permissions.manage",
 	},
 ] as const;
 
@@ -36,6 +51,10 @@ export type SidebarProps = {
 
 export default function Sidebar({ expanded, onToggle }: SidebarProps) {
 	const width = expanded ? 240 : 72;
+	const { permissions } = useSession();
+	const navItems = NAV_ITEMS.filter((item) =>
+		permissions.includes(item.permission),
+	);
 
 	return (
 		<Box

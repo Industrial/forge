@@ -8,6 +8,7 @@ import Layout from "./layouts/Layout";
 import DashboardLayout from "./features/dashboard/layouts/DashboardLayout/DashboardLayout";
 import AuthenticationLayout from "./features/authentication/layouts/AuthenticationLayout/AuthenticationLayout";
 import ProtectedRoute from "./components/ProtectedRoute";
+import DashboardPermissionGuard from "./components/DashboardPermissionGuard";
 import LoginPage from "./features/authentication/pages/LoginPage/LoginPage";
 import RegisterPage from "./features/authentication/pages/RegisterPage/RegisterPage";
 import HomePage from "./features/home/pages/HomePage/HomePage";
@@ -95,10 +96,38 @@ function App() {
 							</ProtectedRoute>
 						}
 					>
-						<Route index element={<DashboardPage />} />
-						<Route path="organizations" element={<OrganizationsPage />} />
-						<Route path="users" element={<UsersPage />} />
-						<Route path="roles-and-permissions" element={<PermissionsPage />} />
+						<Route
+							index
+							element={
+								<DashboardPermissionGuard permission="dashboard">
+									<DashboardPage />
+								</DashboardPermissionGuard>
+							}
+						/>
+						<Route
+							path="organizations"
+							element={
+								<DashboardPermissionGuard permission="dashboard.organizations">
+									<OrganizationsPage />
+								</DashboardPermissionGuard>
+							}
+						/>
+						<Route
+							path="users"
+							element={
+								<DashboardPermissionGuard permission="dashboard.users">
+									<UsersPage />
+								</DashboardPermissionGuard>
+							}
+						/>
+						<Route
+							path="roles-and-permissions"
+							element={
+								<DashboardPermissionGuard permission="dashboard.permissions.manage">
+									<PermissionsPage />
+								</DashboardPermissionGuard>
+							}
+						/>
 					</Route>
 					<Route
 						path="/profile"

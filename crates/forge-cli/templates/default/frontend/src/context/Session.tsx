@@ -19,6 +19,7 @@ export type Profile = {
 export type SessionState = {
 	user: SessionUser | null;
 	profiles: Profile[];
+	permissions: string[];
 	flash: Flash | null;
 	loading: boolean;
 	refresh: () => Promise<void>;
@@ -35,14 +36,16 @@ export function useSession(): SessionState {
 async function fetchSession(): Promise<{
 	user: SessionUser | null;
 	profiles: Profile[];
+	permissions: string[];
 	flash: Flash | null;
 }> {
 	const res = await fetch("/api/auth/session", { credentials: "include" });
-	if (!res.ok) return { user: null, profiles: [], flash: null };
+	if (!res.ok) return { user: null, profiles: [], permissions: [], flash: null };
 	const data = await res.json();
 	return {
 		user: data.user ?? null,
 		profiles: Array.isArray(data.profiles) ? data.profiles : [],
+		permissions: Array.isArray(data.permissions) ? data.permissions : [],
 		flash:
 			data.flash && (data.flash.message != null || data.flash.error != null)
 				? data.flash
@@ -53,23 +56,27 @@ async function fetchSession(): Promise<{
 export function SessionProvider({ children }: { children: React.ReactNode }) {
 	const [user, setUser] = useState<SessionUser | null>(null);
 	const [profiles, setProfiles] = useState<Profile[]>([]);
+	const [permissions, setPermissions] = useState<string[]>([]);
 	const [flash, setFlash] = useState<Flash | null>(null);
 	const [loading, setLoading] = useState(true);
 
 	const refresh = useCallback(async () => {
-		const { user: u, profiles: p, flash: f } = await fetchSession();
+		const { user: u, profiles: p, permissions: perm, flash: f } =
+			await fetchSession();
 		setUser(u);
 		setProfiles(p);
+		setPermissions(perm);
 		setFlash(f);
 	}, []);
 
 	useEffect(() => {
 		let cancelled = false;
 		fetchSession()
-			.then(({ user: u, profiles: p, flash: f }) => {
+			.then(({ user: u, profiles: p, permissions: perm, flash: f }) => {
 				if (!cancelled) {
 					setUser(u);
 					setProfiles(p);
+					setPermissions(perm);
 					setFlash(f);
 					setLoading(false);
 				}
@@ -78,6 +85,7 @@ export function SessionProvider({ children }: { children: React.ReactNode }) {
 				if (!cancelled) {
 					setUser(null);
 					setProfiles([]);
+					setPermissions([]);
 					setFlash(null);
 					setLoading(false);
 				}
@@ -88,7 +96,9 @@ export function SessionProvider({ children }: { children: React.ReactNode }) {
 	}, []);
 
 	return (
-		<SessionContext.Provider value={{ user, profiles, flash, loading, refresh }}>
+		<SessionContext.Provider
+			value={{ user, profiles, permissions, flash, loading, refresh }}
+		>
 			{children}
 		</SessionContext.Provider>
 	);

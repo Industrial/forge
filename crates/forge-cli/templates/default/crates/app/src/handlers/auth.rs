@@ -20,7 +20,37 @@ use uuid::Uuid;
 use validator::Validate;
 
 use db::auth::Backend;
-use db::models::{api_token, membership, organization, user};
+use db::models::{api_token, membership, organization, role_permission, user};
+
+/// Code-defined dashboard permission keys. Used for resolution and for listing in APIs.
+pub const DASHBOARD_PERMISSIONS: &[&str] = &[
+  "dashboard",
+  "dashboard.organizations",
+  "dashboard.users",
+  "dashboard.permissions.manage",
+];
+
+/// Resolves the list of permission keys for the current user. Global admin gets all; otherwise org role's permissions from `role_permission`.
+pub async fn resolve_permissions(db: &DbConnection, user: &user::Model) -> Vec<String> {
+  if user.is_admin {
+    return DASHBOARD_PERMISSIONS
+      .iter()
+      .map(|s| (*s).to_string())
+      .collect();
+  }
+  let role_name = match user.current_role.as_deref() {
+    Some(r) => r,
+    None => return vec![],
+  };
+  let rows = role_permission::Entity::find()
+    .filter(role_permission::Column::Scope.eq("org"))
+    .filter(role_permission::Column::RoleName.eq(role_name))
+    .all(db)
+    .await
+    .ok()
+    .unwrap_or_default();
+  rows.into_iter().map(|r| r.permission_key).collect()
+}
 
 /// Session keys for one-time flash messages (read once then cleared). No longer set by auth; kept for session_json shape.
 pub const FLASH_MESSAGE: &str = "flash_message";
@@ -319,6 +349,10 @@ pub async fn session_json(
   session.remove::<String>(FLASH_MESSAGE).await.ok();
   session.remove::<String>(FLASH_ERROR).await.ok();
   let user = maybe_user.as_ref().map(|u| serde_json::json!({ "id": u.id.to_string(), "email": u.email }));
+  let permissions: Vec<String> = match &maybe_user {
+    Some(u) => resolve_permissions(&db, u).await,
+    None => vec![],
+  };
   let profiles: Vec<serde_json::Value> = match &maybe_user {
     Some(u) => {
       let memberships = membership::Entity::find()
@@ -358,6 +392,7 @@ pub async fn session_json(
   Json(serde_json::json!({
     "user": user,
     "profiles": profiles,
+    "permissions": permissions,
     "flash": { "message": message, "error": error }
   }))
 }

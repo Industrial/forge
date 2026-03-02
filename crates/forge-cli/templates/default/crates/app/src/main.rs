@@ -48,7 +48,14 @@ async fn main() -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
     .post_route("/api/auth/switch-profile", handlers::auth::switch_profile)
     .route("/api/auth/session", handlers::auth::session_json)
     .post_route("/api/auth/tokens", handlers::auth::create_token)
-    .route("/api/auth/admin", handlers::auth::admin_only);
+    .route("/api/auth/admin", handlers::auth::admin_only)
+    .route("/api/dashboard/permissions", get(handlers::dashboard::list_permissions))
+    .route(
+      "/api/dashboard/role-permissions",
+      get(handlers::dashboard::list_role_permissions)
+        .post(handlers::dashboard::add_role_permission)
+        .delete(handlers::dashboard::delete_role_permission),
+    );
 
   let (router, db_conn, cron_runner, response_cache) = app.into_router_before_state().await;
 

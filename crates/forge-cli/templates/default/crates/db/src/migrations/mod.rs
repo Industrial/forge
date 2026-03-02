@@ -4,3 +4,4 @@ pub mod m20220101_000003_create_organizations_table;
 pub mod m20220101_000004_create_memberships_table;
 pub mod m20220101_000005_create_audit_log_table;
 pub mod m20220101_000006_create_api_tokens_table;
+pub mod m20220101_000007_create_role_permission_table;

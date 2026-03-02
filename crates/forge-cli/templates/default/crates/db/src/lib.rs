@@ -19,12 +19,14 @@ impl MigratorTrait for Migrator {
       Box::new(migrations::m20220101_000004_create_memberships_table::Migration),
       Box::new(migrations::m20220101_000005_create_audit_log_table::Migration),
       Box::new(migrations::m20220101_000006_create_api_tokens_table::Migration),
+      Box::new(migrations::m20220101_000007_create_role_permission_table::Migration),
     ]
   }
 }
 
 pub async fn run_seeds(db: DbConnection) -> Result<(), Box<dyn std::error::Error>> {
   seeds::s20220101_000001_seed_users::seed(&db).await?;
+  seeds::s20220101_000002_seed_role_permissions::seed(&db).await?;
   Ok(())
 }
 
@@ -51,8 +53,8 @@ mod tests {
   use super::*;
 
   #[test]
-  fn migrator_returns_six_migrations() {
+  fn migrator_returns_seven_migrations() {
     let migrations = Migrator::migrations();
-    assert_eq!(migrations.len(), 6);
+    assert_eq!(migrations.len(), 7);
   }
 }
