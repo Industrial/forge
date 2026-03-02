@@ -5,7 +5,7 @@ export default function Login() {
   return (
     <>
       <Heading level={1} styles={style({ font: 'heading-xl' })}>Log in</Heading>
-      <div className={style({ display: 'flex', flexDirection: 'column', gap: 8 })}>
+      <div className={style({ display: 'flex', flexDirection: 'column', gap: 12 })}>
         <Form
           action="/api/auth/login"
           method="post"

@@ -5,7 +5,7 @@ export default function Register() {
   return (
     <>
       <Heading level={1} styles={style({ font: 'heading-xl' })}>Create an account</Heading>
-      <div className={style({ display: 'flex', flexDirection: 'column', gap: 8 })}>
+      <div className={style({ display: 'flex', flexDirection: 'column', gap: 12 })}>
         <Form
           action="/api/auth/register"
           method="post"
