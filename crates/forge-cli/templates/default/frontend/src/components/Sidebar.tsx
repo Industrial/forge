@@ -74,6 +74,7 @@ export default function Sidebar({
         gap: 8,
         paddingBlock: 16,
         width: 64,
+        backgroundColor: 'layer-1',
       })}
       style={{
         minHeight: '100%',

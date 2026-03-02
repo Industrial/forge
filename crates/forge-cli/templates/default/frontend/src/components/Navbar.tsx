@@ -23,6 +23,7 @@ export default function Navbar({ appName = 'My App', user }: NavbarProps) {
         paddingInline: 16,
         paddingBlock: 12,
         minHeight: 48,
+        backgroundColor: 'layer-1',
       })}
       style={{
         borderBottom: '1px solid var(--spectrum-gray-200)',

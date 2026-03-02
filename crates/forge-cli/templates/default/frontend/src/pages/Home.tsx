@@ -12,11 +12,11 @@ export default function Home({ locale, greeting }: Props) {
         <Heading level={1}>{greeting}</Heading>
         <Text>Locale: {locale}</Text>
         <div className={style({ display: 'flex', flexDirection: 'row', gap: 16, flexWrap: 'wrap' })}>
-          <Link href="/login">Login</Link>
-          <Link href="/register">Register</Link>
-          <Link href="/dashboard">Dashboard</Link>
-          <Link href="/photos">Photos</Link>
-          <Link href="/ws-demo">WebSocket</Link>
+          <Link href="/login" isQuiet>Login</Link>
+          <Link href="/register" isQuiet>Register</Link>
+          <Link href="/dashboard" isQuiet>Dashboard</Link>
+          <Link href="/photos" isQuiet>Photos</Link>
+          <Link href="/ws-demo" isQuiet>WebSocket</Link>
         </div>
       </div>
     </Layout>

@@ -1,4 +1,4 @@
-import { Content, Heading, InlineAlert, Text } from '@react-spectrum/s2';
+import { Content, Heading, InlineAlert } from '@react-spectrum/s2';
 import { style } from '@react-spectrum/s2/style' with { type: 'macro' };
 import { usePage } from '@inertiajs/react';
 import React from 'react';
@@ -43,7 +43,17 @@ export default function Layout({ children }: LayoutProps) {
       }
       sidebar={<Sidebar activeKey={sidebarActiveKey} />}
     >
-      <div className={style({ display: 'flex', flexDirection: 'column', gap: 16, margin: 16 })}>
+      <div
+        className={style({
+          display: 'flex',
+          flexDirection: 'column',
+          gap: 16,
+          margin: 16,
+          backgroundColor: 'layer-1',
+          padding: 16,
+          borderRadius: 'default',
+        })}
+      >
         {(flash?.message ?? flash?.error) != null && (
           <>
             {flash.message != null && (
