@@ -10,6 +10,7 @@ import ListItemText from "@mui/material/ListItemText";
 import Menu from "@mui/material/Menu";
 import MenuItem from "@mui/material/MenuItem";
 import Toolbar from "@mui/material/Toolbar";
+import MenuIcon from "@mui/icons-material/Menu";
 import Person from "@mui/icons-material/Person";
 import Logout from "@mui/icons-material/Logout";
 import Business from "@mui/icons-material/Business";
@@ -20,6 +21,7 @@ type NavbarProps = {
 	appName?: string;
 	colorScheme?: "light" | "dark";
 	onToggleTheme?: () => void;
+	onOpenSidebar?: () => void;
 };
 
 function LogoIcon() {
@@ -66,9 +68,11 @@ export default function Navbar({
 	appName = "App",
 	colorScheme = "dark",
 	onToggleTheme,
+	onOpenSidebar,
 }: NavbarProps) {
 	const navigate = useNavigate();
-	const { user, profiles, refresh } = useSession();
+	const { user, profiles, permissions, refresh } = useSession();
+	const canAccessDashboard = permissions.includes("dashboard");
 	const [anchorEl, setAnchorEl] = useState<null | HTMLElement>(null);
 	const open = Boolean(anchorEl);
 
@@ -108,6 +112,16 @@ export default function Navbar({
 	return (
 		<AppBar position="static" color="default" elevation={0}>
 			<Toolbar sx={{ minHeight: { xs: 56, sm: 64 }, gap: 1 }}>
+				{onOpenSidebar != null && (
+					<IconButton
+						color="inherit"
+						aria-label="Open dashboard menu"
+						onClick={onOpenSidebar}
+						sx={{ mr: 0.5 }}
+					>
+						<MenuIcon />
+					</IconButton>
+				)}
 				<Button
 					color="inherit"
 					onClick={() => navigate("/")}
@@ -119,10 +133,14 @@ export default function Navbar({
 
 				<Box sx={{ flexGrow: 1 }} />
 
-				<Button color="inherit" onClick={() => navigate("/dashboard")}>
-					Dashboard
-				</Button>
-				<Divider orientation="vertical" flexItem sx={{ mx: 0.5 }} />
+				{canAccessDashboard && (
+					<>
+						<Button color="inherit" onClick={() => navigate("/dashboard")}>
+							Dashboard
+						</Button>
+						<Divider orientation="vertical" flexItem sx={{ mx: 0.5 }} />
+					</>
+				)}
 				<IconButton
 					color="inherit"
 					aria-label={

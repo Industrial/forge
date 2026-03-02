@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from "react";
+import { getWsUrl } from "@/utils/ws";
 
 export default function WebsocketsDemoPage() {
 	const [message, setMessage] = useState("");
@@ -7,9 +8,7 @@ export default function WebsocketsDemoPage() {
 
 	useEffect(() => {
 		try {
-			const protocol = window.location.protocol === "https:" ? "wss:" : "ws:";
-			const wsUrl = `${protocol}//${window.location.host}/ws`;
-			const ws = new WebSocket(wsUrl);
+			const ws = new WebSocket(getWsUrl());
 			wsRef.current = ws;
 			ws.onmessage = (event) => {
 				if (typeof event.data === "string") {

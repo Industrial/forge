@@ -64,10 +64,14 @@ const NAV_ITEMS = [
 export type SidebarProps = {
 	expanded: boolean;
 	onToggle: () => void;
+	hideToggle?: boolean;
+	disableBorder?: boolean;
+	/** When true, sidebar fills container width (e.g. inside mobile drawer). */
+	fullWidth?: boolean;
 };
 
-export default function Sidebar({ expanded, onToggle }: SidebarProps) {
-	const width = expanded ? 240 : 72;
+export default function Sidebar({ expanded, onToggle, hideToggle = false, disableBorder = false, fullWidth = false }: SidebarProps) {
+	const width = fullWidth ? "100%" : (expanded ? 240 : 72);
 	const { permissions } = useSession();
 	const navItems = NAV_ITEMS.filter((item) =>
 		item.permissions.some((p) => permissions.includes(p)),
@@ -81,8 +85,7 @@ export default function Sidebar({ expanded, onToggle }: SidebarProps) {
 			sx={{
 				width,
 				flexShrink: 0,
-				borderRight: 1,
-				borderColor: "divider",
+				...(disableBorder ? {} : { borderRight: 1, borderColor: "divider" }),
 				bgcolor: "background.paper",
 				display: "flex",
 				flexDirection: "column",
@@ -131,22 +134,24 @@ export default function Sidebar({ expanded, onToggle }: SidebarProps) {
 					</NavLink>
 				))}
 			</List>
-			<Box
-				sx={{
-					display: "flex",
-					alignItems: "center",
-					justifyContent: expanded ? "flex-end" : "center",
-					py: 1,
-				}}
-			>
-				<IconButton
-					aria-label={expanded ? "Collapse sidebar" : "Expand sidebar"}
-					onClick={onToggle}
-					size="small"
+			{!hideToggle && (
+				<Box
+					sx={{
+						display: "flex",
+						alignItems: "center",
+						justifyContent: expanded ? "flex-end" : "center",
+						py: 1,
+					}}
 				>
-					{expanded ? <ChevronLeft /> : <ChevronRight />}
-				</IconButton>
-			</Box>
+					<IconButton
+						aria-label={expanded ? "Collapse sidebar" : "Expand sidebar"}
+						onClick={onToggle}
+						size="small"
+					>
+						{expanded ? <ChevronLeft /> : <ChevronRight />}
+					</IconButton>
+				</Box>
+			)}
 		</Box>
 	);
 }

@@ -9,12 +9,16 @@ import Select from "@mui/material/Select";
 import Table from "@mui/material/Table";
 import TableBody from "@mui/material/TableBody";
 import TableCell from "@mui/material/TableCell";
+import TableContainer from "@mui/material/TableContainer";
 import TableHead from "@mui/material/TableHead";
 import TableRow from "@mui/material/TableRow";
+import TablePagination from "@mui/material/TablePagination";
+import Paper from "@mui/material/Paper";
 import IconButton from "@mui/material/IconButton";
 import DeleteIcon from "@mui/icons-material/Delete";
 import Alert from "@mui/material/Alert";
 import CircularProgress from "@mui/material/CircularProgress";
+import { useTablePaginationDefaults } from "@/hooks/useTablePaginationDefaults";
 
 type Assignment = {
 	scope: string;
@@ -37,6 +41,9 @@ export default function PermissionsPage() {
 	const [addPermission, setAddPermission] = useState<string>("");
 	const [adding, setAdding] = useState(false);
 	const [deletingKey, setDeletingKey] = useState<string | null>(null);
+	const { defaultRowsPerPage, rowsPerPageOptions } = useTablePaginationDefaults();
+	const [page, setPage] = useState(0);
+	const [rowsPerPage, setRowsPerPage] = useState(defaultRowsPerPage);
 
 	const fetchData = useCallback(async () => {
 		setError(null);
@@ -75,6 +82,18 @@ export default function PermissionsPage() {
 	useEffect(() => {
 		fetchData();
 	}, [fetchData]);
+
+	// Sync rowsPerPage when breakpoint default changes (e.g. window resize)
+	useEffect(() => {
+		setRowsPerPage(defaultRowsPerPage);
+		setPage(0);
+	}, [defaultRowsPerPage]);
+
+	// Reset page if it goes out of range (e.g. after deleting items)
+	useEffect(() => {
+		const maxPage = Math.max(0, Math.ceil(assignments.length / rowsPerPage) - 1);
+		if (page > maxPage) setPage(maxPage);
+	}, [assignments.length, rowsPerPage, page]);
 
 	const handleAdd = async () => {
 		if (!addScope || !addRole || !addPermission) return;
@@ -143,6 +162,20 @@ export default function PermissionsPage() {
 	};
 
 	const roles = addScope === "global" ? [...GLOBAL_ROLES] : [...ORG_ROLES];
+
+	const handleChangePage = (_: unknown, newPage: number) => {
+		setPage(newPage);
+	};
+
+	const handleChangeRowsPerPage = (e: React.ChangeEvent<HTMLInputElement>) => {
+		setRowsPerPage(parseInt(e.target.value, 10));
+		setPage(0);
+	};
+
+	const paginatedAssignments = assignments.slice(
+		page * rowsPerPage,
+		page * rowsPerPage + rowsPerPage,
+	);
 
 	if (loading) {
 		return (
@@ -234,43 +267,58 @@ export default function PermissionsPage() {
 				</Button>
 			</Box>
 
-			<Table size="small">
-				<TableHead>
-					<TableRow>
-						<TableCell>Scope</TableCell>
-						<TableCell>Role</TableCell>
-						<TableCell>Permission</TableCell>
-						<TableCell align="right">Actions</TableCell>
-					</TableRow>
-				</TableHead>
-				<TableBody>
-					{assignments.map((a) => {
-						const key = [a.scope, a.role_name, a.permission_key, a.org_id ?? ""].join(":");
-						return (
-							<TableRow key={key}>
-								<TableCell>{a.scope}</TableCell>
-								<TableCell>{a.role_name}</TableCell>
-								<TableCell>{a.permission_key}</TableCell>
-								<TableCell align="right">
-									<IconButton
-										size="small"
-										aria-label="Remove"
-										onClick={() => handleDelete(a)}
-										disabled={deletingKey === key}
-									>
-										<DeleteIcon />
-									</IconButton>
+			<TableContainer component={Paper}>
+				<Table size="small" aria-label="Role–permission assignments">
+					<TableHead>
+						<TableRow>
+							<TableCell>Scope</TableCell>
+							<TableCell>Role</TableCell>
+							<TableCell>Permission</TableCell>
+							<TableCell align="right">Actions</TableCell>
+						</TableRow>
+					</TableHead>
+					<TableBody>
+						{paginatedAssignments.length === 0 ? (
+							<TableRow>
+								<TableCell colSpan={4} align="center">
+									No assignments yet. Add one above.
 								</TableCell>
 							</TableRow>
-						);
-					})}
-				</TableBody>
-			</Table>
-			{assignments.length === 0 && !loading && (
-				<Typography color="text.secondary" sx={{ mt: 2 }}>
-					No assignments yet. Add one above.
-				</Typography>
-			)}
+						) : (
+							paginatedAssignments.map((a) => {
+								const key = [a.scope, a.role_name, a.permission_key, a.org_id ?? ""].join(":");
+								return (
+									<TableRow key={key}>
+										<TableCell>{a.scope}</TableCell>
+										<TableCell>{a.role_name}</TableCell>
+										<TableCell>{a.permission_key}</TableCell>
+										<TableCell align="right">
+											<IconButton
+												size="small"
+												aria-label="Remove"
+												onClick={() => handleDelete(a)}
+												disabled={deletingKey === key}
+											>
+												<DeleteIcon />
+											</IconButton>
+										</TableCell>
+									</TableRow>
+								);
+							})
+						)}
+					</TableBody>
+				</Table>
+			</TableContainer>
+			<TablePagination
+				component="div"
+				count={assignments.length}
+				page={page}
+				onPageChange={handleChangePage}
+				rowsPerPage={rowsPerPage}
+				onRowsPerPageChange={handleChangeRowsPerPage}
+				rowsPerPageOptions={rowsPerPageOptions}
+				labelRowsPerPage="Rows per page:"
+			/>
 		</>
 	);
 }

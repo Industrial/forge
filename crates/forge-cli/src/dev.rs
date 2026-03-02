@@ -124,3 +124,75 @@ pub fn run(config: &ForgeConfig) -> Result<(), Box<dyn std::error::Error>> {
     )
   }
 }
+
+#[cfg(test)]
+mod tests {
+  use super::*;
+  use forge::config::{AppConfig, DatabaseConfig, FrontendConfig, ServerConfig};
+  use forge::ForgeConfig;
+  use std::io::Write;
+
+  fn default_config() -> ForgeConfig {
+    ForgeConfig {
+      app: AppConfig {
+        name: "test".to_string(),
+      },
+      server: ServerConfig {
+        host: "127.0.0.1".to_string(),
+        port: 3000,
+      },
+      database: DatabaseConfig {
+        url: "sqlite::memory:".to_string(),
+        max_connections: None,
+        min_connections: None,
+        connect_timeout: None,
+        idle_timeout: None,
+        auto_migrate: true,
+        auto_seed: false,
+      },
+      cache: None,
+      frontend: FrontendConfig { port: 5173 },
+    }
+  }
+
+  #[test]
+  fn run_err_when_no_cargo_toml() {
+    let tmp = tempfile::tempdir().unwrap();
+    let orig = std::env::current_dir().unwrap();
+    let _ = std::env::set_current_dir(tmp.path());
+    let r = run(&default_config());
+    let _ = std::env::set_current_dir(orig);
+    let err = r.unwrap_err();
+    assert!(err.to_string().contains("No Cargo.toml found"));
+  }
+
+  #[test]
+  fn run_err_when_not_workspace() {
+    let tmp = tempfile::tempdir().unwrap();
+    std::fs::File::create(tmp.path().join("Cargo.toml"))
+      .unwrap()
+      .write_all(b"[package]\nname = \"x\"\n")
+      .unwrap();
+    let orig = std::env::current_dir().unwrap();
+    let _ = std::env::set_current_dir(tmp.path());
+    let r = run(&default_config());
+    let _ = std::env::set_current_dir(orig);
+    let err = r.unwrap_err();
+    assert!(err.to_string().contains("workspace"));
+  }
+
+  #[test]
+  fn run_err_when_no_app_main() {
+    let tmp = tempfile::tempdir().unwrap();
+    std::fs::File::create(tmp.path().join("Cargo.toml"))
+      .unwrap()
+      .write_all(b"[workspace]\nmembers = []\n")
+      .unwrap();
+    let orig = std::env::current_dir().unwrap();
+    let _ = std::env::set_current_dir(tmp.path());
+    let r = run(&default_config());
+    let _ = std::env::set_current_dir(orig);
+    let err = r.unwrap_err();
+    assert!(err.to_string().contains("main.rs"));
+  }
+}

@@ -229,12 +229,17 @@ mod tests {
     }
   }
 
-  /// Test suite for create_new_project function
+  /// Test suite for create_new_project function.
+  /// Tests are serialized with a lock because they share template reads and can flake when run in parallel.
   mod create_new_project_function {
     use super::*;
+    use std::sync::Mutex;
+
+    static CREATE_PROJECT_LOCK: Mutex<()> = Mutex::new(());
 
     #[test]
     fn create_new_project_succeeds_with_valid_name() {
+      let _guard = CREATE_PROJECT_LOCK.lock().unwrap();
       // Given: A temporary directory (use full path so test is safe when run in parallel)
       let temp_dir = tempdir().unwrap();
       let project_name = "test_project";
@@ -263,7 +268,8 @@ mod tests {
 
     #[test]
     fn create_new_project_fails_with_existing_directory() {
-      // Given: A temporary directory with existing subdirectory
+      let _guard = CREATE_PROJECT_LOCK.lock().unwrap();
+      // Given: A temporary directory with existing subdirectory (use full path for parallel safety)
       let temp_dir = tempdir().unwrap();
       let project_name = "existing_dir";
       let project_path = temp_dir.path().join(project_name);
@@ -271,23 +277,17 @@ mod tests {
       // Create the directory first
       fs::create_dir(&project_path).unwrap();
 
-      // Change to temp directory
-      let original_cwd = std::env::current_dir().unwrap();
-      std::env::set_current_dir(&temp_dir).unwrap();
-
-      // When: Trying to create project with existing name
-      let result = create_new_project(project_name);
+      // When: Trying to create project with existing path
+      let result = create_new_project(project_path.to_str().unwrap());
 
       // Then: It should fail
       assert!(result.is_err());
       assert!(result.unwrap_err().to_string().contains("already exists"));
-
-      // Restore original directory
-      std::env::set_current_dir(original_cwd).unwrap();
     }
 
     #[test]
     fn create_new_project_generates_correct_cargo_toml() {
+      let _guard = CREATE_PROJECT_LOCK.lock().unwrap();
       // Given: Project creation setup (use full path so test is safe when run in parallel)
       let temp_dir = tempdir().unwrap();
       let project_name = "cargo_test";
@@ -315,6 +315,7 @@ mod tests {
 
     #[test]
     fn create_new_project_generates_correct_main_rs() {
+      let _guard = CREATE_PROJECT_LOCK.lock().unwrap();
       // Given: Project creation setup (use full path so test is safe when run in parallel)
       let temp_dir = tempdir().unwrap();
       let project_name = "main_test";
@@ -348,28 +349,23 @@ mod tests {
 
     #[test]
     fn create_new_project_generates_gitignore() {
-      // Given: Project creation setup
+      let _guard = CREATE_PROJECT_LOCK.lock().unwrap();
+      // Given: Project creation setup (use full path so test is safe when run in parallel)
       let temp_dir = tempdir().unwrap();
       let project_name = "gitignore_test";
-
-      // Change to temp directory
-      let original_cwd = std::env::current_dir().unwrap();
-      std::env::set_current_dir(&temp_dir).unwrap();
+      let project_path = temp_dir.path().join(project_name);
 
       // When: Creating project
-      let result = create_new_project(project_name);
+      let result = create_new_project(project_path.to_str().unwrap());
       assert!(result.is_ok());
 
       // Then: .gitignore should exist with correct content
-      let gitignore_content = fs::read_to_string("gitignore_test/.gitignore").unwrap();
+      let gitignore_content = fs::read_to_string(project_path.join(".gitignore")).unwrap();
       assert!(gitignore_content.contains("target/"));
       assert!(gitignore_content.contains(".env"));
       assert!(gitignore_content.contains("*.log"));
       assert!(gitignore_content.contains(".vscode/"));
       assert!(gitignore_content.contains(".DS_Store"));
-
-      // Restore original directory
-      std::env::set_current_dir(original_cwd).unwrap();
     }
   }
 

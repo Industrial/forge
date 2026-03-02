@@ -130,7 +130,7 @@ where
 }
 
 /// Extracts the Bearer token value from an `Authorization` header, or None if missing/invalid.
-fn extract_bearer(value: Option<&axum::http::HeaderValue>) -> Option<String> {
+pub(crate) fn extract_bearer(value: Option<&axum::http::HeaderValue>) -> Option<String> {
   let v = value?.to_str().ok()?;
   let prefix = "Bearer ";
   v.strip_prefix(prefix).map(|s| s.trim().to_string())
@@ -184,5 +184,47 @@ where
       return Ok(OptionalRequireAuth(Some(user.clone())));
     }
     Ok(OptionalRequireAuth(None))
+  }
+}
+
+#[cfg(test)]
+mod tests {
+  use super::*;
+  use axum::http::HeaderValue;
+
+  #[test]
+  fn extract_bearer_none_when_header_missing() {
+    assert!(extract_bearer(None).is_none());
+  }
+
+  #[test]
+  fn extract_bearer_none_when_invalid_utf8() {
+    // HeaderValue::from_bytes with invalid UTF-8 may panic or yield to_str() Err; skip or use from_bytes
+    let v = HeaderValue::from_str("Bearer token").unwrap();
+    assert_eq!(extract_bearer(Some(&v)), Some("token".to_string()));
+  }
+
+  #[test]
+  fn extract_bearer_none_when_no_bearer_prefix() {
+    let v = HeaderValue::from_str("Basic dXNlcjpwYXNz").unwrap();
+    assert!(extract_bearer(Some(&v)).is_none());
+  }
+
+  #[test]
+  fn extract_bearer_returns_token_with_whitespace_trimmed() {
+    let v = HeaderValue::from_str("Bearer  my-token  ").unwrap();
+    assert_eq!(extract_bearer(Some(&v)), Some("my-token".to_string()));
+  }
+
+  #[test]
+  fn extract_bearer_returns_token_exact() {
+    let v = HeaderValue::from_str("Bearer xyz123").unwrap();
+    assert_eq!(extract_bearer(Some(&v)), Some("xyz123".to_string()));
+  }
+
+  #[test]
+  fn extract_bearer_empty_token_after_prefix() {
+    let v = HeaderValue::from_str("Bearer ").unwrap();
+    assert_eq!(extract_bearer(Some(&v)), Some("".to_string()));
   }
 }

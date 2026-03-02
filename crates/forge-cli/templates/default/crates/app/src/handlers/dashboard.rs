@@ -9,12 +9,14 @@ use axum::{
 use chrono::NaiveDateTime;
 use forge::token_auth::RequireAuth;
 use forge::{DbConnection, Error as ForgeError};
-use sea_orm::{ColumnTrait, EntityTrait, PaginatorTrait, QueryFilter, QueryOrder, QuerySelect, Set};
+use sea_orm::{ActiveModelTrait, ColumnTrait, EntityTrait, PaginatorTrait, QueryFilter, QueryOrder, QuerySelect, Set};
 use serde::Deserialize;
 use uuid::Uuid;
 
+use forge::auth::hash_password;
+
 use db::auth::Backend;
-use db::models::{audit_log, organization, role_permission, user};
+use db::models::{audit_log, membership, organization, role_permission, user};
 
 use crate::handlers::auth::{resolve_permissions, DASHBOARD_PERMISSIONS};
 
@@ -23,8 +25,10 @@ const PERMISSION_WRITE: &str = "dashboard.permissions.write";
 const PERMISSION_AUDIT_READ: &str = "dashboard.audit.read";
 const PERMISSION_ORGS_READ: &str = "dashboard.organizations.read";
 const PERMISSION_ORGS_WRITE: &str = "dashboard.organizations.write";
+const PERMISSION_USERS_READ: &str = "dashboard.users.read";
+const PERMISSION_USERS_WRITE: &str = "dashboard.users.write";
 
-fn has_permission(permissions: &[String], key: &str) -> bool {
+pub(crate) fn has_permission(permissions: &[String], key: &str) -> bool {
   permissions.iter().any(|p| p == key)
 }
 
@@ -124,7 +128,7 @@ pub struct ListAuditLogQuery {
   pub offset: u64,
 }
 
-fn default_limit() -> u64 {
+pub(crate) fn default_limit() -> u64 {
   50
 }
 
@@ -384,4 +388,497 @@ pub async fn delete_role_permission(
     );
   }
   Ok(Json(serde_json::json!({ "ok": true })).into_response())
+}
+
+/// GET /api/dashboard/organizations — list all organizations. Requires dashboard.organizations.read (global).
+pub async fn list_organizations(
+  RequireAuth(user): RequireAuth<Backend>,
+  State(db): State<DbConnection>,
+) -> Result<impl IntoResponse, ForgeError> {
+  if let Some(resp) = require_permission(&user, &db, PERMISSION_ORGS_READ).await {
+    return Ok(resp);
+  }
+  let rows = organization::Entity::find()
+    .order_by_asc(organization::Column::Name)
+    .all(&db)
+    .await
+    .map_err(|e: sea_orm::DbErr| ForgeError::Generic(e.to_string()))?;
+  let list: Vec<serde_json::Value> = rows
+    .into_iter()
+    .map(|r| {
+      serde_json::json!({
+        "id": r.id.to_string(),
+        "name": r.name,
+        "slug": r.slug,
+        "created_at": r.created_at.format("%Y-%m-%dT%H:%M:%S%.fZ").to_string(),
+        "updated_at": r.updated_at.format("%Y-%m-%dT%H:%M:%S%.fZ").to_string(),
+      })
+    })
+    .collect();
+  Ok(Json(serde_json::json!({ "organizations": list })).into_response())
+}
+
+#[derive(Deserialize)]
+pub struct CreateOrganizationBody {
+  pub name: String,
+  pub slug: Option<String>,
+}
+
+fn slug_from_name(name: &str) -> String {
+  name
+    .to_lowercase()
+    .chars()
+    .map(|c| if c.is_alphanumeric() || c == ' ' { c } else { '-' })
+    .collect::<String>()
+    .split_whitespace()
+    .filter(|s| !s.is_empty())
+    .collect::<Vec<_>>()
+    .join("-")
+}
+
+/// POST /api/dashboard/organizations — create organization. Requires dashboard.organizations.write.
+pub async fn create_organization(
+  RequireAuth(user): RequireAuth<Backend>,
+  State(db): State<DbConnection>,
+  Json(payload): Json<CreateOrganizationBody>,
+) -> Result<impl IntoResponse, ForgeError> {
+  if let Some(resp) = require_permission(&user, &db, PERMISSION_ORGS_WRITE).await {
+    return Ok(resp);
+  }
+  let name = payload.name.trim();
+  if name.is_empty() {
+    return Ok(
+      (
+        StatusCode::UNPROCESSABLE_ENTITY,
+        Json(serde_json::json!({ "error": "name is required" })),
+      )
+        .into_response(),
+    );
+  }
+  let slug: String = match payload
+    .slug
+    .as_deref()
+    .map(|s| s.trim())
+    .filter(|s| !s.is_empty())
+  {
+    Some(s) => s.to_string(),
+    None => slug_from_name(name),
+  };
+  let now = chrono::Utc::now().naive_utc();
+  let id = Uuid::new_v4();
+  let model = organization::ActiveModel {
+    id: Set(id),
+    name: Set(name.to_string()),
+    slug: Set(slug.to_string()),
+    created_at: Set(now),
+    updated_at: Set(now),
+    ..Default::default()
+  };
+  organization::Entity::insert(model)
+    .exec(&db)
+    .await
+    .map_err(|e| ForgeError::Generic(e.to_string()))?;
+  Ok(
+    (
+      StatusCode::CREATED,
+      Json(serde_json::json!({
+        "id": id.to_string(),
+        "name": name,
+        "slug": slug,
+        "created_at": now.format("%Y-%m-%dT%H:%M:%S%.fZ").to_string(),
+        "updated_at": now.format("%Y-%m-%dT%H:%M:%S%.fZ").to_string(),
+      })),
+    )
+      .into_response(),
+  )
+}
+
+#[derive(Deserialize)]
+pub struct UpdateOrganizationBody {
+  pub id: Uuid,
+  pub name: Option<String>,
+  pub slug: Option<String>,
+}
+
+/// PATCH /api/dashboard/organizations — update organization. Requires dashboard.organizations.write.
+pub async fn update_organization(
+  RequireAuth(user): RequireAuth<Backend>,
+  State(db): State<DbConnection>,
+  Json(payload): Json<UpdateOrganizationBody>,
+) -> Result<impl IntoResponse, ForgeError> {
+  if let Some(resp) = require_permission(&user, &db, PERMISSION_ORGS_WRITE).await {
+    return Ok(resp);
+  }
+  let org = organization::Entity::find_by_id(payload.id)
+    .one(&db)
+    .await
+    .map_err(|e| ForgeError::Generic(e.to_string()))?
+    .ok_or_else(|| ForgeError::Generic("Organization not found".into()))?;
+  let mut am: organization::ActiveModel = org.into();
+  if let Some(name) = payload.name {
+    let t = name.trim();
+    if !t.is_empty() {
+      am.name = Set(t.to_string());
+    }
+  }
+  if let Some(slug) = payload.slug {
+    let t = slug.trim();
+    if !t.is_empty() {
+      am.slug = Set(t.to_string());
+    }
+  }
+  am.updated_at = Set(chrono::Utc::now().naive_utc());
+  am.update(&db).await.map_err(|e| ForgeError::Generic(e.to_string()))?;
+  let updated = organization::Entity::find_by_id(payload.id)
+    .one(&db)
+    .await
+    .map_err(|e| ForgeError::Generic(e.to_string()))?
+    .ok_or_else(|| ForgeError::Generic("Organization not found".into()))?;
+  Ok(Json(serde_json::json!({
+    "id": updated.id.to_string(),
+    "name": updated.name,
+    "slug": updated.slug,
+    "created_at": updated.created_at.format("%Y-%m-%dT%H:%M:%S%.fZ").to_string(),
+    "updated_at": updated.updated_at.format("%Y-%m-%dT%H:%M:%S%.fZ").to_string(),
+  })).into_response())
+}
+
+#[derive(Deserialize)]
+pub struct DeleteOrganizationBody {
+  pub id: Uuid,
+}
+
+/// DELETE /api/dashboard/organizations — delete organization. Requires dashboard.organizations.write.
+pub async fn delete_organization(
+  RequireAuth(user): RequireAuth<Backend>,
+  State(db): State<DbConnection>,
+  Json(payload): Json<DeleteOrganizationBody>,
+) -> Result<impl IntoResponse, ForgeError> {
+  if let Some(resp) = require_permission(&user, &db, PERMISSION_ORGS_WRITE).await {
+    return Ok(resp);
+  }
+  let result = organization::Entity::delete_by_id(payload.id)
+    .exec(&db)
+    .await
+    .map_err(|e| ForgeError::Generic(e.to_string()))?;
+  if result.rows_affected == 0 {
+    return Ok(
+      (
+        StatusCode::NOT_FOUND,
+        Json(serde_json::json!({ "error": "Organization not found" })),
+      )
+        .into_response(),
+    );
+  }
+  Ok(Json(serde_json::json!({ "ok": true })).into_response())
+}
+
+/// GET /api/dashboard/users — list users. Requires dashboard.users.read. Admin: all; else only users in current org.
+pub async fn list_users(
+  RequireAuth(user): RequireAuth<Backend>,
+  State(db): State<DbConnection>,
+) -> Result<impl IntoResponse, ForgeError> {
+  if let Some(resp) = require_permission(&user, &db, PERMISSION_USERS_READ).await {
+    return Ok(resp);
+  }
+  let user_ids: Vec<Uuid> = if user.is_admin {
+    user::Entity::find()
+      .all(&db)
+      .await
+      .map_err(|e: sea_orm::DbErr| ForgeError::Generic(e.to_string()))?
+      .into_iter()
+      .map(|u| u.id)
+      .collect()
+  } else {
+    let org_id = match user.current_org_id {
+      Some(id) => id,
+      None => return Ok(Json(serde_json::json!({ "users": [] })).into_response()),
+    };
+    membership::Entity::find()
+      .filter(membership::Column::OrgId.eq(org_id))
+      .all(&db)
+      .await
+      .map_err(|e: sea_orm::DbErr| ForgeError::Generic(e.to_string()))?
+      .into_iter()
+      .map(|m| m.user_id)
+      .collect::<std::collections::HashSet<_>>()
+      .into_iter()
+      .collect()
+  };
+  if user_ids.is_empty() {
+    return Ok(Json(serde_json::json!({ "users": [] })).into_response());
+  }
+  let users = user::Entity::find()
+    .filter(user::Column::Id.is_in(user_ids.clone()))
+    .all(&db)
+    .await
+    .map_err(|e: sea_orm::DbErr| ForgeError::Generic(e.to_string()))?;
+  let all_memberships = membership::Entity::find()
+    .filter(membership::Column::UserId.is_in(user_ids))
+    .all(&db)
+    .await
+    .map_err(|e: sea_orm::DbErr| ForgeError::Generic(e.to_string()))?;
+  let org_ids: Vec<Uuid> = all_memberships
+    .iter()
+    .map(|m| m.org_id)
+    .collect::<std::collections::HashSet<_>>()
+    .into_iter()
+    .collect();
+  let orgs = organization::Entity::find()
+    .filter(organization::Column::Id.is_in(org_ids))
+    .all(&db)
+    .await
+    .map_err(|e: sea_orm::DbErr| ForgeError::Generic(e.to_string()))?;
+  let org_map: std::collections::HashMap<Uuid, String> =
+    orgs.into_iter().map(|o| (o.id, o.name)).collect();
+  let list: Vec<serde_json::Value> = users
+    .into_iter()
+    .map(|u| {
+      let mems: Vec<serde_json::Value> = all_memberships
+        .iter()
+        .filter(|m| m.user_id == u.id)
+        .map(|m| {
+          serde_json::json!({
+            "org_id": m.org_id.to_string(),
+            "org_name": org_map.get(&m.org_id).cloned().unwrap_or_else(|| "—".to_string()),
+            "role": m.role,
+          })
+        })
+        .collect();
+      serde_json::json!({
+        "id": u.id.to_string(),
+        "email": u.email,
+        "is_active": u.is_active,
+        "is_admin": u.is_admin,
+        "created_at": u.created_at.format("%Y-%m-%dT%H:%M:%S%.fZ").to_string(),
+        "memberships": mems,
+      })
+    })
+    .collect();
+  Ok(Json(serde_json::json!({ "users": list })).into_response())
+}
+
+#[derive(Deserialize)]
+pub struct CreateUserBody {
+  pub email: String,
+  pub password: String,
+  pub org_id: Uuid,
+  pub role: String,
+}
+
+/// POST /api/dashboard/users — create user and add to org. Requires dashboard.users.write. Non-admin: org_id must be current_org_id.
+pub async fn create_user(
+  RequireAuth(user): RequireAuth<Backend>,
+  State(db): State<DbConnection>,
+  Json(payload): Json<CreateUserBody>,
+) -> Result<impl IntoResponse, ForgeError> {
+  if let Some(resp) = require_permission(&user, &db, PERMISSION_USERS_WRITE).await {
+    return Ok(resp);
+  }
+  let email = payload.email.trim();
+  if email.is_empty() || !email.contains('@') {
+    return Ok(
+      (
+        StatusCode::UNPROCESSABLE_ENTITY,
+        Json(serde_json::json!({ "error": "Valid email is required" })),
+      )
+        .into_response(),
+    );
+  }
+  if payload.password.len() < 8 {
+    return Ok(
+      (
+        StatusCode::UNPROCESSABLE_ENTITY,
+        Json(serde_json::json!({ "error": "Password must be at least 8 characters" })),
+      )
+        .into_response(),
+    );
+  }
+  let org_id = if user.is_admin {
+    payload.org_id
+  } else {
+    match user.current_org_id {
+      Some(id) if id == payload.org_id => id,
+      _ => {
+        return Ok(
+          (
+            StatusCode::FORBIDDEN,
+            Json(serde_json::json!({ "error": "Can only add users to your current organization" })),
+          )
+            .into_response(),
+        );
+      }
+    }
+  };
+  let role = payload.role.trim();
+  if role.is_empty() || !["owner", "admin", "editor", "viewer"].contains(&role) {
+    return Ok(
+      (
+        StatusCode::UNPROCESSABLE_ENTITY,
+        Json(serde_json::json!({ "error": "role must be one of: owner, admin, editor, viewer" })),
+      )
+        .into_response(),
+    );
+  }
+  if user::Entity::find()
+    .filter(user::Column::Email.eq(email))
+    .one(&db)
+    .await
+    .map_err(|e| ForgeError::Generic(e.to_string()))?
+    .is_some()
+  {
+    return Ok(
+      (
+        StatusCode::UNPROCESSABLE_ENTITY,
+        Json(serde_json::json!({ "error": "Email already in use" })),
+      )
+        .into_response(),
+    );
+  }
+  let password_hash =
+    hash_password(&payload.password).map_err(|e| ForgeError::Generic(e.to_string()))?;
+  let now = chrono::Utc::now().naive_utc();
+  let user_id = Uuid::new_v4();
+  let membership_id = Uuid::new_v4();
+  let user_model = user::ActiveModel {
+    id: Set(user_id),
+    email: Set(email.to_string()),
+    password_hash: Set(password_hash),
+    is_active: Set(true),
+    is_admin: Set(false),
+    current_org_id: Set(Some(org_id)),
+    current_role: Set(Some(role.to_string())),
+    created_at: Set(now),
+    updated_at: Set(now),
+    ..Default::default()
+  };
+  user::Entity::insert(user_model)
+    .exec(&db)
+    .await
+    .map_err(|e| ForgeError::Generic(e.to_string()))?;
+  let mem_model = membership::ActiveModel {
+    id: Set(membership_id),
+    user_id: Set(user_id),
+    org_id: Set(org_id),
+    role: Set(role.to_string()),
+    created_at: Set(now),
+    updated_at: Set(now),
+    ..Default::default()
+  };
+  membership::Entity::insert(mem_model)
+    .exec(&db)
+    .await
+    .map_err(|e| ForgeError::Generic(e.to_string()))?;
+  Ok(
+    (
+      StatusCode::CREATED,
+      Json(serde_json::json!({
+        "id": user_id.to_string(),
+        "email": email,
+        "is_active": true,
+        "is_admin": false,
+        "created_at": now.format("%Y-%m-%dT%H:%M:%S%.fZ").to_string(),
+        "memberships": [{ "org_id": org_id.to_string(), "role": role }],
+      })),
+    )
+      .into_response(),
+  )
+}
+
+#[derive(Deserialize)]
+pub struct UpdateUserBody {
+  pub id: Uuid,
+  pub email: Option<String>,
+  pub is_active: Option<bool>,
+}
+
+/// PATCH /api/dashboard/users — update user (email, is_active). Requires dashboard.users.write.
+pub async fn update_user(
+  RequireAuth(user): RequireAuth<Backend>,
+  State(db): State<DbConnection>,
+  Json(payload): Json<UpdateUserBody>,
+) -> Result<impl IntoResponse, ForgeError> {
+  if let Some(resp) = require_permission(&user, &db, PERMISSION_USERS_WRITE).await {
+    return Ok(resp);
+  }
+  let u = user::Entity::find_by_id(payload.id)
+    .one(&db)
+    .await
+    .map_err(|e| ForgeError::Generic(e.to_string()))?
+    .ok_or_else(|| ForgeError::Generic("User not found".into()))?;
+  let mut am: user::ActiveModel = u.into();
+  if let Some(email) = payload.email {
+    let t = email.trim();
+    if !t.is_empty() && t.contains('@') {
+      am.email = Set(t.to_string());
+    }
+  }
+  if let Some(is_active) = payload.is_active {
+    am.is_active = Set(is_active);
+  }
+  am.updated_at = Set(chrono::Utc::now().naive_utc());
+  am.update(&db).await.map_err(|e| ForgeError::Generic(e.to_string()))?;
+  Ok(Json(serde_json::json!({ "ok": true })).into_response())
+}
+
+#[derive(Deserialize)]
+pub struct DeleteUserBody {
+  pub id: Uuid,
+}
+
+/// DELETE /api/dashboard/users — delete user and their memberships. Requires dashboard.users.write.
+pub async fn delete_user(
+  RequireAuth(user): RequireAuth<Backend>,
+  State(db): State<DbConnection>,
+  Json(payload): Json<DeleteUserBody>,
+) -> Result<impl IntoResponse, ForgeError> {
+  if let Some(resp) = require_permission(&user, &db, PERMISSION_USERS_WRITE).await {
+    return Ok(resp);
+  }
+  membership::Entity::delete_many()
+    .filter(membership::Column::UserId.eq(payload.id))
+    .exec(&db)
+    .await
+    .map_err(|e| ForgeError::Generic(e.to_string()))?;
+  let result = user::Entity::delete_by_id(payload.id)
+    .exec(&db)
+    .await
+    .map_err(|e| ForgeError::Generic(e.to_string()))?;
+  if result.rows_affected == 0 {
+    return Ok(
+      (
+        StatusCode::NOT_FOUND,
+        Json(serde_json::json!({ "error": "User not found" })),
+      )
+        .into_response(),
+    );
+  }
+  Ok(Json(serde_json::json!({ "ok": true })).into_response())
+}
+
+#[cfg(test)]
+mod tests {
+  use super::*;
+
+  #[test]
+  fn has_permission_true_when_key_in_list() {
+    let perms = vec!["a".to_string(), "dashboard.read".to_string(), "b".to_string()];
+    assert!(has_permission(&perms, "dashboard.read"));
+  }
+
+  #[test]
+  fn has_permission_false_when_key_missing() {
+    let perms = vec!["a".to_string(), "b".to_string()];
+    assert!(!has_permission(&perms, "dashboard.read"));
+  }
+
+  #[test]
+  fn has_permission_false_when_empty() {
+    assert!(!has_permission(&[], "any"));
+  }
+
+  #[test]
+  fn default_limit_returns_50() {
+    assert_eq!(default_limit(), 50);
+  }
 }

@@ -1,7 +1,7 @@
 use std::time::Duration;
 
 use axum::response::{Html, IntoResponse};
-use axum::routing::get;
+use axum::routing::{delete, get, patch, post};
 use db::auth::Backend;
 use forge::{App, CronSchedule};
 use tower_http::services::ServeDir;
@@ -51,14 +51,28 @@ async fn main() -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
     .post_route("/api/auth/tokens", handlers::auth::create_token)
     .route("/api/auth/admin", handlers::auth::admin_only)
     .route("/api/dashboard/permissions", get(handlers::dashboard::list_permissions))
-    .route(
+    .route_methods(
       "/api/dashboard/role-permissions",
       get(handlers::dashboard::list_role_permissions)
         .post(handlers::dashboard::add_role_permission)
         .delete(handlers::dashboard::delete_role_permission),
     )
     .route("/api/dashboard/tasks", get(handlers::dashboard::list_tasks))
-    .route("/api/dashboard/audit-log", get(handlers::dashboard::list_audit_log));
+    .route("/api/dashboard/audit-log", get(handlers::dashboard::list_audit_log))
+    .route_methods(
+      "/api/dashboard/organizations",
+      get(handlers::dashboard::list_organizations)
+        .post(handlers::dashboard::create_organization)
+        .patch(handlers::dashboard::update_organization)
+        .delete(handlers::dashboard::delete_organization),
+    )
+    .route_methods(
+      "/api/dashboard/users",
+      get(handlers::dashboard::list_users)
+        .post(handlers::dashboard::create_user)
+        .patch(handlers::dashboard::update_user)
+        .delete(handlers::dashboard::delete_user),
+    );
 
   let (router, db_conn, cron_runner, response_cache) = app.into_router_before_state().await;
 

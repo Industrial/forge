@@ -313,6 +313,17 @@ impl App {
     self
   }
 
+  /// Add a route with multiple HTTP methods (e.g. get, post, patch, delete). Use for paths like
+  /// `/api/dashboard/users` or `/api/dashboard/organizations`. Do not wrap the handler in `get()`;
+  /// pass the method router directly so all methods are registered.
+  pub fn route_methods<M>(mut self, path: &str, method_router: M) -> Self
+  where
+    M: Into<axum::routing::MethodRouter<DbConnection>> + Send + 'static,
+  {
+    self.router = self.router.route(path, method_router.into());
+    self
+  }
+
   /// Register a cron task that runs on the given schedule (in-process when [`.serve`](Self::serve) is used).
   /// The task receives the app's database connection. No external cron library; uses Interval / Hourly / Daily.
   pub fn with_cron<F, Fut>(mut self, name: &str, schedule: CronSchedule, f: F) -> Self

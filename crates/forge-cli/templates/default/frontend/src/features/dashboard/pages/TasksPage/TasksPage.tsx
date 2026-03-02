@@ -10,6 +10,7 @@ import TableContainer from "@mui/material/TableContainer";
 import TableHead from "@mui/material/TableHead";
 import TableRow from "@mui/material/TableRow";
 import Typography from "@mui/material/Typography";
+import { getWsUrl } from "@/utils/ws";
 
 export type TaskStatus = "planned" | "running" | "ran";
 
@@ -54,8 +55,7 @@ export default function TasksPage() {
 	const wsRef = useRef<WebSocket | null>(null);
 
 	const connectWs = useCallback(() => {
-		const protocol = window.location.protocol === "https:" ? "wss:" : "ws:";
-		const wsUrl = `${protocol}//${window.location.host}/ws`;
+		const wsUrl = getWsUrl();
 		const ws = new WebSocket(wsUrl);
 		wsRef.current = ws;
 		ws.onopen = () => {
@@ -65,6 +65,7 @@ export default function TasksPage() {
 			);
 		};
 		ws.onclose = () => setWsConnected(false);
+		ws.onerror = () => setWsConnected(false);
 		ws.onmessage = (event) => {
 			if (typeof event.data !== "string") return;
 			try {
@@ -80,6 +81,7 @@ export default function TasksPage() {
 
 	useEffect(() => {
 		let cancelled = false;
+
 		async function fetchTasks() {
 			try {
 				const res = await fetch("/api/dashboard/tasks", {
@@ -96,9 +98,16 @@ export default function TasksPage() {
 			}
 		}
 		fetchTasks();
-		connectWs();
+
+		// Delay WebSocket until after initial load to avoid "connection interrupted while page loading"
+		const delayMs = 800;
+		const t = setTimeout(() => {
+			if (!cancelled) connectWs();
+		}, delayMs);
+
 		return () => {
 			cancelled = true;
+			clearTimeout(t);
 			if (wsRef.current) {
 				wsRef.current.close();
 				wsRef.current = null;

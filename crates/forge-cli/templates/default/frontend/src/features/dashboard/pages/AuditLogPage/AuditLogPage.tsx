@@ -17,6 +17,8 @@ import Paper from "@mui/material/Paper";
 import Alert from "@mui/material/Alert";
 import CircularProgress from "@mui/material/CircularProgress";
 import TablePagination from "@mui/material/TablePagination";
+import { getWsUrl } from "@/utils/ws";
+import { useTablePaginationDefaults } from "@/hooks/useTablePaginationDefaults";
 
 type AuditLogEntry = {
 	id: string;
@@ -41,8 +43,9 @@ export default function AuditLogPage() {
 	const [total, setTotal] = useState(0);
 	const [loading, setLoading] = useState(true);
 	const [error, setError] = useState<string | null>(null);
+	const { defaultRowsPerPage, rowsPerPageOptions } = useTablePaginationDefaults();
 	const [page, setPage] = useState(0);
-	const [rowsPerPage, setRowsPerPage] = useState(50);
+	const [rowsPerPage, setRowsPerPage] = useState(defaultRowsPerPage);
 	const [from, setFrom] = useState("");
 	const [to, setTo] = useState("");
 	const [outcome, setOutcome] = useState("");
@@ -94,13 +97,17 @@ export default function AuditLogPage() {
 		fetchData();
 	}, [fetchData]);
 
+	// Sync rowsPerPage when breakpoint default changes (e.g. window resize)
+	useEffect(() => {
+		setRowsPerPage(defaultRowsPerPage);
+		setPage(0);
+	}, [defaultRowsPerPage]);
+
 	// Live updates: subscribe to audit-log WebSocket channel and prepend new entries
 	const entriesRef = useRef(entries);
 	entriesRef.current = entries;
 	useEffect(() => {
-		const proto = window.location.protocol === "https:" ? "wss:" : "ws:";
-		const wsUrl = `${proto}//${window.location.host}/ws`;
-		const ws = new WebSocket(wsUrl);
+		const ws = new WebSocket(getWsUrl());
 		ws.onopen = () => {
 			ws.send(JSON.stringify({ type: "subscribe", channel: "audit-log" }));
 		};
@@ -321,7 +328,7 @@ export default function AuditLogPage() {
 						onPageChange={handleChangePage}
 						rowsPerPage={rowsPerPage}
 						onRowsPerPageChange={handleChangeRowsPerPage}
-						rowsPerPageOptions={[25, 50, 100, 200]}
+						rowsPerPageOptions={rowsPerPageOptions}
 						labelRowsPerPage="Rows per page:"
 					/>
 				</>

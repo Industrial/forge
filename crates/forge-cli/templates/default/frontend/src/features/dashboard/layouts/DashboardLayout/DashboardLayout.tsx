@@ -1,5 +1,9 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
+import { useLocation } from "react-router-dom";
 import Box from "@mui/material/Box";
+import Drawer from "@mui/material/Drawer";
+import useMediaQuery from "@mui/material/useMediaQuery";
+import { useTheme } from "@mui/material/styles";
 import Sidebar from "../../components/Sidebar/Sidebar";
 import Navbar from "../../../../components/Navbar";
 
@@ -14,7 +18,15 @@ export default function DashboardLayout({
 	colorScheme,
 	onToggleTheme,
 }: DashboardLayoutProps) {
+	const theme = useTheme();
+	const isDesktop = useMediaQuery(theme.breakpoints.up("md"));
+	const location = useLocation();
 	const [sidebarExpanded, setSidebarExpanded] = useState(true);
+	const [mobileOpen, setMobileOpen] = useState(false);
+
+	useEffect(() => {
+		setMobileOpen(false);
+	}, [location.pathname]);
 
 	return (
 		<>
@@ -22,6 +34,7 @@ export default function DashboardLayout({
 				appName="App"
 				colorScheme={colorScheme}
 				onToggleTheme={onToggleTheme}
+				onOpenSidebar={isDesktop ? undefined : () => setMobileOpen(true)}
 			/>
 			<Box
 				className="dashboard-page"
@@ -33,10 +46,37 @@ export default function DashboardLayout({
 					overflow: "hidden",
 				}}
 			>
-				<Sidebar
-					expanded={sidebarExpanded}
-					onToggle={() => setSidebarExpanded((e) => !e)}
-				/>
+				{isDesktop ? (
+					<Sidebar
+						expanded={sidebarExpanded}
+						onToggle={() => setSidebarExpanded((e) => !e)}
+					/>
+				) : (
+					<Drawer
+						variant="temporary"
+						anchor="left"
+						open={mobileOpen}
+						onClose={() => setMobileOpen(false)}
+						slotProps={{
+							paper: {
+								sx: {
+									width: "80%",
+									boxSizing: "border-box",
+									mt: 0,
+									pt: 0,
+								},
+							},
+						}}
+					>
+						<Sidebar
+							expanded
+							onToggle={() => {}}
+							hideToggle
+							disableBorder
+							fullWidth
+						/>
+					</Drawer>
+				)}
 				<Box
 					className="dashboard-content"
 					sx={{
