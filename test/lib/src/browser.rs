@@ -109,7 +109,7 @@ pub async fn goto_path_and_assert_app(
   Ok(())
 }
 
-/// Fill and submit the register form at `/register`. Uses form set_by_name then click submit.
+/// Fill and submit the register form at `/register`. Uses native inputs (Spectrum wraps in divs). Clicks submit so SPA fetch runs.
 pub async fn register(
   c: &fantoccini::Client,
   base_url: &str,
@@ -119,18 +119,21 @@ pub async fn register(
   let url = format!("{}/register", base_url.trim_end_matches('/'));
   c.goto(&url).await?;
   let form_loc = fantoccini::Locator::Css("[data-testid=register-form]");
+  let email_input = fantoccini::Locator::Css("[data-testid=register-form] input[type=email]");
+  let password_input = fantoccini::Locator::Css("[data-testid=register-form] input[type=password]");
+  let submit_loc = fantoccini::Locator::Css("[data-testid=register-submit]");
   c.wait()
     .at_most(ELEMENT_WAIT_TIMEOUT)
     .for_element(form_loc)
     .await?;
-  let form = c.form(form_loc).await?;
-  form.set_by_name("email", email).await?;
-  form.set_by_name("password", password).await?;
-  c.find(fantoccini::Locator::Css("[data-testid=register-submit]"))
-    .await?
-    .click()
-    .await?;
-  // Wait for server to create user and redirect to /login (template register returns Redirect::to("/login")).
+  let email_el = c.find(email_input).await?;
+  email_el.clear().await?;
+  email_el.send_keys(email).await?;
+  let pw_el = c.find(password_input).await?;
+  pw_el.clear().await?;
+  pw_el.send_keys(password).await?;
+  c.find(submit_loc).await?.click().await?;
+  // Wait for SPA to navigate to /login after successful register.
   let login_url_substr = "/login";
   for _ in 0..(ELEMENT_WAIT_TIMEOUT.as_secs() * 2) {
     let url = c.current_url().await?;
@@ -142,7 +145,7 @@ pub async fn register(
   Err("register: timed out waiting for redirect to /login".into())
 }
 
-/// Fill and submit the login form at `/login`. Form uses native submit; fill via send_keys so required/validation pass, then form.submit().
+/// Fill and submit the login form at `/login`. Uses native inputs (Spectrum wraps in divs). Clicks submit so SPA fetch runs.
 pub async fn login(
   c: &fantoccini::Client,
   base_url: &str,
@@ -152,22 +155,20 @@ pub async fn login(
   let url = format!("{}/login", base_url.trim_end_matches('/'));
   c.goto(&url).await?;
   let form_loc = fantoccini::Locator::Css("[data-testid=login-form]");
+  let email_input = fantoccini::Locator::Css("[data-testid=login-form] input[type=email]");
+  let password_input = fantoccini::Locator::Css("[data-testid=login-form] input[type=password]");
+  let submit_loc = fantoccini::Locator::Css("[data-testid=login-submit]");
   c.wait()
     .at_most(ELEMENT_WAIT_TIMEOUT)
     .for_element(form_loc)
     .await?;
-  let email_el = c
-    .find(fantoccini::Locator::Css("[data-testid=login-email]"))
-    .await?;
+  let email_el = c.find(email_input).await?;
   email_el.clear().await?;
   email_el.send_keys(email).await?;
-  let password_el = c
-    .find(fantoccini::Locator::Css("[data-testid=login-password]"))
-    .await?;
+  let password_el = c.find(password_input).await?;
   password_el.clear().await?;
   password_el.send_keys(password).await?;
-  let form = c.form(form_loc).await?;
-  form.submit().await?;
+  c.find(submit_loc).await?.click().await?;
   // Wait for post-login (browser follows 302 to /dashboard): either URL contains /dashboard or dashboard heading appears.
   let dashboard_path = "/dashboard";
   let heading_loc = fantoccini::Locator::Css("[data-testid=dashboard-heading]");
@@ -275,6 +276,7 @@ pub async fn logout(
 }
 
 /// Submit login form; assert login fails (no redirect to dashboard). Use for wrong password / unknown user.
+/// Uses native inputs inside the form so Spectrum wrapper divs don't cause "invalid element state".
 pub async fn login_fails(
   c: &fantoccini::Client,
   base_url: &str,
@@ -282,18 +284,19 @@ pub async fn login_fails(
   password: &str,
 ) -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
   let url = format!("{}/login", base_url.trim_end_matches('/'));
-  let email_locator = fantoccini::Locator::Css("[data-testid=login-email]");
-  let password_locator = fantoccini::Locator::Css("[data-testid=login-password]");
+  let form_loc = fantoccini::Locator::Css("[data-testid=login-form]");
+  let email_input = fantoccini::Locator::Css("[data-testid=login-form] input[type=email]");
+  let password_input = fantoccini::Locator::Css("[data-testid=login-form] input[type=password]");
   let submit_locator = fantoccini::Locator::Css("[data-testid=login-submit]");
   c.goto(&url).await?;
   c.wait()
     .at_most(ELEMENT_WAIT_TIMEOUT)
-    .for_element(email_locator)
+    .for_element(form_loc)
     .await?;
-  let email_el = c.find(email_locator).await?;
+  let email_el = c.find(email_input).await?;
   email_el.clear().await?;
   email_el.send_keys(email).await?;
-  let pw_el = c.find(password_locator).await?;
+  let pw_el = c.find(password_input).await?;
   pw_el.clear().await?;
   pw_el.send_keys(password).await?;
   c.find(submit_locator).await?.click().await?;

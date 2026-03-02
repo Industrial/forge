@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Button, Form, Heading, Link, TextField } from '@react-spectrum/s2';
+import { Button, Content, Form, Heading, InlineAlert, Link, TextField } from '@react-spectrum/s2';
 import { style } from '@react-spectrum/s2/style' with { type: 'macro' };
 
 export default function Register() {
@@ -12,7 +12,6 @@ export default function Register() {
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
-    setError(null);
     setSubmitting(true);
     try {
       const res = await fetch('/api/auth/register', {
@@ -39,14 +38,11 @@ export default function Register() {
       <Heading level={1} styles={style({ font: 'heading-xl' })}>Create an account</Heading>
       <div className={style({ display: 'flex', flexDirection: 'column', gap: 12 })}>
         <Form onSubmit={handleSubmit} data-testid="register-form">
-          {error && (
-            <div
-              role="alert"
-              className={style({ color: 'negative', font: 'body' })}
-              data-testid="register-error"
-            >
-              {error}
-            </div>
+          {error != null && (
+            <InlineAlert variant="negative" fillStyle="border" data-testid="register-error">
+              <Heading>Registration failed</Heading>
+              <Content>{error}</Content>
+            </InlineAlert>
           )}
           <TextField
             name="email"

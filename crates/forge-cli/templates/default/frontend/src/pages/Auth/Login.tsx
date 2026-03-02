@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
-import { Button, Form, Heading, Link, TextField } from '@react-spectrum/s2';
+import { Button, Content, Form, Heading, InlineAlert, Link, TextField } from '@react-spectrum/s2';
 import { style } from '@react-spectrum/s2/style' with { type: 'macro' };
 import { useSession } from '../../context/Session';
 
@@ -17,7 +17,6 @@ export default function Login() {
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
-    setError(null);
     setSubmitting(true);
     try {
       const res = await fetch('/api/auth/login', {
@@ -45,14 +44,11 @@ export default function Login() {
       <Heading level={1} styles={style({ font: 'heading-xl' })}>Log in</Heading>
       <div className={style({ display: 'flex', flexDirection: 'column', gap: 12 })}>
         <Form onSubmit={handleSubmit} data-testid="login-form">
-          {error && (
-            <div
-              role="alert"
-              className={style({ color: 'negative', font: 'body' })}
-              data-testid="login-error"
-            >
-              {error}
-            </div>
+          {error != null && (
+            <InlineAlert variant="negative" fillStyle="border" data-testid="login-error">
+              <Heading>Login failed</Heading>
+              <Content>{error}</Content>
+            </InlineAlert>
           )}
           <TextField
             name="email"
