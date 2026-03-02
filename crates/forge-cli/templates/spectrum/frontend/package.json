@@ -12,9 +12,11 @@
   "dependencies": {
     "@react-spectrum/s2": "latest",
     "react": "^18.2.0",
-    "react-dom": "^18.2.0"
+    "react-dom": "^18.2.0",
+    "react-router-dom": "^7.0.0"
   },
   "devDependencies": {
+    "@react-aria/optimize-locales-plugin": "latest",
     "@types/react": "^18.2.66",
     "@types/react-dom": "^18.2.22",
     "@typescript-eslint/eslint-plugin": "^7.2.0",

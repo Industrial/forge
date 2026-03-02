@@ -12,17 +12,24 @@
 
 import { defineConfig } from 'vite'
 import react from '@vitejs/plugin-react'
+import optimizeLocales from '@react-aria/optimize-locales-plugin'
 import macros from 'unplugin-parcel-macros';
 
 // https://vitejs.dev/config/
 export default defineConfig({
   plugins: [
-    macros.vite(),
-    react()
+    macros.vite(), // Must be first!
+    react(),
+    {
+      ...optimizeLocales.vite({
+        locales: ['en-US', 'fr-FR']
+      }),
+      enforce: 'pre'
+    }
   ],
   build: {
     target: ['es2022'],
-    // Lightning CSS produces much a smaller CSS bundle than the default minifier.
+    // Lightning CSS produces a much smaller CSS bundle than the default minifier.
     cssMinify: 'lightningcss',
     rollupOptions: {
       output: {
