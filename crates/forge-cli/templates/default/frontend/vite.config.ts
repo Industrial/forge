@@ -15,10 +15,20 @@ import react from '@vitejs/plugin-react'
 import optimizeLocales from '@react-aria/optimize-locales-plugin'
 import macros from 'unplugin-parcel-macros';
 
-// https://vitejs.dev/config/
+const VITE_BACKEND_URL = process.env.VITE_BACKEND_URL;
+if (!VITE_BACKEND_URL) {
+  throw new Error('VITE_BACKEND_URL is not set');
+}
+
 export default defineConfig({
+  server: {
+    proxy: {
+      '/api': { target: VITE_BACKEND_URL, changeOrigin: true },
+      '/ws': { target: VITE_BACKEND_URL, ws: true, changeOrigin: true },
+    },
+  },
   plugins: [
-    macros.vite(), // Must be first!
+    macros.vite(),
     react(),
     {
       ...optimizeLocales.vite({

@@ -26,7 +26,6 @@ export default defineConfig({
     { name: 'chromium', use: { ...devices['Desktop Chrome'] } },
   ],
   timeout: 30_000,
-  expect: { timeout: 10_000 },
 });
 
 export const REPO_ROOT = repoRoot;

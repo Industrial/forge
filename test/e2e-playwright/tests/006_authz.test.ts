@@ -23,23 +23,21 @@ test.describe('e2e authz', () => {
     ).toBe(true);
 
     await page.goto('/dashboard');
-    await expect(page).toHaveURL(/\/login/, { timeout: 15_000 });
+    await expect(page).toHaveURL(/\/login/);
 
     const email = `authz-e2e-${Date.now()}@test.com`;
     const password = 'password';
 
     await page.goto('/register');
-    await page.getByRole('textbox', { name: /email/i }).fill(email);
-    await page.getByRole('textbox', { name: /password/i }).fill(password);
-    await page.getByRole('button', { name: /register|create account/i }).click();
-    await expect(page).toHaveURL(/\/login/, { timeout: 15_000 });
+    await page.getByTestId('register-email').locator('input').fill(email);
+    await page.getByTestId('register-password').locator('input').fill(password);
+    await page.getByTestId('register-submit').click();
+    await expect(page).toHaveURL(/\/login/);
 
-    await page.getByRole('textbox', { name: /email/i }).fill(email);
-    await page.getByRole('textbox', { name: /password/i }).fill(password);
-    await page.getByRole('button', { name: /log in/i }).click();
-    await expect(page).toHaveURL(/\/dashboard/, { timeout: 15_000 });
-    await expect(page.getByTestId('dashboard-heading')).toContainText('Dashboard', {
-      timeout: 15_000,
-    });
+    await page.getByTestId('login-email').locator('input').fill(email);
+    await page.getByTestId('login-password').locator('input').fill(password);
+    await page.getByTestId('login-submit').click();
+    await expect(page).toHaveURL(/\/dashboard/);
+    await expect(page.getByTestId('dashboard-heading')).toContainText('Dashboard');
   });
 });

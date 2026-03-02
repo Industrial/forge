@@ -20,7 +20,8 @@ cargo build -p forge-cli
 # Create project in .tmp using forge (run from .tmp so project is .tmp/e2e_prebuilt)
 echo "> test-e2e > forge new e2e_prebuilt in .tmp"
 ROOT="$(pwd)"
-(cd .tmp && "$ROOT/target/debug/forge" new e2e_prebuilt)
+# Use repo templates so e2e sees latest template (e.g. ws-demo page)
+(cd .tmp && FORGE_TEMPLATES_DIR="$ROOT/crates/forge-cli/templates" "$ROOT/target/debug/forge" new e2e_prebuilt)
 
 # Build the generated project (target under repo to avoid noexec on .tmp)
 echo "> test-e2e > cargo build (e2e_prebuilt)"

@@ -10,10 +10,10 @@ test.describe('e2e prebuilt project layout', () => {
     assertProjectLayout();
   });
 
-  test('browser loads app root (#root)', async ({ page }) => {
+  test('browser loads app root (app-root)', async ({ page }) => {
     expect(prebuiltExists(), 'run bin/test-e2e first').toBe(true);
     assertProjectLayout();
     await page.goto('/');
-    await expect(page.locator('#root')).toBeVisible({ timeout: 30_000 });
+    await expect(page.getByTestId('app-root')).toBeVisible();
   });
 });

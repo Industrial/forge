@@ -23,6 +23,7 @@ import Register from './pages/Auth/Register';
 import Index from './pages/Index';
 import Dashboard from './pages/Dashboard';
 import Profile from './pages/Profile';
+import WsDemo from './pages/WsDemo';
 
 declare module '@react-spectrum/s2' {
   interface RouterConfig {
@@ -68,6 +69,7 @@ function App() {
         <Routes>
           <Route path="/login" element={<AuthLayout><Login /></AuthLayout>} />
           <Route path="/register" element={<AuthLayout><Register /></AuthLayout>} />
+          <Route path="/ws-demo" element={<WsDemo />} />
           <Route
             path="/"
             element={
