@@ -1,8 +1,10 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-E2E_PORT=30999
-E2E_BASE_URL="http://127.0.0.1:${E2E_PORT}"
+E2E_API_PORT=30999
+E2E_FRONTEND_PORT=5173
+# Use localhost so Vite (which binds to localhost) and curl agree; tests use same URL.
+E2E_BASE_URL="http://localhost:${E2E_FRONTEND_PORT}"
 PREBUILT=".tmp/e2e_prebuilt"
 
 echo "> test-e2e"
@@ -24,24 +26,22 @@ ROOT="$(pwd)"
 echo "> test-e2e > cargo build (e2e_prebuilt)"
 CARGO_TARGET_DIR="$ROOT/target/e2e_prebuilt" cargo build --manifest-path "$PREBUILT/Cargo.toml"
 
-# 018: Build frontend with bun (Inertia/Vite)
+# Frontend deps (Vite dev server used for E2E; build optional for CI consistency)
 if [[ -f "$PREBUILT/frontend/package.json" ]]; then
-  echo "> test-e2e > bun install + build (frontend)"
+  echo "> test-e2e > bun install (frontend)"
   (cd "$PREBUILT/frontend" && bun install --frozen-lockfile 2>/dev/null || bun install)
-  (cd "$PREBUILT/frontend" && bun run build)
 fi
 
-# Single config and DB for the whole e2e run (server started once below)
-# Production mode so the server serves built frontend from frontend/dist (set by env, not config)
+# Single config and DB for the whole e2e run (API + Vite started below)
 export FORGE_ENVIRONMENT=production
-echo "> test-e2e > writing config (port $E2E_PORT)"
+echo "> test-e2e > writing config (API port $E2E_API_PORT)"
 cat > "$PREBUILT/config/app.toml" <<EOF
 [app]
 name = "e2e_prebuilt"
 
 [server]
 host = "127.0.0.1"
-port = $E2E_PORT
+port = $E2E_API_PORT
 
 [frontend]
 port = 3000
@@ -62,53 +62,91 @@ auto_seed = true
 EOF
 export E2E_DB_PATH
 
-# Start server once in background; kill on exit (success or failure)
-SERVER_PID=""
+# Start API server and Vite dev server; kill on exit (success or failure)
+API_PID=""
+VITE_PID=""
 CHROMEDRIVER_PID=""
+API_URL="http://127.0.0.1:${E2E_API_PORT}"
 cleanup() {
   if [[ -n "${CHROMEDRIVER_PID:-}" ]] && kill -0 "$CHROMEDRIVER_PID" 2>/dev/null; then
     kill "$CHROMEDRIVER_PID" 2>/dev/null || true
     wait "$CHROMEDRIVER_PID" 2>/dev/null || true
   fi
-  if [[ -n "${SERVER_PID:-}" ]] && kill -0 "$SERVER_PID" 2>/dev/null; then
-    kill "$SERVER_PID" 2>/dev/null || true
-    wait "$SERVER_PID" 2>/dev/null || true
+  if [[ -n "${VITE_PID:-}" ]] && kill -0 "$VITE_PID" 2>/dev/null; then
+    kill "$VITE_PID" 2>/dev/null || true
+    wait "$VITE_PID" 2>/dev/null || true
+  fi
+  if [[ -n "${API_PID:-}" ]] && kill -0 "$API_PID" 2>/dev/null; then
+    kill "$API_PID" 2>/dev/null || true
+    wait "$API_PID" 2>/dev/null || true
   fi
 }
 trap cleanup EXIT
 
-echo "> test-e2e > starting server (port $E2E_PORT)"
+echo "> test-e2e > starting API server (port $E2E_API_PORT)"
 (cd "$PREBUILT" && CARGO_TARGET_DIR="$ROOT/target/e2e_prebuilt" cargo run --quiet) &
-SERVER_PID=$!
+API_PID=$!
 
-# Wait for server readiness (short polling)
-echo "> test-e2e > waiting for /healthz"
+echo "> test-e2e > waiting for API /healthz"
 for i in {1..50}; do
-  if curl -sf --max-time 1 "$E2E_BASE_URL/healthz" >/dev/null 2>&1; then
+  if curl -sf --max-time 1 "$API_URL/healthz" >/dev/null 2>&1; then
     break
   fi
   if [[ $i -eq 50 ]]; then
-    echo "> test-e2e > server did not become ready in time"
+    echo "> test-e2e > API did not become ready in time"
     exit 1
   fi
   sleep 0.2
 done
 
-# Start chromedriver for fantoccini (001_cli browser check)
-if command -v chromedriver &>/dev/null; then
-  echo "> test-e2e > starting chromedriver (port 9515)"
-  chromedriver --port=9515 --log-path=/dev/null 2>/dev/null &
-  CHROMEDRIVER_PID=$!
-  sleep 1
-  export E2E_WEBDRIVER_URL="http://localhost:9515"
+echo "> test-e2e > starting Vite dev server (port $E2E_FRONTEND_PORT, proxy -> $API_URL)"
+(cd "$PREBUILT/frontend" && VITE_BACKEND_URL="$API_URL" bun run dev -- --port "$E2E_FRONTEND_PORT" --strictPort) &
+VITE_PID=$!
+
+echo "> test-e2e > waiting for Vite (port $E2E_FRONTEND_PORT)"
+sleep 2
+for i in {1..60}; do
+  code=$(curl -s --max-time 3 -o /dev/null -w '%{http_code}' "http://localhost:${E2E_FRONTEND_PORT}/" 2>/dev/null || echo '000')
+  if [[ "$code" =~ ^[2345][0-9][0-9]$ ]] || [[ "$code" =~ ^[2345]$ ]]; then
+    break
+  fi
+  if [[ $i -eq 60 ]]; then
+    echo "> test-e2e > Vite did not become ready in time (last code: $code)"
+    exit 1
+  fi
+  sleep 0.5
+done
+
+# # Start chromedriver for fantoccini (001_cli browser check)
+# if command -v chromedriver &>/dev/null; then
+#   echo "> test-e2e > starting chromedriver (port 9515)"
+#   chromedriver --port=9515 --log-path=/dev/null 2>/dev/null &
+#   CHROMEDRIVER_PID=$!
+#   sleep 1
+#   export E2E_WEBDRIVER_URL="http://localhost:9515"
+# fi
+
+export E2E_BASE_URL
+export E2E_API_URL="$API_URL"
+export E2E_DB_PATH
+
+# # Run Rust e2e tests serially (shared server + single chromedriver)
+# echo "> test-e2e > cargo test (Rust e2e, --test-threads=1)"
+# RUSTFLAGS='-D warnings' cargo test -p forge-e2e-tests -- --test-threads=1
+# RUST_EXIT=$?
+
+# Run Playwright e2e tests in parallel
+PLAYWRIGHT_EXIT=0
+if [[ -f test/e2e-playwright/package.json ]]; then
+  echo "> test-e2e > playwright test (parallel)"
+  (cd test/e2e-playwright && (bun install --frozen-lockfile 2>/dev/null || bun install) && bun run test) || PLAYWRIGHT_EXIT=$?
 fi
 
-# Run all e2e tests in one go (shared server; no per-test spawn)
-echo "> test-e2e > cargo test (all e2e tests)"
-export E2E_BASE_URL
-export E2E_DB_PATH
-RUSTFLAGS='-D warnings' cargo test -p forge-e2e-tests
-EXIT=$?
-
 echo "> test-e2e > done"
-exit $EXIT
+# if [[ $RUST_EXIT -ne 0 ]] || [[ $PLAYWRIGHT_EXIT -ne 0 ]]; then
+#   exit 1
+# fi
+if [[ $PLAYWRIGHT_EXIT -ne 0 ]]; then
+  exit 1
+fi
+exit 0

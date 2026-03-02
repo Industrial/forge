@@ -10,6 +10,9 @@ const WEBDRIVER_CONNECT_TIMEOUT: Duration = Duration::from_secs(15);
 /// Max time to wait for an element to appear (forms, dashboard, etc.).
 const ELEMENT_WAIT_TIMEOUT: Duration = Duration::from_secs(30);
 
+/// Interval for polling URL/source when waiting for route or content changes.
+const POLL_INTERVAL_MS: u64 = 200;
+
 /// Returns E2E_WEBDRIVER_URL env var or default `http://localhost:9515`.
 fn webdriver_url() -> String {
   std::env::var("E2E_WEBDRIVER_URL").unwrap_or_else(|_| "http://localhost:9515".to_string())
@@ -49,26 +52,29 @@ pub async fn connect() -> Result<fantoccini::Client, Box<dyn std::error::Error +
   }
 }
 
-/// Connect to WebDriver, goto `base_url`, assert `#root` exists (app root), close.
+/// Connect to WebDriver, goto `base_url`, wait for `#root` (app root), then close.
 pub async fn assert_app_root_loads(
   base_url: &str,
 ) -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
   let c = connect().await?;
   c.goto(base_url).await?;
-  let _ = c.find(fantoccini::Locator::Css("#root")).await?;
+  c.wait()
+    .for_element(fantoccini::Locator::Css("#root"))
+    .await?;
   c.close().await?;
   Ok(())
 }
 
-/// Goto `base_url` n times, assert `#root` exists each time, then close.
+/// Goto `base_url` n times, wait for `#root` each time, then close.
 pub async fn assert_app_root_loads_repeated(
   base_url: &str,
   n: u32,
 ) -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
   let c = connect().await?;
+  let root_loc = fantoccini::Locator::Css("#root");
   for _ in 0..n {
     c.goto(base_url).await?;
-    let _ = c.find(fantoccini::Locator::Css("#root")).await?;
+    c.wait().for_element(root_loc).await?;
   }
   c.close().await?;
   Ok(())
@@ -123,7 +129,6 @@ pub async fn register(
   let password_input = fantoccini::Locator::Css("[data-testid=register-form] input[type=password]");
   let submit_loc = fantoccini::Locator::Css("[data-testid=register-submit]");
   c.wait()
-    .at_most(ELEMENT_WAIT_TIMEOUT)
     .for_element(form_loc)
     .await?;
   let email_el = c.find(email_input).await?;
@@ -135,12 +140,13 @@ pub async fn register(
   c.find(submit_loc).await?.click().await?;
   // Wait for SPA to navigate to /login after successful register.
   let login_url_substr = "/login";
-  for _ in 0..(ELEMENT_WAIT_TIMEOUT.as_secs() * 2) {
+  let deadline = std::time::Instant::now() + ELEMENT_WAIT_TIMEOUT;
+  while std::time::Instant::now() < deadline {
     let url = c.current_url().await?;
     if url.as_str().contains(login_url_substr) {
       return Ok(());
     }
-    tokio::time::sleep(Duration::from_millis(500)).await;
+    tokio::time::sleep(Duration::from_millis(POLL_INTERVAL_MS)).await;
   }
   Err("register: timed out waiting for redirect to /login".into())
 }
@@ -159,7 +165,6 @@ pub async fn login(
   let password_input = fantoccini::Locator::Css("[data-testid=login-form] input[type=password]");
   let submit_loc = fantoccini::Locator::Css("[data-testid=login-submit]");
   c.wait()
-    .at_most(ELEMENT_WAIT_TIMEOUT)
     .for_element(form_loc)
     .await?;
   let email_el = c.find(email_input).await?;
@@ -169,11 +174,12 @@ pub async fn login(
   password_el.clear().await?;
   password_el.send_keys(password).await?;
   c.find(submit_loc).await?.click().await?;
-  // Wait for post-login (browser follows 302 to /dashboard): either URL contains /dashboard or dashboard heading appears.
+  // Wait for post-login: URL contains /dashboard or dashboard heading appears.
   let dashboard_path = "/dashboard";
   let heading_loc = fantoccini::Locator::Css("[data-testid=dashboard-heading]");
   let mut seen_dashboard = false;
-  for _ in 0..(ELEMENT_WAIT_TIMEOUT.as_secs() * 2) {
+  let deadline = std::time::Instant::now() + ELEMENT_WAIT_TIMEOUT;
+  while std::time::Instant::now() < deadline {
     let url = c.current_url().await?;
     if url.as_str().contains(dashboard_path) {
       seen_dashboard = true;
@@ -181,11 +187,12 @@ pub async fn login(
     }
     if let Ok(el) = c.find(heading_loc).await
       && let Ok(text) = el.text().await
-        && text.contains("Dashboard") {
-          seen_dashboard = true;
-          break;
-        }
-    tokio::time::sleep(Duration::from_millis(500)).await;
+        && text.contains("Dashboard")
+    {
+      seen_dashboard = true;
+      break;
+    }
+    tokio::time::sleep(Duration::from_millis(POLL_INTERVAL_MS)).await;
   }
   if !seen_dashboard {
     let current = c.current_url().await?;
@@ -199,7 +206,6 @@ pub async fn login(
   }
   let heading = fantoccini::Locator::Css("[data-testid=dashboard-heading]");
   c.wait()
-    .at_most(ELEMENT_WAIT_TIMEOUT)
     .for_element(heading)
     .await?;
   let el = c.find(heading).await?;
@@ -225,7 +231,6 @@ pub async fn assert_dashboard_visible(
   c.goto(&url).await?;
   let heading = fantoccini::Locator::Css("[data-testid=dashboard-heading]");
   c.wait()
-    .at_most(ELEMENT_WAIT_TIMEOUT)
     .for_element(heading)
     .await?;
   let el = c.find(heading).await?;
@@ -242,26 +247,29 @@ pub async fn assert_dashboard_visible(
   Ok(())
 }
 
-/// Goto /dashboard unauthed; assert current URL contains "login" (redirect to login page).
+/// Goto /dashboard unauthed; wait for SPA to redirect to login (URL contains "login").
 pub async fn assert_dashboard_redirects_to_login(
   c: &fantoccini::Client,
   base_url: &str,
 ) -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
   let dashboard_url = format!("{}/dashboard", base_url.trim_end_matches('/'));
   c.goto(&dashboard_url).await?;
-  tokio::time::sleep(std::time::Duration::from_millis(300)).await;
-  let url = c.current_url().await?;
-  let s = url.as_str();
-  if !s.contains("login") {
-    return Err(
-      format!(
-        "unauthed /dashboard should redirect to login; current url: {}",
-        s
-      )
-      .into(),
-    );
+  let deadline = std::time::Instant::now() + ELEMENT_WAIT_TIMEOUT;
+  while std::time::Instant::now() < deadline {
+    let url = c.current_url().await?;
+    if url.as_str().contains("login") {
+      return Ok(());
+    }
+    tokio::time::sleep(Duration::from_millis(POLL_INTERVAL_MS)).await;
   }
-  Ok(())
+  let url = c.current_url().await?;
+  Err(
+    format!(
+      "unauthed /dashboard should redirect to login; current url: {}",
+      url.as_str()
+    )
+    .into(),
+  )
 }
 
 /// Trigger logout by GET /api/auth/logout. Call when already logged in; session is cleared.
@@ -271,7 +279,6 @@ pub async fn logout(
 ) -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
   let url = format!("{}/api/auth/logout", base_url.trim_end_matches('/'));
   c.goto(&url).await?;
-  tokio::time::sleep(std::time::Duration::from_millis(200)).await;
   Ok(())
 }
 
@@ -290,7 +297,6 @@ pub async fn login_fails(
   let submit_locator = fantoccini::Locator::Css("[data-testid=login-submit]");
   c.goto(&url).await?;
   c.wait()
-    .at_most(ELEMENT_WAIT_TIMEOUT)
     .for_element(form_loc)
     .await?;
   let email_el = c.find(email_input).await?;
@@ -300,49 +306,68 @@ pub async fn login_fails(
   pw_el.clear().await?;
   pw_el.send_keys(password).await?;
   c.find(submit_locator).await?.click().await?;
-  // Wait a bit; we must NOT end up on dashboard.
-  tokio::time::sleep(Duration::from_secs(2)).await;
+  // Wait for route/content: either error appears (success) or redirect to dashboard (failure).
+  let error_loc = fantoccini::Locator::Css("[data-testid=login-error]");
+  let deadline = std::time::Instant::now() + ELEMENT_WAIT_TIMEOUT;
+  while std::time::Instant::now() < deadline {
+    let url = c.current_url().await?;
+    if url.as_str().contains("/dashboard") {
+      return Err("login_fails: expected to stay on login page, but redirected to dashboard".into());
+    }
+    if c.find(error_loc).await.is_ok() {
+      return Ok(());
+    }
+    tokio::time::sleep(Duration::from_millis(POLL_INTERVAL_MS)).await;
+  }
   let url = c.current_url().await?;
   if url.as_str().contains("/dashboard") {
     return Err("login_fails: expected to stay on login page, but redirected to dashboard".into());
   }
-  Ok(())
+  Err("login_fails: timed out waiting for login error element".into())
 }
 
-/// Goto /api/auth/admin (must be logged in as global admin). Asserts response body contains "access granted".
+/// Goto /api/auth/admin (must be logged in as global admin). Waits for response body to contain "access granted".
 pub async fn assert_admin_endpoint_granted(
   c: &fantoccini::Client,
   base_url: &str,
 ) -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
   let url = format!("{}/api/auth/admin", base_url.trim_end_matches('/'));
   c.goto(&url).await?;
-  tokio::time::sleep(std::time::Duration::from_millis(300)).await;
-  let body = c.source().await?;
-  if !body.contains("access granted") {
-    return Err(format!("admin endpoint should grant access; body: {:?}", body).into());
+  let deadline = std::time::Instant::now() + ELEMENT_WAIT_TIMEOUT;
+  while std::time::Instant::now() < deadline {
+    let body = c.source().await?;
+    if body.contains("access granted") {
+      return Ok(());
+    }
+    tokio::time::sleep(Duration::from_millis(POLL_INTERVAL_MS)).await;
   }
-  Ok(())
+  let body = c.source().await?;
+  Err(format!("admin endpoint should grant access; body: {:?}", body).into())
 }
 
-/// Goto /api/auth/admin (must be logged in as non-admin). Asserts response body contains "Forbidden".
+/// Goto /api/auth/admin (must be logged in as non-admin). Waits for response body to contain "Forbidden".
 pub async fn assert_admin_endpoint_denied(
   c: &fantoccini::Client,
   base_url: &str,
 ) -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
   let url = format!("{}/api/auth/admin", base_url.trim_end_matches('/'));
   c.goto(&url).await?;
-  tokio::time::sleep(std::time::Duration::from_millis(300)).await;
-  let body = c.source().await?;
-  if !body.contains("Forbidden") {
-    return Err(
-      format!(
-        "admin endpoint should deny access (Forbidden); body: {:?}",
-        body
-      )
-      .into(),
-    );
+  let deadline = std::time::Instant::now() + ELEMENT_WAIT_TIMEOUT;
+  while std::time::Instant::now() < deadline {
+    let body = c.source().await?;
+    if body.contains("Forbidden") {
+      return Ok(());
+    }
+    tokio::time::sleep(Duration::from_millis(POLL_INTERVAL_MS)).await;
   }
-  Ok(())
+  let body = c.source().await?;
+  Err(
+    format!(
+      "admin endpoint should deny access (Forbidden); body: {:?}",
+      body
+    )
+    .into(),
+  )
 }
 
 /// Connect to WebDriver, goto health URL, assert body contains "ok" and does not disclose components.
@@ -382,11 +407,20 @@ pub async fn assert_ws_demo_echo(
     .await?
     .click()
     .await?;
-  tokio::time::sleep(std::time::Duration::from_secs(1)).await;
+  let deadline = std::time::Instant::now() + ELEMENT_WAIT_TIMEOUT;
+  while std::time::Instant::now() < deadline {
+    let body = c.source().await?;
+    if body.contains(msg) {
+      c.close().await?;
+      return Ok(());
+    }
+    tokio::time::sleep(Duration::from_millis(POLL_INTERVAL_MS)).await;
+  }
   let body = c.source().await?;
   c.close().await?;
-  if !body.contains(msg) {
-    return Err(format!("ws-demo page source should contain {:?} after send", msg).into());
-  }
-  Ok(())
+  Err(format!(
+    "ws-demo page source should contain {:?} after send; body: {:?}",
+    msg, body
+  )
+  .into())
 }

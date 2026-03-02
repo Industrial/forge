@@ -2,7 +2,11 @@
   inputs,
   pkgs,
   ...
-}: {
+}: let
+  pkgs-playwright = import inputs.nixpkgs-playwright {system = pkgs.stdenv.hostPlatform.system;};
+  browsers = (builtins.fromJSON (builtins.readFile "${pkgs-playwright.playwright-driver}/browsers.json")).browsers;
+  chromium-rev = (builtins.head (builtins.filter (x: x.name == "chromium") browsers)).revision;
+in {
   # Name of the project with version
   name = "forge";
 
@@ -31,6 +35,37 @@
   };
 
   env = {
+    LD_LIBRARY_PATH = builtins.concatStringsSep ":" [
+      "${pkgs.stdenv.cc.cc.lib}/lib"
+      "${pkgs.vips}/lib"
+      "${pkgs.openssl.out}/lib"
+      "${pkgs.glib.out}/lib"
+      "${pkgs.nss.out}/lib"
+      "${pkgs.nspr.out}/lib"
+      "${pkgs.dbus.lib}/lib"
+      "${pkgs.atk.out}/lib"
+      "${pkgs.at-spi2-atk.out}/lib"
+      "${pkgs.expat.out}/lib"
+      "${pkgs.at-spi2-core.out}/lib"
+      "${pkgs.xorg.libX11.out}/lib"
+      "${pkgs.xorg.libXcomposite.out}/lib"
+      "${pkgs.xorg.libXdamage.out}/lib"
+      "${pkgs.xorg.libXext.out}/lib"
+      "${pkgs.xorg.libXfixes.out}/lib"
+      "${pkgs.xorg.libXrandr.out}/lib"
+      "${pkgs.mesa.out}/lib"
+      "${pkgs.xorg.libxcb.out}/lib"
+      "${pkgs.libxkbcommon.out}/lib"
+      "${pkgs.systemd}/lib"
+      "${pkgs.alsa-lib.out}/lib"
+    ];
+    PKG_CONFIG_PATH = "${pkgs.vips}/lib/pkgconfig:${pkgs.pkg-config}/lib/pkgconfig:${pkgs.openssl.out}/lib/pkgconfig";
+    # Playwright browsers are provided via environment variables from pinned nixpkgs-playwright
+    PLAYWRIGHT_BROWSERS_PATH = "${pkgs-playwright.playwright.browsers}";
+    PLAYWRIGHT_SKIP_VALIDATE_HOST_REQUIREMENTS = true;
+    PLAYWRIGHT_NODEJS_PATH = "${pkgs.nodejs_22}/bin/node";
+    PLAYWRIGHT_LAUNCH_OPTIONS_EXECUTABLE_PATH = "${pkgs-playwright.playwright.browsers}/chromium-${chromium-rev}/chrome-linux/chrome";
+
     RUST_BACKTRACE = "1";
     CARGO_TERM_COLOR = "always";
     # Enable SQL statement logging (forge db layer). SQL appears when FORGE_SQL_DEBUG=1 and sqlx=debug below.
@@ -85,6 +120,33 @@
   ];
 
   scripts = {
+    intro = {
+      exec = ''
+        # Check installed version from package.json in the project root
+        playwrightInstalledVersion=""
+        if [ -f ./package.json ]; then
+          playwrightInstalledVersion=$(grep -o '"@playwright/test":\s*"[^"]*"' ./package.json 2>/dev/null | grep -o '[0-9]\+\.[0-9]\+\.[0-9]\+' | head -1)
+        fi
+
+        if [ -z "$playwrightInstalledVersion" ]; then
+          playwrightInstalledVersion="not found"
+        fi
+
+        echo "❄️  Playwright nix version: ${pkgs-playwright.playwright.version}"
+        echo "📦 Playwright bun version: $playwrightInstalledVersion"
+
+        if [ "$playwrightInstalledVersion" != "not found" ] && [ "${pkgs-playwright.playwright.version}" != "$playwrightInstalledVersion" ]; then
+          echo "⚠️  Playwright versions in nix (in devenv.yaml) and bun (in package.json) are not the same! Please adapt the configuration."
+        else
+          echo "✅ Playwright versions in nix and bun are compatible"
+        fi
+
+        echo
+        echo "Environment variables:"
+        env | grep ^PLAYWRIGHT
+      '';
+    };
+
     prek-install = {
       exec = ''
         prek install -q --overwrite
@@ -94,6 +156,7 @@
 
   enterShell = ''
     prek-install
+    intro
 
     # Add forge CLI to PATH if it exists, prioritizing debug during dev
     if [ -f ./target/debug/forge ] && [ -f ./target/release/forge ]; then
