@@ -5,7 +5,6 @@ import {
   Text,
 } from '@react-spectrum/s2';
 import { style } from '@react-spectrum/s2/style' with { type: 'macro' };
-import React from 'react';
 
 type NavbarProps = {
   appName?: string;
@@ -72,7 +71,7 @@ export default function Navbar({ appName = 'My App', user }: NavbarProps) {
         <SearchField
           aria-label="Search photos"
           placeholder="Search photos"
-          width="100%"
+          styles={style({ width: '100%' })}
         />
       </div>
 
@@ -114,7 +113,7 @@ export default function Navbar({ appName = 'My App', user }: NavbarProps) {
           </span>
         </ActionButton>
         {user != null ? (
-          <Avatar src={undefined} name={user.name ?? user.email} />
+          <Avatar alt={user.name ?? user.email} />
         ) : (
           <div
             style={{

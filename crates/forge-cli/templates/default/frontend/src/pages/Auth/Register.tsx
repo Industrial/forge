@@ -1,6 +1,5 @@
 import { Button, Heading, Link } from '@react-spectrum/s2';
 import { style } from '@react-spectrum/s2/style' with { type: 'macro' };
-import React from 'react';
 
 export default function Register() {
   return (

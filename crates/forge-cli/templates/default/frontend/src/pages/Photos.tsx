@@ -1,6 +1,6 @@
 import { ActionButton, Heading } from '@react-spectrum/s2';
 import { style } from '@react-spectrum/s2/style' with { type: 'macro' };
-import React, { useState } from 'react';
+import { useState } from 'react';
 
 const PLACEHOLDER_IMAGES = [
   'https://picsum.photos/seed/1/400/300',

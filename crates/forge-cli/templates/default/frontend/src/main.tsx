@@ -1,6 +1,12 @@
 import '@react-spectrum/s2/page.css';
 import { Provider } from '@react-spectrum/s2';
 import React from 'react';
+
+// Set theme on <html> before render so Spectrum design tokens apply (page.css + Provider need this).
+if (typeof document !== 'undefined' && document.documentElement) {
+  document.documentElement.setAttribute('data-color-scheme', 'dark');
+  document.documentElement.setAttribute('data-background', 'base');
+}
 import { createRoot } from 'react-dom/client';
 import { BrowserRouter, Route, Routes, useNavigate } from 'react-router-dom';
 import { SessionProvider } from './context/Session';
@@ -15,14 +21,8 @@ import Photos from './pages/Photos';
 import Ideas from './pages/Ideas';
 import Files from './pages/Files';
 
-if (typeof document !== 'undefined' && document.documentElement) {
-  document.documentElement.setAttribute('data-color-scheme', 'dark');
-  document.documentElement.setAttribute('data-background', 'base');
-}
-
 function Providers({ children }: { children: React.ReactNode }) {
   const navigate = useNavigate();
-  // const location = useLocation();
 
   return (
     <SessionProvider>

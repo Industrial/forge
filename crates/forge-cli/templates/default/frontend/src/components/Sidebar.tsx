@@ -1,4 +1,4 @@
-import { Button, Divider, Link, Text } from '@react-spectrum/s2';
+import { Button, Divider, Link } from '@react-spectrum/s2';
 import { style } from '@react-spectrum/s2/style' with { type: 'macro' };
 import React from 'react';
 
@@ -82,7 +82,7 @@ export default function Sidebar({
       }}
     >
       {/* Primary action: add/upload */}
-      <Button variant="accent" aria-label="Add" style={{ borderRadius: '50%', width: 40, height: 40, padding: 0 }}>
+      <Button variant="accent" aria-label="Add">
         <span aria-hidden style={{ fontSize: 20, lineHeight: 1 }}>+</span>
       </Button>
 
