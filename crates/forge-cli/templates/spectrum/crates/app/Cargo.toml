@@ -1,0 +1,26 @@
+[package]
+name = "app"
+version = "0.1.0"
+edition = "2024"
+
+[dependencies]
+accept-language = "3.1"
+axum = { version = "0.8", features = ["ws"] }
+axum-login = "0.17"
+chrono = { version = "0.4", features = ["serde"] }
+db = { path = "../db" }
+fluent = "0.16"
+fluent-templates = "0.13"
+# In-repo path for `forge dev` from templates/default; replaced with {{FORGE_PATH}} by `forge new`
+forge = { path = "../../../../../forge" }
+sea-orm = { version = "1.1", features = ["runtime-tokio-rustls", "sqlx-sqlite", "macros"] }
+serde = { version = "1.0", features = ["derive"] }
+serde_json = "1.0"
+tokio = { version = "1", features = ["full"] }
+tower-http = { version = "0.6", features = ["fs"] }
+tower-sessions = "0.14"
+tower-sessions-sqlx-store = { version = "0.15", features = ["sqlite"] }
+tracing = "0.1"
+unic-langid = "0.9"
+uuid = { version = "1.0", features = ["v4", "serde"] }
+validator = { version = "0.20", features = ["derive"] }
