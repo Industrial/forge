@@ -1,7 +1,6 @@
 import { ActionButton, Heading } from '@react-spectrum/s2';
 import { style } from '@react-spectrum/s2/style' with { type: 'macro' };
 import React, { useState } from 'react';
-import Layout from '../components/Layout';
 
 const PLACEHOLDER_IMAGES = [
   'https://picsum.photos/seed/1/400/300',
@@ -24,8 +23,7 @@ export default function Photos() {
   const [gridSize, setGridSize] = useState<GridSize>(2);
 
   return (
-    <Layout>
-      <div className={style({ display: 'flex', flexDirection: 'column', gap: 24 })}>
+    <div className={style({ display: 'flex', flexDirection: 'column', gap: 24 })}>
         <div
           className={style({
             display: 'flex',
@@ -40,7 +38,7 @@ export default function Photos() {
             <ActionButton
               aria-label="Grid 2 by 2"
               isQuiet
-              isSelected={gridSize === 2}
+              // isSelected={gridSize === 2}
               onPress={() => setGridSize(2)}
             >
               <Grid2Icon />
@@ -48,7 +46,7 @@ export default function Photos() {
             <ActionButton
               aria-label="Grid 3 by 3"
               isQuiet
-              isSelected={gridSize === 3}
+              // isSelected={gridSize === 3}
               onPress={() => setGridSize(3)}
             >
               <Grid3Icon />
@@ -86,7 +84,6 @@ export default function Photos() {
           ))}
         </div>
       </div>
-    </Layout>
   );
 }
 

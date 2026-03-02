@@ -1,46 +1,56 @@
-import { Button, Form, Heading, Link, TextField } from '@react-spectrum/s2';
+import { Button, Heading, Link } from '@react-spectrum/s2';
 import { style } from '@react-spectrum/s2/style' with { type: 'macro' };
 import React from 'react';
-import { router } from '@inertiajs/react';
-import AuthLayout from '../../components/AuthLayout';
 
 export default function Register() {
   return (
-    <AuthLayout>
+    <>
       <Heading level={1}>Create an account</Heading>
-      <Form
-        onSubmit={(e) => {
-          e.preventDefault();
-          const formData = new FormData(e.currentTarget);
-          const email = (formData.get('email') ?? '') as string;
-          const password = (formData.get('password') ?? '') as string;
-          router.post('/api/auth/register', { email, password });
-        }}
+      <form
+        action="/api/auth/register"
+        method="post"
+        target="_top"
+        className={style({ display: 'flex', flexDirection: 'column', gap: 16 })}
       >
-        <div className={style({ display: 'flex', flexDirection: 'column', gap: 16 })}>
-          <TextField
+        <label className={style({ font: 'body', display: 'flex', flexDirection: 'column', gap: 4 })}>
+          Email
+          <input
             name="email"
             type="email"
-            label="Email"
             placeholder="you@example.com"
-            isRequired
+            required
+            style={{
+              padding: '8px 12px',
+              borderRadius: 6,
+              border: '1px solid var(--spectrum-gray-300)',
+              fontSize: 14,
+            }}
           />
-          <TextField
+        </label>
+        <label className={style({ font: 'body', display: 'flex', flexDirection: 'column', gap: 4 })}>
+          Password
+          <input
             name="password"
             type="password"
-            label="Password"
             placeholder="••••••••"
-            isRequired
+            required
+            minLength={8}
+            style={{
+              padding: '8px 12px',
+              borderRadius: 6,
+              border: '1px solid var(--spectrum-gray-300)',
+              fontSize: 14,
+            }}
           />
-          <Button type="submit" variant="accent">
-            Register
-          </Button>
-        </div>
-      </Form>
+        </label>
+        <Button type="submit" variant="accent">
+          Register
+        </Button>
+      </form>
       <div className={style({ display: 'flex', gap: 16, flexWrap: 'wrap' })}>
-        <Link href="/login">Already have an account? Log in</Link>
-        <Link href="/">Back to home</Link>
+        <Link href="/login" isQuiet>Already have an account? Log in</Link>
+        <Link href="/" isQuiet>Back to home</Link>
       </div>
-    </AuthLayout>
+    </>
   );
 }

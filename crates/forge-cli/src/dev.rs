@@ -98,10 +98,10 @@ pub fn run(config: &ForgeConfig) -> Result<(), Box<dyn std::error::Error>> {
     {
       vite_child = Some(child);
       eprintln!(
-        "  App (open this): http://{}:{}",
-        host, port
+        "  App (open this): http://localhost:{}",
+        config.frontend.port
       );
-      eprintln!("  Vite (assets): http://localhost:{}", config.frontend.port);
+      eprintln!("  Backend (API): http://{}:{}", host, port);
     } else {
       eprintln!("Warning: could not start Vite. Run manually in frontend/ if needed.");
     }

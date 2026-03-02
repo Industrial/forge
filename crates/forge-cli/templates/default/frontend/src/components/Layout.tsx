@@ -1,16 +1,11 @@
 import { Content, Heading, InlineAlert } from '@react-spectrum/s2';
 import { style } from '@react-spectrum/s2/style' with { type: 'macro' };
-import { usePage } from '@inertiajs/react';
 import React from 'react';
+import { useLocation } from 'react-router-dom';
 import AppShell from './AppShell';
 import Navbar from './Navbar';
 import Sidebar from './Sidebar';
-
-type SharedProps = {
-  auth: { user: { id: string; email: string } | null };
-  flash: { message?: string; error?: string };
-  appName: string;
-};
+import { useSession } from '../context/Session';
 
 type LayoutProps = { children: React.ReactNode };
 
@@ -22,24 +17,15 @@ function pathnameToSidebarActiveKey(pathname: string): string | undefined {
 }
 
 export default function Layout({ children }: LayoutProps) {
-  const page = usePage();
-  const { auth, flash, appName } = page.props as SharedProps;
-  const pathname =
-    typeof page.url === 'string'
-      ? (() => {
-          try {
-            return new URL(page.url, 'http://_').pathname;
-          } catch {
-            return '/';
-          }
-        })()
-      : '/';
+  const { user, flash } = useSession();
+  const location = useLocation();
+  const pathname = location.pathname;
   const sidebarActiveKey = pathnameToSidebarActiveKey(pathname);
 
   return (
     <AppShell
       navbar={
-        <Navbar appName={appName} user={auth?.user ?? undefined} />
+        <Navbar appName="App" user={user ?? undefined} />
       }
       sidebar={<Sidebar activeKey={sidebarActiveKey} />}
     >
@@ -56,12 +42,12 @@ export default function Layout({ children }: LayoutProps) {
       >
         {(flash?.message ?? flash?.error) != null && (
           <>
-            {flash.message != null && (
+            {flash?.message != null && (
               <InlineAlert variant="positive">
                 <Content>{flash.message}</Content>
               </InlineAlert>
             )}
-            {flash.error != null && (
+            {flash?.error != null && (
               <InlineAlert variant="negative">
                 <Heading>Error</Heading>
                 <Content>{flash.error}</Content>

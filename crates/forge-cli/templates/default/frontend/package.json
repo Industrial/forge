@@ -8,8 +8,8 @@
     "preview": "vite preview"
   },
   "dependencies": {
-    "@inertiajs/react": "^1.0.0",
     "@react-spectrum/s2": "^0.8.0",
+    "react-router-dom": "^7.0.0",
     "react": "^18.2.0",
     "react-dom": "^18.2.0"
   },

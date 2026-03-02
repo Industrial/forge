@@ -1,8 +1,8 @@
 import React, { useState, useEffect, useRef } from 'react';
 
-type Props = { wsUrl: string };
+const wsUrl = '/ws';
 
-export default function WsDemo({ wsUrl }: Props) {
+export default function WsDemo() {
   const [messages, setMessages] = useState<string[]>([]);
   const [input, setInput] = useState('');
   const wsRef = useRef<WebSocket | null>(null);
@@ -15,7 +15,7 @@ export default function WsDemo({ wsUrl }: Props) {
     ws.onmessage = (e) => setMessages((m) => [...m, e.data]);
     ws.onclose = () => (wsRef.current = null);
     return () => { ws.close(); };
-  }, [wsUrl]);
+  }, []);
 
   const send = () => {
     if (wsRef.current?.readyState === WebSocket.OPEN && input.trim()) {

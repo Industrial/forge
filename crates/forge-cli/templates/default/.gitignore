@@ -22,9 +22,9 @@ Thumbs.db
 *.log
 
 # Database files
-*.db
-*.sqlite
-*.sqlite3
+*.db*
+*.sqlite*
+*.sqlite3*
 
 # Frontend (018)
 frontend/node_modules/

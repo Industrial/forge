@@ -19,9 +19,12 @@ use serde::Deserialize;
 use uuid::Uuid;
 use validator::Validate;
 
-use crate::handlers::inertia_shared;
 use db::auth::Backend;
 use db::models::{api_token, organization, membership, user};
+
+/// Session keys for one-time flash messages (read once then cleared).
+pub const FLASH_MESSAGE: &str = "flash_message";
+pub const FLASH_ERROR: &str = "flash_error";
 
 #[derive(Deserialize, Validate)]
 pub struct RegisterRequest {
@@ -87,7 +90,7 @@ pub async fn register(
   tx.commit().await?;
 
   session
-    .insert(inertia_shared::FLASH_MESSAGE, "Thanks for registering. Please log in.")
+    .insert(FLASH_MESSAGE, "Thanks for registering. Please log in.")
     .await
     .ok();
   Ok(Redirect::to("/login").into_response())
@@ -174,7 +177,7 @@ pub async fn login(
     )
     .await;
     session
-      .insert(inertia_shared::FLASH_MESSAGE, "Welcome back!")
+      .insert(FLASH_MESSAGE, "Welcome back!")
       .await
       .ok();
     // 303 See Other: correct for POST→GET redirect (RFC 7231). Axum's Redirect::to() uses 303.
@@ -229,13 +232,27 @@ pub async fn logout(
 pub async fn profile(auth_session: AuthSession<Backend>) -> impl IntoResponse {
   tracing::debug!(target: "app::auth", "route: GET /api/auth/profile has_user={}", auth_session.user.is_some());
   match &auth_session.user {
-    Some(user) => {
-      let org_id = auth_session.organization_id().expect("profile requires organization_id");
-      let role = auth_session.role().expect("profile requires role");
-      format!("Hello, {}! org={} role={:?}", user.email, org_id, role).into_response()
-    }
-    None => (StatusCode::UNAUTHORIZED, "Not logged in").into_response(),
+    Some(user) => Json(serde_json::json!({
+      "user": { "id": user.id.to_string(), "email": user.email }
+    })).into_response(),
+    None => (StatusCode::UNAUTHORIZED, Json(serde_json::json!({ "error": "Not logged in" }))).into_response(),
   }
+}
+
+/// Returns session state for the SPA: current user and flash (consumed on read).
+pub async fn session_json(
+  session: Session,
+  OptionalRequireAuth(maybe_user): OptionalRequireAuth<Backend>,
+) -> impl IntoResponse {
+  let message: Option<String> = session.get(FLASH_MESSAGE).await.ok().flatten();
+  let error: Option<String> = session.get(FLASH_ERROR).await.ok().flatten();
+  session.remove::<String>(FLASH_MESSAGE).await.ok();
+  session.remove::<String>(FLASH_ERROR).await.ok();
+  let user = maybe_user.map(|u| serde_json::json!({ "id": u.id.to_string(), "email": u.email }));
+  Json(serde_json::json!({
+    "user": user,
+    "flash": { "message": message, "error": error }
+  }))
 }
 
 #[derive(Deserialize, Validate)]

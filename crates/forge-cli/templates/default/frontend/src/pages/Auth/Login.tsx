@@ -1,11 +1,10 @@
 import { Button, Heading, Link } from '@react-spectrum/s2';
 import { style } from '@react-spectrum/s2/style' with { type: 'macro' };
 import React from 'react';
-import AuthLayout from '../../components/AuthLayout';
 
 export default function Login() {
   return (
-    <AuthLayout>
+    <>
       <Heading level={1}>Log in</Heading>
       {/* Native form with target="_top" so the redirect after login is a full
           document load and the session cookie is sent on GET /dashboard. */}
@@ -53,6 +52,6 @@ export default function Login() {
         <Link href="/register">Create an account</Link>
         <Link href="/">Back to home</Link>
       </div>
-    </AuthLayout>
+    </>
   );
 }

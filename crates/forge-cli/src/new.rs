@@ -88,7 +88,9 @@ fn copy_template_dir(
             std::str::from_utf8(f.contents()).map_err(|_| "template file is not valid UTF-8")?;
           let replaced = text
             .replace("{{PROJECT_NAME}}", project_name)
-            .replace("{{FORGE_PATH}}", forge_path);
+            .replace("{{FORGE_PATH}}", forge_path)
+            // In-repo path used so `forge dev` works from templates/default; replace for new projects
+            .replace("../../../../../forge", forge_path);
           fs::write(&dest_path, replaced)?;
         }
       }
