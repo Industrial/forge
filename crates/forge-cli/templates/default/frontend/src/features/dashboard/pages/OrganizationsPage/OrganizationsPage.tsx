@@ -16,11 +16,8 @@ import DeleteIcon from "@mui/icons-material/Delete";
 import EditIcon from "@mui/icons-material/Edit";
 import Alert from "@mui/material/Alert";
 import CircularProgress from "@mui/material/CircularProgress";
-import Dialog from "@mui/material/Dialog";
-import DialogTitle from "@mui/material/DialogTitle";
-import DialogContent from "@mui/material/DialogContent";
-import DialogActions from "@mui/material/DialogActions";
 import useTheme from "@mui/material/styles/useTheme";
+import FormDialog from "../../../../components/FormDialog";
 import useMediaQuery from "@mui/material/useMediaQuery";
 import { useSession } from "../../../../context/Session";
 
@@ -35,24 +32,24 @@ type Organization = {
 const ORG_WRITE = "dashboard.organizations.write";
 
 type OrganizationFormProps = {
+	mode: "add" | "edit";
 	name: string;
 	slug: string;
 	onNameChange: (value: string) => void;
 	onSlugChange: (value: string) => void;
 	disabled?: boolean;
-	slugLabel?: string;
-	slugPlaceholder?: string;
 };
 
 function OrganizationForm({
+	mode,
 	name,
 	slug,
 	onNameChange,
 	onSlugChange,
 	disabled = false,
-	slugLabel = "Slug",
-	slugPlaceholder,
 }: OrganizationFormProps) {
+	const slugLabel = mode === "add" ? "Slug (optional)" : "Slug";
+	const slugPlaceholder = mode === "add" ? "Auto from name if blank" : undefined;
 	return (
 		<Box sx={{ display: "flex", flexDirection: "column", gap: 2, pt: 1, minWidth: 0 }}>
 			<TextField
@@ -386,56 +383,47 @@ export default function OrganizationsPage() {
 				</TableContainer>
 			)}
 
-			<Dialog
+			<FormDialog
 				open={addDialogOpen}
-				onClose={() => !adding && setAddDialogOpen(false)}
-				maxWidth="sm"
-				fullWidth
+				onClose={() => setAddDialogOpen(false)}
+				title="Add organization"
+				submitLabel="Add"
+				submittingLabel="Adding…"
+				onSubmit={handleAdd}
+				submitDisabled={!addName.trim()}
+				submitting={adding}
+				contentSx={{ minWidth: 0 }}
 			>
-				<DialogTitle>Add organization</DialogTitle>
-				<DialogContent sx={{ minWidth: 0 }}>
-					<OrganizationForm
-						name={addName}
-						slug={addSlug}
-						onNameChange={setAddName}
-						onSlugChange={setAddSlug}
-						disabled={adding}
-						slugLabel="Slug (optional)"
-						slugPlaceholder="Auto from name if blank"
-					/>
-				</DialogContent>
-				<DialogActions>
-					<Button onClick={() => setAddDialogOpen(false)} disabled={adding}>
-						Cancel
-					</Button>
-					<Button
-						variant="contained"
-						onClick={handleAdd}
-						disabled={adding || !addName.trim()}
-					>
-						{adding ? "Adding…" : "Add"}
-					</Button>
-				</DialogActions>
-			</Dialog>
+				<OrganizationForm
+					mode="add"
+					name={addName}
+					slug={addSlug}
+					onNameChange={setAddName}
+					onSlugChange={setAddSlug}
+					disabled={adding}
+				/>
+			</FormDialog>
 
-			<Dialog open={Boolean(editOrg)} onClose={() => setEditOrg(null)} maxWidth="xs" fullWidth>
-				<DialogTitle>Edit organization</DialogTitle>
-				<DialogContent sx={{ minWidth: 0 }}>
-					<OrganizationForm
-						name={editName}
-						slug={editSlug}
-						onNameChange={setEditName}
-						onSlugChange={setEditSlug}
-						disabled={saving}
-					/>
-				</DialogContent>
-				<DialogActions>
-					<Button onClick={() => setEditOrg(null)}>Cancel</Button>
-					<Button variant="contained" onClick={handleSaveEdit} disabled={saving}>
-						{saving ? "Saving…" : "Save"}
-					</Button>
-				</DialogActions>
-			</Dialog>
+			<FormDialog
+				open={Boolean(editOrg)}
+				onClose={() => setEditOrg(null)}
+				title="Edit organization"
+				submitLabel="Save"
+				submittingLabel="Saving…"
+				onSubmit={handleSaveEdit}
+				submitDisabled={false}
+				submitting={saving}
+				contentSx={{ minWidth: 0 }}
+			>
+				<OrganizationForm
+					mode="edit"
+					name={editName}
+					slug={editSlug}
+					onNameChange={setEditName}
+					onSlugChange={setEditSlug}
+					disabled={saving}
+				/>
+			</FormDialog>
 		</>
 	);
 }

@@ -16,11 +16,8 @@ import DeleteIcon from "@mui/icons-material/Delete";
 import EditIcon from "@mui/icons-material/Edit";
 import Alert from "@mui/material/Alert";
 import CircularProgress from "@mui/material/CircularProgress";
-import Dialog from "@mui/material/Dialog";
-import DialogTitle from "@mui/material/DialogTitle";
-import DialogContent from "@mui/material/DialogContent";
-import DialogActions from "@mui/material/DialogActions";
 import FormControlLabel from "@mui/material/FormControlLabel";
+import FormDialog from "../../../../components/FormDialog";
 import Checkbox from "@mui/material/Checkbox";
 import FormControl from "@mui/material/FormControl";
 import InputLabel from "@mui/material/InputLabel";
@@ -589,69 +586,52 @@ export default function UsersPage() {
 				</TableContainer>
 			)}
 
-			<Dialog
+			<FormDialog
 				open={addDialogOpen}
-				onClose={() => !adding && setAddDialogOpen(false)}
-				maxWidth="sm"
-				fullWidth
+				onClose={() => setAddDialogOpen(false)}
+				title="Add user"
+				submitLabel="Add"
+				submittingLabel="Adding…"
+				onSubmit={handleAdd}
+				submitDisabled={
+					!addEmail.trim() || addPassword.length < 8 || !addOrgId
+				}
+				submitting={adding}
 			>
-				<DialogTitle>Add user</DialogTitle>
-				<DialogContent>
-					<UserForm
-						mode="add"
-						email={addEmail}
-						password={addPassword}
-						orgId={addOrgId}
-						role={addRole}
-						organizations={organizations}
-						onEmailChange={setAddEmail}
-						onPasswordChange={setAddPassword}
-						onOrgIdChange={setAddOrgId}
-						onRoleChange={setAddRole}
-						disabled={adding}
-					/>
-				</DialogContent>
-				<DialogActions>
-					<Button
-						onClick={() => setAddDialogOpen(false)}
-						disabled={adding}
-					>
-						Cancel
-					</Button>
-					<Button
-						variant="contained"
-						onClick={handleAdd}
-						disabled={
-							adding ||
-							!addEmail.trim() ||
-							addPassword.length < 8 ||
-							!addOrgId
-						}
-					>
-						{adding ? "Adding…" : "Add"}
-					</Button>
-				</DialogActions>
-			</Dialog>
+				<UserForm
+					mode="add"
+					email={addEmail}
+					password={addPassword}
+					orgId={addOrgId}
+					role={addRole}
+					organizations={organizations}
+					onEmailChange={setAddEmail}
+					onPasswordChange={setAddPassword}
+					onOrgIdChange={setAddOrgId}
+					onRoleChange={setAddRole}
+					disabled={adding}
+				/>
+			</FormDialog>
 
-			<Dialog open={Boolean(editUser)} onClose={() => setEditUser(null)}>
-				<DialogTitle>Edit user</DialogTitle>
-				<DialogContent>
-					<UserForm
-						mode="edit"
-						email={editEmail}
-						active={editActive}
-						onEmailChange={setEditEmail}
-						onActiveChange={setEditActive}
-						disabled={saving}
-					/>
-				</DialogContent>
-				<DialogActions>
-					<Button onClick={() => setEditUser(null)}>Cancel</Button>
-					<Button variant="contained" onClick={handleSaveEdit} disabled={saving}>
-						{saving ? "Saving…" : "Save"}
-					</Button>
-				</DialogActions>
-			</Dialog>
+			<FormDialog
+				open={Boolean(editUser)}
+				onClose={() => setEditUser(null)}
+				title="Edit user"
+				submitLabel="Save"
+				submittingLabel="Saving…"
+				onSubmit={handleSaveEdit}
+				submitDisabled={false}
+				submitting={saving}
+			>
+				<UserForm
+					mode="edit"
+					email={editEmail}
+					active={editActive}
+					onEmailChange={setEditEmail}
+					onActiveChange={setEditActive}
+					disabled={saving}
+				/>
+			</FormDialog>
 		</>
 	);
 }
