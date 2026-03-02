@@ -1,20 +1,30 @@
 //! Create a new Forge project (scaffold) from the templates/default directory.
+//! Templates are read from the filesystem at runtime; the binary does not embed them.
 
-use include_dir::{Dir, DirEntry};
 use std::fs;
-use std::path::Path;
+use std::path::{Path, PathBuf};
 use std::process::Command;
 
-/// Directories that must not be copied into new projects (local caches, etc.).
-fn should_skip_dir(rel_path: &Path) -> bool {
-  rel_path
-    .components()
-    .next()
-    .map(|c| c.as_os_str() == ".devenv")
-    .unwrap_or(false)
+/// Resolve the path to the default template directory.
+/// Prefer FORGE_TEMPLATES_DIR env (path to templates/default or its parent).
+/// Otherwise use the crate's templates at build-time path (works when run from repo).
+fn template_dir() -> PathBuf {
+  if let Ok(dir) = std::env::var("FORGE_TEMPLATES_DIR") {
+    let p = PathBuf::from(dir);
+    if p.join("default").is_dir() {
+      return p.join("default");
+    }
+    if p.is_dir() {
+      return p;
+    }
+  }
+  PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("templates").join("default")
 }
 
-static TEMPLATE: Dir<'_> = include_dir::include_dir!("$CARGO_MANIFEST_DIR/templates/default");
+/// Directories that must not be copied into new projects (local caches, deps, etc.).
+fn should_skip_dir(name: &str) -> bool {
+  matches!(name, ".devenv" | "node_modules" | ".git")
+}
 
 pub fn create_new_project(name: &str) -> Result<(), Box<dyn std::error::Error>> {
   let project_dir = Path::new(name);
@@ -27,6 +37,15 @@ pub fn create_new_project(name: &str) -> Result<(), Box<dyn std::error::Error>> 
     .file_name()
     .and_then(|p| p.to_str())
     .unwrap_or(name);
+
+  let template_base = template_dir();
+  if !template_base.is_dir() {
+    return Err(format!(
+      "Template directory not found: {} (set FORGE_TEMPLATES_DIR to override)",
+      template_base.display()
+    )
+    .into());
+  }
 
   let exe_path = std::env::current_exe().unwrap();
   let forge_path_str = exe_path
@@ -41,13 +60,7 @@ pub fn create_new_project(name: &str) -> Result<(), Box<dyn std::error::Error>> 
     .display()
     .to_string();
 
-  // entry.path() is the full path from the template root (see include_dir Doc)
-  copy_template_dir(
-    TEMPLATE.entries(),
-    project_dir,
-    project_name,
-    &forge_path_str,
-  )?;
+  copy_template_dir(&template_base, "", project_dir, project_name, &forge_path_str)?;
 
   let _ = Command::new("git")
     .arg("init")
@@ -58,43 +71,55 @@ pub fn create_new_project(name: &str) -> Result<(), Box<dyn std::error::Error>> 
 }
 
 fn copy_template_dir(
-  entries: &[DirEntry<'_>],
-  dest: &Path,
+  source_root: &Path,
+  rel: &str,
+  dest_root: &Path,
   project_name: &str,
   forge_path: &str,
 ) -> Result<(), Box<dyn std::error::Error>> {
+  let source_path = source_root.join(rel);
+  let entries = fs::read_dir(&source_path)?;
+
   for entry in entries {
-    let rel_path = entry.path();
-    let dest_path = dest.join(rel_path);
+    let entry = entry?;
+    let name = entry.file_name();
+    let name_str = name.to_string_lossy();
 
-    match entry {
-      DirEntry::Dir(d) => {
-        if should_skip_dir(rel_path) {
-          continue;
-        }
-        fs::create_dir_all(&dest_path)?;
-        copy_template_dir(d.entries(), dest, project_name, forge_path)?;
+    if should_skip_dir(&name_str) {
+      continue;
+    }
+
+    let rel_ent = if rel.is_empty() {
+      name_str.to_string()
+    } else {
+      format!("{}/{}", rel, name_str)
+    };
+    let dest_path = dest_root.join(&rel_ent);
+
+    if entry.file_type()?.is_dir() {
+      fs::create_dir_all(&dest_path)?;
+      copy_template_dir(source_root, &rel_ent, dest_root, project_name, forge_path)?;
+    } else {
+      if let Some(parent) = dest_path.parent() {
+        fs::create_dir_all(parent)?;
       }
-      DirEntry::File(f) => {
-        if let Some(parent) = dest_path.parent() {
-          fs::create_dir_all(parent)?;
-        }
 
-        let is_binary = rel_path.extension().is_some_and(|e| e == "ico");
-        if is_binary {
-          fs::write(&dest_path, f.contents())?;
-        } else {
-          let text =
-            std::str::from_utf8(f.contents()).map_err(|_| "template file is not valid UTF-8")?;
-          let replaced = text
-            .replace("{{PROJECT_NAME}}", project_name)
-            .replace("{{FORGE_PATH}}", forge_path)
-            // In-repo path used so `forge dev` works from templates/default; replace for new projects
-            .replace("../../../../../forge", forge_path);
-          fs::write(&dest_path, replaced)?;
-        }
+      let bytes = fs::read(entry.path())?;
+      let is_binary = dest_path.extension().is_some_and(|e| e == "ico")
+        || std::str::from_utf8(&bytes).is_err();
+
+      if is_binary {
+        fs::write(&dest_path, bytes)?;
+      } else {
+        let text = String::from_utf8(bytes).unwrap();
+        let replaced = text
+          .replace("{{PROJECT_NAME}}", project_name)
+          .replace("{{FORGE_PATH}}", forge_path)
+          .replace("../../../../../forge", forge_path);
+        fs::write(&dest_path, replaced)?;
       }
     }
   }
+
   Ok(())
 }
