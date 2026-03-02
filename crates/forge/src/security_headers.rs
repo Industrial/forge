@@ -46,3 +46,56 @@ fn add_security_headers_to_map(headers: &mut HeaderMap) {
     HeaderValue::from_static("same-origin"),
   );
 }
+
+#[cfg(test)]
+mod tests {
+  use super::*;
+  use axum::body::Body;
+  use axum::response::Response;
+
+  #[test]
+  fn add_security_headers_sets_owasp_headers() {
+    let res: Response<Body> = Response::builder()
+      .status(200)
+      .body(Body::empty())
+      .unwrap();
+    let res = add_security_headers(res);
+    let headers = res.headers();
+    assert_eq!(
+      headers.get("x-content-type-options").and_then(|v| v.to_str().ok()),
+      Some("nosniff")
+    );
+    assert_eq!(
+      headers.get("x-frame-options").and_then(|v| v.to_str().ok()),
+      Some("DENY")
+    );
+    assert_eq!(
+      headers.get("referrer-policy").and_then(|v| v.to_str().ok()),
+      Some("strict-origin-when-cross-origin")
+    );
+    assert!(headers.get("content-security-policy").is_some());
+    assert!(headers.get("permissions-policy").is_some());
+    assert_eq!(
+      headers.get("cross-origin-resource-policy").and_then(|v| v.to_str().ok()),
+      Some("same-site")
+    );
+    assert_eq!(
+      headers.get("cross-origin-opener-policy").and_then(|v| v.to_str().ok()),
+      Some("same-origin")
+    );
+  }
+
+  #[test]
+  fn add_security_headers_removes_server_identifiers() {
+    let res: Response<Body> = Response::builder()
+      .status(200)
+      .header("server", "SomeServer/1.0")
+      .header("x-powered-by", "PHP")
+      .body(Body::empty())
+      .unwrap();
+    let res = add_security_headers(res);
+    let headers = res.headers();
+    assert!(headers.get("server").is_none());
+    assert!(headers.get("x-powered-by").is_none());
+  }
+}

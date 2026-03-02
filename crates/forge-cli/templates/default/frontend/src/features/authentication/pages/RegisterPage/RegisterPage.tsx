@@ -1,15 +1,11 @@
 import { useState } from "react";
-import { useNavigate } from "react-router-dom";
-import {
-	Button,
-	Content,
-	Form,
-	Heading,
-	InlineAlert,
-	Link,
-	TextField,
-} from "@react-spectrum/s2";
-import { style } from "@react-spectrum/s2/style" with { type: "macro" };
+import { Link as RouterLink, useNavigate } from "react-router-dom";
+import Alert from "@mui/material/Alert";
+import Box from "@mui/material/Box";
+import Button from "@mui/material/Button";
+import Link from "@mui/material/Link";
+import TextField from "@mui/material/TextField";
+import Typography from "@mui/material/Typography";
 
 export default function RegisterPage() {
 	const navigate = useNavigate();
@@ -47,67 +43,61 @@ export default function RegisterPage() {
 
 	return (
 		<>
-			<Heading level={1} styles={style({ font: "heading-xl" })}>
+			<Typography variant="h4" component="h1" gutterBottom>
 				Create an account
-			</Heading>
-			<div
-				className={style({ display: "flex", flexDirection: "column", gap: 12 })}
-			>
-				<Form onSubmit={handleSubmit} data-testid="register-form">
-					{error != null && (
-						<InlineAlert
-							variant="negative"
-							fillStyle="border"
-							data-testid="register-error"
-						>
-							<Heading>Registration failed</Heading>
-							<Content>{error}</Content>
-						</InlineAlert>
-					)}
-					<TextField
-						name="email"
-						type="email"
-						label="Email"
-						placeholder="you@example.com"
-						value={email}
-						onChange={setEmail}
-						isRequired
-						isDisabled={submitting}
-						data-testid="register-email"
-					/>
-					<TextField
-						name="password"
-						type="password"
-						label="Password"
-						placeholder="••••••••"
-						value={password}
-						onChange={setPassword}
-						isRequired
-						minLength={8}
-						isDisabled={submitting}
-						data-testid="register-password"
-					/>
-					<div
-						className={style({
-							display: "flex",
-							flexDirection: "row",
-							justifyContent: "end",
-						})}
-					>
-						<Button
-							type="submit"
-							variant="accent"
-							isDisabled={submitting}
-							data-testid="register-submit"
-						>
-							Register
-						</Button>
-					</div>
-				</Form>
-				<div className={style({ textAlign: "center", font: "body" })}>
-					<Link href="/login">Already have an account? Log in</Link>
-				</div>
-			</div>
+			</Typography>
+			<Box sx={{ display: "flex", flexDirection: "column", gap: 2 }}>
+				<form onSubmit={handleSubmit} data-testid="register-form">
+					<Box sx={{ display: "flex", flexDirection: "column", gap: 2 }}>
+						{error != null && (
+							<Alert severity="error" data-testid="register-error">
+								<Typography variant="subtitle2">Registration failed</Typography>
+								{error}
+							</Alert>
+						)}
+						<TextField
+							name="email"
+							type="email"
+							label="Email"
+							placeholder="you@example.com"
+							value={email}
+							onChange={(e) => setEmail(e.target.value)}
+							required
+							disabled={submitting}
+							data-testid="register-email"
+							fullWidth
+						/>
+						<TextField
+							name="password"
+							type="password"
+							label="Password"
+							placeholder="••••••••"
+							value={password}
+							onChange={(e) => setPassword(e.target.value)}
+							required
+							inputProps={{ minLength: 8 }}
+							disabled={submitting}
+							data-testid="register-password"
+							fullWidth
+						/>
+						<Box sx={{ display: "flex", justifyContent: "flex-end" }}>
+							<Button
+								type="submit"
+								variant="contained"
+								disabled={submitting}
+								data-testid="register-submit"
+							>
+								Register
+							</Button>
+						</Box>
+					</Box>
+				</form>
+				<Typography variant="body2" textAlign="center">
+					<Link component={RouterLink} to="/login" variant="body2">
+						Already have an account? Log in
+					</Link>
+				</Typography>
+			</Box>
 		</>
 	);
 }

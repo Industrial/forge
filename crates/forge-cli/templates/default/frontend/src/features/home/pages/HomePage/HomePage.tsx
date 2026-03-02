@@ -1,13 +1,12 @@
-import { Heading, Text } from "@react-spectrum/s2";
-import { style } from "@react-spectrum/s2/style" with { type: "macro" };
+import Typography from "@mui/material/Typography";
 
 export default function HomePage() {
 	return (
 		<>
-			<Heading level={1} styles={style({ font: "heading-xl" })}>
+			<Typography variant="h4" component="h1" gutterBottom>
 				Home
-			</Heading>
-			<Text>Welcome. You are logged in.</Text>
+			</Typography>
+			<Typography>Welcome. You are logged in.</Typography>
 		</>
 	);
 }

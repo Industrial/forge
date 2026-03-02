@@ -139,3 +139,74 @@ pub fn env_filter() -> EnvFilter {
     .add_directive("axum_tracing_opentelemetry=error".parse().unwrap())
     .add_directive("tower_sessions_core=error".parse().unwrap())
 }
+
+#[cfg(test)]
+mod tests {
+  use super::*;
+
+  #[test]
+  fn trace_id_from_traceparent_none_returns_none() {
+    assert_eq!(trace_id_from_traceparent(None), None);
+  }
+
+  #[test]
+  fn trace_id_from_traceparent_empty_returns_none() {
+    assert_eq!(trace_id_from_traceparent(Some("")), None);
+    assert_eq!(trace_id_from_traceparent(Some("   ")), None);
+  }
+
+  #[test]
+  fn trace_id_from_traceparent_too_few_parts_returns_none() {
+    assert_eq!(trace_id_from_traceparent(Some("00")), None);
+    assert_eq!(trace_id_from_traceparent(Some("version-only")), None);
+  }
+
+  #[test]
+  fn trace_id_from_traceparent_wrong_length_returns_none() {
+    // 31-char trace_id (too short)
+    assert_eq!(
+      trace_id_from_traceparent(Some("00-0000000000000000000000000000000-0000000000000000-00")),
+      None
+    );
+    // 33-char trace_id (too long)
+    assert_eq!(
+      trace_id_from_traceparent(Some("00-000000000000000000000000000000000-0000000000000000-00")),
+      None
+    );
+  }
+
+  #[test]
+  fn trace_id_from_traceparent_non_hex_returns_none() {
+    assert_eq!(
+      trace_id_from_traceparent(Some("00-0000000000000000000000000000000g-0000000000000000-00")),
+      None
+    );
+  }
+
+  #[test]
+  fn trace_id_from_traceparent_valid_returns_some() {
+    let trace_id = "00000000000000000000000000000001";
+    let header = format!("00-{}-0000000000000000-00", trace_id);
+    assert_eq!(
+      trace_id_from_traceparent(Some(header.trim())),
+      Some(trace_id.to_string())
+    );
+  }
+
+  #[test]
+  fn trace_id_from_traceparent_trimmed() {
+    let trace_id = "a1b2c3d4e5f6789012345678abcdef01";
+    let header = format!("  00-{}-0000000000000000-00  ", trace_id);
+    assert_eq!(
+      trace_id_from_traceparent(Some(&header)),
+      Some(trace_id.to_string())
+    );
+  }
+
+  #[test]
+  fn env_filter_builds_with_default_when_no_rust_log() {
+    unsafe { let _ = std::env::remove_var("RUST_LOG"); }
+    let filter = env_filter();
+    let _ = filter;
+  }
+}

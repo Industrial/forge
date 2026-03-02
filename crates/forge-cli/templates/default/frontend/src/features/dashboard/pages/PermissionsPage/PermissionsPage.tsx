@@ -1,13 +1,12 @@
-import { Heading, Text } from "@react-spectrum/s2";
-import { style } from "@react-spectrum/s2/style" with { type: "macro" };
+import Typography from "@mui/material/Typography";
 
 export default function PermissionsPage() {
 	return (
 		<>
-			<Heading level={1} styles={style({ font: "heading-xl" })}>
+			<Typography variant="h4" component="h1" gutterBottom>
 				Permissions
-			</Heading>
-			<Text>Manage Permissions.</Text>
+			</Typography>
+			<Typography>Manage permissions.</Typography>
 		</>
 	);
 }

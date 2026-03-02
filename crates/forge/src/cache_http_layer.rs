@@ -206,3 +206,62 @@ where
     })
   }
 }
+
+#[cfg(test)]
+mod tests {
+  use super::*;
+  use crate::cache::{CacheConfig, HttpResponseCacheConfig};
+
+  #[test]
+  fn from_config_disabled_returns_none() {
+    let cfg = CacheConfig {
+      enabled: false,
+      application: None,
+      http_response: Some(HttpResponseCacheConfig {
+        enabled: true,
+        default_ttl_secs: 60,
+        no_cache_paths: None,
+      }),
+    };
+    assert!(HttpResponseCacheLayer::from_config(&cfg).is_none());
+  }
+
+  #[test]
+  fn from_config_no_http_response_returns_none() {
+    let cfg = CacheConfig {
+      enabled: true,
+      application: None,
+      http_response: None,
+    };
+    assert!(HttpResponseCacheLayer::from_config(&cfg).is_none());
+  }
+
+  #[test]
+  fn from_config_http_disabled_returns_none() {
+    let cfg = CacheConfig {
+      enabled: true,
+      application: None,
+      http_response: Some(HttpResponseCacheConfig {
+        enabled: false,
+        default_ttl_secs: 60,
+        no_cache_paths: None,
+      }),
+    };
+    assert!(HttpResponseCacheLayer::from_config(&cfg).is_none());
+  }
+
+  #[test]
+  fn from_config_enabled_returns_some() {
+    let cfg = CacheConfig {
+      enabled: true,
+      application: None,
+      http_response: Some(HttpResponseCacheConfig {
+        enabled: true,
+        default_ttl_secs: 120,
+        no_cache_paths: Some(vec!["/healthz".into()]),
+      }),
+    };
+    let layer = HttpResponseCacheLayer::from_config(&cfg).unwrap();
+    let _ = layer;
+  }
+}

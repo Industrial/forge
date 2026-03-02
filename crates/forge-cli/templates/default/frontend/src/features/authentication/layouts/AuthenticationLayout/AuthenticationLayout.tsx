@@ -1,5 +1,6 @@
-import { Content, Heading, InlineAlert } from "@react-spectrum/s2";
-import { style } from "@react-spectrum/s2/style" with { type: "macro" };
+import Alert from "@mui/material/Alert";
+import Box from "@mui/material/Box";
+import Typography from "@mui/material/Typography";
 import React from "react";
 import { useSession } from "../../../../context/Session";
 
@@ -9,41 +10,39 @@ export default function AuthenticationLayout({ children }: AuthLayoutProps) {
 	const { flash } = useSession();
 
 	return (
-		<div
-			className={style({
-				minHeight: "full",
+		<Box
+			sx={{
+				minHeight: "100%",
 				display: "flex",
 				alignItems: "center",
 				justifyContent: "center",
-				padding: 24,
-			})}
+				p: 3,
+			}}
 		>
-			<div
-				className={style({
+			<Box
+				sx={{
 					display: "flex",
 					flexDirection: "column",
-					gap: 24,
+					gap: 3,
 					maxWidth: 400,
-					width: "full",
-				})}
+					width: "100%",
+				}}
 			>
 				{(flash?.message ?? flash?.error) != null && (
 					<>
 						{flash?.message != null && (
-							<InlineAlert variant="positive">
-								<Content>{flash.message}</Content>
-							</InlineAlert>
+							<Alert severity="success">{flash.message}</Alert>
 						)}
 						{flash?.error != null && (
-							<InlineAlert variant="negative">
-								<Heading>Error</Heading>
-								<Content>{flash.error}</Content>
-							</InlineAlert>
+							<Alert severity="error">
+								<Typography variant="subtitle2">Error</Typography>
+								{flash.error}
+							</Alert>
 						)}
 					</>
 				)}
 				{children}
-			</div>
-		</div>
+			</Box>
+		</Box>
 	);
 }

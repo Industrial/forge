@@ -1,15 +1,11 @@
 import { useState } from "react";
-import { useNavigate, useLocation } from "react-router-dom";
-import {
-	Button,
-	Content,
-	Form,
-	Heading,
-	InlineAlert,
-	Link,
-	TextField,
-} from "@react-spectrum/s2";
-import { style } from "@react-spectrum/s2/style" with { type: "macro" };
+import { Link as RouterLink, useNavigate, useLocation } from "react-router-dom";
+import Alert from "@mui/material/Alert";
+import Box from "@mui/material/Box";
+import Button from "@mui/material/Button";
+import Link from "@mui/material/Link";
+import TextField from "@mui/material/TextField";
+import Typography from "@mui/material/Typography";
 import { useSession } from "../../../../context/Session";
 
 export default function LoginPage() {
@@ -55,68 +51,60 @@ export default function LoginPage() {
 
 	return (
 		<>
-			<Heading level={1} styles={style({ font: "heading-xl" })}>
+			<Typography variant="h4" component="h1" gutterBottom>
 				Log in
-			</Heading>
-			<div
-				className={style({ display: "flex", flexDirection: "column", gap: 12 })}
-			>
-				<Form onSubmit={handleSubmit} data-testid="login-form">
-					{error != null && (
-						<InlineAlert
-							variant="negative"
-							fillStyle="border"
-							data-testid="login-error"
-						>
-							<Heading>Login failed</Heading>
-							<Content>{error}</Content>
-						</InlineAlert>
-					)}
-					<TextField
-						name="email"
-						type="email"
-						label="Email"
-						placeholder="you@example.com"
-						value={email}
-						onChange={setEmail}
-						isRequired
-						isDisabled={submitting}
-						data-testid="login-email"
-					/>
-					<TextField
-						name="password"
-						type="password"
-						label="Password"
-						placeholder="••••••••"
-						value={password}
-						onChange={setPassword}
-						isRequired
-						isDisabled={submitting}
-						data-testid="login-password"
-					/>
-					<div
-						className={style({
-							display: "flex",
-							flexDirection: "row",
-							justifyContent: "end",
-						})}
-					>
-						<Button
-							type="submit"
-							variant="accent"
-							isDisabled={submitting}
-							data-testid="login-submit"
-						>
-							Log in
-						</Button>
-					</div>
-				</Form>
-				<div className={style({ textAlign: "center", font: "body" })}>
-					<Link href="/register">
+			</Typography>
+			<Box sx={{ display: "flex", flexDirection: "column", gap: 2 }}>
+				<form onSubmit={handleSubmit} data-testid="login-form">
+					<Box sx={{ display: "flex", flexDirection: "column", gap: 2 }}>
+						{error != null && (
+							<Alert severity="error" data-testid="login-error">
+								<Typography variant="subtitle2">Login failed</Typography>
+								{error}
+							</Alert>
+						)}
+						<TextField
+							name="email"
+							type="email"
+							label="Email"
+							placeholder="you@example.com"
+							value={email}
+							onChange={(e) => setEmail(e.target.value)}
+							required
+							disabled={submitting}
+							data-testid="login-email"
+							fullWidth
+						/>
+						<TextField
+							name="password"
+							type="password"
+							label="Password"
+							placeholder="••••••••"
+							value={password}
+							onChange={(e) => setPassword(e.target.value)}
+							required
+							disabled={submitting}
+							data-testid="login-password"
+							fullWidth
+						/>
+						<Box sx={{ display: "flex", justifyContent: "flex-end" }}>
+							<Button
+								type="submit"
+								variant="contained"
+								disabled={submitting}
+								data-testid="login-submit"
+							>
+								Log in
+							</Button>
+						</Box>
+					</Box>
+				</form>
+				<Typography variant="body2" textAlign="center">
+					<Link component={RouterLink} to="/register" variant="body2">
 						Don&apos;t have an account? Create an Account
 					</Link>
-				</div>
-			</div>
+				</Typography>
+			</Box>
 		</>
 	);
 }

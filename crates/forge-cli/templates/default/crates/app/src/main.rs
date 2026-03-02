@@ -44,6 +44,8 @@ async fn main() -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
     .post_route("/api/auth/login", handlers::auth::login)
     .route("/api/auth/logout", handlers::auth::logout)
     .route("/api/auth/profile", handlers::auth::profile)
+    .route("/api/auth/profiles", handlers::auth::profiles_list)
+    .post_route("/api/auth/switch-profile", handlers::auth::switch_profile)
     .route("/api/auth/session", handlers::auth::session_json)
     .post_route("/api/auth/tokens", handlers::auth::create_token)
     .route("/api/auth/admin", handlers::auth::admin_only);

@@ -1,5 +1,5 @@
-import { style } from "@react-spectrum/s2/style" with { type: "macro" };
 import React from "react";
+import Box from "@mui/material/Box";
 import Navbar from "../components/Navbar";
 
 export type LayoutProps = {
@@ -14,35 +14,35 @@ export default function Layout({
 	onToggleTheme,
 }: LayoutProps) {
 	return (
-		<div
-			className={style({
+		<Box
+			sx={{
 				display: "flex",
 				flexDirection: "column",
-				minHeight: "full",
-				height: "full",
+				minHeight: "100%",
+				height: "100%",
 				overflow: "auto",
 				flexGrow: 1,
-			})}
+			}}
 		>
 			<Navbar
 				appName="App"
 				colorScheme={colorScheme}
 				onToggleTheme={onToggleTheme}
 			/>
-			<div
-				className={style({
+			<Box
+				sx={{
 					display: "flex",
 					flexDirection: "column",
-					gap: 16,
-					margin: 16,
-					backgroundColor: "layer-1",
-					padding: 16,
-					borderRadius: "default",
+					gap: 2,
+					m: 2,
+					p: 2,
+					bgcolor: "background.paper",
+					borderRadius: 1,
 					flexGrow: 1,
-				})}
+				}}
 			>
 				{children}
-			</div>
-		</div>
+			</Box>
+		</Box>
 	);
 }

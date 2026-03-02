@@ -1,19 +1,17 @@
-/*
- * Minimal reset so body/html have no default margin/padding.
- * Must run in a layer declared before S2's layer so it doesn't override S2 styles.
- * See: https://react-spectrum.adobe.com/beta/s2/styling.html#css-resets
- */
-@layer reset, _;
+html,
+body {
+	margin: 0;
+	padding: 0;
+	height: 100%;
+}
 
-@layer reset {
-  html,
-  body {
-    margin: 0;
-    padding: 0;
-    height: 100%;
-  }
+#root {
+	height: 100vh;
+}
 
-  #root {
-    height: 100vh;
-  }
+#root main {
+	height: 100vh;
+	min-height: 100vh;
+	display: flex;
+	flex-direction: column;
 }

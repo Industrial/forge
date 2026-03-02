@@ -18,3 +18,32 @@ impl Seeder {
     seed_fn(db.clone()).await
   }
 }
+
+#[cfg(test)]
+mod tests {
+  use super::*;
+  use sea_orm::Database;
+
+  #[tokio::test]
+  async fn seeder_run_invokes_closure_and_returns_ok() {
+    let conn = Database::connect(sea_orm::ConnectOptions::new("sqlite::memory:".to_string()))
+      .await
+      .unwrap();
+    let db = crate::DbConnection::new(conn, sea_orm_tracing::TracingConfig::default());
+    let res = Seeder::run(&db, |_| Box::pin(async { Ok(()) })).await;
+    assert!(res.is_ok());
+  }
+
+  #[tokio::test]
+  async fn seeder_run_propagates_error() {
+    let conn = Database::connect(sea_orm::ConnectOptions::new("sqlite::memory:".to_string()))
+      .await
+      .unwrap();
+    let db = crate::DbConnection::new(conn, sea_orm_tracing::TracingConfig::default());
+    let res = Seeder::run(&db, |_| {
+      Box::pin(async { Err("seed failed".into()) })
+    })
+    .await;
+    assert!(res.is_err());
+  }
+}

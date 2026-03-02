@@ -62,4 +62,34 @@ mod tests {
     let result = verify_password("password", "notahash");
     assert!(result.is_err());
   }
+
+  #[test]
+  fn hash_api_token_is_hex_and_deterministic() {
+    let secret = "my-secret-token";
+    let h1 = hash_api_token(secret);
+    let h2 = hash_api_token(secret);
+    assert_eq!(h1, h2);
+    assert!(h1.chars().all(|c| c.is_ascii_hexdigit()));
+    assert_eq!(h1.len(), 64);
+  }
+
+  #[test]
+  fn verify_api_token_correct_secret_returns_true() {
+    let secret = "correct-secret";
+    let hash = hash_api_token(secret);
+    assert!(verify_api_token(secret, &hash));
+  }
+
+  #[test]
+  fn verify_api_token_wrong_secret_returns_false() {
+    let hash = hash_api_token("right");
+    assert!(!verify_api_token("wrong", &hash));
+  }
+
+  #[test]
+  fn verify_api_token_wrong_length_returns_false() {
+    let _hash = hash_api_token("secret");
+    assert!(!verify_api_token("secret", "short"));
+    assert!(!verify_api_token("secret", &"a".repeat(65)));
+  }
 }

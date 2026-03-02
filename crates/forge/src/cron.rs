@@ -125,4 +125,25 @@ mod tests {
     let now = Instant::now();
     assert!(next > now, "next daily should be in the future");
   }
+
+  #[test]
+  fn next_interval_run_with_previous_run_schedules_next_after_duration() {
+    let dur = Duration::from_secs(60);
+    let past = Instant::now() - Duration::from_secs(30);
+    let (next, new_last) = next_interval_run(dur, Some(past));
+    assert!(new_last.is_some());
+    assert!(next > Instant::now());
+  }
+
+  #[test]
+  fn next_hourly_run_clamps_minute_to_59() {
+    let _ = next_hourly_run(60);
+    let _ = next_hourly_run(59);
+  }
+
+  #[test]
+  fn next_daily_run_clamps_hour_and_minute() {
+    let _ = next_daily_run(24, 0);
+    let _ = next_daily_run(0, 60);
+  }
 }

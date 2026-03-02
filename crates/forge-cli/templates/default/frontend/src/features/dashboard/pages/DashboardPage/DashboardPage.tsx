@@ -1,17 +1,17 @@
-import { Heading, Text } from "@react-spectrum/s2";
-import { style } from "@react-spectrum/s2/style" with { type: "macro" };
+import Typography from "@mui/material/Typography";
 
 export default function DashboardPage() {
 	return (
 		<>
-			<Heading
-				level={1}
-				styles={style({ font: "heading-xl" })}
+			<Typography
+				variant="h4"
+				component="h1"
+				gutterBottom
 				data-testid="dashboard-heading"
 			>
 				Dashboard
-			</Heading>
-			<Text>Welcome to your dashboard.</Text>
+			</Typography>
+			<Typography>Welcome to your dashboard.</Typography>
 		</>
 	);
 }

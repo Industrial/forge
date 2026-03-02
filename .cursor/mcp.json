@@ -35,6 +35,11 @@
 			],
 			"disabled": false,
 			"autoApprove": ["create_debug_session", "set_breakpoint", "get_variables"]
+		},
+		"mui-mcp": {
+			"type": "stdio",
+			"command": "npx",
+			"args": ["-y", "@mui/mcp@latest"]
 		}
 	}
 }

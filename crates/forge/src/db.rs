@@ -45,3 +45,38 @@ pub async fn initialize_database(
   let db = Database::connect(opt).await?;
   Ok(db)
 }
+
+#[cfg(test)]
+mod tests {
+  use super::*;
+
+  #[tokio::test]
+  async fn initialize_database_memory_succeeds() {
+    let config = DatabaseConfig {
+      url: "sqlite::memory:".to_string(),
+      max_connections: None,
+      min_connections: None,
+      connect_timeout: None,
+      idle_timeout: None,
+      auto_migrate: false,
+      auto_seed: false,
+    };
+    let res = initialize_database(&config).await;
+    assert!(res.is_ok());
+  }
+
+  #[tokio::test]
+  async fn initialize_database_with_optionals() {
+    let config = DatabaseConfig {
+      url: "sqlite::memory:".to_string(),
+      max_connections: Some(5),
+      min_connections: Some(1),
+      connect_timeout: Some(10),
+      idle_timeout: Some(300),
+      auto_migrate: false,
+      auto_seed: false,
+    };
+    let res = initialize_database(&config).await;
+    assert!(res.is_ok());
+  }
+}

@@ -1,5 +1,6 @@
-import { Button, Heading, Text } from "@react-spectrum/s2";
-import { style } from "@react-spectrum/s2/style" with { type: "macro" };
+import Box from "@mui/material/Box";
+import Button from "@mui/material/Button";
+import Typography from "@mui/material/Typography";
 import { useSession } from "../../../../context/Session";
 
 export default function ProfilePage() {
@@ -7,24 +8,18 @@ export default function ProfilePage() {
 
 	return (
 		<>
-			<Heading level={1} styles={style({ font: "heading-xl" })}>
+			<Typography variant="h4" component="h1" gutterBottom>
 				Profile
-			</Heading>
+			</Typography>
 			{user != null && (
-				<div
-					className={style({
-						display: "flex",
-						flexDirection: "column",
-						gap: 8,
-					})}
-				>
-					<Text>Email: {user.email}</Text>
+				<Box sx={{ display: "flex", flexDirection: "column", gap: 1 }}>
+					<Typography>Email: {user.email}</Typography>
 					<form action="/api/auth/logout" method="get" target="_top">
-						<Button type="submit" variant="secondary">
+						<Button type="submit" variant="outlined">
 							Log out
 						</Button>
 					</form>
-				</div>
+				</Box>
 			)}
 		</>
 	);

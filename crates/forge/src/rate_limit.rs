@@ -66,3 +66,80 @@ where
     Ok(key)
   }
 }
+
+#[cfg(test)]
+mod tests {
+  use super::*;
+  use axum::http::Request;
+  use axum_login::AuthUser;
+
+  #[test]
+  fn requester_org_key_equality_and_hash() {
+    let id = uuid::Uuid::new_v4();
+    let a = RequesterOrgKey {
+      organization_id: None,
+      user_id: id,
+    };
+    let b = RequesterOrgKey {
+      organization_id: None,
+      user_id: id,
+    };
+    assert_eq!(a, b);
+    let mut set = std::collections::HashSet::new();
+    set.insert(a);
+    set.insert(b);
+    assert_eq!(set.len(), 1);
+  }
+
+  #[test]
+  fn requester_org_key_extractor_new_and_default() {
+    use async_trait::async_trait;
+    #[derive(Clone)]
+    struct DummyBackend;
+    #[async_trait]
+    impl AuthnBackend for DummyBackend {
+      type User = MockUser;
+      type Credentials = ();
+      type Error = std::io::Error;
+      async fn authenticate(
+        &self,
+        _: Self::Credentials,
+      ) -> Result<Option<Self::User>, Self::Error> {
+        Ok(None)
+      }
+      async fn get_user(&self, _: &<Self::User as AuthUser>::Id) -> Result<Option<Self::User>, Self::Error> {
+        Ok(None)
+      }
+    }
+    static MOCK_AUTH_HASH: [u8; 0] = [];
+    #[derive(Clone, Debug)]
+    struct MockUser;
+    impl AuthUser for MockUser {
+      type Id = uuid::Uuid;
+      fn id(&self) -> Self::Id {
+        uuid::Uuid::nil()
+      }
+      fn session_auth_hash(&self) -> &[u8] {
+        &MOCK_AUTH_HASH
+      }
+    }
+    impl AuthzContext for MockUser {
+      fn requester_id(&self) -> uuid::Uuid {
+        uuid::Uuid::nil()
+      }
+      fn subject_id(&self) -> uuid::Uuid {
+        uuid::Uuid::nil()
+      }
+      fn organization_id(&self) -> Option<uuid::Uuid> {
+        None
+      }
+    }
+    let ext = RequesterOrgKeyExtractor::<DummyBackend>::new();
+    let ext_default = RequesterOrgKeyExtractor::<DummyBackend>::default();
+    let req = Request::builder().body(()).unwrap();
+    let key = ext.extract(&req).unwrap();
+    assert!(key.organization_id.is_none());
+    assert_eq!(key.user_id, uuid::Uuid::nil());
+    let _ = ext_default;
+  }
+}

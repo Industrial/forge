@@ -1,13 +1,12 @@
-import { Heading, Text } from "@react-spectrum/s2";
-import { style } from "@react-spectrum/s2/style" with { type: "macro" };
+import Typography from "@mui/material/Typography";
 
 export default function UsersPage() {
 	return (
 		<>
-			<Heading level={1} styles={style({ font: "heading-xl" })}>
+			<Typography variant="h4" component="h1" gutterBottom>
 				Users
-			</Heading>
-			<Text>Manage users.</Text>
+			</Typography>
+			<Typography>Manage users.</Typography>
 		</>
 	);
 }

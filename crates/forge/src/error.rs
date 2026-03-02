@@ -347,4 +347,160 @@ mod tests {
       assert!(debug_str.contains("debug test"));
     }
   }
+
+  /// Test suite for IntoResponse (all branches: status and body)
+  mod into_response {
+    use super::*;
+    use axum::body::to_bytes;
+    use axum::http::StatusCode;
+
+    #[tokio::test]
+    async fn io_error_returns_500_and_message() {
+      let err = Error::Io(io::Error::new(io::ErrorKind::NotFound, "file not found"));
+      let res = err.into_response();
+      assert_eq!(res.status(), StatusCode::INTERNAL_SERVER_ERROR);
+      let body = to_bytes(res.into_body(), usize::MAX).await.unwrap();
+      let s = String::from_utf8_lossy(&body);
+      assert!(s.contains("I/O error:"));
+    }
+
+    #[tokio::test]
+    async fn http_error_returns_500_and_message() {
+      let err = Error::Http(axum::Error::new(io::Error::new(
+        io::ErrorKind::InvalidData,
+        "bad request",
+      )));
+      let res = err.into_response();
+      assert_eq!(res.status(), StatusCode::INTERNAL_SERVER_ERROR);
+      let body = to_bytes(res.into_body(), usize::MAX).await.unwrap();
+      let s = String::from_utf8_lossy(&body);
+      assert!(s.contains("HTTP error:"));
+    }
+
+    #[tokio::test]
+    async fn generic_error_returns_500_and_message() {
+      let err = Error::Generic("something went wrong".to_string());
+      let res = err.into_response();
+      assert_eq!(res.status(), StatusCode::INTERNAL_SERVER_ERROR);
+      let body = to_bytes(res.into_body(), usize::MAX).await.unwrap();
+      let s = String::from_utf8_lossy(&body);
+      assert_eq!(s, "something went wrong");
+    }
+
+    #[tokio::test]
+    async fn database_error_returns_500_and_message() {
+      let err = Error::Database(sea_orm::DbErr::Custom("connection failed".into()));
+      let res = err.into_response();
+      assert_eq!(res.status(), StatusCode::INTERNAL_SERVER_ERROR);
+      let body = to_bytes(res.into_body(), usize::MAX).await.unwrap();
+      let s = String::from_utf8_lossy(&body);
+      assert!(s.contains("Database error:"));
+    }
+
+    #[tokio::test]
+    async fn authz_forbidden_returns_403() {
+      let err = Error::Authz(crate::authz::AuthzError::Forbidden);
+      let res = err.into_response();
+      assert_eq!(res.status(), StatusCode::FORBIDDEN);
+      let body = to_bytes(res.into_body(), usize::MAX).await.unwrap();
+      let s = String::from_utf8_lossy(&body);
+      assert!(!s.is_empty());
+    }
+
+    #[tokio::test]
+    async fn authz_not_found_returns_404() {
+      let err = Error::Authz(crate::authz::AuthzError::NotFound);
+      let res = err.into_response();
+      assert_eq!(res.status(), StatusCode::NOT_FOUND);
+      let body = to_bytes(res.into_body(), usize::MAX).await.unwrap();
+      let s = String::from_utf8_lossy(&body);
+      assert!(!s.is_empty());
+    }
+
+    #[tokio::test]
+    async fn authz_database_error_returns_500() {
+      let err = Error::Authz(crate::authz::AuthzError::DatabaseError(
+        sea_orm::DbErr::Custom("db err".into()),
+      ));
+      let res = err.into_response();
+      assert_eq!(res.status(), StatusCode::INTERNAL_SERVER_ERROR);
+      let body = to_bytes(res.into_body(), usize::MAX).await.unwrap();
+      let s = String::from_utf8_lossy(&body);
+      assert!(!s.is_empty());
+    }
+  }
+
+  /// From<DbErr> and From<AuthzError>
+  mod from_db_and_authz {
+    use super::*;
+
+    #[test]
+    fn from_db_err_creates_database_variant() {
+      let db_err = sea_orm::DbErr::Custom("test".into());
+      let error: Error = db_err.into();
+      match error {
+        Error::Database(_) => {}
+        _ => panic!("Expected Database variant"),
+      }
+    }
+
+    #[test]
+    fn from_authz_error_creates_authz_variant() {
+      let authz_err = crate::authz::AuthzError::Forbidden;
+      let error: Error = authz_err.into();
+      match error {
+        Error::Authz(_) => {}
+        _ => panic!("Expected Authz variant"),
+      }
+    }
+  }
+
+  /// Display for Database and Authz
+  mod display_database_authz {
+    use super::*;
+
+    #[test]
+    fn database_error_displays_with_prefix() {
+      let err = Error::Database(sea_orm::DbErr::Custom("conn failed".into()));
+      let s = format!("{}", err);
+      assert!(s.starts_with("Database error:"));
+      assert!(s.contains("conn failed"));
+    }
+
+    #[test]
+    fn authz_error_displays_delegate_message() {
+      let err = Error::Authz(crate::authz::AuthzError::Forbidden);
+      let s = format!("{}", err);
+      assert!(!s.is_empty());
+    }
+  }
+
+  /// source() for Http, Database, Authz
+  mod source_http_database_authz {
+    use super::*;
+    use std::error::Error as StdError;
+
+    #[test]
+    fn http_error_has_source() {
+      let err = Error::Http(axum::Error::new(io::Error::new(
+        io::ErrorKind::InvalidData,
+        "x",
+      )));
+      assert!(err.source().is_some());
+    }
+
+    #[test]
+    fn database_error_has_source() {
+      let err = Error::Database(sea_orm::DbErr::Custom("x".into()));
+      assert!(err.source().is_some());
+    }
+
+    #[test]
+    fn authz_error_has_source_for_database_error() {
+      let err = Error::Authz(crate::authz::AuthzError::DatabaseError(
+        sea_orm::DbErr::Custom("x".into()),
+      ));
+      assert!(err.source().is_some());
+    }
+  }
 }

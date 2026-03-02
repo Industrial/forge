@@ -9,7 +9,7 @@ PREBUILT=".tmp/e2e_prebuilt"
 
 echo "> test-e2e"
 
-# Create and clear .tmp at repo root (matches forge-e2e-lib tmpdir)
+# Create and clear .tmp at repo root
 mkdir -p .tmp
 rm -rf .tmp/*
 
@@ -138,9 +138,9 @@ export E2E_DB_PATH
 
 # Run Playwright e2e tests in parallel
 PLAYWRIGHT_EXIT=0
-if [[ -f test/e2e-playwright/package.json ]]; then
+if [[ -f test/e2e/package.json ]]; then
   echo "> test-e2e > playwright test (parallel)"
-  (cd test/e2e-playwright && (bun install --frozen-lockfile 2>/dev/null || bun install) && bun run test) || PLAYWRIGHT_EXIT=$?
+  (cd test/e2e && (bun install --frozen-lockfile 2>/dev/null || bun install) && bun run test) || PLAYWRIGHT_EXIT=$?
 fi
 
 echo "> test-e2e > done"

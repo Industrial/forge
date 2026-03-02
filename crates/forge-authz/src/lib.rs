@@ -112,3 +112,50 @@ pub trait ForgePolicy<R> {
 }
 
 // Macros will provide specific implementations for Entities that derive ForgeScoped.
+
+#[cfg(test)]
+mod tests {
+  use super::*;
+  use std::error::Error as StdError;
+
+  #[test]
+  fn action_variants_eq() {
+    assert_eq!(Action::Read, Action::Read);
+    assert_ne!(Action::Read, Action::Create);
+    assert_eq!(Action::Create, Action::Create);
+    assert_eq!(Action::Update, Action::Update);
+    assert_eq!(Action::Delete, Action::Delete);
+    assert_eq!(Action::Manage, Action::Manage);
+  }
+
+  #[test]
+  fn role_owner_admin_editor_viewer_custom() {
+    assert_eq!(Role::Owner, Role::Owner);
+    assert_eq!(Role::Custom("x".into()), Role::Custom("x".into()));
+    assert_ne!(Role::Custom("a".into()), Role::Custom("b".into()));
+  }
+
+  #[test]
+  fn authz_error_forbidden_display() {
+    let e = AuthzError::Forbidden;
+    let s = format!("{}", e);
+    assert!(s.contains("Forbidden"));
+    assert!(e.source().is_none());
+  }
+
+  #[test]
+  fn authz_error_not_found_display() {
+    let e = AuthzError::NotFound;
+    let s = format!("{}", e);
+    assert!(s.contains("Not Found"));
+  }
+
+  #[test]
+  fn authz_error_database_error_display_and_from() {
+    let db_err = sea_orm::DbErr::Custom("connection failed".into());
+    let e: AuthzError = db_err.into();
+    let s = format!("{}", e);
+    assert!(s.contains("Database error"));
+    assert!(e.source().is_some());
+  }
+}

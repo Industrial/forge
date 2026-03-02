@@ -12,7 +12,7 @@ use forge::authz::{Action, AuthzContext, record_authz_denied};
 use forge::token_auth::{OptionalRequireAuth, RequireAuth};
 use forge::validation::Valid;
 use forge::{DbConnection, Error as ForgeError};
-use sea_orm::{ActiveModelTrait, EntityTrait, Set, TransactionTrait};
+use sea_orm::{ActiveModelTrait, ColumnTrait, EntityTrait, QueryFilter, Set, TransactionTrait};
 use serde::Deserialize;
 use serde::de::DeserializeOwned;
 use tower_sessions::Session;
@@ -244,18 +244,120 @@ pub async fn profile(auth_session: AuthSession<Backend>) -> impl IntoResponse {
   }
 }
 
-/// Returns session state for the SPA: current user and flash (consumed on read).
+/// List of profiles (org + role) the current user can switch to.
+pub async fn profiles_list(
+  RequireAuth(user): RequireAuth<Backend>,
+  State(db): State<DbConnection>,
+) -> Result<impl IntoResponse, ForgeError> {
+  let memberships = membership::Entity::find()
+    .filter(membership::Column::UserId.eq(user.id))
+    .all(&db)
+    .await?;
+  let org_ids: Vec<Uuid> = memberships.iter().map(|m| m.org_id).collect();
+  if org_ids.is_empty() {
+    return Ok(Json(serde_json::json!({ "profiles": [] })).into_response());
+  }
+  let orgs = organization::Entity::find()
+    .filter(organization::Column::Id.is_in(org_ids))
+    .all(&db)
+    .await?;
+  let org_map: std::collections::HashMap<Uuid, organization::Model> =
+    orgs.into_iter().map(|o| (o.id, o)).collect();
+  let profiles: Vec<serde_json::Value> = memberships
+    .into_iter()
+    .filter_map(|m| {
+      org_map.get(&m.org_id).map(|o| {
+        serde_json::json!({
+          "org_id": m.org_id.to_string(),
+          "org_name": o.name,
+          "role": m.role,
+        })
+      })
+    })
+    .collect();
+  Ok(Json(serde_json::json!({ "profiles": profiles })).into_response())
+}
+
+#[derive(Deserialize)]
+pub struct SwitchProfileRequest {
+  pub org_id: String,
+}
+
+/// Switch the current user's active profile (org + role). Updates user row; session will see new context on next request.
+pub async fn switch_profile(
+  RequireAuth(user): RequireAuth<Backend>,
+  State(db): State<DbConnection>,
+  Json(payload): Json<SwitchProfileRequest>,
+) -> Result<impl IntoResponse, ForgeError> {
+  let org_id = Uuid::parse_str(&payload.org_id).map_err(|_| ForgeError::Generic("Invalid org_id".into()))?;
+  let membership = membership::Entity::find()
+    .filter(membership::Column::UserId.eq(user.id))
+    .filter(membership::Column::OrgId.eq(org_id))
+    .one(&db)
+    .await?
+    .ok_or_else(|| ForgeError::Generic("Membership not found".into()))?;
+  let mut am: user::ActiveModel = user::Entity::find_by_id(user.id)
+    .one(&db)
+    .await?
+    .ok_or_else(|| ForgeError::Generic("User not found".into()))?
+    .into();
+  am.current_org_id = Set(Some(org_id));
+  am.current_role = Set(Some(membership.role));
+  am.updated_at = Set(Utc::now().naive_utc());
+  am.update(&db).await?;
+  Ok(Json(serde_json::json!({ "ok": true })).into_response())
+}
+
+/// Returns session state for the SPA: current user, profiles (org+role list), and flash (consumed on read).
 pub async fn session_json(
   session: Session,
   OptionalRequireAuth(maybe_user): OptionalRequireAuth<Backend>,
+  State(db): State<DbConnection>,
 ) -> impl IntoResponse {
   let message: Option<String> = session.get(FLASH_MESSAGE).await.ok().flatten();
   let error: Option<String> = session.get(FLASH_ERROR).await.ok().flatten();
   session.remove::<String>(FLASH_MESSAGE).await.ok();
   session.remove::<String>(FLASH_ERROR).await.ok();
   let user = maybe_user.map(|u| serde_json::json!({ "id": u.id.to_string(), "email": u.email }));
+  let profiles: Vec<serde_json::Value> = match &maybe_user {
+    Some(u) => {
+      let memberships = membership::Entity::find()
+        .filter(membership::Column::UserId.eq(u.id))
+        .all(&db)
+        .await
+        .ok()
+        .unwrap_or_default();
+      let org_ids: Vec<Uuid> = memberships.iter().map(|m| m.org_id).collect();
+      if org_ids.is_empty() {
+        vec![]
+      } else {
+        let orgs = organization::Entity::find()
+          .filter(organization::Column::Id.is_in(org_ids))
+          .all(&db)
+          .await
+          .ok()
+          .unwrap_or_default();
+        let org_map: std::collections::HashMap<Uuid, organization::Model> =
+          orgs.into_iter().map(|o| (o.id, o)).collect();
+        memberships
+          .into_iter()
+          .filter_map(|m| {
+            org_map.get(&m.org_id).map(|o| {
+              serde_json::json!({
+                "org_id": m.org_id.to_string(),
+                "org_name": o.name,
+                "role": m.role,
+              })
+            })
+          })
+          .collect()
+      }
+    }
+    None => vec![],
+  };
   Json(serde_json::json!({
     "user": user,
+    "profiles": profiles,
     "flash": { "message": message, "error": error }
   }))
 }

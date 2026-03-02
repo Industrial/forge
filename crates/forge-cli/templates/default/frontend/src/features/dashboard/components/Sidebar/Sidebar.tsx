@@ -1,68 +1,33 @@
 import { NavLink } from "react-router-dom";
-import { ActionButton } from "@react-spectrum/s2";
-import { style } from "@react-spectrum/s2/style" with { type: "macro" };
-import ChevronLeftIcon from "@react-spectrum/s2/icons/ChevronLeft";
-import ChevronRightIcon from "@react-spectrum/s2/icons/ChevronRight";
-import ChartBarVertIcon from "@react-spectrum/s2/icons/ChartBarVert";
-import BuildingsIcon from "@react-spectrum/s2/icons/Buildings";
-import LockIcon from "@react-spectrum/s2/icons/Lock";
-import UserIcon from "@react-spectrum/s2/icons/User";
+import Box from "@mui/material/Box";
+import IconButton from "@mui/material/IconButton";
+import List from "@mui/material/List";
+import ListItemButton from "@mui/material/ListItemButton";
+import ListItemIcon from "@mui/material/ListItemIcon";
+import ListItemText from "@mui/material/ListItemText";
+import ChevronLeft from "@mui/icons-material/ChevronLeft";
+import ChevronRight from "@mui/icons-material/ChevronRight";
+import Dashboard from "@mui/icons-material/Dashboard";
+import Business from "@mui/icons-material/Business";
+import People from "@mui/icons-material/People";
+import Lock from "@mui/icons-material/Lock";
 
 const navItems = [
-	{ to: "/dashboard", label: "Dashboard", end: true, icon: ChartBarVertIcon },
+	{ to: "/dashboard", label: "Dashboard", end: true, icon: Dashboard },
 	{
 		to: "/dashboard/organizations",
 		label: "Organizations",
 		end: false,
-		icon: BuildingsIcon,
+		icon: Business,
 	},
-	{ to: "/dashboard/users", label: "Users", end: false, icon: UserIcon },
+	{ to: "/dashboard/users", label: "Users", end: false, icon: People },
 	{
 		to: "/dashboard/roles-and-permissions",
 		label: "Permissions",
 		end: false,
-		icon: LockIcon,
+		icon: Lock,
 	},
 ] as const;
-
-const linkClassName = style({
-	paddingBlock: 8,
-	paddingInline: 12,
-	borderRadius: "default",
-	font: "body",
-	textDecoration: "none",
-	cursor: "pointer",
-	display: "flex",
-	alignItems: "center",
-	gap: 12,
-});
-
-const iconOnlyClassName = style({
-	paddingBlock: 8,
-	paddingInline: 12,
-	borderRadius: "default",
-	font: "body",
-	textDecoration: "none",
-	cursor: "pointer",
-	display: "flex",
-	alignItems: "center",
-	justifyContent: "center",
-});
-
-const asideClassName = style({
-	backgroundColor: "layer-1",
-	borderColor: "gray-400",
-	borderEndWidth: 1,
-	borderStyle: "solid",
-	borderWidth: 0,
-	display: "flex",
-	flexDirection: "column",
-	flexShrink: 0,
-	gap: 4,
-	height: "100vh",
-	overflow: "hidden",
-	padding: 8,
-});
 
 export type SidebarProps = {
 	expanded: boolean;
@@ -70,70 +35,82 @@ export type SidebarProps = {
 };
 
 export default function Sidebar({ expanded, onToggle }: SidebarProps) {
-	const asideClassNames = [
-		asideClassName,
-		expanded
-			? style({
-					width: 240,
-				})
-			: style({
-					width: 72,
-				}),
-		"dashboard-sidebar",
-	].join(" ");
+	const width = expanded ? 240 : 72;
 
 	return (
-		<aside className={asideClassNames} aria-label="Dashboard navigation">
-			<nav
-				className={style({
-					display: "flex",
-					flexDirection: "column",
-					gap: 4,
-					flexGrow: 1,
-					minHeight: 0,
-				})}
-			>
+		<Box
+			component="aside"
+			className="dashboard-sidebar"
+			aria-label="Dashboard navigation"
+			sx={{
+				width,
+				flexShrink: 0,
+				borderRight: 1,
+				borderColor: "divider",
+				bgcolor: "background.paper",
+				display: "flex",
+				flexDirection: "column",
+				gap: 0.5,
+				height: "100vh",
+				overflow: "hidden",
+				p: 1,
+				transition: "width 0.2s ease",
+			}}
+		>
+			<List sx={{ flexGrow: 1, minHeight: 0, py: 0 }}>
 				{navItems.map(({ to, label, end, icon: Icon }) => (
 					<NavLink
 						key={to}
 						to={to}
 						end={end}
-						className={({ isActive }) =>
-							[
-								expanded ? linkClassName : iconOnlyClassName,
-								isActive ? "dashboard-sidebar-link--active" : "",
-							]
-								.filter(Boolean)
-								.join(" ")
-						}
-						title={!expanded ? label : undefined}
+						style={{ textDecoration: "none", color: "inherit" }}
 					>
-						<Icon />
-						{expanded ? <span>{label}</span> : null}
+						{({ isActive }) => (
+							<ListItemButton
+								title={!expanded ? label : undefined}
+								selected={isActive}
+								sx={{
+									borderRadius: 1,
+									justifyContent: expanded ? "flex-start" : "center",
+									px: 1.5,
+									py: 1,
+									"&.Mui-selected": {
+										bgcolor: "primary.main",
+										color: "primary.contrastText",
+										"&:hover": { bgcolor: "primary.dark" },
+									},
+								}}
+							>
+								<ListItemIcon
+									sx={{
+										minWidth: expanded ? 56 : "auto",
+										color: "inherit",
+									}}
+								>
+									<Icon />
+								</ListItemIcon>
+								{expanded && <ListItemText primary={label} />}
+							</ListItemButton>
+						)}
 					</NavLink>
 				))}
-			</nav>
-			<div
-				className={[
-					style({
-						display: "flex",
-						alignItems: "center",
-						paddingBlock: 8,
-					}),
-					expanded
-						? "dashboard-toggle-bar--expanded"
-						: "dashboard-toggle-bar--collapsed",
-				].join(" ")}
+			</List>
+			<Box
+				sx={{
+					display: "flex",
+					alignItems: "center",
+					justifyContent: expanded ? "flex-end" : "center",
+					py: 1,
+				}}
 			>
-				<ActionButton
-					isQuiet
+				<IconButton
 					aria-label={expanded ? "Collapse sidebar" : "Expand sidebar"}
-					size="M"
-					onPress={onToggle}
+					onClick={onToggle}
+					size="small"
 				>
-					{expanded ? <ChevronLeftIcon /> : <ChevronRightIcon />}
-				</ActionButton>
-			</div>
-		</aside>
+					{expanded ? <ChevronLeft /> : <ChevronRight />}
+				</IconButton>
+			</Box>
+		</Box>
 	);
 }

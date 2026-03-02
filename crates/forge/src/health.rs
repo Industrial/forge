@@ -29,3 +29,38 @@ pub async fn readyz(State(db): State<DbConnection>) -> impl IntoResponse {
 pub async fn healthz() -> impl IntoResponse {
   (StatusCode::OK, "ok")
 }
+
+#[cfg(test)]
+mod tests {
+  use super::*;
+  use axum::body::to_bytes;
+  use axum::http::StatusCode;
+
+  #[tokio::test]
+  async fn livez_returns_200_ok() {
+    let res = livez().await.into_response();
+    assert_eq!(res.status(), StatusCode::OK);
+    let body = to_bytes(res.into_body(), usize::MAX).await.unwrap();
+    assert_eq!(body.as_ref(), b"ok");
+  }
+
+  #[tokio::test]
+  async fn healthz_returns_200_ok() {
+    let res = healthz().await.into_response();
+    assert_eq!(res.status(), StatusCode::OK);
+    let body = to_bytes(res.into_body(), usize::MAX).await.unwrap();
+    assert_eq!(body.as_ref(), b"ok");
+  }
+
+  #[tokio::test]
+  async fn readyz_returns_200_when_db_ok() {
+    use sea_orm::{Database, ConnectOptions};
+    let opt = ConnectOptions::new("sqlite::memory:".to_string());
+    let conn = Database::connect(opt).await.unwrap();
+    let db = crate::DbConnection::new(conn, sea_orm_tracing::TracingConfig::default());
+    let res = readyz(axum::extract::State(db)).await.into_response();
+    assert_eq!(res.status(), StatusCode::OK);
+    let body = to_bytes(res.into_body(), usize::MAX).await.unwrap();
+    assert_eq!(body.as_ref(), b"ok");
+  }
+}
