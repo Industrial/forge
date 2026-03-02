@@ -1,0 +1,28 @@
+/* Page and content backgrounds */
+.dashboard-page {
+  background-color: #2a2a2a;
+}
+.dashboard-content {
+  background-color: #000;
+  margin-top: 0;
+  padding-top: 0;
+}
+
+/* Toggle bar alignment (macro doesn't accept flex-end/center) */
+.dashboard-toggle-bar--expanded {
+  justify-content: flex-end;
+}
+.dashboard-toggle-bar--collapsed {
+  justify-content: center;
+}
+
+/* Sidebar width transition */
+.dashboard-sidebar {
+  transition: width 0.2s ease;
+}
+
+/* Active state for dashboard sidebar links (colors via CSS so style macro is not needed) */
+.dashboard-sidebar-link--active {
+  color: var(--spectrum-global-color-static-white);
+  background-color: var(--spectrum-global-color-blue-600);
+}

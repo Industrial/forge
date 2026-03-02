@@ -1,13 +1,13 @@
 import { Heading, Text } from '@react-spectrum/s2';
 import { style } from '@react-spectrum/s2/style' with { type: 'macro' };
 
-export default function Index() {
+export default function Users() {
   return (
     <>
       <Heading level={1} styles={style({ font: 'heading-xl' })}>
-        Home
+        Users
       </Heading>
-      <Text>Welcome. You are logged in.</Text>
+      <Text>Manage users.</Text>
     </>
   );
 }

@@ -1,8 +1,8 @@
 import { Button, Heading, Text } from '@react-spectrum/s2';
 import { style } from '@react-spectrum/s2/style' with { type: 'macro' };
-import { useSession } from '../context/Session';
+import { useSession } from '../../../../context/Session';
 
-export default function Profile() {
+export default function ProfilePage() {
   const { user } = useSession();
 
   return (

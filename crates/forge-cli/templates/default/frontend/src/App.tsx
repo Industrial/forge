@@ -15,15 +15,19 @@ import { Route, Routes, useNavigate } from 'react-router-dom';
 import { Provider } from '@react-spectrum/s2';
 import type { NavigateOptions } from 'react-router-dom';
 import { SessionProvider } from './context/Session';
-import Layout from './components/Layout';
-import AuthLayout from './components/AuthLayout';
+import Layout from './layouts/Layout';
+import DashboardLayout from './features/dashboard/layouts/DashboardLayout/DashboardLayout';
+import AuthLayout from './features/authentication/layouts/AuthenticationLayout/AuthenticationLayout';
 import ProtectedRoute from './components/ProtectedRoute';
-import Login from './pages/Auth/Login';
-import Register from './pages/Auth/Register';
-import Index from './pages/Index';
-import Dashboard from './pages/Dashboard';
-import Profile from './pages/Profile';
-import WsDemo from './pages/WsDemo';
+import Login from './features/authentication/pages/LoginPage/LoginPage';
+import Register from './features/authentication/pages/RegisterPage/RegisterPage';
+import Home from './features/home/pages/HomePage/HomePage';
+import Dashboard from './features/dashboard/pages/DashboardPage/DashboardPage';
+import Organizations from './features/dashboard/pages/OrganizationsPage/OrganizationsPage';
+import Users from './features/dashboard/pages/UsersPage/UsersPage';
+import RolesAndPermissions from './features/dashboard/pages/RolesAndPermissionsPage/RolesAndPermissionsPage';
+import ProfilePage from './features/profile/pages/ProfilePage/ProfilePage';
+import WebsocketsDemoPage from './features/websockets-demo/pages/WebsocketsDemoPage/WebsocketsDemoPage';
 
 declare module '@react-spectrum/s2' {
   interface RouterConfig {
@@ -69,12 +73,12 @@ function App() {
         <Routes>
           <Route path="/login" element={<AuthLayout><Login /></AuthLayout>} />
           <Route path="/register" element={<AuthLayout><Register /></AuthLayout>} />
-          <Route path="/ws-demo" element={<WsDemo />} />
+          <Route path="/ws-demo" element={<WebsocketsDemoPage />} />
           <Route
             path="/"
             element={
               <ProtectedRoute>
-                <Layout {...layoutProps}><Index /></Layout>
+                <Layout {...layoutProps}><Home /></Layout>
               </ProtectedRoute>
             }
           />
@@ -82,15 +86,20 @@ function App() {
             path="/dashboard"
             element={
               <ProtectedRoute>
-                <Layout {...layoutProps}><Dashboard /></Layout>
+                <Layout {...layoutProps}><DashboardLayout /></Layout>
               </ProtectedRoute>
             }
-          />
+          >
+            <Route index element={<Dashboard />} />
+            <Route path="organizations" element={<Organizations />} />
+            <Route path="users" element={<Users />} />
+            <Route path="roles-and-permissions" element={<RolesAndPermissions />} />
+          </Route>
           <Route
             path="/profile"
             element={
               <ProtectedRoute>
-                <Layout {...layoutProps}><Profile /></Layout>
+                <Layout {...layoutProps}><ProfilePage /></Layout>
               </ProtectedRoute>
             }
           />

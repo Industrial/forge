@@ -2,7 +2,7 @@ import { useState } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { Button, Content, Form, Heading, InlineAlert, Link, TextField } from '@react-spectrum/s2';
 import { style } from '@react-spectrum/s2/style' with { type: 'macro' };
-import { useSession } from '../../context/Session';
+import { useSession } from '../../../../context/Session';
 
 export default function Login() {
   const navigate = useNavigate();

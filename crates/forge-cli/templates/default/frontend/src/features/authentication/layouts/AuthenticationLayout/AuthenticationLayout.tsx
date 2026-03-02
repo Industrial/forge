@@ -1,44 +1,30 @@
 import { Content, Heading, InlineAlert } from '@react-spectrum/s2';
 import { style } from '@react-spectrum/s2/style' with { type: 'macro' };
 import React from 'react';
-import Navbar from './Navbar';
-import { useSession } from '../context/Session';
+import { useSession } from '../../../../context/Session';
 
-type LayoutProps = {
-  children: React.ReactNode;
-  colorScheme: 'light' | 'dark';
-  onToggleTheme: () => void;
-};
+type AuthLayoutProps = { children: React.ReactNode };
 
-export default function Layout({ children, colorScheme, onToggleTheme }: LayoutProps) {
+export default function AuthLayout({ children }: AuthLayoutProps) {
   const { flash } = useSession();
 
   return (
     <div
       className={style({
-        display: 'flex',
-        flexDirection: 'column',
         minHeight: 'full',
-        height: 'full',
-        overflow: 'auto',
-        flexGrow: 1,
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'center',
+        padding: 24,
       })}
     >
-      <Navbar
-        appName="App"
-        colorScheme={colorScheme}
-        onToggleTheme={onToggleTheme}
-      />
       <div
         className={style({
           display: 'flex',
           flexDirection: 'column',
-          gap: 16,
-          margin: 16,
-          backgroundColor: 'layer-1',
-          padding: 16,
-          borderRadius: 'default',
-          flexGrow: 1,
+          gap: 24,
+          maxWidth: 400,
+          width: 'full',
         })}
       >
         {(flash?.message ?? flash?.error) != null && (

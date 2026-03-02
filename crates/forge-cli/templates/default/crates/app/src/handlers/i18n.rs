@@ -13,6 +13,7 @@ static_loader! {
 }
 
 /// Look up the greeting string for the given locale. Fails if locale or translation is missing.
+#[allow(dead_code)]
 pub fn greeting(locale: &str) -> String {
     let lang: LanguageIdentifier = locale
         .parse()

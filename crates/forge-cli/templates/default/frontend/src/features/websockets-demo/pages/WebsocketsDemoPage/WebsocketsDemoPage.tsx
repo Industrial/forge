@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
 
-export default function WsDemo() {
+export default function WebsocketsDemoPage() {
   const [message, setMessage] = useState('');
   const [echoed, setEchoed] = useState<string[]>([]);
   const wsRef = useRef<WebSocket | null>(null);
