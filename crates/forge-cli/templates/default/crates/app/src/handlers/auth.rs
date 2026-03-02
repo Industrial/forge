@@ -1,7 +1,7 @@
 use axum::{
   extract::{FromRequest, Request, State},
   http::StatusCode,
-  response::{IntoResponse, Redirect},
+  response::IntoResponse,
   Form, Json,
 };
 use axum_login::AuthSession;
@@ -22,7 +22,7 @@ use validator::Validate;
 use db::auth::Backend;
 use db::models::{api_token, organization, membership, user};
 
-/// Session keys for one-time flash messages (read once then cleared).
+/// Session keys for one-time flash messages (read once then cleared). No longer set by auth; kept for session_json shape.
 pub const FLASH_MESSAGE: &str = "flash_message";
 pub const FLASH_ERROR: &str = "flash_error";
 
@@ -35,7 +35,6 @@ pub struct RegisterRequest {
 }
 
 pub async fn register(
-  session: Session,
   State(db): State<DbConnection>,
   Valid(Json(payload)): Valid<Json<RegisterRequest>>,
 ) -> Result<impl IntoResponse, ForgeError> {
@@ -89,11 +88,7 @@ pub async fn register(
 
   tx.commit().await?;
 
-  session
-    .insert(FLASH_MESSAGE, "Thanks for registering. Please log in.")
-    .await
-    .ok();
-  Ok(Redirect::to("/login").into_response())
+  Ok((StatusCode::CREATED, Json(serde_json::json!({ "ok": true }))).into_response())
 }
 
 #[derive(Deserialize, Validate)]
@@ -137,7 +132,6 @@ where
 }
 
 pub async fn login(
-  session: Session,
   mut auth_session: AuthSession<Backend>,
   State(db): State<DbConnection>,
   JsonOrForm(payload): JsonOrForm<LoginRequest>,
@@ -176,12 +170,7 @@ pub async fn login(
       },
     )
     .await;
-    session
-      .insert(FLASH_MESSAGE, "Welcome back!")
-      .await
-      .ok();
-    // 303 See Other: correct for POST→GET redirect (RFC 7231). Axum's Redirect::to() uses 303.
-    Ok(Redirect::to("/dashboard").into_response())
+    Ok((StatusCode::OK, Json(serde_json::json!({ "ok": true }))).into_response())
   } else {
     tracing::debug!(target: "app::auth", "login failed: invalid credentials email={}", email);
     let _ = forge::audit::log(
@@ -199,7 +188,11 @@ pub async fn login(
       },
     )
     .await;
-    Ok((StatusCode::UNAUTHORIZED, "Invalid credentials").into_response())
+    Ok((
+      StatusCode::UNAUTHORIZED,
+      Json(serde_json::json!({ "error": "Invalid email or password" })),
+    )
+      .into_response())
   }
 }
 
@@ -226,7 +219,7 @@ pub async fn logout(
     },
   )
   .await;
-  StatusCode::OK
+  (StatusCode::OK, Json(serde_json::json!({ "ok": true }))).into_response()
 }
 
 pub async fn profile(auth_session: AuthSession<Backend>) -> impl IntoResponse {
@@ -294,12 +287,26 @@ pub async fn admin_only(
     Some(u) => u,
     None => {
       record_authz_denied(&db, Action::Manage, "admin", None).await;
-      return Ok((StatusCode::UNAUTHORIZED, "Authentication required").into_response());
+      return Ok((
+        StatusCode::UNAUTHORIZED,
+        Json(serde_json::json!({ "error": "Authentication required" })),
+      )
+        .into_response());
     }
   };
   if !user.is_admin {
     record_authz_denied(&db, Action::Manage, "admin", Some(user.id)).await;
-    return Ok((StatusCode::FORBIDDEN, "Forbidden").into_response());
+    return Ok((
+      StatusCode::FORBIDDEN,
+      Json(serde_json::json!({ "error": "Forbidden" })),
+    )
+      .into_response());
   }
-  Ok((StatusCode::OK, format!("Admin only: access granted for {}", user.email)).into_response())
+  Ok((
+    StatusCode::OK,
+    Json(serde_json::json!({
+      "message": format!("Admin only: access granted for {}", user.email)
+    })),
+  )
+    .into_response())
 }
