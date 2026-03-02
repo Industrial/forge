@@ -7,6 +7,7 @@ use forge::{App, CronSchedule};
 use tower_http::services::ServeDir;
 
 mod handlers;
+mod tasks;
 
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
@@ -55,11 +56,27 @@ async fn main() -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
       get(handlers::dashboard::list_role_permissions)
         .post(handlers::dashboard::add_role_permission)
         .delete(handlers::dashboard::delete_role_permission),
-    );
+    )
+    .route("/api/dashboard/tasks", get(handlers::dashboard::list_tasks))
+    .route("/api/dashboard/audit-log", get(handlers::dashboard::list_audit_log));
 
   let (router, db_conn, cron_runner, response_cache) = app.into_router_before_state().await;
 
-  let api_router = router.with_state(db_conn.clone());
+  let task_state = std::sync::Arc::new(tasks::TaskState::new());
+  {
+    let task_state = task_state.clone();
+    tokio::spawn(async move {
+      let mut interval = tokio::time::interval(std::time::Duration::from_secs(8));
+      loop {
+        interval.tick().await;
+        task_state.tick().await;
+      }
+    });
+  }
+
+  let api_router = router
+    .with_state(db_conn.clone())
+    .layer(axum::extract::Extension(task_state.clone()));
 
   let mut router = api_router;
 

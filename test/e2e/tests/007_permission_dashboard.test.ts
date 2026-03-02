@@ -75,7 +75,7 @@ test.describe("e2e permission-based dashboard", () => {
 		await expect(page).toHaveURL(/\/dashboard$/);
 	});
 
-	test("viewer has only Dashboard nav and is redirected from Permissions URL", async ({
+	test("viewer has Dashboard and Users (read) nav; no Organizations or Permissions", async ({
 		page,
 	}) => {
 		await page.goto("/login");
@@ -91,10 +91,10 @@ test.describe("e2e permission-based dashboard", () => {
 		await expect(page).toHaveURL(/\/dashboard/);
 
 		await expect(page.getByRole("link", { name: "Dashboard" })).toBeVisible();
+		await expect(page.getByRole("link", { name: "Users" })).toBeVisible();
 		await expect(
 			page.getByRole("link", { name: "Organizations" }),
 		).not.toBeVisible();
-		await expect(page.getByRole("link", { name: "Users" })).not.toBeVisible();
 		await expect(
 			page.getByRole("link", { name: "Permissions" }),
 		).not.toBeVisible();
@@ -126,9 +126,9 @@ test.describe("e2e permission-based dashboard", () => {
 		await expect(
 			page.getByRole("heading", { name: "Permissions" }),
 		).toBeVisible();
-		// After seeds, table or "No assignments" should be present
+		// After seeds, table or "No assignments" or description should be present
 		await expect(
-			page.getByText(/Manage role–permission|No assignments|Scope/),
+			page.getByText(/View and manage role–permission|No assignments|Scope/),
 		).toBeVisible();
 	});
 });

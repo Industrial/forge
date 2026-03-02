@@ -1,6 +1,6 @@
 use axum::{
   Form, Json,
-  extract::{FromRequest, Request, State},
+  extract::{Extension, FromRequest, Request, State},
   http::StatusCode,
   response::IntoResponse,
 };
@@ -23,11 +23,16 @@ use db::auth::Backend;
 use db::models::{api_token, membership, organization, role_permission, user};
 
 /// Code-defined dashboard permission keys. Used for resolution and for listing in APIs.
+/// Resources have .read (view/list) and .write (create/update/delete) where applicable.
 pub const DASHBOARD_PERMISSIONS: &[&str] = &[
   "dashboard",
-  "dashboard.organizations",
-  "dashboard.users",
-  "dashboard.permissions.manage",
+  "dashboard.organizations.read",
+  "dashboard.organizations.write",
+  "dashboard.users.read",
+  "dashboard.users.write",
+  "dashboard.permissions.read",
+  "dashboard.permissions.write",
+  "dashboard.audit.read",
 ];
 
 /// Resolves the list of permission keys for the current user. Global admin gets all; otherwise org role's permissions from `role_permission`.
@@ -42,8 +47,13 @@ pub async fn resolve_permissions(db: &DbConnection, user: &user::Model) -> Vec<S
     Some(r) => r,
     None => return vec![],
   };
+  let org_id = match user.current_org_id {
+    Some(id) => id,
+    None => return vec![],
+  };
   let rows = role_permission::Entity::find()
     .filter(role_permission::Column::Scope.eq("org"))
+    .filter(role_permission::Column::OrgId.eq(org_id))
     .filter(role_permission::Column::RoleName.eq(role_name))
     .all(db)
     .await
@@ -164,9 +174,31 @@ where
   }
 }
 
+fn broadcast_audit_entry(
+  task_state: &std::sync::Arc<crate::tasks::TaskState>,
+  event: &AuditEvent,
+  result: &forge::audit::LogResult,
+) {
+  let entry = serde_json::json!({
+    "id": result.id.to_string(),
+    "event_kind": event.event_kind.as_str(),
+    "actor_id": event.actor_id.to_string(),
+    "subject_id": event.subject_id.map(|u| u.to_string()),
+    "organization_id": event.organization_id.map(|u| u.to_string()),
+    "action": event.action_str(),
+    "resource_type": event.resource_type,
+    "resource_id": event.resource_id.map(|u| u.to_string()),
+    "outcome": event.outcome.as_str(),
+    "reason": event.reason,
+    "occurred_at": result.occurred_at.format("%Y-%m-%dT%H:%M:%S%.fZ").to_string(),
+  });
+  let _ = task_state.audit_broadcast.send(entry);
+}
+
 pub async fn login(
   mut auth_session: AuthSession<Backend>,
   State(db): State<DbConnection>,
+  Extension(task_state): Extension<std::sync::Arc<crate::tasks::TaskState>>,
   JsonOrForm(payload): JsonOrForm<LoginRequest>,
 ) -> Result<impl IntoResponse, ForgeError> {
   let email = payload.email.clone();
@@ -190,39 +222,37 @@ pub async fn login(
       .login(user)
       .await
       .map_err(|e| ForgeError::Generic(format!("Login error: {}", e)))?;
-    let _ = forge::audit::log(
-      &db,
-      AuditEvent {
-        event_kind: EventKind::Auth,
-        actor_id: user.id,
-        subject_id: Some(user.id),
-        organization_id: user.current_org_id,
-        action: Action::Manage,
-        resource_type: "auth".to_string(),
-        resource_id: None,
-        outcome: Outcome::Success,
-        reason: Some("login".to_string()),
-      },
-    )
-    .await;
+    let event = AuditEvent {
+      event_kind: EventKind::Auth,
+      actor_id: user.id,
+      subject_id: Some(user.id),
+      organization_id: user.current_org_id,
+      action: Action::Manage,
+      resource_type: "auth".to_string(),
+      resource_id: None,
+      outcome: Outcome::Success,
+      reason: Some("login".to_string()),
+    };
+    if let Ok(result) = forge::audit::log(&db, event.clone()).await {
+      broadcast_audit_entry(&task_state, &event, &result);
+    }
     Ok((StatusCode::OK, Json(serde_json::json!({ "ok": true }))).into_response())
   } else {
     tracing::debug!(target: "app::auth", "login failed: invalid credentials email={}", email);
-    let _ = forge::audit::log(
-      &db,
-      AuditEvent {
-        event_kind: EventKind::Auth,
-        actor_id: Uuid::nil(),
-        subject_id: None,
-        organization_id: None,
-        action: Action::Manage,
-        resource_type: "auth".to_string(),
-        resource_id: None,
-        outcome: Outcome::Failure,
-        reason: Some("failed_login".to_string()),
-      },
-    )
-    .await;
+    let event = AuditEvent {
+      event_kind: EventKind::Auth,
+      actor_id: Uuid::nil(),
+      subject_id: None,
+      organization_id: None,
+      action: Action::Manage,
+      resource_type: "auth".to_string(),
+      resource_id: None,
+      outcome: Outcome::Failure,
+      reason: Some("failed_login".to_string()),
+    };
+    if let Ok(result) = forge::audit::log(&db, event.clone()).await {
+      broadcast_audit_entry(&task_state, &event, &result);
+    }
     Ok(
       (
         StatusCode::UNAUTHORIZED,
@@ -236,26 +266,26 @@ pub async fn login(
 pub async fn logout(
   mut auth_session: AuthSession<Backend>,
   State(db): State<DbConnection>,
+  Extension(task_state): Extension<std::sync::Arc<crate::tasks::TaskState>>,
 ) -> impl IntoResponse {
   tracing::debug!(target: "app::auth", "route: GET /api/auth/logout");
   let actor_id = auth_session.requester_id();
   let org_id = auth_session.organization_id();
   auth_session.logout().await.unwrap();
-  let _ = forge::audit::log(
-    &db,
-    AuditEvent {
-      event_kind: EventKind::Auth,
-      actor_id,
-      subject_id: Some(actor_id),
-      organization_id: org_id,
-      action: Action::Manage,
-      resource_type: "auth".to_string(),
-      resource_id: None,
-      outcome: Outcome::Success,
-      reason: Some("logout".to_string()),
-    },
-  )
-  .await;
+  let event = AuditEvent {
+    event_kind: EventKind::Auth,
+    actor_id,
+    subject_id: Some(actor_id),
+    organization_id: org_id,
+    action: Action::Manage,
+    resource_type: "auth".to_string(),
+    resource_id: None,
+    outcome: Outcome::Success,
+    reason: Some("logout".to_string()),
+  };
+  if let Ok(result) = forge::audit::log(&db, event.clone()).await {
+    broadcast_audit_entry(&task_state, &event, &result);
+  }
   (StatusCode::OK, Json(serde_json::json!({ "ok": true }))).into_response()
 }
 

@@ -20,6 +20,7 @@ impl MigratorTrait for Migrator {
       Box::new(migrations::m20220101_000005_create_audit_log_table::Migration),
       Box::new(migrations::m20220101_000006_create_api_tokens_table::Migration),
       Box::new(migrations::m20220101_000007_create_role_permission_table::Migration),
+      Box::new(migrations::m20220101_000008_add_org_id_to_role_permission::Migration),
     ]
   }
 }
@@ -53,8 +54,8 @@ mod tests {
   use super::*;
 
   #[test]
-  fn migrator_returns_seven_migrations() {
+  fn migrator_returns_eight_migrations() {
     let migrations = Migrator::migrations();
-    assert_eq!(migrations.len(), 7);
+    assert_eq!(migrations.len(), 8);
   }
 }

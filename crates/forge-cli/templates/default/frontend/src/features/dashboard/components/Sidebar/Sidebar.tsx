@@ -11,36 +11,53 @@ import Dashboard from "@mui/icons-material/Dashboard";
 import Business from "@mui/icons-material/Business";
 import People from "@mui/icons-material/People";
 import Lock from "@mui/icons-material/Lock";
+import Assignment from "@mui/icons-material/Assignment";
+import History from "@mui/icons-material/History";
 import { useSession } from "../../../../context/Session";
 
+/** Show nav item if user has any of these permissions (.read = view, .write = modify). */
 const NAV_ITEMS = [
 	{
 		to: "/dashboard",
 		label: "Dashboard",
 		end: true,
 		icon: Dashboard,
-		permission: "dashboard",
+		permissions: ["dashboard"],
 	},
 	{
 		to: "/dashboard/organizations",
 		label: "Organizations",
 		end: false,
 		icon: Business,
-		permission: "dashboard.organizations",
+		permissions: ["dashboard.organizations.read", "dashboard.organizations.write"],
 	},
 	{
 		to: "/dashboard/users",
 		label: "Users",
 		end: false,
 		icon: People,
-		permission: "dashboard.users",
+		permissions: ["dashboard.users.read", "dashboard.users.write"],
 	},
 	{
 		to: "/dashboard/roles-and-permissions",
 		label: "Permissions",
 		end: false,
 		icon: Lock,
-		permission: "dashboard.permissions.manage",
+		permissions: ["dashboard.permissions.read", "dashboard.permissions.write"],
+	},
+	{
+		to: "/dashboard/tasks",
+		label: "Tasks",
+		end: false,
+		icon: Assignment,
+		permissions: ["dashboard"],
+	},
+	{
+		to: "/dashboard/audit-log",
+		label: "Audit log",
+		end: false,
+		icon: History,
+		permissions: ["dashboard.audit.read"],
 	},
 ] as const;
 
@@ -53,7 +70,7 @@ export default function Sidebar({ expanded, onToggle }: SidebarProps) {
 	const width = expanded ? 240 : 72;
 	const { permissions } = useSession();
 	const navItems = NAV_ITEMS.filter((item) =>
-		permissions.includes(item.permission),
+		item.permissions.some((p) => permissions.includes(p)),
 	);
 
 	return (

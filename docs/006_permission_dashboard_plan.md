@@ -21,7 +21,7 @@
 
 | Term | Meaning |
 |------|--------|
-| **Permission** | A string key that gates visibility or an action (e.g. `dashboard`, `dashboard.organizations`, `dashboard.users`, `dashboard.permissions.manage`). Defined in code (constant list); not CRUD at runtime. |
+| **Permission** | A string key that gates visibility or an action. Resources have `.read` (view/list) and `.write` (create/update/delete) where applicable (e.g. `dashboard.users.read`, `dashboard.users.write`). Defined in code (constant list); not CRUD at runtime. |
 | **Role** | Existing org roles: `owner`, `admin`, `editor`, `viewer` (stored on `membership.role`). Virtual global role: “platform_admin” for users with `is_admin` (no separate DB role row). |
 | **Scope** | `org` or `global`. Org-scoped role–permission: “role X in an organization has permission Y.” Global: “platform_admin has permission Z” (used when `user.is_admin`). |
 | **Role–permission assignment** | A row (scope, role_name, permission_key) meaning “this role in this scope has this permission.” CRUD on these rows is the main feature of the permissions page. |
@@ -35,9 +35,12 @@ Suggested permission keys (to be implemented as a constant list in the app or sh
 | Key | Purpose |
 |-----|--------|
 | `dashboard` | Can see dashboard at all (base). |
-| `dashboard.organizations` | Can see “Organizations” nav and list/manage all organizations (global only). |
-| `dashboard.users` | Can see “Users” nav and list/manage users (in current org for org scope; all for global). |
-| `dashboard.permissions.manage` | Can see “Permissions” nav and CRUD role–permission assignments. |
+| `dashboard.organizations.read` | Can see “Organizations” nav and list organizations (global only). |
+| `dashboard.organizations.write` | Can create/update/delete organizations (global only). |
+| `dashboard.users.read` | Can see “Users” nav and list users (in current org for org scope; all for global). |
+| `dashboard.users.write` | Can create/update/delete users (scoped by org/global). |
+| `dashboard.permissions.read` | Can see “Permissions” nav and list role–permission assignments. |
+| `dashboard.permissions.write` | Can add/remove role–permission assignments. |
 
 Additional keys can be added later (e.g. `dashboard.billing`); the backend and frontend must both know the list (e.g. from a shared constant or config).
 
@@ -68,13 +71,13 @@ Additional keys can be added later (e.g. `dashboard.billing`); the backend and f
 
 ### 4.4 Role–permission CRUD API
 
-- **List assignments**: e.g. `GET /api/dashboard/role-permissions` (or nested under a resource). Returns list of `{ scope, role_name, permission_key }`. Guard: caller must have `dashboard.permissions.manage`.
-- **List known permissions**: e.g. `GET /api/dashboard/permissions` (or part of role-permissions response). Returns the code-defined list of permission keys. Guard: `dashboard.permissions.manage`.
+- **List assignments**: e.g. `GET /api/dashboard/role-permissions`. Returns list of `{ scope, role_name, permission_key, org_id? }`. Guard: `dashboard.permissions.read`.
+- **List known permissions**: e.g. `GET /api/dashboard/permissions`. Returns the code-defined list of permission keys. Guard: `dashboard.permissions.read`.
 - **List roles (for UI)**: Can be derived from code (org: owner, admin, editor, viewer; global: platform_admin) or a small config. No separate “role” table required for this plan.
-- **Add assignment**: e.g. `POST /api/dashboard/role-permissions` with body `{ scope, role_name, permission_key }`. Guard: `dashboard.permissions.manage`; validate scope/role_name/permission_key.
-- **Remove assignment**: e.g. `DELETE /api/dashboard/role-permissions` with body or query identifying `(scope, role_name, permission_key)`. Guard: `dashboard.permissions.manage`.
+- **Add assignment**: e.g. `POST /api/dashboard/role-permissions` with body `{ scope, role_name, permission_key, org_id? }`. Guard: `dashboard.permissions.write`; validate scope/role_name/permission_key.
+- **Remove assignment**: e.g. `DELETE /api/dashboard/role-permissions` with body identifying `(scope, role_name, permission_key, org_id?)`. Guard: `dashboard.permissions.write`.
 
-All these endpoints must return 403 when the caller lacks `dashboard.permissions.manage`.
+List/view endpoints require `dashboard.permissions.read`; add/delete require `dashboard.permissions.write`.
 
 ### 4.5 Guarding existing dashboard APIs
 

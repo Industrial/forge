@@ -89,8 +89,16 @@ impl std::fmt::Display for AuditError {
 
 impl std::error::Error for AuditError {}
 
-/// Write one audit event. Best-effort: on failure, logs and returns Ok(()) so the request is not failed.
-pub async fn log(db: &impl ConnectionTrait, event: AuditEvent) -> Result<(), AuditError> {
+/// Result of a successful audit log write: inserted row id and timestamp (e.g. for broadcasting to live UIs).
+#[derive(Debug, Clone, Copy)]
+pub struct LogResult {
+  pub id: Uuid,
+  pub occurred_at: chrono::NaiveDateTime,
+}
+
+/// Write one audit event. Best-effort: on failure, logs and returns Err so the request is not failed.
+/// On success returns the inserted row id and occurred_at for use by callers (e.g. real-time broadcast).
+pub async fn log(db: &impl ConnectionTrait, event: AuditEvent) -> Result<LogResult, AuditError> {
   let id = Uuid::new_v4();
   let occurred_at = Utc::now().naive_utc();
 
@@ -129,7 +137,7 @@ pub async fn log(db: &impl ConnectionTrait, event: AuditEvent) -> Result<(), Aud
     return Err(AuditError(Box::new(e)));
   }
 
-  Ok(())
+  Ok(LogResult { id, occurred_at })
 }
 
 /// Delete audit log rows older than the given cutoff (for retention policy).

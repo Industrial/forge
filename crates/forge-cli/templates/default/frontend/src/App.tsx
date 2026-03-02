@@ -16,6 +16,8 @@ import DashboardPage from "./features/dashboard/pages/DashboardPage/DashboardPag
 import OrganizationsPage from "./features/dashboard/pages/OrganizationsPage/OrganizationsPage";
 import UsersPage from "./features/dashboard/pages/UsersPage/UsersPage";
 import PermissionsPage from "./features/dashboard/pages/PermissionsPage/PermissionsPage";
+import TasksPage from "./features/dashboard/pages/TasksPage/TasksPage";
+import AuditLogPage from "./features/dashboard/pages/AuditLogPage/AuditLogPage";
 import ProfilePage from "./features/profile/pages/ProfilePage/ProfilePage";
 import WebsocketsDemoPage from "./features/websockets-demo/pages/WebsocketsDemoPage/WebsocketsDemoPage";
 
@@ -107,7 +109,12 @@ function App() {
 						<Route
 							path="organizations"
 							element={
-								<DashboardPermissionGuard permission="dashboard.organizations">
+								<DashboardPermissionGuard
+									permission={[
+										"dashboard.organizations.read",
+										"dashboard.organizations.write",
+									]}
+								>
 									<OrganizationsPage />
 								</DashboardPermissionGuard>
 							}
@@ -115,7 +122,12 @@ function App() {
 						<Route
 							path="users"
 							element={
-								<DashboardPermissionGuard permission="dashboard.users">
+								<DashboardPermissionGuard
+									permission={[
+										"dashboard.users.read",
+										"dashboard.users.write",
+									]}
+								>
 									<UsersPage />
 								</DashboardPermissionGuard>
 							}
@@ -123,8 +135,29 @@ function App() {
 						<Route
 							path="roles-and-permissions"
 							element={
-								<DashboardPermissionGuard permission="dashboard.permissions.manage">
+								<DashboardPermissionGuard
+									permission={[
+										"dashboard.permissions.read",
+										"dashboard.permissions.write",
+									]}
+								>
 									<PermissionsPage />
+								</DashboardPermissionGuard>
+							}
+						/>
+						<Route
+							path="tasks"
+							element={
+								<DashboardPermissionGuard permission="dashboard">
+									<TasksPage />
+								</DashboardPermissionGuard>
+							}
+						/>
+						<Route
+							path="audit-log"
+							element={
+								<DashboardPermissionGuard permission="dashboard.audit.read">
+									<AuditLogPage />
 								</DashboardPermissionGuard>
 							}
 						/>

@@ -20,6 +20,7 @@ type Assignment = {
 	scope: string;
 	role_name: string;
 	permission_key: string;
+	org_id?: string | null;
 };
 
 const SCOPES = ["org", "global"] as const;
@@ -108,19 +109,21 @@ export default function PermissionsPage() {
 	};
 
 	const handleDelete = async (a: Assignment) => {
-		const key = `${a.scope}:${a.role_name}:${a.permission_key}`;
+		const key = [a.scope, a.role_name, a.permission_key, a.org_id ?? ""].join(":");
 		setDeletingKey(key);
 		setError(null);
 		try {
+			const body: Record<string, string> = {
+				scope: a.scope,
+				role_name: a.role_name,
+				permission_key: a.permission_key,
+			};
+			if (a.org_id != null && a.org_id !== "") body.org_id = a.org_id;
 			const res = await fetch("/api/dashboard/role-permissions", {
 				method: "DELETE",
 				headers: { "Content-Type": "application/json" },
 				credentials: "include",
-				body: JSON.stringify({
-					scope: a.scope,
-					role_name: a.role_name,
-					permission_key: a.permission_key,
-				}),
+				body: JSON.stringify(body),
 			});
 			if (res.status === 403) {
 				setError("You do not have permission to manage permissions.");
@@ -155,8 +158,9 @@ export default function PermissionsPage() {
 				Permissions
 			</Typography>
 			<Typography color="text.secondary" sx={{ mb: 2 }}>
-				Manage role–permission assignments. Only users with{" "}
-				<code>dashboard.permissions.manage</code> can see this page.
+				View and manage role–permission assignments. List/view requires{" "}
+				<code>dashboard.permissions.read</code>; add/delete requires{" "}
+				<code>dashboard.permissions.write</code>.
 			</Typography>
 
 			{error && (
@@ -241,7 +245,7 @@ export default function PermissionsPage() {
 				</TableHead>
 				<TableBody>
 					{assignments.map((a) => {
-						const key = `${a.scope}:${a.role_name}:${a.permission_key}`;
+						const key = [a.scope, a.role_name, a.permission_key, a.org_id ?? ""].join(":");
 						return (
 							<TableRow key={key}>
 								<TableCell>{a.scope}</TableCell>

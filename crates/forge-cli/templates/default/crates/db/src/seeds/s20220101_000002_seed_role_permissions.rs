@@ -3,82 +3,130 @@ use sea_orm::{ColumnTrait, EntityTrait, QueryFilter, Set};
 use tracing::info;
 use uuid::Uuid;
 
-use crate::models::role_permission;
+use crate::models::{organization, role_permission};
 
-/// Permission keys (must match app's DASHBOARD_PERMISSIONS).
+/// Permission keys (must match app's DASHBOARD_PERMISSIONS). .read = view/list, .write = create/update/delete.
 const PERMISSIONS: &[&str] = &[
   "dashboard",
-  "dashboard.organizations",
-  "dashboard.users",
-  "dashboard.permissions.manage",
+  "dashboard.organizations.read",
+  "dashboard.organizations.write",
+  "dashboard.users.read",
+  "dashboard.users.write",
+  "dashboard.permissions.read",
+  "dashboard.permissions.write",
 ];
 
-/// Org-scoped permissions for owner and admin (all except dashboard.organizations).
+/// Org-scoped: owner and admin get users and permissions read+write (organizations list is platform-only).
 const ORG_OWNER_ADMIN: &[&str] = &[
   "dashboard",
-  "dashboard.users",
-  "dashboard.permissions.manage",
+  "dashboard.users.read",
+  "dashboard.users.write",
+  "dashboard.permissions.read",
+  "dashboard.permissions.write",
 ];
 
-/// Org-scoped for editor.
-const ORG_EDITOR: &[&str] = &["dashboard", "dashboard.users"];
+/// Org-scoped: editor can read and write users.
+const ORG_EDITOR: &[&str] = &[
+  "dashboard",
+  "dashboard.users.read",
+  "dashboard.users.write",
+];
 
-/// Org-scoped for viewer.
-const ORG_VIEWER: &[&str] = &["dashboard"];
+/// Org-scoped: viewer can only read users list.
+const ORG_VIEWER: &[&str] = &["dashboard", "dashboard.users.read"];
 
 async fn ensure_role_permission(
   db: &DbConnection,
   scope: &str,
   role_name: &str,
   permission_key: &str,
+  org_id: Option<Uuid>,
 ) -> Result<(), Box<dyn std::error::Error>> {
-  let existing = role_permission::Entity::find()
+  let mut q = role_permission::Entity::find()
     .filter(role_permission::Column::Scope.eq(scope))
     .filter(role_permission::Column::RoleName.eq(role_name))
-    .filter(role_permission::Column::PermissionKey.eq(permission_key))
-    .one(db)
-    .await?;
+    .filter(role_permission::Column::PermissionKey.eq(permission_key));
+  match org_id {
+    Some(id) => q = q.filter(role_permission::Column::OrgId.eq(id)),
+    None => q = q.filter(role_permission::Column::OrgId.is_null()),
+  }
+  let existing = q.one(db).await?;
 
   if existing.is_some() {
     return Ok(());
   }
 
   let id = Uuid::new_v4();
-  let model = role_permission::ActiveModel {
+  let mut model = role_permission::ActiveModel {
     id: Set(id),
     scope: Set(scope.to_string()),
     role_name: Set(role_name.to_string()),
     permission_key: Set(permission_key.to_string()),
     ..Default::default()
   };
+  model.org_id = Set(org_id);
   role_permission::Entity::insert(model).exec(db).await?;
   info!(
-    "Seeded role_permission: scope={} role_name={} permission_key={}",
-    scope, role_name, permission_key
+    "Seeded role_permission: scope={} role_name={} permission_key={} org_id={:?}",
+    scope, role_name, permission_key, org_id
   );
   Ok(())
 }
 
+/// Legacy permission keys that were replaced by .read/.write. Maps old key -> [new keys].
+const LEGACY_MIGRATION: &[(&str, &[&str])] = &[
+  ("dashboard.organizations", &["dashboard.organizations.read", "dashboard.organizations.write"]),
+  ("dashboard.users", &["dashboard.users.read", "dashboard.users.write"]),
+  ("dashboard.permissions.manage", &["dashboard.permissions.read", "dashboard.permissions.write"]),
+];
+
+/// Migrate legacy role_permission rows to .read/.write keys (idempotent).
+async fn migrate_legacy_permissions(db: &DbConnection) -> Result<(), Box<dyn std::error::Error>> {
+  for (old_key, new_keys) in LEGACY_MIGRATION {
+    let rows = role_permission::Entity::find()
+      .filter(role_permission::Column::PermissionKey.eq(*old_key))
+      .all(db)
+      .await?;
+    for row in rows {
+      for &new_key in *new_keys {
+        ensure_role_permission(
+          db,
+          &row.scope,
+          &row.role_name,
+          new_key,
+          row.org_id,
+        )
+        .await?;
+      }
+      role_permission::Entity::delete_by_id(row.id).exec(db).await?;
+    }
+  }
+  Ok(())
+}
+
 pub async fn seed(db: &DbConnection) -> Result<(), Box<dyn std::error::Error>> {
-  // Global: platform_admin has all permissions (is_admin users get all via resolve_permissions; seeds for UI consistency).
+  // Migrate any legacy permission keys to .read/.write (no-op if already migrated).
+  migrate_legacy_permissions(db).await?;
+
+  // Global: platform_admin has all permissions (org_id = null).
   for key in PERMISSIONS {
-    ensure_role_permission(db, "global", "platform_admin", key).await?;
+    ensure_role_permission(db, "global", "platform_admin", key, None).await?;
   }
 
-  // Org: owner and admin get dashboard, dashboard.users, dashboard.permissions.manage.
-  for key in ORG_OWNER_ADMIN {
-    ensure_role_permission(db, "org", "owner", key).await?;
-    ensure_role_permission(db, "org", "admin", key).await?;
-  }
-
-  // Org: editor gets dashboard, dashboard.users.
-  for key in ORG_EDITOR {
-    ensure_role_permission(db, "org", "editor", key).await?;
-  }
-
-  // Org: viewer gets dashboard only.
-  for key in ORG_VIEWER {
-    ensure_role_permission(db, "org", "viewer", key).await?;
+  // Per-org: seed role_permission for each organization in the DB.
+  let orgs = organization::Entity::find().all(db).await?;
+  for org in orgs {
+    let org_id = org.id;
+    for key in ORG_OWNER_ADMIN {
+      ensure_role_permission(db, "org", "owner", key, Some(org_id)).await?;
+      ensure_role_permission(db, "org", "admin", key, Some(org_id)).await?;
+    }
+    for key in ORG_EDITOR {
+      ensure_role_permission(db, "org", "editor", key, Some(org_id)).await?;
+    }
+    for key in ORG_VIEWER {
+      ensure_role_permission(db, "org", "viewer", key, Some(org_id)).await?;
+    }
   }
 
   Ok(())
