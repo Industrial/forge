@@ -126,7 +126,10 @@ pub async fn register(
   let form = c.form(form_loc).await?;
   form.set_by_name("email", email).await?;
   form.set_by_name("password", password).await?;
-  c.find(fantoccini::Locator::Css("[data-testid=register-submit]")).await?.click().await?;
+  c.find(fantoccini::Locator::Css("[data-testid=register-submit]"))
+    .await?
+    .click()
+    .await?;
   // Wait for server to create user and redirect to /login (template register returns Redirect::to("/login")).
   let login_url_substr = "/login";
   for _ in 0..(ELEMENT_WAIT_TIMEOUT.as_secs() * 2) {
@@ -153,10 +156,14 @@ pub async fn login(
     .at_most(ELEMENT_WAIT_TIMEOUT)
     .for_element(form_loc)
     .await?;
-  let email_el = c.find(fantoccini::Locator::Css("[data-testid=login-email]")).await?;
+  let email_el = c
+    .find(fantoccini::Locator::Css("[data-testid=login-email]"))
+    .await?;
   email_el.clear().await?;
   email_el.send_keys(email).await?;
-  let password_el = c.find(fantoccini::Locator::Css("[data-testid=login-password]")).await?;
+  let password_el = c
+    .find(fantoccini::Locator::Css("[data-testid=login-password]"))
+    .await?;
   password_el.clear().await?;
   password_el.send_keys(password).await?;
   let form = c.form(form_loc).await?;
@@ -171,30 +178,39 @@ pub async fn login(
       seen_dashboard = true;
       break;
     }
-    if let Ok(el) = c.find(heading_loc).await {
-      if let Ok(text) = el.text().await {
-        if text.contains("Dashboard") {
+    if let Ok(el) = c.find(heading_loc).await
+      && let Ok(text) = el.text().await
+        && text.contains("Dashboard") {
           seen_dashboard = true;
           break;
         }
-      }
-    }
     tokio::time::sleep(Duration::from_millis(500)).await;
   }
   if !seen_dashboard {
     let current = c.current_url().await?;
-    return Err(format!(
-      "login: redirect to /dashboard or dashboard heading did not appear (current URL: {})",
-      current
-    )
-    .into());
+    return Err(
+      format!(
+        "login: redirect to /dashboard or dashboard heading did not appear (current URL: {})",
+        current
+      )
+      .into(),
+    );
   }
   let heading = fantoccini::Locator::Css("[data-testid=dashboard-heading]");
-  c.wait().at_most(ELEMENT_WAIT_TIMEOUT).for_element(heading).await?;
+  c.wait()
+    .at_most(ELEMENT_WAIT_TIMEOUT)
+    .for_element(heading)
+    .await?;
   let el = c.find(heading).await?;
   let text = el.text().await?;
   if !text.contains("Dashboard") {
-    return Err(format!("login: dashboard page heading should contain 'Dashboard'; got {:?}", text).into());
+    return Err(
+      format!(
+        "login: dashboard page heading should contain 'Dashboard'; got {:?}",
+        text
+      )
+      .into(),
+    );
   }
   Ok(())
 }
@@ -315,7 +331,13 @@ pub async fn assert_admin_endpoint_denied(
   tokio::time::sleep(std::time::Duration::from_millis(300)).await;
   let body = c.source().await?;
   if !body.contains("Forbidden") {
-    return Err(format!("admin endpoint should deny access (Forbidden); body: {:?}", body).into());
+    return Err(
+      format!(
+        "admin endpoint should deny access (Forbidden); body: {:?}",
+        body
+      )
+      .into(),
+    );
   }
   Ok(())
 }

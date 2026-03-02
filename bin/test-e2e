@@ -20,9 +20,9 @@ echo "> test-e2e > forge new e2e_prebuilt in .tmp"
 ROOT="$(pwd)"
 (cd .tmp && "$ROOT/target/debug/forge" new e2e_prebuilt)
 
-# Build the generated project
+# Build the generated project (target under repo to avoid noexec on .tmp)
 echo "> test-e2e > cargo build (e2e_prebuilt)"
-cargo build --manifest-path "$PREBUILT/Cargo.toml"
+CARGO_TARGET_DIR="$ROOT/target/e2e_prebuilt" cargo build --manifest-path "$PREBUILT/Cargo.toml"
 
 # 018: Build frontend with bun (Inertia/Vite)
 if [[ -f "$PREBUILT/frontend/package.json" ]]; then
@@ -78,7 +78,7 @@ cleanup() {
 trap cleanup EXIT
 
 echo "> test-e2e > starting server (port $E2E_PORT)"
-(cd "$PREBUILT" && cargo run --quiet) &
+(cd "$PREBUILT" && CARGO_TARGET_DIR="$ROOT/target/e2e_prebuilt" cargo run --quiet) &
 SERVER_PID=$!
 
 # Wait for server readiness (short polling)

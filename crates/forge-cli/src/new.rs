@@ -18,7 +18,9 @@ fn template_dir() -> PathBuf {
       return p;
     }
   }
-  PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("templates").join("default")
+  PathBuf::from(env!("CARGO_MANIFEST_DIR"))
+    .join("templates")
+    .join("default")
 }
 
 /// Directories that must not be copied into new projects (local caches, deps, etc.).
@@ -40,11 +42,13 @@ pub fn create_new_project(name: &str) -> Result<(), Box<dyn std::error::Error>> 
 
   let template_base = template_dir();
   if !template_base.is_dir() {
-    return Err(format!(
-      "Template directory not found: {} (set FORGE_TEMPLATES_DIR to override)",
-      template_base.display()
-    )
-    .into());
+    return Err(
+      format!(
+        "Template directory not found: {} (set FORGE_TEMPLATES_DIR to override)",
+        template_base.display()
+      )
+      .into(),
+    );
   }
 
   let exe_path = std::env::current_exe().unwrap();
@@ -60,7 +64,13 @@ pub fn create_new_project(name: &str) -> Result<(), Box<dyn std::error::Error>> 
     .display()
     .to_string();
 
-  copy_template_dir(&template_base, "", project_dir, project_name, &forge_path_str)?;
+  copy_template_dir(
+    &template_base,
+    "",
+    project_dir,
+    project_name,
+    &forge_path_str,
+  )?;
 
   let _ = Command::new("git")
     .arg("init")
@@ -105,8 +115,8 @@ fn copy_template_dir(
       }
 
       let bytes = fs::read(entry.path())?;
-      let is_binary = dest_path.extension().is_some_and(|e| e == "ico")
-        || std::str::from_utf8(&bytes).is_err();
+      let is_binary =
+        dest_path.extension().is_some_and(|e| e == "ico") || std::str::from_utf8(&bytes).is_err();
 
       if is_binary {
         fs::write(&dest_path, bytes)?;

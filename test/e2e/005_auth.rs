@@ -33,7 +33,8 @@ fn assert_auth_layout(project_root: &std::path::Path) {
   let auth_handlers =
     fs::read_to_string(project_root.join("crates/app/src/handlers/auth.rs")).unwrap();
   assert!(
-    auth_handlers.contains("admin") && (auth_handlers.contains("is_admin") || auth_handlers.contains("record_authz_denied")),
+    auth_handlers.contains("admin")
+      && (auth_handlers.contains("is_admin") || auth_handlers.contains("record_authz_denied")),
     "auth handlers should gate admin on is_admin or record_authz_denied"
   );
 
@@ -68,15 +69,12 @@ async fn e2e_auth_unauthed_dashboard_redirects_to_login() {
   }
 
   let timeout = Duration::from_secs(30);
-  let result = tokio::time::timeout(
-    timeout,
-    async {
-      let c = forge_e2e_lib::browser::connect().await?;
-      forge_e2e_lib::browser::assert_dashboard_redirects_to_login(&c, &base).await?;
-      c.close().await?;
-      Ok::<(), Box<dyn std::error::Error + Send + Sync>>(())
-    },
-  )
+  let result = tokio::time::timeout(timeout, async {
+    let c = forge_e2e_lib::browser::connect().await?;
+    forge_e2e_lib::browser::assert_dashboard_redirects_to_login(&c, &base).await?;
+    c.close().await?;
+    Ok::<(), Box<dyn std::error::Error + Send + Sync>>(())
+  })
   .await;
 
   match result {
@@ -99,15 +97,12 @@ async fn e2e_auth_login_fails_wrong_password() {
   }
 
   let timeout = Duration::from_secs(30);
-  let result = tokio::time::timeout(
-    timeout,
-    async {
-      let c = forge_e2e_lib::browser::connect().await?;
-      forge_e2e_lib::browser::login_fails(&c, &base, "admin@admin.com", "wrongpassword").await?;
-      c.close().await?;
-      Ok::<(), Box<dyn std::error::Error + Send + Sync>>(())
-    },
-  )
+  let result = tokio::time::timeout(timeout, async {
+    let c = forge_e2e_lib::browser::connect().await?;
+    forge_e2e_lib::browser::login_fails(&c, &base, "admin@admin.com", "wrongpassword").await?;
+    c.close().await?;
+    Ok::<(), Box<dyn std::error::Error + Send + Sync>>(())
+  })
   .await;
 
   match result {
@@ -130,16 +125,13 @@ async fn e2e_auth_login_with_seed_user_then_dashboard() {
   }
 
   let timeout = Duration::from_secs(30);
-  let result = tokio::time::timeout(
-    timeout,
-    async {
-      let c = forge_e2e_lib::browser::connect().await?;
-      forge_e2e_lib::browser::login(&c, &base, "admin@admin.com", SEED_PASSWORD).await?;
-      forge_e2e_lib::browser::assert_dashboard_visible(&c, &base).await?;
-      c.close().await?;
-      Ok::<(), Box<dyn std::error::Error + Send + Sync>>(())
-    },
-  )
+  let result = tokio::time::timeout(timeout, async {
+    let c = forge_e2e_lib::browser::connect().await?;
+    forge_e2e_lib::browser::login(&c, &base, "admin@admin.com", SEED_PASSWORD).await?;
+    forge_e2e_lib::browser::assert_dashboard_visible(&c, &base).await?;
+    c.close().await?;
+    Ok::<(), Box<dyn std::error::Error + Send + Sync>>(())
+  })
   .await;
 
   match result {
@@ -162,17 +154,14 @@ async fn e2e_auth_logout_then_dashboard_redirects_to_login() {
   }
 
   let timeout = Duration::from_secs(45);
-  let result = tokio::time::timeout(
-    timeout,
-    async {
-      let c = forge_e2e_lib::browser::connect().await?;
-      forge_e2e_lib::browser::login(&c, &base, "admin@admin.com", SEED_PASSWORD).await?;
-      forge_e2e_lib::browser::logout(&c, &base).await?;
-      forge_e2e_lib::browser::assert_dashboard_redirects_to_login(&c, &base).await?;
-      c.close().await?;
-      Ok::<(), Box<dyn std::error::Error + Send + Sync>>(())
-    },
-  )
+  let result = tokio::time::timeout(timeout, async {
+    let c = forge_e2e_lib::browser::connect().await?;
+    forge_e2e_lib::browser::login(&c, &base, "admin@admin.com", SEED_PASSWORD).await?;
+    forge_e2e_lib::browser::logout(&c, &base).await?;
+    forge_e2e_lib::browser::assert_dashboard_redirects_to_login(&c, &base).await?;
+    c.close().await?;
+    Ok::<(), Box<dyn std::error::Error + Send + Sync>>(())
+  })
   .await;
 
   match result {
@@ -195,16 +184,13 @@ async fn e2e_auth_global_admin_can_access_admin_endpoint() {
   }
 
   let timeout = Duration::from_secs(30);
-  let result = tokio::time::timeout(
-    timeout,
-    async {
-      let c = forge_e2e_lib::browser::connect().await?;
-      forge_e2e_lib::browser::login(&c, &base, "admin@admin.com", SEED_PASSWORD).await?;
-      forge_e2e_lib::browser::assert_admin_endpoint_granted(&c, &base).await?;
-      c.close().await?;
-      Ok::<(), Box<dyn std::error::Error + Send + Sync>>(())
-    },
-  )
+  let result = tokio::time::timeout(timeout, async {
+    let c = forge_e2e_lib::browser::connect().await?;
+    forge_e2e_lib::browser::login(&c, &base, "admin@admin.com", SEED_PASSWORD).await?;
+    forge_e2e_lib::browser::assert_admin_endpoint_granted(&c, &base).await?;
+    c.close().await?;
+    Ok::<(), Box<dyn std::error::Error + Send + Sync>>(())
+  })
   .await;
 
   match result {
@@ -227,16 +213,13 @@ async fn e2e_auth_non_admin_cannot_access_admin_endpoint() {
   }
 
   let timeout = Duration::from_secs(30);
-  let result = tokio::time::timeout(
-    timeout,
-    async {
-      let c = forge_e2e_lib::browser::connect().await?;
-      forge_e2e_lib::browser::login(&c, &base, "viewer@default.org", SEED_PASSWORD).await?;
-      forge_e2e_lib::browser::assert_admin_endpoint_denied(&c, &base).await?;
-      c.close().await?;
-      Ok::<(), Box<dyn std::error::Error + Send + Sync>>(())
-    },
-  )
+  let result = tokio::time::timeout(timeout, async {
+    let c = forge_e2e_lib::browser::connect().await?;
+    forge_e2e_lib::browser::login(&c, &base, "viewer@default.org", SEED_PASSWORD).await?;
+    forge_e2e_lib::browser::assert_admin_endpoint_denied(&c, &base).await?;
+    c.close().await?;
+    Ok::<(), Box<dyn std::error::Error + Send + Sync>>(())
+  })
   .await;
 
   match result {
@@ -268,17 +251,14 @@ async fn e2e_auth_register_login_dashboard_full_flow() {
   let password = "password123";
 
   let timeout = Duration::from_secs(90);
-  let result = tokio::time::timeout(
-    timeout,
-    async {
-      let c = forge_e2e_lib::browser::connect().await?;
-      forge_e2e_lib::browser::register(&c, &base, &email, password).await?;
-      forge_e2e_lib::browser::login(&c, &base, &email, password).await?;
-      forge_e2e_lib::browser::assert_dashboard_visible(&c, &base).await?;
-      c.close().await?;
-      Ok::<(), Box<dyn std::error::Error + Send + Sync>>(())
-    },
-  )
+  let result = tokio::time::timeout(timeout, async {
+    let c = forge_e2e_lib::browser::connect().await?;
+    forge_e2e_lib::browser::register(&c, &base, &email, password).await?;
+    forge_e2e_lib::browser::login(&c, &base, &email, password).await?;
+    forge_e2e_lib::browser::assert_dashboard_visible(&c, &base).await?;
+    c.close().await?;
+    Ok::<(), Box<dyn std::error::Error + Send + Sync>>(())
+  })
   .await;
 
   match result {

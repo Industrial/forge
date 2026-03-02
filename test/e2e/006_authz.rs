@@ -31,7 +31,8 @@ async fn e2e_prebuilt_authz_layout_and_protected_route() {
   let auth_handlers =
     fs::read_to_string(project_root.join("crates/app/src/handlers/auth.rs")).unwrap();
   assert!(
-    auth_handlers.contains("admin") && (auth_handlers.contains("is_admin") || auth_handlers.contains("record_authz_denied")),
+    auth_handlers.contains("admin")
+      && (auth_handlers.contains("is_admin") || auth_handlers.contains("record_authz_denied")),
     "auth handlers should gate admin or use record_authz_denied"
   );
 
