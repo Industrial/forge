@@ -11,6 +11,7 @@ export default function Login() {
         action="/api/auth/login"
         method="post"
         target="_top"
+        data-testid="login-form"
         className={style({ display: 'flex', flexDirection: 'column', gap: 16 })}
       >
         <label className={style({ font: 'body', display: 'flex', flexDirection: 'column', gap: 4 })}>
@@ -20,6 +21,7 @@ export default function Login() {
             type="email"
             placeholder="you@example.com"
             required
+            data-testid="login-email"
             style={{
               padding: '8px 12px',
               borderRadius: 6,
@@ -35,6 +37,7 @@ export default function Login() {
             type="password"
             placeholder="••••••••"
             required
+            data-testid="login-password"
             style={{
               padding: '8px 12px',
               borderRadius: 6,
@@ -43,7 +46,7 @@ export default function Login() {
             }}
           />
         </label>
-        <Button type="submit" variant="accent">
+        <Button type="submit" variant="accent" data-testid="login-submit">
           Log in
         </Button>
       </form>

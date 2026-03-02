@@ -49,18 +49,18 @@ pub async fn connect() -> Result<fantoccini::Client, Box<dyn std::error::Error +
   }
 }
 
-/// Connect to WebDriver, goto `base_url`, assert `#app` exists (Inertia root), close.
+/// Connect to WebDriver, goto `base_url`, assert `#root` exists (app root), close.
 pub async fn assert_app_root_loads(
   base_url: &str,
 ) -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
   let c = connect().await?;
   c.goto(base_url).await?;
-  let _ = c.find(fantoccini::Locator::Css("#app")).await?;
+  let _ = c.find(fantoccini::Locator::Css("#root")).await?;
   c.close().await?;
   Ok(())
 }
 
-/// Goto `base_url` n times, assert `#app` exists each time, then close.
+/// Goto `base_url` n times, assert `#root` exists each time, then close.
 pub async fn assert_app_root_loads_repeated(
   base_url: &str,
   n: u32,
@@ -68,20 +68,20 @@ pub async fn assert_app_root_loads_repeated(
   let c = connect().await?;
   for _ in 0..n {
     c.goto(base_url).await?;
-    let _ = c.find(fantoccini::Locator::Css("#app")).await?;
+    let _ = c.find(fantoccini::Locator::Css("#root")).await?;
   }
   c.close().await?;
   Ok(())
 }
 
-/// Goto `base_url`, assert `#app` exists and page source contains `substring`, then close.
+/// Goto `base_url`, assert `#root` exists and page source contains `substring`, then close.
 pub async fn assert_app_root_loads_and_contains(
   base_url: &str,
   substring: &str,
 ) -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
   let c = connect().await?;
   c.goto(base_url).await?;
-  let _ = c.find(fantoccini::Locator::Css("#app")).await?;
+  let _ = c.find(fantoccini::Locator::Css("#root")).await?;
   let body = c.source().await?;
   if !body.contains(substring) {
     c.close().await?;
@@ -91,7 +91,7 @@ pub async fn assert_app_root_loads_and_contains(
   Ok(())
 }
 
-/// Goto `base_url + path`, assert `#app` exists, then close.
+/// Goto `base_url + path`, assert `#root` exists, then close.
 pub async fn goto_path_and_assert_app(
   base_url: &str,
   path: &str,
@@ -104,12 +104,12 @@ pub async fn goto_path_and_assert_app(
   };
   let c = connect().await?;
   c.goto(&url).await?;
-  let _ = c.find(fantoccini::Locator::Css("#app")).await?;
+  let _ = c.find(fantoccini::Locator::Css("#root")).await?;
   c.close().await?;
   Ok(())
 }
 
-/// Fill and submit the register form at `/register`. Uses form set_by_name then click submit so Inertia handler runs.
+/// Fill and submit the register form at `/register`. Uses form set_by_name then click submit.
 pub async fn register(
   c: &fantoccini::Client,
   base_url: &str,
@@ -118,7 +118,7 @@ pub async fn register(
 ) -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
   let url = format!("{}/register", base_url.trim_end_matches('/'));
   c.goto(&url).await?;
-  let form_loc = fantoccini::Locator::Css("form");
+  let form_loc = fantoccini::Locator::Css("[data-testid=register-form]");
   c.wait()
     .at_most(ELEMENT_WAIT_TIMEOUT)
     .for_element(form_loc)
@@ -126,7 +126,7 @@ pub async fn register(
   let form = c.form(form_loc).await?;
   form.set_by_name("email", email).await?;
   form.set_by_name("password", password).await?;
-  c.find(fantoccini::Locator::Css("button[type=submit]")).await?.click().await?;
+  c.find(fantoccini::Locator::Css("[data-testid=register-submit]")).await?.click().await?;
   // Wait for server to create user and redirect to /login (template register returns Redirect::to("/login")).
   let login_url_substr = "/login";
   for _ in 0..(ELEMENT_WAIT_TIMEOUT.as_secs() * 2) {
@@ -148,22 +148,22 @@ pub async fn login(
 ) -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
   let url = format!("{}/login", base_url.trim_end_matches('/'));
   c.goto(&url).await?;
-  let form_loc = fantoccini::Locator::Css("form");
+  let form_loc = fantoccini::Locator::Css("[data-testid=login-form]");
   c.wait()
     .at_most(ELEMENT_WAIT_TIMEOUT)
     .for_element(form_loc)
     .await?;
-  let email_el = c.find(fantoccini::Locator::Css("input[name=email]")).await?;
+  let email_el = c.find(fantoccini::Locator::Css("[data-testid=login-email]")).await?;
   email_el.clear().await?;
   email_el.send_keys(email).await?;
-  let password_el = c.find(fantoccini::Locator::Css("input[name=password]")).await?;
+  let password_el = c.find(fantoccini::Locator::Css("[data-testid=login-password]")).await?;
   password_el.clear().await?;
   password_el.send_keys(password).await?;
   let form = c.form(form_loc).await?;
   form.submit().await?;
-  // Wait for post-login (browser follows 302 to /dashboard): either URL contains /dashboard or Dashboard h1 appears (Inertia may update in-place).
+  // Wait for post-login (browser follows 302 to /dashboard): either URL contains /dashboard or dashboard heading appears.
   let dashboard_path = "/dashboard";
-  let h1_loc = fantoccini::Locator::Css("h1");
+  let heading_loc = fantoccini::Locator::Css("[data-testid=dashboard-heading]");
   let mut seen_dashboard = false;
   for _ in 0..(ELEMENT_WAIT_TIMEOUT.as_secs() * 2) {
     let url = c.current_url().await?;
@@ -171,7 +171,7 @@ pub async fn login(
       seen_dashboard = true;
       break;
     }
-    if let Ok(el) = c.find(h1_loc).await {
+    if let Ok(el) = c.find(heading_loc).await {
       if let Ok(text) = el.text().await {
         if text.contains("Dashboard") {
           seen_dashboard = true;
@@ -184,18 +184,17 @@ pub async fn login(
   if !seen_dashboard {
     let current = c.current_url().await?;
     return Err(format!(
-      "login: redirect to /dashboard or Dashboard h1 did not appear (current URL: {})",
+      "login: redirect to /dashboard or dashboard heading did not appear (current URL: {})",
       current
     )
     .into());
   }
-  // Ensure we have the heading (may need a moment for client render).
-  let h1 = fantoccini::Locator::Css("h1");
-  c.wait().at_most(ELEMENT_WAIT_TIMEOUT).for_element(h1).await?;
-  let el = c.find(h1).await?;
+  let heading = fantoccini::Locator::Css("[data-testid=dashboard-heading]");
+  c.wait().at_most(ELEMENT_WAIT_TIMEOUT).for_element(heading).await?;
+  let el = c.find(heading).await?;
   let text = el.text().await?;
   if !text.contains("Dashboard") {
-    return Err(format!("login: dashboard page h1 should contain 'Dashboard'; got {:?}", text).into());
+    return Err(format!("login: dashboard page heading should contain 'Dashboard'; got {:?}", text).into());
   }
   Ok(())
 }
@@ -207,17 +206,17 @@ pub async fn assert_dashboard_visible(
 ) -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
   let url = format!("{}/dashboard", base_url.trim_end_matches('/'));
   c.goto(&url).await?;
-  let h1 = fantoccini::Locator::Css("h1");
+  let heading = fantoccini::Locator::Css("[data-testid=dashboard-heading]");
   c.wait()
     .at_most(ELEMENT_WAIT_TIMEOUT)
-    .for_element(h1)
+    .for_element(heading)
     .await?;
-  let el = c.find(h1).await?;
+  let el = c.find(heading).await?;
   let text = el.text().await?;
   if !text.contains("Dashboard") {
     return Err(
       format!(
-        "dashboard page h1 should contain 'Dashboard'; got {:?}",
+        "dashboard page heading should contain 'Dashboard'; got {:?}",
         text
       )
       .into(),
@@ -267,9 +266,9 @@ pub async fn login_fails(
   password: &str,
 ) -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
   let url = format!("{}/login", base_url.trim_end_matches('/'));
-  let email_locator = fantoccini::Locator::Css("input[type=email]");
-  let password_locator = fantoccini::Locator::Css("input[type=password]");
-  let submit_locator = fantoccini::Locator::Css("button[type=submit]");
+  let email_locator = fantoccini::Locator::Css("[data-testid=login-email]");
+  let password_locator = fantoccini::Locator::Css("[data-testid=login-password]");
+  let submit_locator = fantoccini::Locator::Css("[data-testid=login-submit]");
   c.goto(&url).await?;
   c.wait()
     .at_most(ELEMENT_WAIT_TIMEOUT)
@@ -349,7 +348,7 @@ pub async fn assert_ws_demo_echo(
   let url = base_url.trim_end_matches('/');
   let ws_demo_url = format!("{}/ws-demo", url);
   c.goto(&ws_demo_url).await?;
-  let _ = c.find(fantoccini::Locator::Css("#app")).await?;
+  let _ = c.find(fantoccini::Locator::Css("#root")).await?;
   c.find(fantoccini::Locator::Css("input"))
     .await?
     .send_keys(msg)

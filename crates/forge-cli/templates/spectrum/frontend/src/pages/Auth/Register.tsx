@@ -10,6 +10,7 @@ export default function Register() {
           action="/api/auth/register"
           method="post"
           target="_top"
+          data-testid="register-form"
         >
           <TextField
             name="email"
@@ -17,6 +18,7 @@ export default function Register() {
             label="Email"
             placeholder="you@example.com"
             isRequired
+            data-testid="register-email"
           />
           <TextField
             name="password"
@@ -25,6 +27,7 @@ export default function Register() {
             placeholder="••••••••"
             isRequired
             minLength={8}
+            data-testid="register-password"
           />
           <div
             className={style({
@@ -33,7 +36,7 @@ export default function Register() {
               justifyContent: 'end',
             })}
           >
-            <Button type="submit" variant="accent">
+            <Button type="submit" variant="accent" data-testid="register-submit">
               Register
             </Button>
           </div>

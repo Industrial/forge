@@ -10,7 +10,7 @@ export default function Dashboard() {
 
   return (
     <div>
-      <h1>Dashboard</h1>
+      <h1 data-testid="dashboard-heading">Dashboard</h1>
       <p>Welcome to the dashboard.</p>
       <nav>
         <a href="/">Home</a> | <a href="/login">Login</a> | <a href="/ws-demo">WebSocket</a>

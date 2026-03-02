@@ -9,6 +9,7 @@ export default function Register() {
         action="/api/auth/register"
         method="post"
         target="_top"
+        data-testid="register-form"
         className={style({ display: 'flex', flexDirection: 'column', gap: 16 })}
       >
         <label className={style({ font: 'body', display: 'flex', flexDirection: 'column', gap: 4 })}>
@@ -18,6 +19,7 @@ export default function Register() {
             type="email"
             placeholder="you@example.com"
             required
+            data-testid="register-email"
             style={{
               padding: '8px 12px',
               borderRadius: 6,
@@ -34,6 +36,7 @@ export default function Register() {
             placeholder="••••••••"
             required
             minLength={8}
+            data-testid="register-password"
             style={{
               padding: '8px 12px',
               borderRadius: 6,
@@ -42,7 +45,7 @@ export default function Register() {
             }}
           />
         </label>
-        <Button type="submit" variant="accent">
+        <Button type="submit" variant="accent" data-testid="register-submit">
           Register
         </Button>
       </form>

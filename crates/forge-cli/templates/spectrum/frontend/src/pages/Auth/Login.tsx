@@ -10,6 +10,7 @@ export default function Login() {
           action="/api/auth/login"
           method="post"
           target="_top"
+          data-testid="login-form"
         >
           <TextField
             name="email"
@@ -17,6 +18,7 @@ export default function Login() {
             label="Email"
             placeholder="you@example.com"
             isRequired
+            data-testid="login-email"
           />
           <TextField
             name="password"
@@ -24,6 +26,7 @@ export default function Login() {
             label="Password"
             placeholder="••••••••"
             isRequired
+            data-testid="login-password"
           />
           <div
             className={style({
@@ -32,7 +35,7 @@ export default function Login() {
               justifyContent: 'end',
             })}
           >
-            <Button type="submit" variant="accent">
+            <Button type="submit" variant="accent" data-testid="login-submit">
               Log in
             </Button>
           </div>
