@@ -1,34 +1,34 @@
 import { Content, Heading, InlineAlert } from '@react-spectrum/s2';
 import { style } from '@react-spectrum/s2/style' with { type: 'macro' };
 import React from 'react';
-import { useLocation } from 'react-router-dom';
-import AppShell from './AppShell';
 import Navbar from './Navbar';
-import Sidebar from './Sidebar';
 import { useSession } from '../context/Session';
 
-type LayoutProps = { children: React.ReactNode };
+type LayoutProps = {
+  children: React.ReactNode;
+  colorScheme: 'light' | 'dark';
+  onToggleTheme: () => void;
+};
 
-function pathnameToSidebarActiveKey(pathname: string): string | undefined {
-  if (pathname === '/' || pathname === '') return 'home';
-  if (pathname.startsWith('/photos')) return 'photos';
-  if (pathname.startsWith('/ideas')) return 'ideas';
-  return undefined;
-}
-
-export default function Layout({ children }: LayoutProps) {
-  const { user, flash } = useSession();
-  const location = useLocation();
-  const pathname = location.pathname;
-  const sidebarActiveKey = pathnameToSidebarActiveKey(pathname);
+export default function Layout({ children, colorScheme, onToggleTheme }: LayoutProps) {
+  const { flash } = useSession();
 
   return (
-    <AppShell
-      navbar={
-        <Navbar appName="App" user={user ?? undefined} />
-      }
-      sidebar={<Sidebar activeKey={sidebarActiveKey} />}
+    <div
+      className={style({
+        display: 'flex',
+        flexDirection: 'column',
+        minHeight: 'full',
+        height: 'full',
+        overflow: 'auto',
+        flexGrow: 1,
+      })}
     >
+      <Navbar
+        appName="App"
+        colorScheme={colorScheme}
+        onToggleTheme={onToggleTheme}
+      />
       <div
         className={style({
           display: 'flex',
@@ -38,6 +38,7 @@ export default function Layout({ children }: LayoutProps) {
           backgroundColor: 'layer-1',
           padding: 16,
           borderRadius: 'default',
+          flexGrow: 1,
         })}
       >
         {(flash?.message ?? flash?.error) != null && (
@@ -57,6 +58,6 @@ export default function Layout({ children }: LayoutProps) {
         )}
         {children}
       </div>
-    </AppShell>
+    </div>
   );
 }

@@ -1,9 +1,0 @@
-[database]
-# SQLite connection string. The file will be created in the project root.
-url = "sqlite://db.sqlite?mode=rwc"
-max_connections = 5
-min_connections = 1
-connect_timeout = 10
-idle_timeout = 600
-auto_migrate = true
-auto_seed = true

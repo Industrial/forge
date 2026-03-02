@@ -10,13 +10,13 @@ export default function AuthLayout({ children }: AuthLayoutProps) {
 
   return (
     <div
-      style={{
-        minHeight: '100vh',
+      className={style({
+        minHeight: 'full',
         display: 'flex',
         alignItems: 'center',
         justifyContent: 'center',
         padding: 24,
-      }}
+      })}
     >
       <div
         className={style({
@@ -24,8 +24,8 @@ export default function AuthLayout({ children }: AuthLayoutProps) {
           flexDirection: 'column',
           gap: 24,
           maxWidth: 400,
+          width: 'full',
         })}
-        style={{ width: '100%' }}
       >
         {(flash?.message ?? flash?.error) != null && (
           <>

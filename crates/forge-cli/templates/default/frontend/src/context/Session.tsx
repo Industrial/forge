@@ -42,13 +42,21 @@ export function SessionProvider({ children }: { children: React.ReactNode }) {
 
   useEffect(() => {
     let cancelled = false;
-    fetchSession().then(({ user: u, flash: f }) => {
-      if (!cancelled) {
-        setUser(u);
-        setFlash(f);
-        setLoading(false);
-      }
-    });
+    fetchSession()
+      .then(({ user: u, flash: f }) => {
+        if (!cancelled) {
+          setUser(u);
+          setFlash(f);
+          setLoading(false);
+        }
+      })
+      .catch(() => {
+        if (!cancelled) {
+          setUser(null);
+          setFlash(null);
+          setLoading(false);
+        }
+      });
     return () => { cancelled = true; };
   }, []);
 

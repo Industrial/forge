@@ -1,20 +1,13 @@
-import { Navigate } from 'react-router-dom';
-import { useSession } from '../context/Session';
+import { Heading, Text } from '@react-spectrum/s2';
+import { style } from '@react-spectrum/s2/style' with { type: 'macro' };
 
 export default function Dashboard() {
-  const { user } = useSession();
-
-  if (user == null) {
-    return <Navigate to="/login" replace />;
-  }
-
   return (
-    <div>
-      <h1 data-testid="dashboard-heading">Dashboard</h1>
-      <p>Welcome to the dashboard.</p>
-      <nav>
-        <a href="/">Home</a> | <a href="/login">Login</a> | <a href="/ws-demo">WebSocket</a>
-      </nav>
-    </div>
+    <>
+      <Heading level={1} styles={style({ font: 'heading-xl' })} data-testid="dashboard-heading">
+        Dashboard
+      </Heading>
+      <Text>Welcome to your dashboard.</Text>
+    </>
   );
 }

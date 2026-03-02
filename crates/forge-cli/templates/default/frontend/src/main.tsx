@@ -1,70 +1,46 @@
+/*
+ * Copyright 2024 Adobe. All rights reserved.
+ * This file is licensed to you under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License. You may obtain a copy
+ * of the License at http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software distributed under
+ * the License is distributed on an "AS IS" BASIS, WITHOUT WARRANTIES OR REPRESENTATIONS
+ * OF ANY KIND, either express or implied. See the License for the specific language
+ * governing permissions and limitations under the License.
+ */
+
+import './reset.css';
 import '@react-spectrum/s2/page.css';
-import { Provider } from '@react-spectrum/s2';
+import { style } from '@react-spectrum/s2/style' with { type: 'macro' };
 import React from 'react';
+import ReactDOM from 'react-dom/client';
+import { BrowserRouter } from 'react-router-dom';
+import App from './App.tsx';
 
-// Set theme on <html> before render so Spectrum design tokens apply (page.css + Provider need this).
+const THEME_KEY = 'spectrum-color-scheme';
 if (typeof document !== 'undefined' && document.documentElement) {
-  document.documentElement.setAttribute('data-color-scheme', 'dark');
-  document.documentElement.setAttribute('data-background', 'base');
-}
-import { createRoot } from 'react-dom/client';
-import { BrowserRouter, Route, Routes, useNavigate } from 'react-router-dom';
-import { SessionProvider } from './context/Session';
-import Layout from './components/Layout';
-import AuthLayout from './components/AuthLayout';
-import Home from './pages/Home';
-import Login from './pages/Auth/Login';
-import Register from './pages/Auth/Register';
-import Dashboard from './pages/Dashboard';
-import WsDemo from './pages/WsDemo';
-import Photos from './pages/Photos';
-import Ideas from './pages/Ideas';
-import Files from './pages/Files';
-
-function Providers({ children }: { children: React.ReactNode }) {
-  const navigate = useNavigate();
-
-  return (
-    <SessionProvider>
-      <Provider
-        elementType="main"
-        background="base"
-        colorScheme="dark"
-        router={{
-          navigate: (url: string) => navigate(url),
-          useHref: (to: string) => to,
-        }}
-      >
-        {children}
-      </Provider>
-    </SessionProvider>
-  );
+  const stored = typeof localStorage !== 'undefined' ? localStorage.getItem(THEME_KEY) : null;
+  const scheme = stored === 'light' || stored === 'dark' ? stored : 'dark';
+  document.documentElement.setAttribute('data-color-scheme', scheme);
 }
 
-function App() {
-  return (
-    <Providers>
-      <Routes>
-        <Route path="/" element={<Layout><Home /></Layout>} />
-        <Route path="/login" element={<AuthLayout><Login /></AuthLayout>} />
-        <Route path="/register" element={<AuthLayout><Register /></AuthLayout>} />
-        <Route path="/dashboard" element={<Layout><Dashboard /></Layout>} />
-        <Route path="/ws-demo" element={<Layout><WsDemo /></Layout>} />
-        <Route path="/photos" element={<Layout><Photos /></Layout>} />
-        <Route path="/ideas" element={<Layout><Ideas /></Layout>} />
-        <Route path="/files" element={<Layout><Files /></Layout>} />
-      </Routes>
-    </Providers>
-  );
+const bodyClass = style({
+  display: 'flex',
+  flexDirection: 'column',
+  minHeight: 'full',
+  height: 'full',
+  overflow: 'auto',
+  flexGrow: 1,
+});
+if (typeof document !== 'undefined' && document.body) {
+  document.body.className = bodyClass;
 }
 
-const el = document.getElementById('root');
-if (el) {
-  createRoot(el).render(
-    <React.StrictMode>
-      <BrowserRouter>
-        <App />
-      </BrowserRouter>
-    </React.StrictMode>
-  );
-}
+ReactDOM.createRoot(document.getElementById('root')!).render(
+  <React.StrictMode>
+    <BrowserRouter>
+      <App />
+    </BrowserRouter>
+  </React.StrictMode>,
+);

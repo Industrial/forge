@@ -1,6 +1,0 @@
-pub mod m20220101_000001_create_user_table;
-pub mod m20220101_000002_create_sessions_table;
-pub mod m20220101_000003_create_organizations_table;
-pub mod m20220101_000004_create_memberships_table;
-pub mod m20220101_000005_create_audit_log_table;
-pub mod m20220101_000006_create_api_tokens_table;

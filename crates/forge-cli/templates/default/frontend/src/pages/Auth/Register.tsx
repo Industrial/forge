@@ -1,57 +1,49 @@
-import { Button, Heading, Link } from '@react-spectrum/s2';
+import { Button, Form, Heading, Link, TextField } from '@react-spectrum/s2';
 import { style } from '@react-spectrum/s2/style' with { type: 'macro' };
 
 export default function Register() {
   return (
     <>
-      <Heading level={1}>Create an account</Heading>
-      <form
-        action="/api/auth/register"
-        method="post"
-        target="_top"
-        data-testid="register-form"
-        className={style({ display: 'flex', flexDirection: 'column', gap: 16 })}
-      >
-        <label className={style({ font: 'body', display: 'flex', flexDirection: 'column', gap: 4 })}>
-          Email
-          <input
+      <Heading level={1} styles={style({ font: 'heading-xl' })}>Create an account</Heading>
+      <div className={style({ display: 'flex', flexDirection: 'column', gap: 12 })}>
+        <Form
+          action="/api/auth/register"
+          method="post"
+          target="_top"
+          data-testid="register-form"
+        >
+          <TextField
             name="email"
             type="email"
+            label="Email"
             placeholder="you@example.com"
-            required
+            isRequired
             data-testid="register-email"
-            style={{
-              padding: '8px 12px',
-              borderRadius: 6,
-              border: '1px solid var(--spectrum-gray-300)',
-              fontSize: 14,
-            }}
           />
-        </label>
-        <label className={style({ font: 'body', display: 'flex', flexDirection: 'column', gap: 4 })}>
-          Password
-          <input
+          <TextField
             name="password"
             type="password"
+            label="Password"
             placeholder="••••••••"
-            required
+            isRequired
             minLength={8}
             data-testid="register-password"
-            style={{
-              padding: '8px 12px',
-              borderRadius: 6,
-              border: '1px solid var(--spectrum-gray-300)',
-              fontSize: 14,
-            }}
           />
-        </label>
-        <Button type="submit" variant="accent" data-testid="register-submit">
-          Register
-        </Button>
-      </form>
-      <div className={style({ display: 'flex', gap: 16, flexWrap: 'wrap' })}>
-        <Link href="/login" isQuiet>Already have an account? Log in</Link>
-        <Link href="/" isQuiet>Back to home</Link>
+          <div
+            className={style({
+              display: 'flex',
+              flexDirection: 'row',
+              justifyContent: 'end',
+            })}
+          >
+            <Button type="submit" variant="accent" data-testid="register-submit">
+              Register
+            </Button>
+          </div>
+        </Form>
+        <div className={style({ textAlign: 'center', font: 'body' })}>
+          <Link href="/login">Already have an account? Log in</Link>
+        </div>
       </div>
     </>
   );
