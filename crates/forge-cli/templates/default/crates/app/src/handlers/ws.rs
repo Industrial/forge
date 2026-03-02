@@ -19,7 +19,9 @@ async fn handle_socket(mut socket: WebSocket) {
         tracing::info!(target: "forge::ws", "received: {}", t);
         tracing::info!(target: "forge::ws", "sending: {}", t);
       }
-      Message::Binary(b) => tracing::info!(target: "forge::ws", "received: {} bytes, sending", b.len()),
+      Message::Binary(b) => {
+        tracing::info!(target: "forge::ws", "received: {} bytes, sending", b.len())
+      }
       _ => {}
     }
     if socket.send(msg).await.is_err() {

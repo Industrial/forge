@@ -1,5 +1,5 @@
-use forge::authz::{AuthzContext, Role};
 use forge::ForgeAuthUser;
+use forge::authz::{AuthzContext, Role};
 use sea_orm::entity::prelude::*;
 use serde::{Deserialize, Serialize};
 

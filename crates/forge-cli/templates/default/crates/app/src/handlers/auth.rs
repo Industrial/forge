@@ -1,26 +1,26 @@
 use axum::{
+  Form, Json,
   extract::{FromRequest, Request, State},
   http::StatusCode,
   response::IntoResponse,
-  Form, Json,
 };
 use axum_login::AuthSession;
-use tower_sessions::Session;
 use chrono::Utc;
-use forge::auth::{hash_api_token, hash_password};
 use forge::audit::{AuditEvent, EventKind, Outcome};
-use forge::authz::{Action, record_authz_denied, AuthzContext};
-use forge::validation::Valid;
+use forge::auth::{hash_api_token, hash_password};
+use forge::authz::{Action, AuthzContext, record_authz_denied};
 use forge::token_auth::{OptionalRequireAuth, RequireAuth};
+use forge::validation::Valid;
 use forge::{DbConnection, Error as ForgeError};
 use sea_orm::{ActiveModelTrait, EntityTrait, Set, TransactionTrait};
-use serde::de::DeserializeOwned;
 use serde::Deserialize;
+use serde::de::DeserializeOwned;
+use tower_sessions::Session;
 use uuid::Uuid;
 use validator::Validate;
 
 use db::auth::Backend;
-use db::models::{api_token, organization, membership, user};
+use db::models::{api_token, membership, organization, user};
 
 /// Session keys for one-time flash messages (read once then cleared). No longer set by auth; kept for session_json shape.
 pub const FLASH_MESSAGE: &str = "flash_message";
@@ -79,7 +79,10 @@ pub async fn register(
   };
   membership::Entity::insert(new_membership).exec(&tx).await?;
 
-  let u = user::Entity::find_by_id(user_id).one(&tx).await?.ok_or_else(|| ForgeError::Generic("User not found".into()))?;
+  let u = user::Entity::find_by_id(user_id)
+    .one(&tx)
+    .await?
+    .ok_or_else(|| ForgeError::Generic("User not found".into()))?;
   let mut am: user::ActiveModel = u.into();
   am.current_org_id = Set(Some(org_id));
   am.current_role = Set(Some("owner".to_string()));
@@ -138,7 +141,9 @@ pub async fn login(
 ) -> Result<impl IntoResponse, ForgeError> {
   let email = payload.email.clone();
   tracing::debug!(target: "app::auth", "route: POST /api/auth/login email={}", email);
-  payload.validate().map_err(|e| ForgeError::Generic(e.to_string()))?;
+  payload
+    .validate()
+    .map_err(|e| ForgeError::Generic(e.to_string()))?;
   let credentials = db::auth::Credentials {
     email: payload.email,
     password: payload.password,
@@ -188,11 +193,13 @@ pub async fn login(
       },
     )
     .await;
-    Ok((
-      StatusCode::UNAUTHORIZED,
-      Json(serde_json::json!({ "error": "Invalid email or password" })),
+    Ok(
+      (
+        StatusCode::UNAUTHORIZED,
+        Json(serde_json::json!({ "error": "Invalid email or password" })),
+      )
+        .into_response(),
     )
-      .into_response())
   }
 }
 
@@ -227,8 +234,13 @@ pub async fn profile(auth_session: AuthSession<Backend>) -> impl IntoResponse {
   match &auth_session.user {
     Some(user) => Json(serde_json::json!({
       "user": { "id": user.id.to_string(), "email": user.email }
-    })).into_response(),
-    None => (StatusCode::UNAUTHORIZED, Json(serde_json::json!({ "error": "Not logged in" }))).into_response(),
+    }))
+    .into_response(),
+    None => (
+      StatusCode::UNAUTHORIZED,
+      Json(serde_json::json!({ "error": "Not logged in" })),
+    )
+      .into_response(),
   }
 }
 
@@ -287,26 +299,32 @@ pub async fn admin_only(
     Some(u) => u,
     None => {
       record_authz_denied(&db, Action::Manage, "admin", None).await;
-      return Ok((
-        StatusCode::UNAUTHORIZED,
-        Json(serde_json::json!({ "error": "Authentication required" })),
-      )
-        .into_response());
+      return Ok(
+        (
+          StatusCode::UNAUTHORIZED,
+          Json(serde_json::json!({ "error": "Authentication required" })),
+        )
+          .into_response(),
+      );
     }
   };
   if !user.is_admin {
     record_authz_denied(&db, Action::Manage, "admin", Some(user.id)).await;
-    return Ok((
-      StatusCode::FORBIDDEN,
-      Json(serde_json::json!({ "error": "Forbidden" })),
-    )
-      .into_response());
+    return Ok(
+      (
+        StatusCode::FORBIDDEN,
+        Json(serde_json::json!({ "error": "Forbidden" })),
+      )
+        .into_response(),
+    );
   }
-  Ok((
-    StatusCode::OK,
-    Json(serde_json::json!({
-      "message": format!("Admin only: access granted for {}", user.email)
-    })),
+  Ok(
+    (
+      StatusCode::OK,
+      Json(serde_json::json!({
+        "message": format!("Admin only: access granted for {}", user.email)
+      })),
+    )
+      .into_response(),
   )
-    .into_response())
 }

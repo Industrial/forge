@@ -2,10 +2,10 @@ use async_trait::async_trait;
 use forge::DbConnection;
 use sea_orm_migration::prelude::{MigrationTrait, MigratorTrait};
 
+pub mod auth;
 pub mod migrations;
 pub mod models;
 pub mod seeds;
-pub mod auth;
 
 pub struct Migrator;
 

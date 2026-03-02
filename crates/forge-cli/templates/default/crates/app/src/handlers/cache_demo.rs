@@ -1,5 +1,5 @@
 use axum::{extract::State, response::IntoResponse};
-use forge::{DbConnection, AppCache};
+use forge::{AppCache, DbConnection};
 use std::sync::Arc;
 
 const CACHE_KEY: &str = "demo";

@@ -26,17 +26,37 @@ impl MigrationTrait for Migration {
         Table::create()
           .table(Organization::Table)
           .if_not_exists()
-          .col(ColumnDef::new(Organization::Id).uuid().not_null().primary_key())
+          .col(
+            ColumnDef::new(Organization::Id)
+              .uuid()
+              .not_null()
+              .primary_key(),
+          )
           .col(ColumnDef::new(Organization::Name).string().not_null())
-          .col(ColumnDef::new(Organization::Slug).string().unique_key().not_null())
-          .col(ColumnDef::new(Organization::CreatedAt).date_time().not_null())
-          .col(ColumnDef::new(Organization::UpdatedAt).date_time().not_null())
+          .col(
+            ColumnDef::new(Organization::Slug)
+              .string()
+              .unique_key()
+              .not_null(),
+          )
+          .col(
+            ColumnDef::new(Organization::CreatedAt)
+              .date_time()
+              .not_null(),
+          )
+          .col(
+            ColumnDef::new(Organization::UpdatedAt)
+              .date_time()
+              .not_null(),
+          )
           .to_owned(),
       )
       .await
   }
 
   async fn down(&self, manager: &SchemaManager) -> Result<(), DbErr> {
-    manager.drop_table(Table::drop().table(Organization::Table).to_owned()).await
+    manager
+      .drop_table(Table::drop().table(Organization::Table).to_owned())
+      .await
   }
 }

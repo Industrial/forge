@@ -10,103 +10,127 @@
  * governing permissions and limitations under the License.
  */
 
-import { useEffect, useState } from 'react';
-import { Route, Routes, useNavigate } from 'react-router-dom';
-import { Provider } from '@react-spectrum/s2';
-import type { NavigateOptions } from 'react-router-dom';
-import { SessionProvider } from './context/Session';
-import Layout from './layouts/Layout';
-import DashboardLayout from './features/dashboard/layouts/DashboardLayout/DashboardLayout';
-import AuthLayout from './features/authentication/layouts/AuthenticationLayout/AuthenticationLayout';
-import ProtectedRoute from './components/ProtectedRoute';
-import Login from './features/authentication/pages/LoginPage/LoginPage';
-import Register from './features/authentication/pages/RegisterPage/RegisterPage';
-import Home from './features/home/pages/HomePage/HomePage';
-import Dashboard from './features/dashboard/pages/DashboardPage/DashboardPage';
-import Organizations from './features/dashboard/pages/OrganizationsPage/OrganizationsPage';
-import Users from './features/dashboard/pages/UsersPage/UsersPage';
-import RolesAndPermissions from './features/dashboard/pages/RolesAndPermissionsPage/RolesAndPermissionsPage';
-import ProfilePage from './features/profile/pages/ProfilePage/ProfilePage';
-import WebsocketsDemoPage from './features/websockets-demo/pages/WebsocketsDemoPage/WebsocketsDemoPage';
+import { useEffect, useState } from "react";
+import { Outlet, Route, Routes, useNavigate } from "react-router-dom";
+import { Provider } from "@react-spectrum/s2";
+import type { NavigateOptions } from "react-router-dom";
+import { SessionProvider } from "./context/Session";
+import Layout from "./layouts/Layout";
+import DashboardLayout from "./features/dashboard/layouts/DashboardLayout/DashboardLayout";
+import AuthenticationLayout from "./features/authentication/layouts/AuthenticationLayout/AuthenticationLayout";
+import ProtectedRoute from "./components/ProtectedRoute";
+import LoginPage from "./features/authentication/pages/LoginPage/LoginPage";
+import RegisterPage from "./features/authentication/pages/RegisterPage/RegisterPage";
+import HomePage from "./features/home/pages/HomePage/HomePage";
+import DashboardPage from "./features/dashboard/pages/DashboardPage/DashboardPage";
+import OrganizationsPage from "./features/dashboard/pages/OrganizationsPage/OrganizationsPage";
+import UsersPage from "./features/dashboard/pages/UsersPage/UsersPage";
+import PermissionsPage from "./features/dashboard/pages/PermissionsPage/PermissionsPage";
+import ProfilePage from "./features/profile/pages/ProfilePage/ProfilePage";
+import WebsocketsDemoPage from "./features/websockets-demo/pages/WebsocketsDemoPage/WebsocketsDemoPage";
 
-declare module '@react-spectrum/s2' {
-  interface RouterConfig {
-    routerOptions: NavigateOptions;
-  }
+declare module "@react-spectrum/s2" {
+	interface RouterConfig {
+		routerOptions: NavigateOptions;
+	}
 }
 
-const STORAGE_KEY = 'spectrum-color-scheme';
+const STORAGE_KEY = "spectrum-color-scheme";
 
 function App() {
-  const navigate = useNavigate();
-  const [colorScheme, setColorScheme] = useState<'light' | 'dark'>(() => {
-    if (typeof window !== 'undefined') {
-      const stored = localStorage.getItem(STORAGE_KEY);
-      if (stored === 'light' || stored === 'dark') return stored;
-    }
-    return 'dark';
-  });
+	const navigate = useNavigate();
+	const [colorScheme, setColorScheme] = useState<"light" | "dark">(() => {
+		if (typeof window !== "undefined") {
+			const stored = localStorage.getItem(STORAGE_KEY);
+			if (stored === "light" || stored === "dark") return stored;
+		}
+		return "dark";
+	});
 
-  useEffect(() => {
-    document.documentElement.setAttribute('data-color-scheme', colorScheme);
-    if (typeof window !== 'undefined') {
-      localStorage.setItem(STORAGE_KEY, colorScheme);
-    }
-  }, [colorScheme]);
+	useEffect(() => {
+		document.documentElement.setAttribute("data-color-scheme", colorScheme);
+		if (typeof window !== "undefined") {
+			localStorage.setItem(STORAGE_KEY, colorScheme);
+		}
+	}, [colorScheme]);
 
-  const layoutProps = {
-    colorScheme,
-    onToggleTheme: () => setColorScheme((s) => (s === 'dark' ? 'light' : 'dark')),
-  };
+	const layoutProps = {
+		colorScheme,
+		onToggleTheme: () =>
+			setColorScheme((s) => (s === "dark" ? "light" : "dark")),
+	};
 
-  return (
-    <SessionProvider>
-      <Provider
-        elementType="main"
-        locale="en-US"
-        colorScheme={colorScheme}
-        router={{
-          navigate: (url: string) => navigate(url),
-          useHref: (to: string) => to,
-        }}
-      >
-        <Routes>
-          <Route path="/login" element={<AuthLayout><Login /></AuthLayout>} />
-          <Route path="/register" element={<AuthLayout><Register /></AuthLayout>} />
-          <Route path="/ws-demo" element={<WebsocketsDemoPage />} />
-          <Route
-            path="/"
-            element={
-              <ProtectedRoute>
-                <Layout {...layoutProps}><Home /></Layout>
-              </ProtectedRoute>
-            }
-          />
-          <Route
-            path="/dashboard"
-            element={
-              <ProtectedRoute>
-                <Layout {...layoutProps}><DashboardLayout /></Layout>
-              </ProtectedRoute>
-            }
-          >
-            <Route index element={<Dashboard />} />
-            <Route path="organizations" element={<Organizations />} />
-            <Route path="users" element={<Users />} />
-            <Route path="roles-and-permissions" element={<RolesAndPermissions />} />
-          </Route>
-          <Route
-            path="/profile"
-            element={
-              <ProtectedRoute>
-                <Layout {...layoutProps}><ProfilePage /></Layout>
-              </ProtectedRoute>
-            }
-          />
-        </Routes>
-      </Provider>
-    </SessionProvider>
-  );
+	return (
+		<SessionProvider>
+			<Provider
+				elementType="main"
+				locale="en-US"
+				colorScheme={colorScheme}
+				router={{
+					navigate: (url: string) => navigate(url),
+					useHref: (to: string) => to,
+				}}
+			>
+				<Routes>
+					<Route
+						path="/login"
+						element={
+							<AuthenticationLayout>
+								<LoginPage />
+							</AuthenticationLayout>
+						}
+					/>
+					<Route
+						path="/register"
+						element={
+							<AuthenticationLayout>
+								<RegisterPage />
+							</AuthenticationLayout>
+						}
+					/>
+					<Route path="/ws-demo" element={<WebsocketsDemoPage />} />
+					<Route
+						path="/"
+						element={
+							<ProtectedRoute>
+								<Layout {...layoutProps}>
+									<HomePage />
+								</Layout>
+							</ProtectedRoute>
+						}
+					/>
+					<Route
+						path="/dashboard"
+						element={
+							<ProtectedRoute>
+								<DashboardLayout {...layoutProps}>
+									<Outlet />
+								</DashboardLayout>
+							</ProtectedRoute>
+						}
+					>
+						<Route index element={<DashboardPage />} />
+						<Route path="organizations" element={<OrganizationsPage />} />
+						<Route path="users" element={<UsersPage />} />
+						<Route
+							path="roles-and-permissions"
+							element={<PermissionsPage />}
+						/>
+					</Route>
+					<Route
+						path="/profile"
+						element={
+							<ProtectedRoute>
+								<Layout {...layoutProps}>
+									<ProfilePage />
+								</Layout>
+							</ProtectedRoute>
+						}
+					/>
+				</Routes>
+			</Provider>
+		</SessionProvider>
+	);
 }
 
 export default App;

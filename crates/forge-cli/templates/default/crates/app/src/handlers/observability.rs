@@ -1,7 +1,4 @@
-use axum::{
-  extract::Request,
-  response::IntoResponse,
-};
+use axum::{extract::Request, response::IntoResponse};
 use forge::{find_current_trace_id, trace_id_from_traceparent};
 
 /// Returns the current OpenTelemetry trace id (for e2e and debugging).

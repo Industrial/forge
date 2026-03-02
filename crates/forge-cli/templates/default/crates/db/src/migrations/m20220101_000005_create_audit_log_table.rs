@@ -41,12 +41,7 @@ impl MigrationTrait for Migration {
         Table::create()
           .table(AuditLog::Table)
           .if_not_exists()
-          .col(
-            ColumnDef::new(AuditLog::Id)
-              .uuid()
-              .not_null()
-              .primary_key(),
-          )
+          .col(ColumnDef::new(AuditLog::Id).uuid().not_null().primary_key())
           .col(ColumnDef::new(AuditLog::EventKind).string().not_null())
           .col(ColumnDef::new(AuditLog::ActorId).uuid().not_null())
           .col(ColumnDef::new(AuditLog::SubjectId).uuid())

@@ -16,9 +16,18 @@ impl MigrationTrait for Migration {
         Table::create()
           .table(Alias::new("sessions"))
           .if_not_exists()
-          .col(ColumnDef::new(Alias::new("id")).string().not_null().primary_key())
+          .col(
+            ColumnDef::new(Alias::new("id"))
+              .string()
+              .not_null()
+              .primary_key(),
+          )
           .col(ColumnDef::new(Alias::new("data")).binary().not_null())
-          .col(ColumnDef::new(Alias::new("expiry_date")).big_integer().not_null())
+          .col(
+            ColumnDef::new(Alias::new("expiry_date"))
+              .big_integer()
+              .not_null(),
+          )
           .to_owned(),
       )
       .await

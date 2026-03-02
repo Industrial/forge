@@ -128,9 +128,7 @@ pub async fn register(
   let email_input = fantoccini::Locator::Css("[data-testid=register-form] input[type=email]");
   let password_input = fantoccini::Locator::Css("[data-testid=register-form] input[type=password]");
   let submit_loc = fantoccini::Locator::Css("[data-testid=register-submit]");
-  c.wait()
-    .for_element(form_loc)
-    .await?;
+  c.wait().for_element(form_loc).await?;
   let email_el = c.find(email_input).await?;
   email_el.clear().await?;
   email_el.send_keys(email).await?;
@@ -164,9 +162,7 @@ pub async fn login(
   let email_input = fantoccini::Locator::Css("[data-testid=login-form] input[type=email]");
   let password_input = fantoccini::Locator::Css("[data-testid=login-form] input[type=password]");
   let submit_loc = fantoccini::Locator::Css("[data-testid=login-submit]");
-  c.wait()
-    .for_element(form_loc)
-    .await?;
+  c.wait().for_element(form_loc).await?;
   let email_el = c.find(email_input).await?;
   email_el.clear().await?;
   email_el.send_keys(email).await?;
@@ -187,7 +183,7 @@ pub async fn login(
     }
     if let Ok(el) = c.find(heading_loc).await
       && let Ok(text) = el.text().await
-        && text.contains("Dashboard")
+      && text.contains("Dashboard")
     {
       seen_dashboard = true;
       break;
@@ -205,9 +201,7 @@ pub async fn login(
     );
   }
   let heading = fantoccini::Locator::Css("[data-testid=dashboard-heading]");
-  c.wait()
-    .for_element(heading)
-    .await?;
+  c.wait().for_element(heading).await?;
   let el = c.find(heading).await?;
   let text = el.text().await?;
   if !text.contains("Dashboard") {
@@ -230,9 +224,7 @@ pub async fn assert_dashboard_visible(
   let url = format!("{}/dashboard", base_url.trim_end_matches('/'));
   c.goto(&url).await?;
   let heading = fantoccini::Locator::Css("[data-testid=dashboard-heading]");
-  c.wait()
-    .for_element(heading)
-    .await?;
+  c.wait().for_element(heading).await?;
   let el = c.find(heading).await?;
   let text = el.text().await?;
   if !text.contains("Dashboard") {
@@ -296,9 +288,7 @@ pub async fn login_fails(
   let password_input = fantoccini::Locator::Css("[data-testid=login-form] input[type=password]");
   let submit_locator = fantoccini::Locator::Css("[data-testid=login-submit]");
   c.goto(&url).await?;
-  c.wait()
-    .for_element(form_loc)
-    .await?;
+  c.wait().for_element(form_loc).await?;
   let email_el = c.find(email_input).await?;
   email_el.clear().await?;
   email_el.send_keys(email).await?;
@@ -312,7 +302,9 @@ pub async fn login_fails(
   while std::time::Instant::now() < deadline {
     let url = c.current_url().await?;
     if url.as_str().contains("/dashboard") {
-      return Err("login_fails: expected to stay on login page, but redirected to dashboard".into());
+      return Err(
+        "login_fails: expected to stay on login page, but redirected to dashboard".into(),
+      );
     }
     if c.find(error_loc).await.is_ok() {
       return Ok(());
@@ -418,9 +410,11 @@ pub async fn assert_ws_demo_echo(
   }
   let body = c.source().await?;
   c.close().await?;
-  Err(format!(
-    "ws-demo page source should contain {:?} after send; body: {:?}",
-    msg, body
+  Err(
+    format!(
+      "ws-demo page source should contain {:?} after send; body: {:?}",
+      msg, body
+    )
+    .into(),
   )
-  .into())
 }

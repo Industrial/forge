@@ -8,4 +8,15 @@ default_ttl_secs = 300
 [http_response]
 enabled = true
 default_ttl_secs = 60
-no_cache_paths = ["/", "/login", "/register", "/dashboard", "/ws-demo", "/api/auth", "/api/observability", "/healthz", "/livez", "/readyz"]
+no_cache_paths = [
+  "/",
+  "/login",
+  "/register",
+  "/dashboard",
+  "/ws-demo",
+  "/api/auth",
+  "/api/observability",
+  "/healthz",
+  "/livez",
+  "/readyz",
+]

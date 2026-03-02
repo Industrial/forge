@@ -1,11 +1,19 @@
 /* Page and content backgrounds */
 .dashboard-page {
   background-color: #2a2a2a;
+  min-height: 100%;
+}
+.dashboard-sidebar {
+  height: 100%;
+  min-height: 100%;
+  transition: width 0.2s ease;
 }
 .dashboard-content {
   background-color: #000;
   margin-top: 0;
+  margin-right: 10px;
   padding-top: 0;
+  border-radius: 8px;
 }
 
 /* Toggle bar alignment (macro doesn't accept flex-end/center) */
@@ -14,11 +22,6 @@
 }
 .dashboard-toggle-bar--collapsed {
   justify-content: center;
-}
-
-/* Sidebar width transition */
-.dashboard-sidebar {
-  transition: width 0.2s ease;
 }
 
 /* Active state for dashboard sidebar links (colors via CSS so style macro is not needed) */

@@ -30,16 +30,21 @@ impl MigrationTrait for Migration {
         Table::create()
           .table(User::Table)
           .if_not_exists()
-          .col(
-            ColumnDef::new(User::Id)
-              .uuid()
-              .not_null()
-              .primary_key(),
-          )
+          .col(ColumnDef::new(User::Id).uuid().not_null().primary_key())
           .col(ColumnDef::new(User::Email).string().unique_key().not_null())
           .col(ColumnDef::new(User::PasswordHash).string().not_null())
-          .col(ColumnDef::new(User::IsActive).boolean().not_null().default(true))
-          .col(ColumnDef::new(User::IsAdmin).boolean().not_null().default(false))
+          .col(
+            ColumnDef::new(User::IsActive)
+              .boolean()
+              .not_null()
+              .default(true),
+          )
+          .col(
+            ColumnDef::new(User::IsAdmin)
+              .boolean()
+              .not_null()
+              .default(false),
+          )
           .col(ColumnDef::new(User::CurrentOrgId).uuid())
           .col(ColumnDef::new(User::CurrentRole).string())
           .col(ColumnDef::new(User::CreatedAt).date_time().not_null())

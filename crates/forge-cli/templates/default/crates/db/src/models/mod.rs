@@ -1,4 +1,4 @@
-pub mod user;
-pub mod organization;
-pub mod membership;
 pub mod api_token;
+pub mod membership;
+pub mod organization;
+pub mod user;

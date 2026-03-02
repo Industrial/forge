@@ -16,12 +16,14 @@ async fn main() -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
     .with_seed(|db| Box::pin(db::run_seeds(db)))
     .with_auth(|db| Backend::new(db))
     .with_token_auth(db::token_lookup)
-    .with_cron("heartbeat", CronSchedule::Interval(Duration::from_secs(60)), |_db| async move { Ok(()) });
+    .with_cron(
+      "heartbeat",
+      CronSchedule::Interval(Duration::from_secs(60)),
+      |_db| async move { Ok(()) },
+    );
 
   let app = if forge::config::effective_environment().eq_ignore_ascii_case("production") {
-    app
-      .with_rate_limit_per_ip(60)
-      .with_rate_limit_per_user(60)
+    app.with_rate_limit_per_ip(60).with_rate_limit_per_user(60)
   } else {
     app
   };
@@ -33,7 +35,10 @@ async fn main() -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
   let app = app
     .route("/api/cache-demo", handlers::cache_demo::handler)
     .route("/api/cached-page", handlers::cached_page::handler)
-    .route("/api/observability/trace-id", handlers::observability::trace_id)
+    .route(
+      "/api/observability/trace-id",
+      handlers::observability::trace_id,
+    )
     .route("/ws", handlers::ws::handler)
     .post_route("/api/auth/register", handlers::auth::register)
     .post_route("/api/auth/login", handlers::auth::login)
@@ -69,9 +74,12 @@ async fn main() -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
   let addr = format!("{}:{}", host, port);
   let listener = tokio::net::TcpListener::bind(&addr).await?;
   tracing::info!(target: "forge::app", "HTTP server listening on http://{}", addr);
-  axum::serve(listener, router.into_make_service_with_connect_info::<std::net::SocketAddr>())
-    .with_graceful_shutdown(forge::app::shutdown_signal_future())
-    .await?;
+  axum::serve(
+    listener,
+    router.into_make_service_with_connect_info::<std::net::SocketAddr>(),
+  )
+  .with_graceful_shutdown(forge::app::shutdown_signal_future())
+  .await?;
   Ok(())
 }
 

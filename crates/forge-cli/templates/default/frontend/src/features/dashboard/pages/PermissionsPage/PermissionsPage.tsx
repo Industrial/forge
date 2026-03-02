@@ -1,13 +1,13 @@
 import { Heading, Text } from "@react-spectrum/s2";
 import { style } from "@react-spectrum/s2/style" with { type: "macro" };
 
-export default function OrganizationsPage() {
+export default function PermissionsPage() {
 	return (
 		<>
 			<Heading level={1} styles={style({ font: "heading-xl" })}>
-				Organizations
+				Permissions
 			</Heading>
-			<Text>Manage organizations.</Text>
+			<Text>Manage Permissions.</Text>
 		</>
 	);
 }

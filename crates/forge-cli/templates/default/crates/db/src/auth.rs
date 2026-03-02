@@ -1,6 +1,6 @@
 use async_trait::async_trait;
 use forge::auth::verify_password;
-use forge::{axum_login::AuthnBackend, DbConnection, Error};
+use forge::{DbConnection, Error, axum_login::AuthnBackend};
 use sea_orm::{ColumnTrait, EntityTrait, QueryFilter};
 use serde::Deserialize;
 
@@ -30,8 +30,8 @@ impl AuthnBackend for Backend {
   type Error = Error;
 
   async fn authenticate(
-  &self,
-  creds: Self::Credentials,
+    &self,
+    creds: Self::Credentials,
   ) -> Result<Option<Self::User>, Self::Error> {
     tracing::debug!(target: "app::auth::backend", "authenticate email={}", creds.email);
     let user = user::Entity::find()
@@ -50,11 +50,12 @@ impl AuthnBackend for Backend {
     Ok(None)
   }
 
-  async fn get_user(&self, user_id: &forge::axum_login::UserId<Self>) -> Result<Option<Self::User>, Error> {
+  async fn get_user(
+    &self,
+    user_id: &forge::axum_login::UserId<Self>,
+  ) -> Result<Option<Self::User>, Error> {
     tracing::debug!(target: "app::auth::backend", "get_user user_id={}", user_id);
-    let user = user::Entity::find_by_id(*user_id)
-      .one(&self.db)
-      .await?;
+    let user = user::Entity::find_by_id(*user_id).one(&self.db).await?;
     tracing::debug!(target: "app::auth::backend", "get_user result found={}", user.is_some());
     Ok(user)
   }

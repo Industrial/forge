@@ -1,11 +1,11 @@
 use chrono::Utc;
-use forge::auth::hash_password;
 use forge::DbConnection;
+use forge::auth::hash_password;
 use sea_orm::{ColumnTrait, EntityTrait, QueryFilter, Set};
 use tracing::info;
 use uuid::Uuid;
 
-use crate::models::{organization, membership, user};
+use crate::models::{membership, organization, user};
 
 const SEED_PASSWORD: &str = "password";
 
@@ -86,7 +86,10 @@ async fn ensure_user(
     membership::Entity::insert(m).exec(db).await?;
   }
 
-  info!("Seeded user: {} (is_admin={}, role={})", email, is_admin, current_role);
+  info!(
+    "Seeded user: {} (is_admin={}, role={})",
+    email, is_admin, current_role
+  );
   Ok(())
 }
 

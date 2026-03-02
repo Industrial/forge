@@ -1,13 +1,13 @@
-import { Heading, Text } from '@react-spectrum/s2';
-import { style } from '@react-spectrum/s2/style' with { type: 'macro' };
+import { Heading, Text } from "@react-spectrum/s2";
+import { style } from "@react-spectrum/s2/style" with { type: "macro" };
 
-export default function Users() {
-  return (
-    <>
-      <Heading level={1} styles={style({ font: 'heading-xl' })}>
-        Users
-      </Heading>
-      <Text>Manage users.</Text>
-    </>
-  );
+export default function UsersPage() {
+	return (
+		<>
+			<Heading level={1} styles={style({ font: "heading-xl" })}>
+				Users
+			</Heading>
+			<Text>Manage users.</Text>
+		</>
+	);
 }
