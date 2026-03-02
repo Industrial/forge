@@ -883,7 +883,10 @@ dependencies = [
  "forge",
  "sea-orm",
  "sea-orm-migration",
+ "sea-orm-tracing",
  "serde",
+ "serde_json",
+ "tokio",
  "tracing",
  "uuid",
 ]

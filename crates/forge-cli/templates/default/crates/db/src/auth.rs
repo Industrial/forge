@@ -60,3 +60,29 @@ impl AuthnBackend for Backend {
     Ok(user)
   }
 }
+
+#[cfg(test)]
+mod tests {
+  use super::*;
+  use sea_orm::Database;
+
+  #[tokio::test]
+  async fn backend_new_creates_instance() {
+    let conn = Database::connect(sea_orm::ConnectOptions::new(
+      "sqlite::memory:".to_string(),
+    ))
+    .await
+    .unwrap();
+    let db = forge::DbConnection::new(conn, sea_orm_tracing::TracingConfig::default());
+    let backend = Backend::new(db);
+    let _ = backend;
+  }
+
+  #[test]
+  fn credentials_deserialize() {
+    let json = r#"{"email":"a@b.com","password":"secret"}"#;
+    let c: Credentials = serde_json::from_str(json).unwrap();
+    assert_eq!(c.email, "a@b.com");
+    assert_eq!(c.password, "secret");
+  }
+}

@@ -318,7 +318,7 @@ pub async fn session_json(
   let error: Option<String> = session.get(FLASH_ERROR).await.ok().flatten();
   session.remove::<String>(FLASH_MESSAGE).await.ok();
   session.remove::<String>(FLASH_ERROR).await.ok();
-  let user = maybe_user.map(|u| serde_json::json!({ "id": u.id.to_string(), "email": u.email }));
+  let user = maybe_user.as_ref().map(|u| serde_json::json!({ "id": u.id.to_string(), "email": u.email }));
   let profiles: Vec<serde_json::Value> = match &maybe_user {
     Some(u) => {
       let memberships = membership::Entity::find()
@@ -429,4 +429,61 @@ pub async fn admin_only(
     )
       .into_response(),
   )
+}
+
+#[cfg(test)]
+mod tests {
+  use super::*;
+  use validator::Validate;
+
+  #[test]
+  fn register_request_valid_email_and_password_passes() {
+    let r = RegisterRequest {
+      email: "user@example.com".to_string(),
+      password: "password123".to_string(),
+    };
+    assert!(r.validate().is_ok());
+  }
+
+  #[test]
+  fn register_request_invalid_email_fails() {
+    let r = RegisterRequest {
+      email: "not-an-email".to_string(),
+      password: "password123".to_string(),
+    };
+    assert!(r.validate().is_err());
+  }
+
+  #[test]
+  fn register_request_short_password_fails() {
+    let r = RegisterRequest {
+      email: "user@example.com".to_string(),
+      password: "short".to_string(),
+    };
+    assert!(r.validate().is_err());
+  }
+
+  #[test]
+  fn login_request_valid_passes() {
+    let r = LoginRequest {
+      email: "user@example.com".to_string(),
+      password: "anything".to_string(),
+    };
+    assert!(r.validate().is_ok());
+  }
+
+  #[test]
+  fn login_request_invalid_email_fails() {
+    let r = LoginRequest {
+      email: "bad".to_string(),
+      password: "x".to_string(),
+    };
+    assert!(r.validate().is_err());
+  }
+
+  #[test]
+  fn flash_constants_are_non_empty() {
+    assert!(!FLASH_MESSAGE.is_empty());
+    assert!(!FLASH_ERROR.is_empty());
+  }
 }

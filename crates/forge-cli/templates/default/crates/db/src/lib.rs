@@ -45,3 +45,14 @@ pub async fn token_lookup(db: DbConnection, raw_token: String) -> Option<uuid::U
   }
   Some(row.user_id)
 }
+
+#[cfg(test)]
+mod tests {
+  use super::*;
+
+  #[test]
+  fn migrator_returns_six_migrations() {
+    let migrations = Migrator::migrations();
+    assert_eq!(migrations.len(), 6);
+  }
+}
