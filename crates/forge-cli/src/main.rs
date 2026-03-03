@@ -311,25 +311,32 @@ mod tests {
       assert!(app_cargo.contains("forge ="));
       assert!(app_cargo.contains("db ="));
 
-      // main.rs: Forge app code (explicit imports, cron, route_methods for dashboard)
-      let main_content = fs::read_to_string(project_path.join("crates/app/src/main.rs")).unwrap();
+      // lib.rs: Forge app building (explicit imports, cron, route_methods for dashboard)
+      let lib_content = fs::read_to_string(project_path.join("crates/app/src/lib.rs")).unwrap();
       assert!(
-        main_content.contains("use forge::") && main_content.contains("App"),
+        lib_content.contains("use forge::") && lib_content.contains("App"),
         "generated app should use explicit forge imports"
       );
       assert!(
-        !main_content.contains("forge::prelude"),
+        !lib_content.contains("forge::prelude"),
         "generated app should use explicit imports"
       );
-      assert!(main_content.contains("App::new()"));
-      assert!(main_content.contains(".with_migrations(db::Migrator)"));
-      assert!(main_content.contains(".with_cron"));
-      assert!(main_content.contains("CronSchedule"));
-      assert!(main_content.contains(".post_route"));
-      assert!(main_content.contains(".route(\"/api/auth/admin\""));
+      assert!(lib_content.contains("App::new()"));
+      assert!(lib_content.contains(".with_migrations(db::Migrator)"));
+      assert!(lib_content.contains(".with_cron"));
+      assert!(lib_content.contains("CronSchedule"));
+      assert!(lib_content.contains(".post_route"));
+      assert!(lib_content.contains(".route(\"/api/auth/admin\""));
       assert!(
-        main_content.contains(".route_methods(") && main_content.contains("/api/dashboard/users"),
-        "generated main should use route_methods for dashboard users"
+        lib_content.contains(".route_methods(") && lib_content.contains("/api/dashboard/users"),
+        "generated app should use route_methods for dashboard users"
+      );
+
+      // main.rs: entrypoint and router setup
+      let main_content = fs::read_to_string(project_path.join("crates/app/src/main.rs")).unwrap();
+      assert!(
+        !main_content.contains("forge::prelude"),
+        "generated main should use explicit imports"
       );
       assert!(
         main_content.contains(".serve()") || main_content.contains("into_router_before_state"),

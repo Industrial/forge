@@ -211,7 +211,7 @@ pub struct LoginRequest {
 }
 
 /// Accepts JSON (Inertia) or form-urlencoded (e.g. e2e native form submit).
-pub(crate) struct JsonOrForm<T>(pub(crate) T);
+pub struct JsonOrForm<T>(pub T);
 
 impl<S, T> FromRequest<S> for JsonOrForm<T>
 where

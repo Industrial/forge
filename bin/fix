@@ -5,8 +5,9 @@ exec > >(tee log/fix.log) 2>&1
 echo "> fix"
 
 echo "> fix > cargo fix"
-RUSTFLAGS='-D warnings' cargo fix --allow-dirty --allow-staged --lib --all-features
+# Omit --all-features so forge-audit/mock is not enabled; mock makes DatabaseConnection !Clone and breaks sea-orm-tracing.
+RUSTFLAGS='-D warnings' cargo fix --allow-dirty --allow-staged --lib
 
 echo "> fix > cargo clippy --fix"
-RUSTFLAGS='-D warnings' cargo clippy --fix --allow-dirty --allow-staged --lib --all-features -- -D warnings
+RUSTFLAGS='-D warnings' cargo clippy --fix --allow-dirty --allow-staged --lib -- -D warnings
 

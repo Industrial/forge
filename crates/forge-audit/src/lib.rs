@@ -265,10 +265,7 @@ mod tests {
 
   #[test]
   fn audit_error_display_and_error() {
-    let e = AuditError(Box::new(std::io::Error::new(
-      std::io::ErrorKind::Other,
-      "db gone",
-    )));
+    let e = AuditError(Box::new(std::io::Error::other("db gone")));
     assert!(e.to_string().contains("audit write failed"));
     assert!(e.to_string().contains("db gone"));
     let _: &dyn std::error::Error = &e;

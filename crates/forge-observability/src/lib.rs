@@ -293,7 +293,7 @@ mod tests {
   #[tokio::test]
   async fn trace_context_propagation_layer_wraps_service() {
     init_otel();
-    let layer = TraceContextPropagationLayer::default();
+    let layer = TraceContextPropagationLayer;
     let svc = layer.layer(tower::service_fn(|_req: Request<Body>| async {
       Ok::<_, Infallible>(())
     }));
@@ -304,7 +304,7 @@ mod tests {
       )
       .body(Body::empty())
       .unwrap();
-    let _ = svc.oneshot(req).await.unwrap();
+    svc.oneshot(req).await.unwrap();
   }
 
   #[tokio::test]

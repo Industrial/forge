@@ -108,6 +108,39 @@ pub async fn guard_and_audit_user<U: AuthzContext + Send>(
   result
 }
 
+/// Guard by role for a concrete user (no audit). Use with [guard_and_audit_user] for audit.
+fn guard_user<U: AuthzContext>(user: &U, _action: Action, role: Role) -> Result<(), AuthzError> {
+  match user.role() {
+    Some(user_role) if user_role == role => Ok(()),
+    Some(Role::Owner) => Ok(()),
+    Some(Role::Admin) if matches!(role, Role::Admin | Role::Editor | Role::Viewer) => Ok(()),
+    Some(Role::Editor) if matches!(role, Role::Editor | Role::Viewer) => Ok(()),
+    Some(Role::Viewer) if role == Role::Viewer => Ok(()),
+    _ => Err(AuthzError::Forbidden),
+  }
+}
+
+/// Record an authz denied event for unauthenticated or unauthorized access (e.g. before returning 401).
+pub async fn record_authz_denied(
+  db: &impl ConnectionTrait,
+  action: Action,
+  resource_type: &str,
+  resource_id: Option<uuid::Uuid>,
+) {
+  let event = AuditEvent {
+    event_kind: EventKind::Authz,
+    actor_id: uuid::Uuid::nil(),
+    subject_id: Some(uuid::Uuid::nil()),
+    organization_id: None,
+    action,
+    resource_type: resource_type.to_string(),
+    resource_id,
+    outcome: Outcome::Denied,
+    reason: None,
+  };
+  let _ = crate::audit::log(db, event).await;
+}
+
 #[cfg(test)]
 mod tests {
   use super::*;
@@ -227,37 +260,4 @@ mod tests {
     let db = test_db_with_audit_log().await;
     record_authz_denied(&db, Action::Read, "resource", None).await;
   }
-}
-
-/// Guard by role for a concrete user (no audit). Use with [guard_and_audit_user] for audit.
-fn guard_user<U: AuthzContext>(user: &U, _action: Action, role: Role) -> Result<(), AuthzError> {
-  match user.role() {
-    Some(user_role) if user_role == role => Ok(()),
-    Some(Role::Owner) => Ok(()),
-    Some(Role::Admin) if matches!(role, Role::Admin | Role::Editor | Role::Viewer) => Ok(()),
-    Some(Role::Editor) if matches!(role, Role::Editor | Role::Viewer) => Ok(()),
-    Some(Role::Viewer) if role == Role::Viewer => Ok(()),
-    _ => Err(AuthzError::Forbidden),
-  }
-}
-
-/// Record an authz denied event for unauthenticated or unauthorized access (e.g. before returning 401).
-pub async fn record_authz_denied(
-  db: &impl ConnectionTrait,
-  action: Action,
-  resource_type: &str,
-  resource_id: Option<uuid::Uuid>,
-) {
-  let event = AuditEvent {
-    event_kind: EventKind::Authz,
-    actor_id: uuid::Uuid::nil(),
-    subject_id: Some(uuid::Uuid::nil()),
-    organization_id: None,
-    action,
-    resource_type: resource_type.to_string(),
-    resource_id,
-    outcome: Outcome::Denied,
-    reason: None,
-  };
-  let _ = crate::audit::log(db, event).await;
 }

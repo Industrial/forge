@@ -15,6 +15,9 @@ use uuid::Uuid;
 use crate::backend::{ConnectionId, LiveBackend};
 use crate::channel::Channel;
 
+/// Per-connection state: sender to client and set of subscribed channel names.
+type ConnectionEntry = (mpsc::UnboundedSender<Vec<u8>>, HashSet<String>);
+
 enum RedisCommand {
   Subscribe(String),
   Publish(String, Vec<u8>),
@@ -27,7 +30,7 @@ enum RedisCommand {
 /// local connections. Use this when running multiple app instances behind a load balancer.
 pub struct RedisLiveBackend {
   channels: RwLock<HashMap<String, HashSet<ConnectionId>>>,
-  connections: RwLock<HashMap<ConnectionId, (mpsc::UnboundedSender<Vec<u8>>, HashSet<String>)>>,
+  connections: RwLock<HashMap<ConnectionId, ConnectionEntry>>,
   command_tx: mpsc::UnboundedSender<RedisCommand>,
 }
 
@@ -43,9 +46,7 @@ impl RedisLiveBackend {
 
     let (command_tx, mut command_rx) = mpsc::unbounded_channel::<RedisCommand>();
     let channels: RwLock<HashMap<String, HashSet<ConnectionId>>> = RwLock::new(HashMap::new());
-    let connections: RwLock<
-      HashMap<ConnectionId, (mpsc::UnboundedSender<Vec<u8>>, HashSet<String>)>,
-    > = RwLock::new(HashMap::new());
+    let connections: RwLock<HashMap<ConnectionId, ConnectionEntry>> = RwLock::new(HashMap::new());
 
     let backend = Arc::new(Self {
       channels,

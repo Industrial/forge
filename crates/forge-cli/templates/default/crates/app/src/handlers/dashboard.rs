@@ -322,10 +322,18 @@ pub async fn add_role_permission(
     ..Default::default()
   };
   model.org_id = Set(org_id_opt);
-  role_permission::Entity::insert(model)
-    .exec(&db)
-    .await
-    .map_err(|e| ForgeError::Generic(e.to_string()))?;
+  if let Err(e) = role_permission::Entity::insert(model).exec(&db).await {
+    if matches!(e.sql_err(), Some(sea_orm::SqlErr::UniqueConstraintViolation(_))) {
+      return Ok(
+        (
+          StatusCode::UNPROCESSABLE_ENTITY,
+          Json(serde_json::json!({ "error": "assignment already exists" })),
+        )
+          .into_response(),
+      );
+    }
+    return Err(ForgeError::Generic(e.to_string()));
+  }
   if let (Some(ref backend), Some(org_id)) = (live_backend.as_ref(), org_id_opt) {
     let _ = broadcast_to_channel(backend, &Channel::org_resource(org_id, "role_permissions"), &LiveEvent::ResourceChanged { resource: "role_permissions".into(), id, action: Some("created".into()) }).await;
   }

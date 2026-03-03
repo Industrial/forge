@@ -95,7 +95,10 @@ impl Drop for TestEnvGuard {
 }
 
 /// Write `config/app.toml` and `config/db.toml` under `dir` for integration tests (in-memory DB, auto_migrate, auto_seed).
-fn write_test_config(dir: &std::path::Path) -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
+fn write_test_config(
+  dir: &std::path::Path,
+  db_name: &str,
+) -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
   let config_dir = dir.join("config");
   std::fs::create_dir_all(&config_dir)?;
   std::fs::write(
@@ -111,15 +114,16 @@ port = 0
 port = 3000
 "#,
   )?;
-  // Use shared in-memory SQLite so the connection pool (migrations + seed) share the same DB.
-  std::fs::write(
-    config_dir.join("db.toml"),
+  // Use a unique in-memory DB name per test so parallel tests do not share the same DB (avoids UNIQUE constraint on seaql_migrations).
+  let db_toml = format!(
     r#"[database]
-url = "sqlite:file:testdb?mode=memory&cache=shared"
+url = "sqlite:file:{}?mode=memory&cache=shared"
 auto_migrate = true
 auto_seed = true
 "#,
-  )?;
+    db_name
+  );
+  std::fs::write(config_dir.join("db.toml"), db_toml)?;
   Ok(())
 }
 
@@ -129,7 +133,8 @@ pub async fn build_router_for_test(
 ) -> Result<(Router, TestEnvGuard), Box<dyn std::error::Error + Send + Sync>> {
   let temp = TempDir::new()?;
   let original_cwd = std::env::current_dir()?;
-  write_test_config(temp.path())?;
+  let db_name = format!("testdb_{}", uuid::Uuid::new_v4());
+  write_test_config(temp.path(), &db_name)?;
   std::env::set_current_dir(temp.path())?;
 
   let guard = TestEnvGuard {

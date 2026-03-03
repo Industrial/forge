@@ -8,6 +8,9 @@ use uuid::Uuid;
 
 use crate::channel::Channel;
 
+/// Per-connection state: sender to client and set of subscribed channel names.
+type ConnectionEntry = (mpsc::UnboundedSender<Vec<u8>>, HashSet<String>);
+
 /// Opaque connection identifier (e.g. from the app when a WebSocket connects).
 #[derive(Clone, Copy, Debug, Eq, Hash, PartialEq)]
 pub struct ConnectionId(pub Uuid);
@@ -34,7 +37,7 @@ pub trait LiveBackend: Send + Sync {
 /// In-memory backend: channel → set of connection IDs, connection ID → sender.
 pub struct InMemoryLiveBackend {
   channels: RwLock<HashMap<String, HashSet<ConnectionId>>>,
-  connections: RwLock<HashMap<ConnectionId, (mpsc::UnboundedSender<Vec<u8>>, HashSet<String>)>>,
+  connections: RwLock<HashMap<ConnectionId, ConnectionEntry>>,
 }
 
 impl InMemoryLiveBackend {

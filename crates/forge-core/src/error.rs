@@ -95,7 +95,7 @@ mod tests {
   #[test]
   #[should_panic(expected = "expected Generic variant")]
   fn generic_error_variant_panics_on_io() {
-    let error = Error::Io(io::Error::new(io::ErrorKind::Other, "wrong"));
+    let error = Error::Io(io::Error::other("wrong"));
     assert_generic(&error, "custom");
   }
 
@@ -120,7 +120,7 @@ mod tests {
 
   #[test]
   fn display_io() {
-    let io_err = io::Error::new(io::ErrorKind::Other, "disk full");
+    let io_err = io::Error::other("disk full");
     let error = Error::Io(io_err);
     assert_eq!(error.to_string(), "I/O error: disk full");
   }

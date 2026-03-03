@@ -5,5 +5,4 @@ exec > >(tee log/test.log) 2>&1
 echo "> test"
 
 echo "> test > cargo nextest (unit tests only, excludes e2e)"
-# Omit --all-features so forge-audit/mock is not enabled; mock enables sea-orm/mock which makes DatabaseConnection !Clone and breaks sea-orm-tracing.
-RUSTFLAGS='-D warnings' cargo nextest run --workspace
+RUSTFLAGS='-D warnings' cargo nextest run --workspace --all-features

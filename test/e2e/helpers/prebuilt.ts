@@ -32,8 +32,15 @@ export function assertProjectLayout(): void {
 		path.join(root, "crates/app/src/main.rs"),
 		"utf-8",
 	);
-	if (!mainRs.includes("App::new()")) {
-		throw new Error("main.rs should use App::new()");
+	const libRsPath = path.join(root, "crates/app/src/lib.rs");
+	const hasAppNewInMain = mainRs.includes("App::new()");
+	const hasAppNewInLib =
+		fs.existsSync(libRsPath) &&
+		fs.readFileSync(libRsPath, "utf-8").includes("App::new()");
+	if (!hasAppNewInMain && !hasAppNewInLib) {
+		throw new Error(
+			"main.rs or crates/app/src/lib.rs should use App::new()",
+		);
 	}
 	if (
 		!mainRs.includes(".serve()") &&
@@ -79,8 +86,17 @@ export function assertAuthLayout(): void {
 	}
 
 	const mainRs = fs.readFileSync(mainRsPath, "utf-8");
-	if (!mainRs.includes("post_route") || !mainRs.includes("/api/auth/admin")) {
-		throw new Error("main.rs should have post_route and /api/auth/admin");
+	const libRsPath = path.join(root, "crates/app/src/lib.rs");
+	const authSource = fs.existsSync(libRsPath)
+		? fs.readFileSync(libRsPath, "utf-8")
+		: mainRs;
+	if (
+		!authSource.includes("post_route") ||
+		!authSource.includes("/api/auth/admin")
+	) {
+		throw new Error(
+			"app (main.rs or lib.rs) should have post_route and /api/auth/admin",
+		);
 	}
 	if (mainRs.includes("forge::prelude")) {
 		throw new Error("main.rs should not use forge::prelude");
