@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import Typography from "@mui/material/Typography";
 import Box from "@mui/material/Box";
 import Button from "@mui/material/Button";
@@ -34,9 +34,9 @@ const ORG_ROLES = ["owner", "admin", "editor", "viewer"] as const;
 const GLOBAL_ROLES = ["platform_admin"] as const;
 
 export default function PermissionsPage() {
-	const fetchDataRef = useRef<() => void>(() => {});
+	const [liveRefreshTrigger, setLiveRefreshTrigger] = useState(0);
 	const { connected: wsConnected } = useLiveUpdates("role_permissions", () => {
-		fetchDataRef.current?.();
+		setLiveRefreshTrigger((n) => n + 1);
 	});
 
 	const [assignments, setAssignments] = useState<Assignment[]>([]);
@@ -85,11 +85,10 @@ export default function PermissionsPage() {
 			setLoading(false);
 		}
 	}, []);
-	fetchDataRef.current = fetchData;
 
 	useEffect(() => {
 		fetchData();
-	}, [fetchData]);
+	}, [fetchData, liveRefreshTrigger]);
 
 	// Sync rowsPerPage when breakpoint default changes (e.g. window resize)
 	useEffect(() => {

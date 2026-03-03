@@ -1,5 +1,7 @@
 import { useState } from "react";
+import { useForm, Controller } from "react-hook-form";
 import { Link as RouterLink, useNavigate, useLocation } from "react-router-dom";
+import { Schema } from "effect";
 import Alert from "@mui/material/Alert";
 import Box from "@mui/material/Box";
 import Button from "@mui/material/Button";
@@ -7,13 +9,16 @@ import Link from "@mui/material/Link";
 import TextField from "@mui/material/TextField";
 import Typography from "@mui/material/Typography";
 import { useSession } from "../../../../context/Session";
+import { effectSchemaResolver } from "../../../../lib/effectSchemaResolver";
+import {
+	loginFormSchema,
+	type LoginFormValues,
+} from "../../../../schemas/userFormSchemas";
 
 export default function LoginPage() {
 	const navigate = useNavigate();
 	const location = useLocation();
 	const { refresh } = useSession();
-	const [email, setEmail] = useState("");
-	const [password, setPassword] = useState("");
 	const [error, setError] = useState<string | null>(null);
 	const [submitting, setSubmitting] = useState(false);
 
@@ -21,25 +26,33 @@ export default function LoginPage() {
 		(location.state as { from?: { pathname: string } } | null)?.from
 			?.pathname ?? "/dashboard";
 
-	async function handleSubmit(e: React.FormEvent) {
-		e.preventDefault();
+	const form = useForm<LoginFormValues>({
+		resolver: effectSchemaResolver(
+			loginFormSchema as Schema.Schema<LoginFormValues, unknown, never>,
+		),
+		defaultValues: { email: "", password: "" },
+		mode: "onChange",
+	});
+
+	async function handleSubmit(data: LoginFormValues) {
 		setSubmitting(true);
+		setError(null);
 		try {
 			const res = await fetch("/api/auth/login", {
 				method: "POST",
 				headers: { "Content-Type": "application/json" },
 				credentials: "include",
-				body: JSON.stringify({ email, password }),
+				body: JSON.stringify({ email: data.email, password: data.password }),
 			});
-			const data = await res.json().catch(() => ({}));
+			const resData = await res.json().catch(() => ({}));
 			if (res.ok) {
 				await refresh();
 				navigate(from, { replace: true });
 				return;
 			}
 			setError(
-				typeof data?.error === "string"
-					? data.error
+				typeof resData?.error === "string"
+					? resData.error
 					: "Invalid email or password",
 			);
 		} catch {
@@ -55,7 +68,10 @@ export default function LoginPage() {
 				Log in
 			</Typography>
 			<Box sx={{ display: "flex", flexDirection: "column", gap: 2 }}>
-				<form onSubmit={handleSubmit} data-testid="login-form">
+				<form
+					onSubmit={form.handleSubmit(handleSubmit)}
+					data-testid="login-form"
+				>
 					<Box sx={{ display: "flex", flexDirection: "column", gap: 2 }}>
 						{error != null && (
 							<Alert severity="error" data-testid="login-error">
@@ -63,35 +79,49 @@ export default function LoginPage() {
 								{error}
 							</Alert>
 						)}
-						<TextField
+						<Controller
+							control={form.control}
 							name="email"
-							type="email"
-							label="Email"
-							placeholder="you@example.com"
-							value={email}
-							onChange={(e) => setEmail(e.target.value)}
-							required
-							disabled={submitting}
-							data-testid="login-email"
-							fullWidth
+							render={({ field, fieldState }) => (
+								<TextField
+									{...field}
+									name="email"
+									type="email"
+									label="Email"
+									placeholder="you@example.com"
+									required
+									disabled={submitting}
+									data-testid="login-email"
+									fullWidth
+									error={Boolean(fieldState.error)}
+									helperText={fieldState.error?.message}
+								/>
+							)}
 						/>
-						<TextField
+						<Controller
+							control={form.control}
 							name="password"
-							type="password"
-							label="Password"
-							placeholder="••••••••"
-							value={password}
-							onChange={(e) => setPassword(e.target.value)}
-							required
-							disabled={submitting}
-							data-testid="login-password"
-							fullWidth
+							render={({ field, fieldState }) => (
+								<TextField
+									{...field}
+									name="password"
+									type="password"
+									label="Password"
+									placeholder="••••••••"
+									required
+									disabled={submitting}
+									data-testid="login-password"
+									fullWidth
+									error={Boolean(fieldState.error)}
+									helperText={fieldState.error?.message}
+								/>
+							)}
 						/>
 						<Box sx={{ display: "flex", justifyContent: "flex-end" }}>
 							<Button
 								type="submit"
 								variant="contained"
-								disabled={submitting}
+								disabled={submitting || !form.formState.isValid}
 								data-testid="login-submit"
 							>
 								Log in

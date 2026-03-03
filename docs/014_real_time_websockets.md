@@ -110,3 +110,7 @@ To push events from in-process pub/sub (e.g. `tokio::sync::broadcast`), create a
 - **E2E:** Test `014_websockets` connects to `ws://base/ws`, sends a text message, and asserts the echo response.
 
 **Not in scope (this document):** Redis Pub/Sub, multi-node scaling, or typed WebSocket message crates. Those can be added at the application layer.
+
+## Forge-live: one WebSocket per session, server-side subscription
+
+When using the **forge-live** crate (see [020_multi_crate_split_and_live_query](020_multi_crate_split_and_live_query.md)), the default template uses a **single WebSocket per logged-in session** that stays open. The **server** derives which channels the client may receive from the session (current org and permissions); the client does not send a subscription list. See [021_live_channels_and_permissions](021_live_channels_and_permissions.md) for the contract (channel naming, permission → channel mapping, and handshake). The frontend uses a shared **LiveWsProvider** (React Context) and **useLiveUpdates(key)** so pages receive live updates without opening per-page connections.

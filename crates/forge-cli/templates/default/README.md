@@ -54,3 +54,10 @@ After running migrations and seeds, these users exist for development.
 | multi@email.com | password | — | viewer in Default, editor in Other | Switch orgs to see different roles |
 
 Two organizations are seeded: **Default** and **Other**. Use `multi@email.com` to test switching orgs and different roles per org.
+
+## Frontend: forms and Effect
+
+The frontend uses **React Hook Form (RHF)** with **Effect** and **Effect Schema** for validation and side effects.
+
+- **Forms**: Use `useForm` with `effectSchemaResolver(schema)` from `src/lib/effectSchemaResolver.ts`. Define schemas in `src/schemas/` (shared fragments in `fragments.ts`, form schemas in `userFormSchemas.ts`). Wire fields with `Controller` and pass `form.handleSubmit(handler)` to submit; the handler receives validated, typed data.
+- **Side effects / API**: Use `runPromise(effect)` from `src/lib/runEffect.ts` to run Effect programs (e.g. `fetchUsersEffect` in `src/effects/users.ts`) from event handlers or `useEffect`, and handle success/error with React state.

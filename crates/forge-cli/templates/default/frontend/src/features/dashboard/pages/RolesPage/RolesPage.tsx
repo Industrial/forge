@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import Typography from "@mui/material/Typography";
 import Box from "@mui/material/Box";
 import Button from "@mui/material/Button";
@@ -30,9 +30,9 @@ type Role = {
 };
 
 export default function RolesPage() {
-	const fetchRolesRef = useRef<() => void>(() => {});
+	const [liveRefreshTrigger, setLiveRefreshTrigger] = useState(0);
 	const { connected: wsConnected } = useLiveUpdates("roles", () => {
-		fetchRolesRef.current?.();
+		setLiveRefreshTrigger((n) => n + 1);
 	});
 
 	const [roles, setRoles] = useState<Role[]>([]);
@@ -71,11 +71,10 @@ export default function RolesPage() {
 			setLoading(false);
 		}
 	}, []);
-	fetchRolesRef.current = fetchRoles;
 
 	useEffect(() => {
 		fetchRoles();
-	}, [fetchRoles]);
+	}, [fetchRoles, liveRefreshTrigger]);
 
 	const handleAdd = async () => {
 		const name = addName.trim();

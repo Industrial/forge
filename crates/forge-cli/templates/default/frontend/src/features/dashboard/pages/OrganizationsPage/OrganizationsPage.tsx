@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import Typography from "@mui/material/Typography";
 import Box from "@mui/material/Box";
 import Button from "@mui/material/Button";
@@ -89,9 +89,9 @@ export default function OrganizationsPage() {
 	const isMobile = useMediaQuery(theme.breakpoints.down("md"));
 	const { permissions } = useSession();
 	const canWrite = permissions.includes(ORG_WRITE);
-	const fetchDataRef = useRef<() => void>(() => {});
+	const [liveRefreshTrigger, setLiveRefreshTrigger] = useState(0);
 	const { connected: wsConnected } = useLiveUpdates("organizations", () => {
-		fetchDataRef.current?.();
+		setLiveRefreshTrigger((n) => n + 1);
 	});
 
 	const [organizations, setOrganizations] = useState<Organization[]>([]);
@@ -134,11 +134,10 @@ export default function OrganizationsPage() {
 			setLoading(false);
 		}
 	}, []);
-	fetchDataRef.current = fetchData;
 
 	useEffect(() => {
 		fetchData();
-	}, [fetchData]);
+	}, [fetchData, liveRefreshTrigger]);
 
 	const handleAdd = async () => {
 		const name = addName.trim();

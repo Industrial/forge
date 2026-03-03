@@ -56,6 +56,11 @@ async fn require_permission(
   )
 }
 
+/// Org scope for dashboard list endpoints (users, roles, role-permissions). No is_admin bypass — only current org.
+pub(crate) fn scope_org_for_dashboard_lists(user: &user::Model) -> Option<Uuid> {
+  user.current_org_id
+}
+
 /// GET /api/dashboard/permissions — list known permission keys (code-defined). Requires dashboard.permissions.read.
 pub async fn list_permissions(
   RequireAuth(user): RequireAuth<Backend>,
@@ -68,7 +73,7 @@ pub async fn list_permissions(
   Ok(Json(serde_json::json!({ "permissions": list })).into_response())
 }
 
-/// GET /api/dashboard/role-permissions — list role–permission assignments. Requires dashboard.permissions.read. Admin: all; else only scope=org and org_id=current_org_id.
+/// GET /api/dashboard/role-permissions — list role–permission assignments. Requires dashboard.permissions.read. Scoped to current org only.
 pub async fn list_role_permissions(
   RequireAuth(user): RequireAuth<Backend>,
   State(db): State<DbConnection>,
@@ -76,19 +81,16 @@ pub async fn list_role_permissions(
   if let Some(resp) = require_permission(&user, &db, PERMISSION_READ).await {
     return Ok(resp);
   }
-  let mut q = role_permission::Entity::find();
-  if !user.is_admin {
-    let org_id = match user.current_org_id {
-      Some(id) => id,
-      None => {
-        return Ok(Json(serde_json::json!({ "assignments": [] })).into_response());
-      }
-    };
-    q = q
-      .filter(role_permission::Column::Scope.eq("org"))
-      .filter(role_permission::Column::OrgId.eq(org_id));
-  }
-  let rows = q.all(&db).await.map_err(|e| ForgeError::Generic(e.to_string()))?;
+  let org_id = match scope_org_for_dashboard_lists(&user) {
+    Some(id) => id,
+    None => return Ok(Json(serde_json::json!({ "assignments": [] })).into_response()),
+  };
+  let rows = role_permission::Entity::find()
+    .filter(role_permission::Column::Scope.eq("org"))
+    .filter(role_permission::Column::OrgId.eq(org_id))
+    .all(&db)
+    .await
+    .map_err(|e| ForgeError::Generic(e.to_string()))?;
   let list: Vec<serde_json::Value> = rows
     .into_iter()
     .map(|r| {
@@ -433,24 +435,20 @@ pub async fn list_organizations(
 
 #[derive(Deserialize)]
 pub struct ListRolesQuery {
+  #[allow(dead_code)]
   pub org_id: Option<Uuid>,
 }
 
-/// GET /api/dashboard/roles — list org roles. Query param org_id optional for admin; else current org. Requires dashboard.roles.read.
+/// GET /api/dashboard/roles — list org roles. Scoped to current org only (query org_id ignored). Requires dashboard.roles.read.
 pub async fn list_roles(
   RequireAuth(user): RequireAuth<Backend>,
   State(db): State<DbConnection>,
-  Query(q): Query<ListRolesQuery>,
+  Query(_q): Query<ListRolesQuery>,
 ) -> Result<impl IntoResponse, ForgeError> {
   if let Some(resp) = require_permission(&user, &db, PERMISSION_ROLES_READ).await {
     return Ok(resp);
   }
-  let org_id = if user.is_admin {
-    q.org_id.or(user.current_org_id)
-  } else {
-    user.current_org_id
-  };
-  let org_id = match org_id {
+  let org_id = match scope_org_for_dashboard_lists(&user) {
     Some(id) => id,
     None => return Ok(Json(serde_json::json!({ "roles": [] })).into_response()),
   };
@@ -483,7 +481,7 @@ pub struct CreateRoleBody {
   pub display_name: Option<String>,
 }
 
-/// POST /api/dashboard/roles — create org role. Requires dashboard.roles.write. Non-admin: org_id must be current org.
+/// POST /api/dashboard/roles — create org role. Requires dashboard.roles.write. org_id must be current org.
 pub async fn create_role(
   RequireAuth(user): RequireAuth<Backend>,
   State(db): State<DbConnection>,
@@ -493,12 +491,7 @@ pub async fn create_role(
   if let Some(resp) = require_permission(&user, &db, PERMISSION_ROLES_WRITE).await {
     return Ok(resp);
   }
-  let org_id = if user.is_admin {
-    payload.org_id.or(user.current_org_id)
-  } else {
-    user.current_org_id
-  };
-  let org_id = match org_id {
+  let org_id = match user.current_org_id {
     Some(id) => id,
     None => {
       return Ok(
@@ -510,7 +503,7 @@ pub async fn create_role(
       );
     }
   };
-  if user.current_org_id != Some(org_id) && !user.is_admin {
+  if payload.org_id.map(|pid| pid != org_id).unwrap_or(false) {
     return Ok(
       (
         StatusCode::FORBIDDEN,
@@ -880,7 +873,7 @@ pub async fn delete_organization(
   Ok(Json(serde_json::json!({ "ok": true })).into_response())
 }
 
-/// GET /api/dashboard/users — list users. Requires dashboard.users.read. Admin: all; else only users in current org.
+/// GET /api/dashboard/users — list users. Requires dashboard.users.read. Scoped to current org only (no is_admin bypass).
 pub async fn list_users(
   RequireAuth(user): RequireAuth<Backend>,
   State(db): State<DbConnection>,
@@ -888,30 +881,20 @@ pub async fn list_users(
   if let Some(resp) = require_permission(&user, &db, PERMISSION_USERS_READ).await {
     return Ok(resp);
   }
-  let user_ids: Vec<Uuid> = if user.is_admin {
-    user::Entity::find()
-      .all(&db)
-      .await
-      .map_err(|e: sea_orm::DbErr| ForgeError::Generic(e.to_string()))?
-      .into_iter()
-      .map(|u| u.id)
-      .collect()
-  } else {
-    let org_id = match user.current_org_id {
-      Some(id) => id,
-      None => return Ok(Json(serde_json::json!({ "users": [] })).into_response()),
-    };
-    membership::Entity::find()
-      .filter(membership::Column::OrgId.eq(org_id))
-      .all(&db)
-      .await
-      .map_err(|e: sea_orm::DbErr| ForgeError::Generic(e.to_string()))?
-      .into_iter()
-      .map(|m| m.user_id)
-      .collect::<std::collections::HashSet<_>>()
-      .into_iter()
-      .collect()
+  let scope_org_id = match scope_org_for_dashboard_lists(&user) {
+    Some(id) => id,
+    None => return Ok(Json(serde_json::json!({ "users": [] })).into_response()),
   };
+  let user_ids: Vec<Uuid> = membership::Entity::find()
+    .filter(membership::Column::OrgId.eq(scope_org_id))
+    .all(&db)
+    .await
+    .map_err(|e: sea_orm::DbErr| ForgeError::Generic(e.to_string()))?
+    .into_iter()
+    .map(|m| m.user_id)
+    .collect::<std::collections::HashSet<_>>()
+    .into_iter()
+    .collect();
   if user_ids.is_empty() {
     return Ok(Json(serde_json::json!({ "users": [] })).into_response());
   }
@@ -920,26 +903,14 @@ pub async fn list_users(
     .all(&db)
     .await
     .map_err(|e: sea_orm::DbErr| ForgeError::Generic(e.to_string()))?;
-  let all_memberships = membership::Entity::find()
-    .filter(membership::Column::UserId.is_in(user_ids.clone()))
-    .all(&db)
+  let org_row = organization::Entity::find_by_id(scope_org_id)
+    .one(&db)
     .await
     .map_err(|e: sea_orm::DbErr| ForgeError::Generic(e.to_string()))?;
-  let org_ids: Vec<Uuid> = all_memberships
-    .iter()
-    .map(|m| m.org_id)
-    .collect::<std::collections::HashSet<_>>()
-    .into_iter()
-    .collect();
-  let orgs = organization::Entity::find()
-    .filter(organization::Column::Id.is_in(org_ids))
-    .all(&db)
-    .await
-    .map_err(|e: sea_orm::DbErr| ForgeError::Generic(e.to_string()))?;
-  let org_map: std::collections::HashMap<Uuid, String> =
-    orgs.into_iter().map(|o| (o.id, o.name)).collect();
+  let org_name = org_row.as_ref().map(|o| o.name.clone()).unwrap_or_else(|| "—".to_string());
   let all_uors = user_org_role::Entity::find()
     .filter(user_org_role::Column::UserId.is_in(user_ids.clone()))
+    .filter(user_org_role::Column::OrgId.eq(scope_org_id))
     .all(&db)
     .await
     .map_err(|e: sea_orm::DbErr| ForgeError::Generic(e.to_string()))?;
@@ -958,31 +929,16 @@ pub async fn list_users(
   let list: Vec<serde_json::Value> = users
     .into_iter()
     .map(|u| {
-      let user_memberships: std::collections::HashMap<Uuid, Vec<String>> = all_memberships
+      let role_names: Vec<String> = all_uors
         .iter()
-        .filter(|m| m.user_id == u.id)
-        .map(|m| m.org_id)
-        .collect::<std::collections::HashSet<_>>()
-        .into_iter()
-        .map(|org_id| {
-          let role_names: Vec<String> = all_uors
-            .iter()
-            .filter(|x| x.user_id == u.id && x.org_id == org_id)
-            .filter_map(|x| role_map.get(&x.role_id).map(|r| r.name.clone()))
-            .collect();
-          (org_id, role_names)
-        })
+        .filter(|x| x.user_id == u.id)
+        .filter_map(|x| role_map.get(&x.role_id).map(|r| r.name.clone()))
         .collect();
-      let mems: Vec<serde_json::Value> = user_memberships
-        .into_iter()
-        .map(|(org_id, role_names)| {
-          serde_json::json!({
-            "org_id": org_id.to_string(),
-            "org_name": org_map.get(&org_id).cloned().unwrap_or_else(|| "—".to_string()),
-            "roles": role_names,
-          })
-        })
-        .collect();
+      let mems = vec![serde_json::json!({
+        "org_id": scope_org_id.to_string(),
+        "org_name": org_name,
+        "roles": role_names,
+      })];
       serde_json::json!({
         "id": u.id.to_string(),
         "email": u.email,
@@ -1033,20 +989,16 @@ pub async fn create_user(
         .into_response(),
     );
   }
-  let org_id = if user.is_admin {
-    payload.org_id
-  } else {
-    match user.current_org_id {
-      Some(id) if id == payload.org_id => id,
-      _ => {
-        return Ok(
-          (
-            StatusCode::FORBIDDEN,
-            Json(serde_json::json!({ "error": "Can only add users to your current organization" })),
-          )
-            .into_response(),
-        );
-      }
+  let org_id = match user.current_org_id {
+    Some(id) if id == payload.org_id => id,
+    _ => {
+      return Ok(
+        (
+          StatusCode::FORBIDDEN,
+          Json(serde_json::json!({ "error": "Can only add users to your current organization" })),
+        )
+          .into_response(),
+      );
     }
   };
   if payload.role_ids.is_empty() {
@@ -1258,6 +1210,7 @@ pub async fn delete_user(
 #[cfg(test)]
 mod tests {
   use super::*;
+  use chrono::Utc;
 
   #[test]
   fn has_permission_true_when_key_in_list() {
@@ -1279,5 +1232,68 @@ mod tests {
   #[test]
   fn default_limit_returns_50() {
     assert_eq!(default_limit(), 50);
+  }
+
+  /// Scope for dashboard lists must be current org only; is_admin must not expand scope.
+  #[test]
+  fn scope_org_for_dashboard_lists_uses_only_current_org() {
+    let now = Utc::now().naive_utc();
+    let org_a = Uuid::new_v4();
+    let user_none = user::Model {
+      id: Uuid::new_v4(),
+      email: "a@x.org".to_string(),
+      password_hash: "".to_string(),
+      is_active: true,
+      is_admin: false,
+      current_org_id: None,
+      current_role: Some("viewer".to_string()),
+      created_at: now,
+      updated_at: now,
+    };
+    let user_org_a = user::Model {
+      id: Uuid::new_v4(),
+      email: "b@x.org".to_string(),
+      password_hash: "".to_string(),
+      is_active: true,
+      is_admin: false,
+      current_org_id: Some(org_a),
+      current_role: Some("viewer".to_string()),
+      created_at: now,
+      updated_at: now,
+    };
+    let user_admin_org_a = user::Model {
+      id: Uuid::new_v4(),
+      email: "admin@x.org".to_string(),
+      password_hash: "".to_string(),
+      is_active: true,
+      is_admin: true,
+      current_org_id: Some(org_a),
+      current_role: Some("owner".to_string()),
+      created_at: now,
+      updated_at: now,
+    };
+    assert_eq!(scope_org_for_dashboard_lists(&user_none), None);
+    assert_eq!(scope_org_for_dashboard_lists(&user_org_a), Some(org_a));
+    assert_eq!(scope_org_for_dashboard_lists(&user_admin_org_a), Some(org_a));
+  }
+
+  /// Ensures that even with is_admin=true we do not get "all orgs" — only current_org_id.
+  #[test]
+  fn scope_org_ignores_is_admin_no_cross_org() {
+    let now = Utc::now().naive_utc();
+    let org_a = Uuid::new_v4();
+    let admin = user::Model {
+      id: Uuid::new_v4(),
+      email: "admin@x.org".to_string(),
+      password_hash: "".to_string(),
+      is_active: true,
+      is_admin: true,
+      current_org_id: Some(org_a),
+      current_role: Some("owner".to_string()),
+      created_at: now,
+      updated_at: now,
+    };
+    let scope = scope_org_for_dashboard_lists(&admin);
+    assert_eq!(scope, Some(org_a));
   }
 }

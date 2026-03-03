@@ -1,4 +1,5 @@
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
+import { useForm, Controller } from "react-hook-form";
 import Typography from "@mui/material/Typography";
 import Box from "@mui/material/Box";
 import Button from "@mui/material/Button";
@@ -26,21 +27,16 @@ import MenuItem from "@mui/material/MenuItem";
 import Chip from "@mui/material/Chip";
 import { useLiveUpdates } from "../../../../context/LiveWs";
 import { useSession } from "../../../../context/Session";
-
-type Membership = {
-	org_id: string;
-	org_name: string;
-	roles: string[];
-};
-
-type User = {
-	id: string;
-	email: string;
-	is_active: boolean;
-	is_admin: boolean;
-	created_at: string;
-	memberships: Membership[];
-};
+import { Schema } from "effect";
+import { runPromise } from "../../../../lib/runEffect";
+import { effectSchemaResolver } from "../../../../lib/effectSchemaResolver";
+import {
+	userAddFormSchemaStrict,
+	userEditFormSchema,
+	type UserAddFormValuesStrict,
+	type UserEditFormValues,
+} from "../../../../schemas/userFormSchemas";
+import { fetchUsersEffect, type User } from "../../../../effects/users";
 
 type Organization = {
 	id: string;
@@ -58,118 +54,6 @@ type OrgRole = {
 	display_name: string | null;
 };
 
-type UserFormAddProps = {
-	mode: "add";
-	email: string;
-	password: string;
-	orgId: string;
-	roleIds: string[];
-	organizations: Organization[];
-	orgRoles: OrgRole[];
-	onEmailChange: (value: string) => void;
-	onPasswordChange: (value: string) => void;
-	onOrgIdChange: (value: string) => void;
-	onRoleIdsChange: (value: string[]) => void;
-	disabled?: boolean;
-};
-
-type UserFormEditProps = {
-	mode: "edit";
-	email: string;
-	active: boolean;
-	onEmailChange: (value: string) => void;
-	onActiveChange: (value: boolean) => void;
-	disabled?: boolean;
-};
-
-type UserFormProps = UserFormAddProps | UserFormEditProps;
-
-function UserForm(props: UserFormProps) {
-	const sx = {
-		display: "flex",
-		flexDirection: "column" as const,
-		gap: 2,
-		pt: 1,
-		minWidth: 320,
-	};
-	if (props.mode === "add") {
-		return (
-			<Box sx={sx}>
-				<TextField
-					label="Email"
-					type="email"
-					fullWidth
-					value={props.email}
-					onChange={(e) => props.onEmailChange(e.target.value)}
-					required
-					disabled={props.disabled}
-				/>
-				<TextField
-					label="Password"
-					type="password"
-					fullWidth
-					value={props.password}
-					onChange={(e) => props.onPasswordChange(e.target.value)}
-					placeholder="Min 8 characters"
-					disabled={props.disabled}
-				/>
-				<FormControl fullWidth size="small" disabled={props.disabled}>
-					<InputLabel>Organization</InputLabel>
-					<Select
-						label="Organization"
-						value={props.orgId}
-						onChange={(e) => props.onOrgIdChange(e.target.value)}
-					>
-						{props.organizations.map((org) => (
-							<MenuItem key={org.id} value={org.id}>
-								{org.name}
-							</MenuItem>
-						))}
-					</Select>
-				</FormControl>
-				<FormControl fullWidth size="small" disabled={props.disabled}>
-					<InputLabel>Roles</InputLabel>
-					<Select
-						label="Roles"
-						multiple
-						value={props.roleIds}
-						onChange={(e) => props.onRoleIdsChange([].slice.call(e.target.value))}
-						renderValue={(selected) => (selected as string[]).map((id) => props.orgRoles.find((r) => r.id === id)?.name ?? id).join(", ")}
-					>
-						{props.orgRoles.map((r) => (
-							<MenuItem key={r.id} value={r.id}>
-								{r.display_name || r.name}
-							</MenuItem>
-						))}
-					</Select>
-				</FormControl>
-			</Box>
-		);
-	}
-	return (
-		<Box sx={sx}>
-			<TextField
-				label="Email"
-				type="email"
-				fullWidth
-				value={props.email}
-				onChange={(e) => props.onEmailChange(e.target.value)}
-				disabled={props.disabled}
-			/>
-			<FormControlLabel
-				control={
-					<Checkbox
-						checked={props.active}
-						onChange={(e) => props.onActiveChange(e.target.checked)}
-						disabled={props.disabled}
-					/>
-				}
-				label="Active"
-			/>
-		</Box>
-	);
-}
-
 function formatDate(iso: string) {
 	try {
 		return new Date(iso).toLocaleString();
@@ -178,7 +62,7 @@ function formatDate(iso: string) {
 	}
 }
 
-function membershipsSummary(memberships: Membership[]) {
+function membershipsSummary(memberships: User["memberships"]) {
 	if (!memberships.length) return "—";
 	return memberships.map((m) => `${m.org_name}: ${(m.roles ?? []).join(", ") || "—"}`).join("; ");
 }
@@ -187,9 +71,9 @@ export default function UsersPage() {
 	const { permissions } = useSession();
 	const canRead = permissions.includes(USERS_READ);
 	const canWrite = permissions.includes(USERS_WRITE);
-	const fetchUsersRef = useRef<() => void>(() => {});
+	const [liveRefreshTrigger, setLiveRefreshTrigger] = useState(0);
 	const { connected: wsConnected } = useLiveUpdates("users", () => {
-		fetchUsersRef.current?.();
+		setLiveRefreshTrigger((n) => n + 1);
 	});
 	const fetchUsers = useCallback(async () => {
 		if (!canRead) {
@@ -199,52 +83,21 @@ export default function UsersPage() {
 		}
 		setError(null);
 		try {
-			const res = await fetch("/api/dashboard/users", {
-				credentials: "include",
-			});
-			if (res.status === 403) {
-				setError("You do not have permission to view users.");
-				setUsers([]);
-				return;
-			}
-			if (res.status === 401) {
-				setError("Session expired or not logged in. Please log in again.");
-				setUsers([]);
-				return;
-			}
-			if (!res.ok) {
-				const text = await res.text();
-				let msg: string;
-				try {
-					const json = JSON.parse(text) as { error?: string };
-					msg = (json.error ?? text) || "Failed to load users.";
-				} catch {
-					msg = text || "Failed to load users.";
-				}
-				setError(msg);
-				setUsers([]);
-				return;
-			}
-			const data = await res.json();
-			setUsers(data.users ?? []);
-		} catch {
-			setError("Failed to load users (network or server error).");
+			const list = await runPromise(fetchUsersEffect);
+			setUsers(list);
+		} catch (e) {
+			setError(e instanceof Error ? e.message : "Failed to load users.");
 			setUsers([]);
 		} finally {
 			setLoading(false);
 		}
 	}, [canRead]);
-	fetchUsersRef.current = fetchUsers;
 
 	const [users, setUsers] = useState<User[]>([]);
 	const [organizations, setOrganizations] = useState<Organization[]>([]);
 	const [loading, setLoading] = useState(true);
 	const [error, setError] = useState<string | null>(null);
 	const [addDialogOpen, setAddDialogOpen] = useState(false);
-	const [addEmail, setAddEmail] = useState("");
-	const [addPassword, setAddPassword] = useState("");
-	const [addOrgId, setAddOrgId] = useState("");
-	const [addRoleIds, setAddRoleIds] = useState<string[]>([]);
 	const [orgRoles, setOrgRoles] = useState<OrgRole[]>([]);
 	const [adding, setAdding] = useState(false);
 	const [filterEmail, setFilterEmail] = useState("");
@@ -253,10 +106,26 @@ export default function UsersPage() {
 	const [filterActive, setFilterActive] = useState<"" | "yes" | "no">("");
 	const [filterAdmin, setFilterAdmin] = useState<"" | "yes" | "no">("");
 	const [editUser, setEditUser] = useState<User | null>(null);
-	const [editEmail, setEditEmail] = useState("");
-	const [editActive, setEditActive] = useState(true);
 	const [saving, setSaving] = useState(false);
 	const [deletingId, setDeletingId] = useState<string | null>(null);
+
+	const addForm = useForm<UserAddFormValuesStrict>({
+		resolver: effectSchemaResolver(
+			userAddFormSchemaStrict as Schema.Schema<UserAddFormValuesStrict, unknown, never>,
+		),
+		defaultValues: { email: "", password: "", orgId: "", roleIds: [] },
+		mode: "onChange",
+	});
+
+	const editForm = useForm<UserEditFormValues>({
+		resolver: effectSchemaResolver(
+			userEditFormSchema as Schema.Schema<UserEditFormValues, unknown, never>,
+		),
+		defaultValues: { email: "", active: true },
+		mode: "onChange",
+	});
+
+	const addFormOrgId = addForm.watch("orgId");
 
 	const fetchOrgs = useCallback(async () => {
 		if (!canRead) return;
@@ -266,13 +135,7 @@ export default function UsersPage() {
 			});
 			if (res.ok) {
 				const data = await res.json();
-				const orgs = data.organizations ?? [];
-				setOrganizations(orgs);
-				setAddOrgId((prev) =>
-					prev && orgs.some((o: Organization) => o.id === prev)
-						? prev
-						: orgs[0]?.id ?? "",
-				);
+				setOrganizations(data.organizations ?? []);
 			}
 		} catch {
 			// optional for filters and add form
@@ -281,7 +144,7 @@ export default function UsersPage() {
 
 	useEffect(() => {
 		fetchUsers();
-	}, [fetchUsers]);
+	}, [fetchUsers, liveRefreshTrigger]);
 
 	useEffect(() => {
 		fetchOrgs();
@@ -290,7 +153,6 @@ export default function UsersPage() {
 	const fetchOrgRoles = useCallback(async (orgId: string) => {
 		if (!orgId) {
 			setOrgRoles([]);
-			setAddRoleIds([]);
 			return;
 		}
 		try {
@@ -299,38 +161,28 @@ export default function UsersPage() {
 			});
 			if (res.ok) {
 				const data = await res.json();
-				const list = data.roles ?? [];
-				setOrgRoles(list);
-				setAddRoleIds((prev) => prev.filter((id) => list.some((r: OrgRole) => r.id === id)));
+				setOrgRoles(data.roles ?? []);
 			} else {
 				setOrgRoles([]);
-				setAddRoleIds([]);
 			}
 		} catch {
 			setOrgRoles([]);
-			setAddRoleIds([]);
 		}
 	}, []);
 
 	useEffect(() => {
-		fetchOrgRoles(addOrgId);
-	}, [addOrgId, fetchOrgRoles]);
+		fetchOrgRoles(addFormOrgId);
+	}, [addFormOrgId, fetchOrgRoles]);
 
-	const handleAdd = async () => {
-		const email = addEmail.trim();
-		if (!email) return;
-		if (addPassword.length < 8) {
-			setError("Password must be at least 8 characters.");
-			return;
+	useEffect(() => {
+		const current = addForm.getValues("roleIds");
+		const valid = current.filter((id) => orgRoles.some((r) => r.id === id));
+		if (valid.length !== current.length) {
+			addForm.setValue("roleIds", valid);
 		}
-		if (!addOrgId) {
-			setError("Select an organization.");
-			return;
-		}
-		if (addRoleIds.length === 0) {
-			setError("Select at least one role.");
-			return;
-		}
+	}, [orgRoles, addForm]);
+
+	const handleAdd = async (data: UserAddFormValuesStrict) => {
 		setAdding(true);
 		setError(null);
 		try {
@@ -339,10 +191,10 @@ export default function UsersPage() {
 				headers: { "Content-Type": "application/json" },
 				credentials: "include",
 				body: JSON.stringify({
-					email,
-					password: addPassword,
-					org_id: addOrgId,
-					role_ids: addRoleIds,
+					email: data.email,
+					password: data.password,
+					org_id: data.orgId,
+					role_ids: data.roleIds,
 				}),
 			});
 			if (res.status === 403) {
@@ -350,13 +202,11 @@ export default function UsersPage() {
 				return;
 			}
 			if (!res.ok) {
-				const data = await res.json().catch(() => ({}));
-				setError(data.error ?? "Failed to create user.");
+				const resData = await res.json().catch(() => ({}));
+				setError(resData.error ?? "Failed to create user.");
 				return;
 			}
-			setAddEmail("");
-			setAddPassword("");
-			setAddRoleIds([]);
+			addForm.reset({ email: "", password: "", orgId: "", roleIds: [] });
 			setAddDialogOpen(false);
 			await fetchUsers();
 		} catch {
@@ -368,11 +218,10 @@ export default function UsersPage() {
 
 	const openEdit = (user: User) => {
 		setEditUser(user);
-		setEditEmail(user.email);
-		setEditActive(user.is_active);
+		editForm.reset({ email: user.email, active: user.is_active });
 	};
 
-	const handleSaveEdit = async () => {
+	const handleSaveEdit = async (data: UserEditFormValues) => {
 		if (!editUser) return;
 		setSaving(true);
 		setError(null);
@@ -383,8 +232,8 @@ export default function UsersPage() {
 				credentials: "include",
 				body: JSON.stringify({
 					id: editUser.id,
-					email: editEmail.trim() || undefined,
-					is_active: editActive,
+					email: data.email.trim() || undefined,
+					is_active: data.active,
 				}),
 			});
 			if (res.status === 403) {
@@ -564,7 +413,15 @@ export default function UsersPage() {
 					<Button
 						variant="contained"
 						startIcon={<AddIcon />}
-						onClick={() => setAddDialogOpen(true)}
+						onClick={() => {
+							addForm.reset({
+								email: "",
+								password: "",
+								orgId: organizations[0]?.id ?? "",
+								roleIds: [],
+							});
+							setAddDialogOpen(true);
+						}}
 					>
 						Add user
 					</Button>
@@ -645,26 +502,98 @@ export default function UsersPage() {
 				title="Add user"
 				submitLabel="Add"
 				submittingLabel="Adding…"
-				onSubmit={handleAdd}
-				submitDisabled={
-					!addEmail.trim() || addPassword.length < 8 || !addOrgId || addRoleIds.length === 0
-				}
+				onSubmit={() => addForm.handleSubmit(handleAdd)()}
+				submitDisabled={!addForm.formState.isValid}
 				submitting={adding}
 			>
-				<UserForm
-					mode="add"
-					email={addEmail}
-					password={addPassword}
-					orgId={addOrgId}
-					roleIds={addRoleIds}
-					organizations={organizations}
-					orgRoles={orgRoles}
-					onEmailChange={setAddEmail}
-					onPasswordChange={setAddPassword}
-					onOrgIdChange={setAddOrgId}
-					onRoleIdsChange={setAddRoleIds}
-					disabled={adding}
-				/>
+				<Box sx={{ display: "flex", flexDirection: "column", gap: 2, pt: 1, minWidth: 320 }}>
+					<Controller
+						control={addForm.control}
+						name="email"
+						render={({ field, fieldState }) => (
+							<TextField
+								{...field}
+								label="Email"
+								type="email"
+								required
+								disabled={adding}
+								error={Boolean(fieldState.error)}
+								helperText={fieldState.error?.message}
+							/>
+						)}
+					/>
+					<Controller
+						control={addForm.control}
+						name="password"
+						render={({ field, fieldState }) => (
+							<TextField
+								{...field}
+								label="Password"
+								type="password"
+								placeholder="Min 8 characters"
+								disabled={adding}
+								error={Boolean(fieldState.error)}
+								helperText={fieldState.error?.message}
+							/>
+						)}
+					/>
+					<Controller
+						control={addForm.control}
+						name="orgId"
+						render={({ field, fieldState }) => (
+							<FormControl fullWidth size="small" disabled={adding} error={Boolean(fieldState.error)}>
+								<InputLabel>Organization</InputLabel>
+								<Select
+									{...field}
+									label="Organization"
+									onChange={(e) => field.onChange(e.target.value)}
+								>
+									{organizations.map((org) => (
+										<MenuItem key={org.id} value={org.id}>
+											{org.name}
+										</MenuItem>
+									))}
+								</Select>
+								{fieldState.error?.message && (
+									<Box component="span" sx={{ color: "error.main", fontSize: "0.75rem", mt: 0.5, display: "block" }}>
+										{fieldState.error.message}
+									</Box>
+								)}
+							</FormControl>
+						)}
+					/>
+					<Controller
+						control={addForm.control}
+						name="roleIds"
+						render={({ field, fieldState }) => (
+							<FormControl fullWidth size="small" disabled={adding} error={Boolean(fieldState.error)}>
+								<InputLabel>Roles</InputLabel>
+								<Select
+									{...field}
+									label="Roles"
+									multiple
+									onChange={(e) => field.onChange([].slice.call(e.target.value))}
+									renderValue={(selected) =>
+										(selected as string[])
+											.map((id) => orgRoles.find((r) => r.id === id)?.name ?? id)
+											.join(", ")
+									}
+								>
+									{orgRoles.map((r) => (
+										<MenuItem key={r.id} value={r.id}>
+											{r.display_name || r.name}
+										</MenuItem>
+									))}
+								</Select>
+								{fieldState.error?.message && (
+									<Box component="span" sx={{ color: "error.main", fontSize: "0.75rem", mt: 0.5, display: "block" }}>
+										{fieldState.error.message}
+									</Box>
+								)}
+							</FormControl>
+						)}
+					/>
+				</Box>
 			</FormDialog>
 
 			<FormDialog
@@ -673,18 +602,42 @@ export default function UsersPage() {
 				title="Edit user"
 				submitLabel="Save"
 				submittingLabel="Saving…"
-				onSubmit={handleSaveEdit}
-				submitDisabled={false}
+				onSubmit={() => editForm.handleSubmit(handleSaveEdit)()}
+				submitDisabled={!editForm.formState.isValid}
 				submitting={saving}
 			>
-				<UserForm
-					mode="edit"
-					email={editEmail}
-					active={editActive}
-					onEmailChange={setEditEmail}
-					onActiveChange={setEditActive}
-					disabled={saving}
-				/>
+				<Box sx={{ display: "flex", flexDirection: "column", gap: 2, pt: 1, minWidth: 320 }}>
+					<Controller
+						control={editForm.control}
+						name="email"
+						render={({ field, fieldState }) => (
+							<TextField
+								{...field}
+								label="Email"
+								type="email"
+								disabled={saving}
+								error={Boolean(fieldState.error)}
+								helperText={fieldState.error?.message}
+							/>
+						)}
+					/>
+					<Controller
+						control={editForm.control}
+						name="active"
+						render={({ field }) => (
+							<FormControlLabel
+								control={
+									<Checkbox
+										checked={field.value}
+										onChange={(e) => field.onChange(e.target.checked)}
+										disabled={saving}
+									/>
+								}
+								label="Active"
+							/>
+						)}
+					/>
+				</Box>
 			</FormDialog>
 		</>
 	);

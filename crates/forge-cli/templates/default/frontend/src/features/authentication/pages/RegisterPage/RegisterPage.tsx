@@ -1,37 +1,50 @@
 import { useState } from "react";
+import { useForm, Controller } from "react-hook-form";
 import { Link as RouterLink, useNavigate } from "react-router-dom";
+import { Schema } from "effect";
 import Alert from "@mui/material/Alert";
 import Box from "@mui/material/Box";
 import Button from "@mui/material/Button";
 import Link from "@mui/material/Link";
 import TextField from "@mui/material/TextField";
 import Typography from "@mui/material/Typography";
+import { effectSchemaResolver } from "../../../../lib/effectSchemaResolver";
+import {
+	registerFormSchema,
+	type RegisterFormValues,
+} from "../../../../schemas/userFormSchemas";
 
 export default function RegisterPage() {
 	const navigate = useNavigate();
-	const [email, setEmail] = useState("");
-	const [password, setPassword] = useState("");
 	const [error, setError] = useState<string | null>(null);
 	const [submitting, setSubmitting] = useState(false);
 
-	async function handleSubmit(e: React.FormEvent) {
-		e.preventDefault();
+	const form = useForm<RegisterFormValues>({
+		resolver: effectSchemaResolver(
+			registerFormSchema as Schema.Schema<RegisterFormValues, unknown, never>,
+		),
+		defaultValues: { email: "", password: "" },
+		mode: "onChange",
+	});
+
+	async function handleSubmit(data: RegisterFormValues) {
 		setSubmitting(true);
+		setError(null);
 		try {
 			const res = await fetch("/api/auth/register", {
 				method: "POST",
 				headers: { "Content-Type": "application/json" },
 				credentials: "include",
-				body: JSON.stringify({ email, password }),
+				body: JSON.stringify({ email: data.email, password: data.password }),
 			});
-			const data = await res.json().catch(() => ({}));
+			const resData = await res.json().catch(() => ({}));
 			if (res.ok) {
 				navigate("/login", { replace: true });
 				return;
 			}
 			setError(
-				typeof data?.error === "string"
-					? data.error
+				typeof resData?.error === "string"
+					? resData.error
 					: "Registration failed. Please try again.",
 			);
 		} catch {
@@ -47,7 +60,10 @@ export default function RegisterPage() {
 				Create an account
 			</Typography>
 			<Box sx={{ display: "flex", flexDirection: "column", gap: 2 }}>
-				<form onSubmit={handleSubmit} data-testid="register-form">
+				<form
+					onSubmit={form.handleSubmit(handleSubmit)}
+					data-testid="register-form"
+				>
 					<Box sx={{ display: "flex", flexDirection: "column", gap: 2 }}>
 						{error != null && (
 							<Alert severity="error" data-testid="register-error">
@@ -55,36 +71,50 @@ export default function RegisterPage() {
 								{error}
 							</Alert>
 						)}
-						<TextField
+						<Controller
+							control={form.control}
 							name="email"
-							type="email"
-							label="Email"
-							placeholder="you@example.com"
-							value={email}
-							onChange={(e) => setEmail(e.target.value)}
-							required
-							disabled={submitting}
-							data-testid="register-email"
-							fullWidth
+							render={({ field, fieldState }) => (
+								<TextField
+									{...field}
+									name="email"
+									type="email"
+									label="Email"
+									placeholder="you@example.com"
+									required
+									disabled={submitting}
+									data-testid="register-email"
+									fullWidth
+									error={Boolean(fieldState.error)}
+									helperText={fieldState.error?.message}
+								/>
+							)}
 						/>
-						<TextField
+						<Controller
+							control={form.control}
 							name="password"
-							type="password"
-							label="Password"
-							placeholder="••••••••"
-							value={password}
-							onChange={(e) => setPassword(e.target.value)}
-							required
-							inputProps={{ minLength: 8 }}
-							disabled={submitting}
-							data-testid="register-password"
-							fullWidth
+							render={({ field, fieldState }) => (
+								<TextField
+									{...field}
+									name="password"
+									type="password"
+									label="Password"
+									placeholder="••••••••"
+									required
+									inputProps={{ minLength: 8 }}
+									disabled={submitting}
+									data-testid="register-password"
+									fullWidth
+									error={Boolean(fieldState.error)}
+									helperText={fieldState.error?.message}
+								/>
+							)}
 						/>
 						<Box sx={{ display: "flex", justifyContent: "flex-end" }}>
 							<Button
 								type="submit"
 								variant="contained"
-								disabled={submitting}
+								disabled={submitting || !form.formState.isValid}
 								data-testid="register-submit"
 							>
 								Register
