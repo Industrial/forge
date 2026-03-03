@@ -1,15 +1,42 @@
 use chrono::Utc;
 use forge::DbConnection;
 use forge::auth::hash_password;
-use sea_orm::{ColumnTrait, EntityTrait, QueryFilter, Set};
+use sea_orm::{ColumnTrait, EntityTrait, PaginatorTrait, QueryFilter, Set};
 use tracing::info;
 use uuid::Uuid;
 
-use crate::models::{membership, organization, user};
+use crate::models::{membership, org_role, organization, user, user_org_role};
 
 const SEED_PASSWORD: &str = "password";
+const TEMPLATE_ROLES: &[&str] = &["owner", "admin", "editor", "viewer"];
 
-/// Ensures an organization exists by slug; returns its id.
+/// Ensures the four template org_roles exist for an org (e.g. after creating the org).
+async fn ensure_org_roles(db: &DbConnection, org_id: Uuid) -> Result<(), Box<dyn std::error::Error>> {
+  let count = org_role::Entity::find()
+    .filter(org_role::Column::OrgId.eq(org_id))
+    .count(db)
+    .await?;
+  if count > 0 {
+    return Ok(());
+  }
+  let now = Utc::now().naive_utc();
+  for &name in TEMPLATE_ROLES {
+    let id = Uuid::new_v4();
+    let model = org_role::ActiveModel {
+      id: Set(id),
+      org_id: Set(org_id),
+      name: Set(name.to_string()),
+      display_name: Set(None),
+      created_at: Set(now),
+      updated_at: Set(now),
+      ..Default::default()
+    };
+    org_role::Entity::insert(model).exec(db).await?;
+  }
+  Ok(())
+}
+
+/// Ensures an organization exists by slug; returns its id. Creates org_roles when creating the org.
 async fn ensure_org(
   db: &DbConnection,
   name: &str,
@@ -33,12 +60,13 @@ async fn ensure_org(
         updated_at: Set(now),
       };
       organization::Entity::insert(o).exec(db).await?;
+      ensure_org_roles(db, id).await?;
       Ok(id)
     }
   }
 }
 
-/// Creates a user and their memberships if the user does not exist.
+/// Creates a user and their memberships + role assignments if the user does not exist.
 async fn ensure_user(
   db: &DbConnection,
   email: &str,
@@ -73,17 +101,43 @@ async fn ensure_user(
   };
   user::Entity::insert(user_model).exec(db).await?;
 
-  for (org_id, role) in memberships.iter() {
-    let membership_id = Uuid::new_v4();
-    let m = membership::ActiveModel {
-      id: Set(membership_id),
-      user_id: Set(user_id),
-      org_id: Set(*org_id),
-      role: Set((*role).to_string()),
-      created_at: Set(now),
-      updated_at: Set(now),
-    };
-    membership::Entity::insert(m).exec(db).await?;
+  for (org_id, role_name) in memberships.iter() {
+    let membership_exists = membership::Entity::find()
+      .filter(membership::Column::UserId.eq(user_id))
+      .filter(membership::Column::OrgId.eq(*org_id))
+      .one(db)
+      .await?;
+    if membership_exists.is_none() {
+      let membership_id = Uuid::new_v4();
+      let m = membership::ActiveModel {
+        id: Set(membership_id),
+        user_id: Set(user_id),
+        org_id: Set(*org_id),
+        created_at: Set(now),
+        updated_at: Set(now),
+        ..Default::default()
+      };
+      membership::Entity::insert(m).exec(db).await?;
+    }
+
+    let role_row = org_role::Entity::find()
+      .filter(org_role::Column::OrgId.eq(*org_id))
+      .filter(org_role::Column::Name.eq(*role_name))
+      .one(db)
+      .await?;
+    if let Some(role) = role_row {
+      let uor_id = Uuid::new_v4();
+      let uor = user_org_role::ActiveModel {
+        id: Set(uor_id),
+        user_id: Set(user_id),
+        org_id: Set(*org_id),
+        role_id: Set(role.id),
+        created_at: Set(now),
+        updated_at: Set(now),
+        ..Default::default()
+      };
+      user_org_role::Entity::insert(uor).exec(db).await?;
+    }
   }
 
   info!(

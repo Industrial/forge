@@ -15,6 +15,7 @@ import HomePage from "./features/home/pages/HomePage/HomePage";
 import DashboardPage from "./features/dashboard/pages/DashboardPage/DashboardPage";
 import OrganizationsPage from "./features/dashboard/pages/OrganizationsPage/OrganizationsPage";
 import UsersPage from "./features/dashboard/pages/UsersPage/UsersPage";
+import RolesPage from "./features/dashboard/pages/RolesPage/RolesPage";
 import PermissionsPage from "./features/dashboard/pages/PermissionsPage/PermissionsPage";
 import TasksPage from "./features/dashboard/pages/TasksPage/TasksPage";
 import AuditLogPage from "./features/dashboard/pages/AuditLogPage/AuditLogPage";
@@ -129,6 +130,19 @@ function App() {
 									]}
 								>
 									<UsersPage />
+								</DashboardPermissionGuard>
+							}
+						/>
+						<Route
+							path="roles"
+							element={
+								<DashboardPermissionGuard
+									permission={[
+										"dashboard.roles.read",
+										"dashboard.roles.write",
+									]}
+								>
+									<RolesPage />
 								</DashboardPermissionGuard>
 							}
 						/>

@@ -72,6 +72,13 @@ async fn main() -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
         .post(handlers::dashboard::create_user)
         .patch(handlers::dashboard::update_user)
         .delete(handlers::dashboard::delete_user),
+    )
+    .route_methods(
+      "/api/dashboard/roles",
+      get(handlers::dashboard::list_roles)
+        .post(handlers::dashboard::create_role)
+        .patch(handlers::dashboard::update_role)
+        .delete(handlers::dashboard::delete_role),
     );
 
   let (router, db_conn, cron_runner, response_cache) = app.into_router_before_state().await;

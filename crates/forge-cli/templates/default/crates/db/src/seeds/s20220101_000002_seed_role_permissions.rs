@@ -1,5 +1,4 @@
-use forge::DbConnection;
-use sea_orm::{ColumnTrait, EntityTrait, QueryFilter, Set};
+use sea_orm::{ConnectionTrait, ColumnTrait, EntityTrait, QueryFilter, Set};
 use tracing::info;
 use uuid::Uuid;
 
@@ -12,15 +11,19 @@ const PERMISSIONS: &[&str] = &[
   "dashboard.organizations.write",
   "dashboard.users.read",
   "dashboard.users.write",
+  "dashboard.roles.read",
+  "dashboard.roles.write",
   "dashboard.permissions.read",
   "dashboard.permissions.write",
 ];
 
-/// Org-scoped: owner and admin get users and permissions read+write (organizations list is platform-only).
+/// Org-scoped: owner and admin get users, roles, and permissions read+write (organizations list is platform-only).
 const ORG_OWNER_ADMIN: &[&str] = &[
   "dashboard",
   "dashboard.users.read",
   "dashboard.users.write",
+  "dashboard.roles.read",
+  "dashboard.roles.write",
   "dashboard.permissions.read",
   "dashboard.permissions.write",
 ];
@@ -35,8 +38,8 @@ const ORG_EDITOR: &[&str] = &[
 /// Org-scoped: viewer can only read users list.
 const ORG_VIEWER: &[&str] = &["dashboard", "dashboard.users.read"];
 
-async fn ensure_role_permission(
-  db: &DbConnection,
+async fn ensure_role_permission<C: ConnectionTrait>(
+  db: &C,
   scope: &str,
   role_name: &str,
   permission_key: &str,
@@ -81,7 +84,7 @@ const LEGACY_MIGRATION: &[(&str, &[&str])] = &[
 ];
 
 /// Migrate legacy role_permission rows to .read/.write keys (idempotent).
-async fn migrate_legacy_permissions(db: &DbConnection) -> Result<(), Box<dyn std::error::Error>> {
+async fn migrate_legacy_permissions<C: ConnectionTrait>(db: &C) -> Result<(), Box<dyn std::error::Error>> {
   for (old_key, new_keys) in LEGACY_MIGRATION {
     let rows = role_permission::Entity::find()
       .filter(role_permission::Column::PermissionKey.eq(*old_key))
@@ -104,7 +107,7 @@ async fn migrate_legacy_permissions(db: &DbConnection) -> Result<(), Box<dyn std
   Ok(())
 }
 
-pub async fn seed(db: &DbConnection) -> Result<(), Box<dyn std::error::Error>> {
+pub async fn seed(db: &impl ConnectionTrait) -> Result<(), Box<dyn std::error::Error>> {
   // Migrate any legacy permission keys to .read/.write (no-op if already migrated).
   migrate_legacy_permissions(db).await?;
 
@@ -129,5 +132,23 @@ pub async fn seed(db: &DbConnection) -> Result<(), Box<dyn std::error::Error>> {
     }
   }
 
+  Ok(())
+}
+
+/// Seeds role_permission rows for the four template roles of one org. Call after creating org_roles for a new org.
+pub async fn seed_role_permissions_for_org<C: ConnectionTrait>(
+  db: &C,
+  org_id: Uuid,
+) -> Result<(), Box<dyn std::error::Error>> {
+  for key in ORG_OWNER_ADMIN {
+    ensure_role_permission(db, "org", "owner", key, Some(org_id)).await?;
+    ensure_role_permission(db, "org", "admin", key, Some(org_id)).await?;
+  }
+  for key in ORG_EDITOR {
+    ensure_role_permission(db, "org", "editor", key, Some(org_id)).await?;
+  }
+  for key in ORG_VIEWER {
+    ensure_role_permission(db, "org", "viewer", key, Some(org_id)).await?;
+  }
   Ok(())
 }

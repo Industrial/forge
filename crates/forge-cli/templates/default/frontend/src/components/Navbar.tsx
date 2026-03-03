@@ -86,14 +86,14 @@ export default function Navbar({
 		handleClose();
 		navigate("/profile");
 	};
-	const handleSwitchProfile = async (orgId: string) => {
+	const handleSwitchProfile = async (orgId: string, roleId?: string) => {
 		handleClose();
 		try {
 			await fetch("/api/auth/switch-profile", {
 				method: "POST",
 				headers: { "Content-Type": "application/json" },
 				credentials: "include",
-				body: JSON.stringify({ org_id: orgId }),
+				body: JSON.stringify({ org_id: orgId, role_id: roleId ?? undefined }),
 			});
 		} finally {
 			await refresh();
@@ -186,12 +186,15 @@ export default function Navbar({
 					</MenuItem>
 					<Divider />
 					{profiles.map((p) => (
-						<MenuItem key={p.org_id} onClick={() => handleSwitchProfile(p.org_id)}>
+						<MenuItem
+							key={p.role_id ?? p.org_id}
+							onClick={() => handleSwitchProfile(p.org_id, p.role_id)}
+						>
 							<ListItemIcon>
 								<Business fontSize="small" />
 							</ListItemIcon>
 							<ListItemText
-								primary={`${p.role.charAt(0).toUpperCase()}${p.role.slice(1)} · ${p.org_name}`}
+								primary={`${(p.role ?? "").charAt(0).toUpperCase()}${(p.role ?? "").slice(1)} · ${p.org_name}`}
 							/>
 						</MenuItem>
 					))}

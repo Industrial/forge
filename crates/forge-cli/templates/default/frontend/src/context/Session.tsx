@@ -13,6 +13,7 @@ export type Flash = { message?: string; error?: string };
 export type Profile = {
 	org_id: string;
 	org_name: string;
+	role_id?: string;
 	role: string;
 };
 

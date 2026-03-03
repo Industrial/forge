@@ -240,7 +240,8 @@ mod tests {
     #[test]
     fn create_new_project_succeeds_with_valid_name() {
       let _guard = CREATE_PROJECT_LOCK.lock().unwrap();
-      // Given: A temporary directory (use full path so test is safe when run in parallel)
+      // Given: A temporary directory (use full path so test is safe when run in parallel).
+      // Single project creation for all content assertions to reduce disk usage.
       let temp_dir = tempdir().unwrap();
       let project_name = "test_project";
       let project_path = temp_dir.path().join(project_name);
@@ -249,7 +250,11 @@ mod tests {
       let result = create_new_project(project_path.to_str().unwrap());
 
       // Then: It should succeed and create files
-      assert!(result.is_ok());
+      assert!(
+        result.is_ok(),
+        "create_new_project failed: {:?}",
+        result.err()
+      );
 
       // Verify directory structure
       assert!(project_path.exists());
@@ -259,6 +264,49 @@ mod tests {
       assert!(project_path.join("crates/db/src/lib.rs").exists());
       assert!(project_path.join(".gitignore").exists());
       assert!(project_path.join("config/app.toml").exists());
+
+      // Cargo.toml content
+      let cargo_content = fs::read_to_string(project_path.join("Cargo.toml")).unwrap();
+      assert!(cargo_content.contains("[workspace]"));
+      assert!(cargo_content.contains("crates/app"));
+      assert!(cargo_content.contains("crates/db"));
+      let app_cargo = fs::read_to_string(project_path.join("crates/app/Cargo.toml")).unwrap();
+      assert!(app_cargo.contains("name = \"app\""));
+      assert!(app_cargo.contains("forge ="));
+      assert!(app_cargo.contains("db ="));
+
+      // main.rs: Forge app code (explicit imports, cron, route_methods for dashboard)
+      let main_content = fs::read_to_string(project_path.join("crates/app/src/main.rs")).unwrap();
+      assert!(
+        main_content.contains("use forge::") && main_content.contains("App"),
+        "generated app should use explicit forge imports"
+      );
+      assert!(
+        !main_content.contains("forge::prelude"),
+        "generated app should use explicit imports"
+      );
+      assert!(main_content.contains("App::new()"));
+      assert!(main_content.contains(".with_migrations(db::Migrator)"));
+      assert!(main_content.contains(".with_cron"));
+      assert!(main_content.contains("CronSchedule"));
+      assert!(main_content.contains(".post_route"));
+      assert!(main_content.contains(".route(\"/api/auth/admin\""));
+      assert!(
+        main_content.contains(".route_methods(") && main_content.contains("/api/dashboard/users"),
+        "generated main should use route_methods for dashboard users"
+      );
+      assert!(
+        main_content.contains(".serve()") || main_content.contains("into_router_before_state"),
+        "generated main should call .serve() or into_router_before_state"
+      );
+
+      // .gitignore content
+      let gitignore_content = fs::read_to_string(project_path.join(".gitignore")).unwrap();
+      assert!(gitignore_content.contains("target/"));
+      assert!(gitignore_content.contains(".env"));
+      assert!(gitignore_content.contains("*.log"));
+      assert!(gitignore_content.contains(".vscode/"));
+      assert!(gitignore_content.contains(".DS_Store"));
 
       // Git init is best-effort (e.g. git may not be in PATH in some environments)
       if project_path.join(".git").exists() {
@@ -283,89 +331,6 @@ mod tests {
       // Then: It should fail
       assert!(result.is_err());
       assert!(result.unwrap_err().to_string().contains("already exists"));
-    }
-
-    #[test]
-    fn create_new_project_generates_correct_cargo_toml() {
-      let _guard = CREATE_PROJECT_LOCK.lock().unwrap();
-      // Given: Project creation setup (use full path so test is safe when run in parallel)
-      let temp_dir = tempdir().unwrap();
-      let project_name = "cargo_test";
-      let project_path = temp_dir.path().join(project_name);
-
-      // When: Creating project
-      let result = create_new_project(project_path.to_str().unwrap());
-      assert!(
-        result.is_ok(),
-        "create_new_project failed: {:?}",
-        result.err()
-      );
-
-      // Then: Cargo.toml should have correct content
-      let cargo_content = fs::read_to_string(project_path.join("Cargo.toml")).unwrap();
-      assert!(cargo_content.contains("[workspace]"));
-      assert!(cargo_content.contains("crates/app"));
-      assert!(cargo_content.contains("crates/db"));
-
-      let app_cargo = fs::read_to_string(project_path.join("crates/app/Cargo.toml")).unwrap();
-      assert!(app_cargo.contains("name = \"app\""));
-      assert!(app_cargo.contains("forge ="));
-      assert!(app_cargo.contains("db ="));
-    }
-
-    #[test]
-    fn create_new_project_generates_correct_main_rs() {
-      let _guard = CREATE_PROJECT_LOCK.lock().unwrap();
-      // Given: Project creation setup (use full path so test is safe when run in parallel)
-      let temp_dir = tempdir().unwrap();
-      let project_name = "main_test";
-      let project_path = temp_dir.path().join(project_name);
-
-      // When: Creating project
-      let result = create_new_project(project_path.to_str().unwrap());
-      assert!(result.is_ok());
-
-      // Then: main.rs should have correct Forge app code (explicit imports, cron)
-      let main_content = fs::read_to_string(project_path.join("crates/app/src/main.rs")).unwrap();
-      assert!(
-        main_content.contains("use forge::") && main_content.contains("App"),
-        "generated app should use explicit forge imports"
-      );
-      assert!(
-        !main_content.contains("forge::prelude"),
-        "generated app should use explicit imports"
-      );
-      assert!(main_content.contains("App::new()"));
-      assert!(main_content.contains(".with_migrations(db::Migrator)"));
-      assert!(main_content.contains(".with_cron"));
-      assert!(main_content.contains("CronSchedule"));
-      assert!(main_content.contains(".post_route"));
-      assert!(main_content.contains(".route(\"/api/auth/admin\""));
-      assert!(
-        main_content.contains(".serve()") || main_content.contains("into_router_before_state"),
-        "generated main should call .serve() or into_router_before_state"
-      );
-    }
-
-    #[test]
-    fn create_new_project_generates_gitignore() {
-      let _guard = CREATE_PROJECT_LOCK.lock().unwrap();
-      // Given: Project creation setup (use full path so test is safe when run in parallel)
-      let temp_dir = tempdir().unwrap();
-      let project_name = "gitignore_test";
-      let project_path = temp_dir.path().join(project_name);
-
-      // When: Creating project
-      let result = create_new_project(project_path.to_str().unwrap());
-      assert!(result.is_ok());
-
-      // Then: .gitignore should exist with correct content
-      let gitignore_content = fs::read_to_string(project_path.join(".gitignore")).unwrap();
-      assert!(gitignore_content.contains("target/"));
-      assert!(gitignore_content.contains(".env"));
-      assert!(gitignore_content.contains("*.log"));
-      assert!(gitignore_content.contains(".vscode/"));
-      assert!(gitignore_content.contains(".DS_Store"));
     }
   }
 

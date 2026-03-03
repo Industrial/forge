@@ -16,7 +16,7 @@ use uuid::Uuid;
 use forge::auth::hash_password;
 
 use db::auth::Backend;
-use db::models::{audit_log, membership, organization, role_permission, user};
+use db::models::{audit_log, membership, org_role, organization, role_permission, user, user_org_role};
 
 use crate::handlers::auth::{resolve_permissions, DASHBOARD_PERMISSIONS};
 
@@ -27,6 +27,8 @@ const PERMISSION_ORGS_READ: &str = "dashboard.organizations.read";
 const PERMISSION_ORGS_WRITE: &str = "dashboard.organizations.write";
 const PERMISSION_USERS_READ: &str = "dashboard.users.read";
 const PERMISSION_USERS_WRITE: &str = "dashboard.users.write";
+const PERMISSION_ROLES_READ: &str = "dashboard.roles.read";
+const PERMISSION_ROLES_WRITE: &str = "dashboard.roles.write";
 
 pub(crate) fn has_permission(permissions: &[String], key: &str) -> bool {
   permissions.iter().any(|p| p == key)
@@ -419,6 +421,259 @@ pub async fn list_organizations(
 }
 
 #[derive(Deserialize)]
+pub struct ListRolesQuery {
+  pub org_id: Option<Uuid>,
+}
+
+/// GET /api/dashboard/roles — list org roles. Query param org_id optional for admin; else current org. Requires dashboard.roles.read.
+pub async fn list_roles(
+  RequireAuth(user): RequireAuth<Backend>,
+  State(db): State<DbConnection>,
+  Query(q): Query<ListRolesQuery>,
+) -> Result<impl IntoResponse, ForgeError> {
+  if let Some(resp) = require_permission(&user, &db, PERMISSION_ROLES_READ).await {
+    return Ok(resp);
+  }
+  let org_id = if user.is_admin {
+    q.org_id.or(user.current_org_id)
+  } else {
+    user.current_org_id
+  };
+  let org_id = match org_id {
+    Some(id) => id,
+    None => return Ok(Json(serde_json::json!({ "roles": [] })).into_response()),
+  };
+  let rows = org_role::Entity::find()
+    .filter(org_role::Column::OrgId.eq(org_id))
+    .order_by_asc(org_role::Column::Name)
+    .all(&db)
+    .await
+    .map_err(|e: sea_orm::DbErr| ForgeError::Generic(e.to_string()))?;
+  let list: Vec<serde_json::Value> = rows
+    .into_iter()
+    .map(|r| {
+      serde_json::json!({
+        "id": r.id.to_string(),
+        "org_id": r.org_id.to_string(),
+        "name": r.name,
+        "display_name": r.display_name,
+        "created_at": r.created_at.format("%Y-%m-%dT%H:%M:%S%.fZ").to_string(),
+        "updated_at": r.updated_at.format("%Y-%m-%dT%H:%M:%S%.fZ").to_string(),
+      })
+    })
+    .collect();
+  Ok(Json(serde_json::json!({ "roles": list })).into_response())
+}
+
+#[derive(Deserialize)]
+pub struct CreateRoleBody {
+  pub org_id: Option<Uuid>,
+  pub name: String,
+  pub display_name: Option<String>,
+}
+
+/// POST /api/dashboard/roles — create org role. Requires dashboard.roles.write. Non-admin: org_id must be current org.
+pub async fn create_role(
+  RequireAuth(user): RequireAuth<Backend>,
+  State(db): State<DbConnection>,
+  Json(payload): Json<CreateRoleBody>,
+) -> Result<impl IntoResponse, ForgeError> {
+  if let Some(resp) = require_permission(&user, &db, PERMISSION_ROLES_WRITE).await {
+    return Ok(resp);
+  }
+  let org_id = if user.is_admin {
+    payload.org_id.or(user.current_org_id)
+  } else {
+    user.current_org_id
+  };
+  let org_id = match org_id {
+    Some(id) => id,
+    None => {
+      return Ok(
+        (
+          StatusCode::FORBIDDEN,
+          Json(serde_json::json!({ "error": "No organization context" })),
+        )
+          .into_response(),
+      );
+    }
+  };
+  if user.current_org_id != Some(org_id) && !user.is_admin {
+    return Ok(
+      (
+        StatusCode::FORBIDDEN,
+        Json(serde_json::json!({ "error": "Can only create roles in your current organization" })),
+      )
+        .into_response(),
+    );
+  }
+  let name = payload.name.trim();
+  if name.is_empty() {
+    return Ok(
+      (
+        StatusCode::UNPROCESSABLE_ENTITY,
+        Json(serde_json::json!({ "error": "name is required" })),
+      )
+        .into_response(),
+    );
+  }
+  let existing = org_role::Entity::find()
+    .filter(org_role::Column::OrgId.eq(org_id))
+    .filter(org_role::Column::Name.eq(name))
+    .one(&db)
+    .await
+    .map_err(|e| ForgeError::Generic(e.to_string()))?;
+  if existing.is_some() {
+    return Ok(
+      (
+        StatusCode::UNPROCESSABLE_ENTITY,
+        Json(serde_json::json!({ "error": "A role with this name already exists in this organization" })),
+      )
+        .into_response(),
+    );
+  }
+  let now = chrono::Utc::now().naive_utc();
+  let id = Uuid::new_v4();
+  let display_name = payload.display_name.as_ref().map(|s| s.trim()).filter(|s| !s.is_empty()).map(|s| s.to_string());
+  let model = org_role::ActiveModel {
+    id: Set(id),
+    org_id: Set(org_id),
+    name: Set(name.to_string()),
+    display_name: Set(display_name.clone()),
+    created_at: Set(now),
+    updated_at: Set(now),
+    ..Default::default()
+  };
+  org_role::Entity::insert(model).exec(&db).await.map_err(|e| ForgeError::Generic(e.to_string()))?;
+  Ok(
+    (
+      StatusCode::CREATED,
+      Json(serde_json::json!({
+        "id": id.to_string(),
+        "org_id": org_id.to_string(),
+        "name": name,
+        "display_name": display_name,
+        "created_at": now.format("%Y-%m-%dT%H:%M:%S%.fZ").to_string(),
+        "updated_at": now.format("%Y-%m-%dT%H:%M:%S%.fZ").to_string(),
+      })),
+    )
+      .into_response(),
+  )
+}
+
+#[derive(Deserialize)]
+pub struct UpdateRoleBody {
+  pub id: Uuid,
+  pub name: Option<String>,
+  pub display_name: Option<String>,
+}
+
+/// PATCH /api/dashboard/roles — update org role. Requires dashboard.roles.write.
+pub async fn update_role(
+  RequireAuth(user): RequireAuth<Backend>,
+  State(db): State<DbConnection>,
+  Json(payload): Json<UpdateRoleBody>,
+) -> Result<impl IntoResponse, ForgeError> {
+  if let Some(resp) = require_permission(&user, &db, PERMISSION_ROLES_WRITE).await {
+    return Ok(resp);
+  }
+  let role = org_role::Entity::find_by_id(payload.id)
+    .one(&db)
+    .await
+    .map_err(|e| ForgeError::Generic(e.to_string()))?
+    .ok_or_else(|| ForgeError::Generic("Role not found".into()))?;
+  if user.current_org_id != Some(role.org_id) && !user.is_admin {
+    return Ok(
+      (
+        StatusCode::FORBIDDEN,
+        Json(serde_json::json!({ "error": "Can only update roles in your current organization" })),
+      )
+        .into_response(),
+    );
+  }
+  let org_id = role.org_id;
+  let role_id = role.id;
+  let mut am: org_role::ActiveModel = role.into();
+  if let Some(name) = payload.name {
+    let t = name.trim();
+    if !t.is_empty() {
+      let existing = org_role::Entity::find()
+        .filter(org_role::Column::OrgId.eq(org_id))
+        .filter(org_role::Column::Name.eq(t))
+        .filter(org_role::Column::Id.ne(role_id))
+        .one(&db)
+        .await
+        .map_err(|e| ForgeError::Generic(e.to_string()))?;
+      if existing.is_some() {
+        return Ok(
+          (
+            StatusCode::UNPROCESSABLE_ENTITY,
+            Json(serde_json::json!({ "error": "A role with this name already exists" })),
+          )
+            .into_response(),
+        );
+      }
+      am.name = Set(t.to_string());
+    }
+  }
+  if let Some(display_name) = payload.display_name {
+    am.display_name = Set(Some(display_name.trim().to_string()).filter(|s| !s.is_empty()));
+  }
+  am.updated_at = Set(chrono::Utc::now().naive_utc());
+  am.update(&db).await.map_err(|e| ForgeError::Generic(e.to_string()))?;
+  Ok(Json(serde_json::json!({ "ok": true })).into_response())
+}
+
+#[derive(Deserialize)]
+pub struct DeleteRoleBody {
+  pub id: Uuid,
+}
+
+/// DELETE /api/dashboard/roles — delete org role. Requires dashboard.roles.write. Fails if any user has this role.
+pub async fn delete_role(
+  RequireAuth(user): RequireAuth<Backend>,
+  State(db): State<DbConnection>,
+  Json(payload): Json<DeleteRoleBody>,
+) -> Result<impl IntoResponse, ForgeError> {
+  if let Some(resp) = require_permission(&user, &db, PERMISSION_ROLES_WRITE).await {
+    return Ok(resp);
+  }
+  let role = org_role::Entity::find_by_id(payload.id)
+    .one(&db)
+    .await
+    .map_err(|e| ForgeError::Generic(e.to_string()))?
+    .ok_or_else(|| ForgeError::Generic("Role not found".into()))?;
+  if user.current_org_id != Some(role.org_id) && !user.is_admin {
+    return Ok(
+      (
+        StatusCode::FORBIDDEN,
+        Json(serde_json::json!({ "error": "Can only delete roles in your current organization" })),
+      )
+        .into_response(),
+    );
+  }
+  let count = user_org_role::Entity::find()
+    .filter(user_org_role::Column::RoleId.eq(payload.id))
+    .count(&db)
+    .await
+    .map_err(|e| ForgeError::Generic(e.to_string()))?;
+  if count > 0 {
+    return Ok(
+      (
+        StatusCode::UNPROCESSABLE_ENTITY,
+        Json(serde_json::json!({ "error": "Cannot delete role: one or more users have this role. Remove assignments first." })),
+      )
+        .into_response(),
+    );
+  }
+  org_role::Entity::delete_by_id(payload.id)
+    .exec(&db)
+    .await
+    .map_err(|e| ForgeError::Generic(e.to_string()))?;
+  Ok(Json(serde_json::json!({ "ok": true })).into_response())
+}
+
+#[derive(Deserialize)]
 pub struct CreateOrganizationBody {
   pub name: String,
   pub slug: Option<String>,
@@ -478,6 +733,20 @@ pub async fn create_organization(
     .exec(&db)
     .await
     .map_err(|e| ForgeError::Generic(e.to_string()))?;
+  for &role_name in &["owner", "admin", "editor", "viewer"] {
+    let role_id = Uuid::new_v4();
+    let r = org_role::ActiveModel {
+      id: Set(role_id),
+      org_id: Set(id),
+      name: Set(role_name.to_string()),
+      display_name: Set(None),
+      created_at: Set(now),
+      updated_at: Set(now),
+      ..Default::default()
+    };
+    org_role::Entity::insert(r).exec(&db).await.map_err(|e| ForgeError::Generic(e.to_string()))?;
+  }
+  db::seed_role_permissions_for_org(&db, id).await.map_err(|e| ForgeError::Generic(e.to_string()))?;
   Ok(
     (
       StatusCode::CREATED,
@@ -614,7 +883,7 @@ pub async fn list_users(
     .await
     .map_err(|e: sea_orm::DbErr| ForgeError::Generic(e.to_string()))?;
   let all_memberships = membership::Entity::find()
-    .filter(membership::Column::UserId.is_in(user_ids))
+    .filter(membership::Column::UserId.is_in(user_ids.clone()))
     .all(&db)
     .await
     .map_err(|e: sea_orm::DbErr| ForgeError::Generic(e.to_string()))?;
@@ -631,17 +900,48 @@ pub async fn list_users(
     .map_err(|e: sea_orm::DbErr| ForgeError::Generic(e.to_string()))?;
   let org_map: std::collections::HashMap<Uuid, String> =
     orgs.into_iter().map(|o| (o.id, o.name)).collect();
+  let all_uors = user_org_role::Entity::find()
+    .filter(user_org_role::Column::UserId.is_in(user_ids.clone()))
+    .all(&db)
+    .await
+    .map_err(|e: sea_orm::DbErr| ForgeError::Generic(e.to_string()))?;
+  let role_ids: Vec<Uuid> = all_uors.iter().map(|x| x.role_id).collect::<std::collections::HashSet<_>>().into_iter().collect();
+  let roles = if role_ids.is_empty() {
+    vec![]
+  } else {
+    org_role::Entity::find()
+      .filter(org_role::Column::Id.is_in(role_ids))
+      .all(&db)
+      .await
+      .map_err(|e: sea_orm::DbErr| ForgeError::Generic(e.to_string()))?
+  };
+  let role_map: std::collections::HashMap<Uuid, org_role::Model> =
+    roles.into_iter().map(|r| (r.id, r)).collect();
   let list: Vec<serde_json::Value> = users
     .into_iter()
     .map(|u| {
-      let mems: Vec<serde_json::Value> = all_memberships
+      let user_memberships: std::collections::HashMap<Uuid, Vec<String>> = all_memberships
         .iter()
         .filter(|m| m.user_id == u.id)
-        .map(|m| {
+        .map(|m| m.org_id)
+        .collect::<std::collections::HashSet<_>>()
+        .into_iter()
+        .map(|org_id| {
+          let role_names: Vec<String> = all_uors
+            .iter()
+            .filter(|x| x.user_id == u.id && x.org_id == org_id)
+            .filter_map(|x| role_map.get(&x.role_id).map(|r| r.name.clone()))
+            .collect();
+          (org_id, role_names)
+        })
+        .collect();
+      let mems: Vec<serde_json::Value> = user_memberships
+        .into_iter()
+        .map(|(org_id, role_names)| {
           serde_json::json!({
-            "org_id": m.org_id.to_string(),
-            "org_name": org_map.get(&m.org_id).cloned().unwrap_or_else(|| "—".to_string()),
-            "role": m.role,
+            "org_id": org_id.to_string(),
+            "org_name": org_map.get(&org_id).cloned().unwrap_or_else(|| "—".to_string()),
+            "roles": role_names,
           })
         })
         .collect();
@@ -663,10 +963,10 @@ pub struct CreateUserBody {
   pub email: String,
   pub password: String,
   pub org_id: Uuid,
-  pub role: String,
+  pub role_ids: Vec<Uuid>,
 }
 
-/// POST /api/dashboard/users — create user and add to org. Requires dashboard.users.write. Non-admin: org_id must be current_org_id.
+/// POST /api/dashboard/users — create user and add to org with given roles. Requires dashboard.users.write. Non-admin: org_id must be current_org_id.
 pub async fn create_user(
   RequireAuth(user): RequireAuth<Backend>,
   State(db): State<DbConnection>,
@@ -710,15 +1010,32 @@ pub async fn create_user(
       }
     }
   };
-  let role = payload.role.trim();
-  if role.is_empty() || !["owner", "admin", "editor", "viewer"].contains(&role) {
+  if payload.role_ids.is_empty() {
     return Ok(
       (
         StatusCode::UNPROCESSABLE_ENTITY,
-        Json(serde_json::json!({ "error": "role must be one of: owner, admin, editor, viewer" })),
+        Json(serde_json::json!({ "error": "At least one role is required" })),
       )
         .into_response(),
     );
+  }
+  for role_id in &payload.role_ids {
+    let role_row = org_role::Entity::find_by_id(*role_id)
+      .one(&db)
+      .await
+      .map_err(|e| ForgeError::Generic(e.to_string()))?;
+    match role_row {
+      Some(r) if r.org_id == org_id => {}
+      _ => {
+        return Ok(
+          (
+            StatusCode::UNPROCESSABLE_ENTITY,
+            Json(serde_json::json!({ "error": "Each role_id must belong to the selected organization" })),
+          )
+            .into_response(),
+        );
+      }
+    }
   }
   if user::Entity::find()
     .filter(user::Column::Email.eq(email))
@@ -747,7 +1064,15 @@ pub async fn create_user(
     is_active: Set(true),
     is_admin: Set(false),
     current_org_id: Set(Some(org_id)),
-    current_role: Set(Some(role.to_string())),
+    current_role: Set(Some(
+      org_role::Entity::find_by_id(payload.role_ids[0])
+        .one(&db)
+        .await
+        .ok()
+        .flatten()
+        .map(|r| r.name)
+        .unwrap_or_else(|| "viewer".to_string()),
+    )),
     created_at: Set(now),
     updated_at: Set(now),
     ..Default::default()
@@ -760,7 +1085,6 @@ pub async fn create_user(
     id: Set(membership_id),
     user_id: Set(user_id),
     org_id: Set(org_id),
-    role: Set(role.to_string()),
     created_at: Set(now),
     updated_at: Set(now),
     ..Default::default()
@@ -769,6 +1093,27 @@ pub async fn create_user(
     .exec(&db)
     .await
     .map_err(|e| ForgeError::Generic(e.to_string()))?;
+  for role_id in &payload.role_ids {
+    let uor_id = Uuid::new_v4();
+    let uor = user_org_role::ActiveModel {
+      id: Set(uor_id),
+      user_id: Set(user_id),
+      org_id: Set(org_id),
+      role_id: Set(*role_id),
+      created_at: Set(now),
+      updated_at: Set(now),
+      ..Default::default()
+    };
+    user_org_role::Entity::insert(uor).exec(&db).await.map_err(|e| ForgeError::Generic(e.to_string()))?;
+  }
+  let role_names: Vec<String> = org_role::Entity::find()
+    .filter(org_role::Column::Id.is_in(payload.role_ids.clone()))
+    .all(&db)
+    .await
+    .map_err(|e| ForgeError::Generic(e.to_string()))?
+    .into_iter()
+    .map(|r| r.name)
+    .collect();
   Ok(
     (
       StatusCode::CREATED,
@@ -778,7 +1123,7 @@ pub async fn create_user(
         "is_active": true,
         "is_admin": false,
         "created_at": now.format("%Y-%m-%dT%H:%M:%S%.fZ").to_string(),
-        "memberships": [{ "org_id": org_id.to_string(), "role": role }],
+        "memberships": [{ "org_id": org_id.to_string(), "roles": role_names }],
       })),
     )
       .into_response(),

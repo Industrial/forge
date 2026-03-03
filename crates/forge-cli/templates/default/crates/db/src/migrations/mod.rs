@@ -6,3 +6,6 @@ pub mod m20220101_000005_create_audit_log_table;
 pub mod m20220101_000006_create_api_tokens_table;
 pub mod m20220101_000007_create_role_permission_table;
 pub mod m20220101_000008_add_org_id_to_role_permission;
+pub mod m20220101_000009_create_org_role_table;
+pub mod m20220101_000010_create_user_org_role_table;
+pub mod m20220101_000011_org_roles_and_user_org_role_data;

@@ -21,6 +21,9 @@ impl MigratorTrait for Migrator {
       Box::new(migrations::m20220101_000006_create_api_tokens_table::Migration),
       Box::new(migrations::m20220101_000007_create_role_permission_table::Migration),
       Box::new(migrations::m20220101_000008_add_org_id_to_role_permission::Migration),
+      Box::new(migrations::m20220101_000009_create_org_role_table::Migration),
+      Box::new(migrations::m20220101_000010_create_user_org_role_table::Migration),
+      Box::new(migrations::m20220101_000011_org_roles_and_user_org_role_data::Migration),
     ]
   }
 }
@@ -29,6 +32,14 @@ pub async fn run_seeds(db: DbConnection) -> Result<(), Box<dyn std::error::Error
   seeds::s20220101_000001_seed_users::seed(&db).await?;
   seeds::s20220101_000002_seed_role_permissions::seed(&db).await?;
   Ok(())
+}
+
+/// Seeds role_permission for the four template roles of an org. Use after creating an org and its org_roles.
+pub async fn seed_role_permissions_for_org<C: sea_orm::ConnectionTrait>(
+  db: &C,
+  org_id: uuid::Uuid,
+) -> Result<(), Box<dyn std::error::Error>> {
+  seeds::s20220101_000002_seed_role_permissions::seed_role_permissions_for_org(db, org_id).await
 }
 
 /// Look up user id by raw API token (Bearer). Returns None if token invalid or expired.
@@ -54,8 +65,8 @@ mod tests {
   use super::*;
 
   #[test]
-  fn migrator_returns_eight_migrations() {
+  fn migrator_returns_eleven_migrations() {
     let migrations = Migrator::migrations();
-    assert_eq!(migrations.len(), 8);
+    assert_eq!(migrations.len(), 11);
   }
 }

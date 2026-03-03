@@ -28,7 +28,7 @@ import { useSession } from "../../../../context/Session";
 type Membership = {
 	org_id: string;
 	org_name: string;
-	role: string;
+	roles: string[];
 };
 
 type User = {
@@ -48,19 +48,26 @@ type Organization = {
 
 const USERS_READ = "dashboard.users.read";
 const USERS_WRITE = "dashboard.users.write";
-const ROLES = ["owner", "admin", "editor", "viewer"];
+const FILTER_ROLES = ["owner", "admin", "editor", "viewer"];
+
+type OrgRole = {
+	id: string;
+	name: string;
+	display_name: string | null;
+};
 
 type UserFormAddProps = {
 	mode: "add";
 	email: string;
 	password: string;
 	orgId: string;
-	role: string;
+	roleIds: string[];
 	organizations: Organization[];
+	orgRoles: OrgRole[];
 	onEmailChange: (value: string) => void;
 	onPasswordChange: (value: string) => void;
 	onOrgIdChange: (value: string) => void;
-	onRoleChange: (value: string) => void;
+	onRoleIdsChange: (value: string[]) => void;
 	disabled?: boolean;
 };
 
@@ -119,15 +126,17 @@ function UserForm(props: UserFormProps) {
 					</Select>
 				</FormControl>
 				<FormControl fullWidth size="small" disabled={props.disabled}>
-					<InputLabel>Role</InputLabel>
+					<InputLabel>Roles</InputLabel>
 					<Select
-						label="Role"
-						value={props.role}
-						onChange={(e) => props.onRoleChange(e.target.value)}
+						label="Roles"
+						multiple
+						value={props.roleIds}
+						onChange={(e) => props.onRoleIdsChange([].slice.call(e.target.value))}
+						renderValue={(selected) => (selected as string[]).map((id) => props.orgRoles.find((r) => r.id === id)?.name ?? id).join(", ")}
 					>
-						{ROLES.map((r) => (
-							<MenuItem key={r} value={r}>
-								{r}
+						{props.orgRoles.map((r) => (
+							<MenuItem key={r.id} value={r.id}>
+								{r.display_name || r.name}
 							</MenuItem>
 						))}
 					</Select>
@@ -169,7 +178,7 @@ function formatDate(iso: string) {
 
 function membershipsSummary(memberships: Membership[]) {
 	if (!memberships.length) return "—";
-	return memberships.map((m) => `${m.org_name} (${m.role})`).join(", ");
+	return memberships.map((m) => `${m.org_name}: ${(m.roles ?? []).join(", ") || "—"}`).join("; ");
 }
 
 export default function UsersPage() {
@@ -185,7 +194,8 @@ export default function UsersPage() {
 	const [addEmail, setAddEmail] = useState("");
 	const [addPassword, setAddPassword] = useState("");
 	const [addOrgId, setAddOrgId] = useState("");
-	const [addRole, setAddRole] = useState("editor");
+	const [addRoleIds, setAddRoleIds] = useState<string[]>([]);
+	const [orgRoles, setOrgRoles] = useState<OrgRole[]>([]);
 	const [adding, setAdding] = useState(false);
 	const [filterEmail, setFilterEmail] = useState("");
 	const [filterOrgId, setFilterOrgId] = useState("");
@@ -271,6 +281,35 @@ export default function UsersPage() {
 		fetchOrgs();
 	}, [fetchOrgs]);
 
+	const fetchOrgRoles = useCallback(async (orgId: string) => {
+		if (!orgId) {
+			setOrgRoles([]);
+			setAddRoleIds([]);
+			return;
+		}
+		try {
+			const res = await fetch(`/api/dashboard/roles?org_id=${encodeURIComponent(orgId)}`, {
+				credentials: "include",
+			});
+			if (res.ok) {
+				const data = await res.json();
+				const list = data.roles ?? [];
+				setOrgRoles(list);
+				setAddRoleIds((prev) => prev.filter((id) => list.some((r: OrgRole) => r.id === id)));
+			} else {
+				setOrgRoles([]);
+				setAddRoleIds([]);
+			}
+		} catch {
+			setOrgRoles([]);
+			setAddRoleIds([]);
+		}
+	}, []);
+
+	useEffect(() => {
+		fetchOrgRoles(addOrgId);
+	}, [addOrgId, fetchOrgRoles]);
+
 	const handleAdd = async () => {
 		const email = addEmail.trim();
 		if (!email) return;
@@ -280,6 +319,10 @@ export default function UsersPage() {
 		}
 		if (!addOrgId) {
 			setError("Select an organization.");
+			return;
+		}
+		if (addRoleIds.length === 0) {
+			setError("Select at least one role.");
 			return;
 		}
 		setAdding(true);
@@ -293,7 +336,7 @@ export default function UsersPage() {
 					email,
 					password: addPassword,
 					org_id: addOrgId,
-					role: addRole,
+					role_ids: addRoleIds,
 				}),
 			});
 			if (res.status === 403) {
@@ -307,6 +350,7 @@ export default function UsersPage() {
 			}
 			setAddEmail("");
 			setAddPassword("");
+			setAddRoleIds([]);
 			setAddDialogOpen(false);
 			await fetchUsers();
 		} catch {
@@ -391,8 +435,8 @@ export default function UsersPage() {
 			user.memberships.some((m) => m.org_id === filterOrgId);
 		const roleMatch =
 			!filterRole ||
-			user.memberships.some(
-				(m) => m.role.toLowerCase() === filterRole.toLowerCase(),
+			user.memberships.some((m) =>
+				(m.roles ?? []).some((r) => r.toLowerCase() === filterRole.toLowerCase()),
 			);
 		const activeMatch =
 			filterActive === "" ||
@@ -468,7 +512,7 @@ export default function UsersPage() {
 							onChange={(e) => setFilterRole(e.target.value)}
 						>
 							<MenuItem value="">All</MenuItem>
-							{ROLES.map((r) => (
+							{FILTER_ROLES.map((r) => (
 								<MenuItem key={r} value={r}>
 									{r}
 								</MenuItem>
@@ -594,7 +638,7 @@ export default function UsersPage() {
 				submittingLabel="Adding…"
 				onSubmit={handleAdd}
 				submitDisabled={
-					!addEmail.trim() || addPassword.length < 8 || !addOrgId
+					!addEmail.trim() || addPassword.length < 8 || !addOrgId || addRoleIds.length === 0
 				}
 				submitting={adding}
 			>
@@ -603,12 +647,13 @@ export default function UsersPage() {
 					email={addEmail}
 					password={addPassword}
 					orgId={addOrgId}
-					role={addRole}
+					roleIds={addRoleIds}
 					organizations={organizations}
+					orgRoles={orgRoles}
 					onEmailChange={setAddEmail}
 					onPasswordChange={setAddPassword}
 					onOrgIdChange={setAddOrgId}
-					onRoleChange={setAddRole}
+					onRoleIdsChange={setAddRoleIds}
 					disabled={adding}
 				/>
 			</FormDialog>

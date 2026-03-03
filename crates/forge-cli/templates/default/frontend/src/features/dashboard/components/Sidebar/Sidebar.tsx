@@ -10,6 +10,7 @@ import ChevronRight from "@mui/icons-material/ChevronRight";
 import Dashboard from "@mui/icons-material/Dashboard";
 import Business from "@mui/icons-material/Business";
 import People from "@mui/icons-material/People";
+import Badge from "@mui/icons-material/Badge";
 import Lock from "@mui/icons-material/Lock";
 import Assignment from "@mui/icons-material/Assignment";
 import History from "@mui/icons-material/History";
@@ -37,6 +38,13 @@ const NAV_ITEMS = [
 		end: false,
 		icon: People,
 		permissions: ["dashboard.users.read", "dashboard.users.write"],
+	},
+	{
+		to: "/dashboard/roles",
+		label: "Roles",
+		end: false,
+		icon: Badge,
+		permissions: ["dashboard.roles.read", "dashboard.roles.write"],
 	},
 	{
 		to: "/dashboard/roles-and-permissions",

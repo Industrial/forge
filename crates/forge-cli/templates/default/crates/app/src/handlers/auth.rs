@@ -20,7 +20,7 @@ use uuid::Uuid;
 use validator::Validate;
 
 use db::auth::Backend;
-use db::models::{api_token, membership, organization, role_permission, user};
+use db::models::{api_token, membership, org_role, organization, role_permission, user, user_org_role};
 
 /// Code-defined dashboard permission keys. Used for resolution and for listing in APIs.
 /// Resources have .read (view/list) and .write (create/update/delete) where applicable.
@@ -30,6 +30,8 @@ pub const DASHBOARD_PERMISSIONS: &[&str] = &[
   "dashboard.organizations.write",
   "dashboard.users.read",
   "dashboard.users.write",
+  "dashboard.roles.read",
+  "dashboard.roles.write",
   "dashboard.permissions.read",
   "dashboard.permissions.write",
   "dashboard.audit.read",
@@ -109,15 +111,50 @@ pub async fn register(
   };
   organization::Entity::insert(new_org).exec(&tx).await?;
 
+  for &name in &["owner", "admin", "editor", "viewer"] {
+    let role_id = Uuid::new_v4();
+    let r = org_role::ActiveModel {
+      id: Set(role_id),
+      org_id: Set(org_id),
+      name: Set(name.to_string()),
+      display_name: Set(None),
+      created_at: Set(now),
+      updated_at: Set(now),
+      ..Default::default()
+    };
+    org_role::Entity::insert(r).exec(&tx).await?;
+  }
+  db::seed_role_permissions_for_org(&tx, org_id)
+    .await
+    .map_err(|e| ForgeError::Generic(e.to_string()))?;
+
   let new_membership = membership::ActiveModel {
     id: Set(membership_id),
     user_id: Set(user_id),
     org_id: Set(org_id),
-    role: Set("owner".to_string()),
     created_at: Set(now),
     updated_at: Set(now),
+    ..Default::default()
   };
   membership::Entity::insert(new_membership).exec(&tx).await?;
+
+  let owner_role = org_role::Entity::find()
+    .filter(org_role::Column::OrgId.eq(org_id))
+    .filter(org_role::Column::Name.eq("owner"))
+    .one(&tx)
+    .await?
+    .ok_or_else(|| ForgeError::Generic("org_role owner not found".into()))?;
+  let uor_id = Uuid::new_v4();
+  let uor = user_org_role::ActiveModel {
+    id: Set(uor_id),
+    user_id: Set(user_id),
+    org_id: Set(org_id),
+    role_id: Set(owner_role.id),
+    created_at: Set(now),
+    updated_at: Set(now),
+    ..Default::default()
+  };
+  user_org_role::Entity::insert(uor).exec(&tx).await?;
 
   let u = user::Entity::find_by_id(user_id)
     .one(&tx)
@@ -304,35 +341,43 @@ pub async fn profile(auth_session: AuthSession<Backend>) -> impl IntoResponse {
   }
 }
 
-/// List of profiles (org + role) the current user can switch to.
+/// List of profiles (org + role) the current user can switch to. One entry per (org, role).
 pub async fn profiles_list(
   RequireAuth(user): RequireAuth<Backend>,
   State(db): State<DbConnection>,
 ) -> Result<impl IntoResponse, ForgeError> {
-  let memberships = membership::Entity::find()
-    .filter(membership::Column::UserId.eq(user.id))
+  let uors = user_org_role::Entity::find()
+    .filter(user_org_role::Column::UserId.eq(user.id))
     .all(&db)
     .await?;
-  let org_ids: Vec<Uuid> = memberships.iter().map(|m| m.org_id).collect();
-  if org_ids.is_empty() {
+  if uors.is_empty() {
     return Ok(Json(serde_json::json!({ "profiles": [] })).into_response());
   }
+  let role_ids: Vec<Uuid> = uors.iter().map(|u| u.role_id).collect();
+  let roles = org_role::Entity::find()
+    .filter(org_role::Column::Id.is_in(role_ids))
+    .all(&db)
+    .await?;
+  let org_ids: Vec<Uuid> = uors.iter().map(|u| u.org_id).collect::<std::collections::HashSet<_>>().into_iter().collect();
   let orgs = organization::Entity::find()
     .filter(organization::Column::Id.is_in(org_ids))
     .all(&db)
     .await?;
   let org_map: std::collections::HashMap<Uuid, organization::Model> =
     orgs.into_iter().map(|o| (o.id, o)).collect();
-  let profiles: Vec<serde_json::Value> = memberships
+  let role_map: std::collections::HashMap<Uuid, org_role::Model> =
+    roles.into_iter().map(|r| (r.id, r)).collect();
+  let profiles: Vec<serde_json::Value> = uors
     .into_iter()
-    .filter_map(|m| {
-      org_map.get(&m.org_id).map(|o| {
-        serde_json::json!({
-          "org_id": m.org_id.to_string(),
-          "org_name": o.name,
-          "role": m.role,
-        })
-      })
+    .filter_map(|u| {
+      let r = role_map.get(&u.role_id)?;
+      let o = org_map.get(&u.org_id)?;
+      Some(serde_json::json!({
+        "org_id": u.org_id.to_string(),
+        "org_name": o.name,
+        "role_id": u.role_id.to_string(),
+        "role": r.name,
+      }))
     })
     .collect();
   Ok(Json(serde_json::json!({ "profiles": profiles })).into_response())
@@ -341,6 +386,7 @@ pub async fn profiles_list(
 #[derive(Deserialize)]
 pub struct SwitchProfileRequest {
   pub org_id: String,
+  pub role_id: Option<String>,
 }
 
 /// Switch the current user's active profile (org + role). Updates user row; session will see new context on next request.
@@ -350,19 +396,40 @@ pub async fn switch_profile(
   Json(payload): Json<SwitchProfileRequest>,
 ) -> Result<impl IntoResponse, ForgeError> {
   let org_id = Uuid::parse_str(&payload.org_id).map_err(|_| ForgeError::Generic("Invalid org_id".into()))?;
-  let membership = membership::Entity::find()
-    .filter(membership::Column::UserId.eq(user.id))
-    .filter(membership::Column::OrgId.eq(org_id))
-    .one(&db)
-    .await?
-    .ok_or_else(|| ForgeError::Generic("Membership not found".into()))?;
+  let role_name = if let Some(rid) = &payload.role_id {
+    let role_id = Uuid::parse_str(rid).map_err(|_| ForgeError::Generic("Invalid role_id".into()))?;
+    let uor = user_org_role::Entity::find()
+      .filter(user_org_role::Column::UserId.eq(user.id))
+      .filter(user_org_role::Column::OrgId.eq(org_id))
+      .filter(user_org_role::Column::RoleId.eq(role_id))
+      .one(&db)
+      .await?
+      .ok_or_else(|| ForgeError::Generic("Profile not found".into()))?;
+    let role_row = org_role::Entity::find_by_id(uor.role_id)
+      .one(&db)
+      .await?
+      .ok_or_else(|| ForgeError::Generic("Role not found".into()))?;
+    role_row.name
+  } else {
+    let uor = user_org_role::Entity::find()
+      .filter(user_org_role::Column::UserId.eq(user.id))
+      .filter(user_org_role::Column::OrgId.eq(org_id))
+      .one(&db)
+      .await?
+      .ok_or_else(|| ForgeError::Generic("Membership not found".into()))?;
+    let role_row = org_role::Entity::find_by_id(uor.role_id)
+      .one(&db)
+      .await?
+      .ok_or_else(|| ForgeError::Generic("Role not found".into()))?;
+    role_row.name
+  };
   let mut am: user::ActiveModel = user::Entity::find_by_id(user.id)
     .one(&db)
     .await?
     .ok_or_else(|| ForgeError::Generic("User not found".into()))?
     .into();
   am.current_org_id = Set(Some(org_id));
-  am.current_role = Set(Some(membership.role));
+  am.current_role = Set(Some(role_name));
   am.updated_at = Set(Utc::now().naive_utc());
   am.update(&db).await?;
   Ok(Json(serde_json::json!({ "ok": true })).into_response())
@@ -385,16 +452,23 @@ pub async fn session_json(
   };
   let profiles: Vec<serde_json::Value> = match &maybe_user {
     Some(u) => {
-      let memberships = membership::Entity::find()
-        .filter(membership::Column::UserId.eq(u.id))
+      let uors = user_org_role::Entity::find()
+        .filter(user_org_role::Column::UserId.eq(u.id))
         .all(&db)
         .await
         .ok()
         .unwrap_or_default();
-      let org_ids: Vec<Uuid> = memberships.iter().map(|m| m.org_id).collect();
-      if org_ids.is_empty() {
+      if uors.is_empty() {
         vec![]
       } else {
+        let role_ids: Vec<Uuid> = uors.iter().map(|x| x.role_id).collect();
+        let roles = org_role::Entity::find()
+          .filter(org_role::Column::Id.is_in(role_ids))
+          .all(&db)
+          .await
+          .ok()
+          .unwrap_or_default();
+        let org_ids: Vec<Uuid> = uors.iter().map(|x| x.org_id).collect::<std::collections::HashSet<_>>().into_iter().collect();
         let orgs = organization::Entity::find()
           .filter(organization::Column::Id.is_in(org_ids))
           .all(&db)
@@ -403,16 +477,19 @@ pub async fn session_json(
           .unwrap_or_default();
         let org_map: std::collections::HashMap<Uuid, organization::Model> =
           orgs.into_iter().map(|o| (o.id, o)).collect();
-        memberships
+        let role_map: std::collections::HashMap<Uuid, org_role::Model> =
+          roles.into_iter().map(|r| (r.id, r)).collect();
+        uors
           .into_iter()
-          .filter_map(|m| {
-            org_map.get(&m.org_id).map(|o| {
-              serde_json::json!({
-                "org_id": m.org_id.to_string(),
-                "org_name": o.name,
-                "role": m.role,
-              })
-            })
+          .filter_map(|u| {
+            let r = role_map.get(&u.role_id)?;
+            let o = org_map.get(&u.org_id)?;
+            Some(serde_json::json!({
+              "org_id": u.org_id.to_string(),
+              "org_name": o.name,
+              "role_id": u.role_id.to_string(),
+              "role": r.name,
+            }))
           })
           .collect()
       }
