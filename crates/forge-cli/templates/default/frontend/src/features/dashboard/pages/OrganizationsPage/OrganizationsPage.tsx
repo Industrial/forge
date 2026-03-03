@@ -21,7 +21,7 @@ import useTheme from "@mui/material/styles/useTheme";
 import FormDialog from "../../../../components/FormDialog";
 import useMediaQuery from "@mui/material/useMediaQuery";
 import { useSession } from "../../../../context/Session";
-import { useLiveChannel } from "../../../../hooks/useLiveChannel";
+import { useLiveUpdates } from "../../../../context/LiveWs";
 
 type Organization = {
 	id: string;
@@ -90,8 +90,8 @@ export default function OrganizationsPage() {
 	const { permissions } = useSession();
 	const canWrite = permissions.includes(ORG_WRITE);
 	const fetchDataRef = useRef<() => void>(() => {});
-	const { connected: wsConnected } = useLiveChannel("organizations", (ev) => {
-		if (ev.type === "resource_changed" && ev.resource === "organizations") fetchDataRef.current?.();
+	const { connected: wsConnected } = useLiveUpdates("organizations", () => {
+		fetchDataRef.current?.();
 	});
 
 	const [organizations, setOrganizations] = useState<Organization[]>([]);

@@ -14,6 +14,12 @@ impl Channel {
     Channel(format!("org:{}", org_id))
   }
 
+  /// Channel for a resource type within an org (permission-scoped live updates).
+  /// Format: `org:{org_id}:{resource_type}` (e.g. `org:...:users`, `org:...:roles`).
+  pub fn org_resource(org_id: Uuid, resource_type: &str) -> Self {
+    Channel(format!("org:{}:{}", org_id, resource_type))
+  }
+
   /// Channel for a specific resource (e.g. `resource:users:{id}`).
   pub fn resource(resource_type: &str, id: Uuid) -> Self {
     Channel(format!("resource:{}:{}", resource_type, id))

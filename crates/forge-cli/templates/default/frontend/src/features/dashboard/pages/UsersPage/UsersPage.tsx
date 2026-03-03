@@ -24,8 +24,8 @@ import InputLabel from "@mui/material/InputLabel";
 import Select from "@mui/material/Select";
 import MenuItem from "@mui/material/MenuItem";
 import Chip from "@mui/material/Chip";
+import { useLiveUpdates } from "../../../../context/LiveWs";
 import { useSession } from "../../../../context/Session";
-import { useLiveChannel } from "../../../../hooks/useLiveChannel";
 
 type Membership = {
 	org_id: string;
@@ -184,13 +184,12 @@ function membershipsSummary(memberships: Membership[]) {
 }
 
 export default function UsersPage() {
-	const { permissions, user } = useSession();
+	const { permissions } = useSession();
 	const canRead = permissions.includes(USERS_READ);
 	const canWrite = permissions.includes(USERS_WRITE);
-	const orgChannel = user?.current_org_id ? `org:${user.current_org_id}` : null;
 	const fetchUsersRef = useRef<() => void>(() => {});
-	const { connected: wsConnected } = useLiveChannel(orgChannel, (ev) => {
-		if (ev.type === "users_updated") fetchUsersRef.current?.();
+	const { connected: wsConnected } = useLiveUpdates("users", () => {
+		fetchUsersRef.current?.();
 	});
 	const fetchUsers = useCallback(async () => {
 		if (!canRead) {

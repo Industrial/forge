@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useEffect, useState } from "react";
 import Box from "@mui/material/Box";
 import Chip from "@mui/material/Chip";
 import CircularProgress from "@mui/material/CircularProgress";
@@ -10,7 +10,7 @@ import TableContainer from "@mui/material/TableContainer";
 import TableHead from "@mui/material/TableHead";
 import TableRow from "@mui/material/TableRow";
 import Typography from "@mui/material/Typography";
-import { attachWsDebugLogging, getWsUrl } from "@/utils/ws";
+import { useLiveUpdates } from "@/context/LiveWs";
 
 export type TaskStatus = "planned" | "running" | "ran";
 
@@ -51,36 +51,14 @@ function StatusChip({ status }: { status: TaskStatus }) {
 export default function TasksPage() {
 	const [tasks, setTasks] = useState<Task[]>([]);
 	const [loading, setLoading] = useState(true);
-	const [wsConnected, setWsConnected] = useState(false);
-	const wsRef = useRef<WebSocket | null>(null);
-
-	const connectWs = useCallback(() => {
-		const wsUrl = getWsUrl();
-		const ws = new WebSocket(wsUrl);
-		attachWsDebugLogging(ws);
-		wsRef.current = ws;
-		ws.onopen = () => {
-			setWsConnected(true);
-			ws.send(JSON.stringify({ type: "subscribe", channel: "tasks" }));
-		};
-		ws.onclose = () => setWsConnected(false);
-		ws.onerror = () => setWsConnected(false);
-		ws.onmessage = (event) => {
-			if (typeof event.data !== "string") return;
-			try {
-				const data = JSON.parse(event.data);
-				if (data?.type === "tasks" && Array.isArray(data.tasks)) {
-					setTasks(data.tasks);
-				}
-			} catch {
-				// ignore non-JSON or invalid
-			}
-		};
-	}, []);
+	const { connected: wsConnected } = useLiveUpdates("tasks", (data) => {
+		if (data && typeof data === "object" && "type" in data && (data as { type: string }).type === "tasks" && "tasks" in data && Array.isArray((data as { tasks: Task[] }).tasks)) {
+			setTasks((data as { tasks: Task[] }).tasks);
+		}
+	});
 
 	useEffect(() => {
 		let cancelled = false;
-
 		async function fetchTasks() {
 			try {
 				const res = await fetch("/api/dashboard/tasks", {
@@ -97,23 +75,10 @@ export default function TasksPage() {
 			}
 		}
 		fetchTasks();
-
-		// Delay WebSocket until after initial load to avoid "connection interrupted while page loading"
-		const delayMs = 800;
-		const t = setTimeout(() => {
-			if (!cancelled) connectWs();
-		}, delayMs);
-
 		return () => {
 			cancelled = true;
-			clearTimeout(t);
-			if (wsRef.current) {
-				wsRef.current.close();
-				wsRef.current = null;
-			}
-			setWsConnected(false);
 		};
-	}, [connectWs]);
+	}, []);
 
 	// Order: Running first, then Planned, then Ran (active and upcoming at top)
 	const statusOrder = (t: Task) =>

@@ -20,8 +20,7 @@ import Alert from "@mui/material/Alert";
 import CircularProgress from "@mui/material/CircularProgress";
 import Chip from "@mui/material/Chip";
 import { useTablePaginationDefaults } from "@/hooks/useTablePaginationDefaults";
-import { useSession } from "@/context/Session";
-import { useLiveChannel } from "@/hooks/useLiveChannel";
+import { useLiveUpdates } from "@/context/LiveWs";
 
 type Assignment = {
 	scope: string;
@@ -35,11 +34,9 @@ const ORG_ROLES = ["owner", "admin", "editor", "viewer"] as const;
 const GLOBAL_ROLES = ["platform_admin"] as const;
 
 export default function PermissionsPage() {
-	const { user } = useSession();
-	const orgChannel = user?.current_org_id ? `org:${user.current_org_id}` : null;
 	const fetchDataRef = useRef<() => void>(() => {});
-	const { connected: wsConnected } = useLiveChannel(orgChannel, (ev) => {
-		if (ev.type === "resource_changed" && ev.resource === "role_permissions") fetchDataRef.current?.();
+	const { connected: wsConnected } = useLiveUpdates("role_permissions", () => {
+		fetchDataRef.current?.();
 	});
 
 	const [assignments, setAssignments] = useState<Assignment[]>([]);

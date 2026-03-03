@@ -18,8 +18,7 @@ import Alert from "@mui/material/Alert";
 import CircularProgress from "@mui/material/CircularProgress";
 import Chip from "@mui/material/Chip";
 import FormDialog from "../../../../components/FormDialog";
-import { useSession } from "../../../../context/Session";
-import { useLiveChannel } from "../../../../hooks/useLiveChannel";
+import { useLiveUpdates } from "../../../../context/LiveWs";
 
 type Role = {
 	id: string;
@@ -31,11 +30,9 @@ type Role = {
 };
 
 export default function RolesPage() {
-	const { user } = useSession();
-	const orgChannel = user?.current_org_id ? `org:${user.current_org_id}` : null;
 	const fetchRolesRef = useRef<() => void>(() => {});
-	const { connected: wsConnected } = useLiveChannel(orgChannel, (ev) => {
-		if (ev.type === "resource_changed" && ev.resource === "roles") fetchRolesRef.current?.();
+	const { connected: wsConnected } = useLiveUpdates("roles", () => {
+		fetchRolesRef.current?.();
 	});
 
 	const [roles, setRoles] = useState<Role[]>([]);

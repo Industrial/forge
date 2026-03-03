@@ -1,40 +1,64 @@
-//! WebSocket handler: forge-live connection and subscriptions. Clients send
-//! `{"type":"subscribe","channel":"tasks"}` or `"audit-log"` or `"org:<uuid>"` for live updates.
+//! WebSocket handler: forge-live connection and subscriptions. Authenticated
+//! connections receive server-derived channel subscriptions (see docs/021).
 
 use axum::{
   extract::ws::{Message, WebSocket, WebSocketUpgrade},
-  extract::Extension,
+  extract::{Extension, State},
+  http::StatusCode,
   response::{IntoResponse, Response},
 };
+use axum_login::AuthSession;
 use forge::live::{Channel, InMemoryLiveBackend, LiveBackend};
+use forge::DbConnection;
 use futures_util::{SinkExt, StreamExt};
 use std::sync::Arc;
 use tokio::sync::mpsc;
 
+use crate::handlers::auth::{channels_from_permissions, resolve_permissions};
 use crate::tasks::TaskState;
+use db::auth::Backend;
 
 pub async fn handler(
   ws: WebSocketUpgrade,
+  auth_session: AuthSession<Backend>,
+  State(db): State<DbConnection>,
   Extension(live_backend): Extension<Option<Arc<InMemoryLiveBackend>>>,
   Extension(task_state): Extension<Arc<TaskState>>,
 ) -> Response {
   tracing::debug!(target: "app::handlers", "route: GET /ws (upgrade)");
-  let Some(backend) = live_backend else {
-    return (axum::http::StatusCode::SERVICE_UNAVAILABLE, "Live Query not enabled").into_response();
+  let Some(ref user) = auth_session.user else {
+    return (StatusCode::UNAUTHORIZED, "Unauthorized").into_response();
   };
+  let Some(backend) = live_backend else {
+    return (StatusCode::SERVICE_UNAVAILABLE, "Live Query not enabled").into_response();
+  };
+  let permissions = resolve_permissions(&db, user).await;
+  let channels = channels_from_permissions(&permissions, user.current_org_id);
   let backend = backend.clone();
   let task_state = task_state.clone();
-  ws.on_upgrade(move |socket| handle_socket(socket, backend, task_state))
+  ws.on_upgrade(move |socket| handle_socket(socket, backend, task_state, channels))
 }
 
 async fn handle_socket(
   socket: WebSocket,
   live_backend: Arc<InMemoryLiveBackend>,
   task_state: Arc<TaskState>,
+  channels: Vec<Channel>,
 ) {
   let (tx, mut rx) = mpsc::unbounded_channel::<Vec<u8>>();
   let main_tx = tx.clone();
   let conn_id = live_backend.register_connection(tx);
+
+  for ch in &channels {
+    live_backend.subscribe(conn_id, ch.clone());
+  }
+  if channels.iter().any(|c| c.as_str() == "tasks") {
+    let tasks = task_state.store.read().await.clone();
+    let payload =
+      serde_json::to_string(&serde_json::json!({ "type": "tasks", "tasks": tasks }))
+        .unwrap_or_default();
+    let _ = main_tx.send(payload.into_bytes());
+  }
 
   let (mut socket_tx, mut socket_rx) = socket.split();
   let forward = tokio::spawn(async move {
@@ -52,39 +76,6 @@ async fn handle_socket(
       Err(_) => break,
     };
     match msg {
-      Message::Text(t) => {
-        if let Ok(v) = serde_json::from_str::<serde_json::Value>(&t) {
-          if v.get("type").and_then(|x| x.as_str()) == Some("subscribe") {
-            if let Some(ch) = v.get("channel").and_then(|x| x.as_str()) {
-              if ch == "tasks" {
-                live_backend.subscribe(conn_id, Channel::raw("tasks"));
-                let tasks = task_state.store.read().await.clone();
-                let payload =
-                  serde_json::to_string(&serde_json::json!({ "type": "tasks", "tasks": tasks }))
-                    .unwrap_or_default();
-                let _ = main_tx.send(payload.into_bytes());
-                continue;
-              }
-              if ch == "audit-log" {
-                live_backend.subscribe(conn_id, Channel::raw("audit-log"));
-                continue;
-              }
-              if let Some(org_part) = ch.strip_prefix("org:") {
-                if let Ok(uuid) = uuid::Uuid::parse_str(org_part) {
-                  live_backend.subscribe(conn_id, Channel::org(uuid));
-                  continue;
-                }
-              }
-            }
-          }
-        }
-        tracing::debug!(target: "app::handlers::ws", "received: {}", t);
-        let _ = main_tx.send(t.as_bytes().to_vec());
-      }
-      Message::Binary(b) => {
-        tracing::debug!(target: "app::handlers::ws", "received {} bytes", b.len());
-        let _ = main_tx.send(b.to_vec());
-      }
       Message::Close(_) => break,
       _ => {}
     }

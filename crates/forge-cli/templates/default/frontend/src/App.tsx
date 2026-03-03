@@ -3,6 +3,7 @@ import { Outlet, Route, Routes } from "react-router-dom";
 import { createTheme, ThemeProvider } from "@mui/material/styles";
 import CssBaseline from "@mui/material/CssBaseline";
 import Box from "@mui/material/Box";
+import { LiveWsProvider } from "./context/LiveWs";
 import { SessionProvider } from "./context/Session";
 import Layout from "./layouts/Layout";
 import DashboardLayout from "./features/dashboard/layouts/DashboardLayout/DashboardLayout";
@@ -50,6 +51,7 @@ function App() {
 
 	return (
 		<SessionProvider>
+			<LiveWsProvider>
 			<ThemeProvider theme={theme}>
 				<CssBaseline />
 				<Box
@@ -189,6 +191,7 @@ function App() {
 					</Routes>
 				</Box>
 			</ThemeProvider>
+			</LiveWsProvider>
 		</SessionProvider>
 	);
 }

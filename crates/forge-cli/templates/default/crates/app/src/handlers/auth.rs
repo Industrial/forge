@@ -65,7 +65,37 @@ pub async fn resolve_permissions(db: &DbConnection, user: &user::Model) -> Vec<S
   rows.into_iter().map(|r| r.permission_key).collect()
 }
 
-/// Session keys for one-time flash messages (read once then cleared). No longer set by auth; kept for session_json shape.
+/// Derives live-update channel subscriptions from the user's permissions and current org.
+/// One channel per permission scope (see docs/021_live_channels_and_permissions.md).
+pub fn channels_from_permissions(
+  permissions: &[String],
+  current_org_id: Option<Uuid>,
+) -> Vec<Channel> {
+  let perms: std::collections::HashSet<_> = permissions.iter().map(String::as_str).collect();
+  let mut out = Vec::new();
+  if perms.contains("dashboard.organizations.read") {
+    out.push(Channel::raw("organizations"));
+  }
+  if perms.contains("dashboard.audit.read") {
+    out.push(Channel::raw("audit-log"));
+  }
+  // Tasks: any authenticated user gets the demo tasks channel for the template.
+  out.push(Channel::raw("tasks"));
+  if let Some(org_id) = current_org_id {
+    if perms.contains("dashboard.users.read") {
+      out.push(Channel::org_resource(org_id, "users"));
+    }
+    if perms.contains("dashboard.roles.read") {
+      out.push(Channel::org_resource(org_id, "roles"));
+    }
+    if perms.contains("dashboard.permissions.read") {
+      out.push(Channel::org_resource(org_id, "role_permissions"));
+    }
+  }
+  out
+}
+
+/// Session keys for one-time flash messages (read once then cleared). No longer set by auth; kept for session_json shape. (read once then cleared). No longer set by auth; kept for session_json shape.
 pub const FLASH_MESSAGE: &str = "flash_message";
 pub const FLASH_ERROR: &str = "flash_error";
 

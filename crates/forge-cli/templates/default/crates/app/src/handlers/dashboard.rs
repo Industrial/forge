@@ -10,7 +10,6 @@ use chrono::NaiveDateTime;
 use forge::live::{Channel, LiveEvent, InMemoryLiveBackend};
 use forge::token_auth::RequireAuth;
 use forge::live::broadcast_to_channel;
-use forge::live::broadcast_to_org;
 use forge::{DbConnection, Error as ForgeError};
 use sea_orm::{ActiveModelTrait, ColumnTrait, EntityTrait, PaginatorTrait, QueryFilter, QueryOrder, QuerySelect, Set};
 use serde::Deserialize;
@@ -326,7 +325,7 @@ pub async fn add_role_permission(
     .await
     .map_err(|e| ForgeError::Generic(e.to_string()))?;
   if let (Some(ref backend), Some(org_id)) = (live_backend.as_ref(), org_id_opt) {
-    let _ = broadcast_to_org(backend, org_id, &LiveEvent::ResourceChanged { resource: "role_permissions".into(), id, action: Some("created".into()) }).await;
+    let _ = broadcast_to_channel(backend, &Channel::org_resource(org_id, "role_permissions"), &LiveEvent::ResourceChanged { resource: "role_permissions".into(), id, action: Some("created".into()) }).await;
   }
   Ok((StatusCode::CREATED, Json(serde_json::json!({ "ok": true }))).into_response())
 }
@@ -399,7 +398,7 @@ pub async fn delete_role_permission(
     );
   }
   if let (Some(ref backend), Some(org_id)) = (live_backend.as_ref(), org_id_opt) {
-    let _ = broadcast_to_org(backend, org_id, &LiveEvent::ResourceChanged { resource: "role_permissions".into(), id: Uuid::nil(), action: Some("deleted".into()) }).await;
+    let _ = broadcast_to_channel(backend, &Channel::org_resource(org_id, "role_permissions"), &LiveEvent::ResourceChanged { resource: "role_permissions".into(), id: Uuid::nil(), action: Some("deleted".into()) }).await;
   }
   Ok(Json(serde_json::json!({ "ok": true })).into_response())
 }
@@ -559,7 +558,7 @@ pub async fn create_role(
   };
   org_role::Entity::insert(model).exec(&db).await.map_err(|e| ForgeError::Generic(e.to_string()))?;
   if let Some(ref backend) = live_backend {
-    let _ = broadcast_to_org(backend, org_id, &LiveEvent::ResourceChanged { resource: "roles".into(), id, action: Some("created".into()) }).await;
+    let _ = broadcast_to_channel(backend, &Channel::org_resource(org_id, "roles"), &LiveEvent::ResourceChanged { resource: "roles".into(), id, action: Some("created".into()) }).await;
   }
   Ok(
     (
@@ -639,7 +638,7 @@ pub async fn update_role(
   am.updated_at = Set(chrono::Utc::now().naive_utc());
   am.update(&db).await.map_err(|e| ForgeError::Generic(e.to_string()))?;
   if let Some(ref backend) = live_backend {
-    let _ = broadcast_to_org(backend, org_id, &LiveEvent::ResourceChanged { resource: "roles".into(), id: role_id, action: Some("updated".into()) }).await;
+    let _ = broadcast_to_channel(backend, &Channel::org_resource(org_id, "roles"), &LiveEvent::ResourceChanged { resource: "roles".into(), id: role_id, action: Some("updated".into()) }).await;
   }
   Ok(Json(serde_json::json!({ "ok": true })).into_response())
 }
@@ -692,7 +691,7 @@ pub async fn delete_role(
     .await
     .map_err(|e| ForgeError::Generic(e.to_string()))?;
   if let Some(ref backend) = live_backend {
-    let _ = broadcast_to_org(backend, role.org_id, &LiveEvent::ResourceChanged { resource: "roles".into(), id: payload.id, action: Some("deleted".into()) }).await;
+    let _ = broadcast_to_channel(backend, &Channel::org_resource(role.org_id, "roles"), &LiveEvent::ResourceChanged { resource: "roles".into(), id: payload.id, action: Some("deleted".into()) }).await;
   }
   Ok(Json(serde_json::json!({ "ok": true })).into_response())
 }
@@ -1155,7 +1154,7 @@ pub async fn create_user(
     .map(|r| r.name)
     .collect();
   if let Some(ref backend) = live_backend {
-    let _ = broadcast_to_org(backend, org_id, &LiveEvent::UsersUpdated { user_id: Some(user_id), org_id: Some(org_id) }).await;
+    let _ = broadcast_to_channel(backend, &Channel::org_resource(org_id, "users"), &LiveEvent::UsersUpdated { user_id: Some(user_id), org_id: Some(org_id) }).await;
   }
   Ok(
     (
@@ -1209,7 +1208,7 @@ pub async fn update_user(
   am.update(&db).await.map_err(|e| ForgeError::Generic(e.to_string()))?;
   if let Some(ref backend) = live_backend {
     if let Some(org_id) = user.current_org_id {
-      let _ = broadcast_to_org(backend, org_id, &LiveEvent::UsersUpdated { user_id: Some(payload.id), org_id: Some(org_id) }).await;
+      let _ = broadcast_to_channel(backend, &Channel::org_resource(org_id, "users"), &LiveEvent::UsersUpdated { user_id: Some(payload.id), org_id: Some(org_id) }).await;
     }
   }
   Ok(Json(serde_json::json!({ "ok": true })).into_response())
@@ -1250,7 +1249,7 @@ pub async fn delete_user(
   }
   if let Some(ref backend) = live_backend {
     if let Some(org_id) = user.current_org_id {
-      let _ = broadcast_to_org(backend, org_id, &LiveEvent::UsersUpdated { user_id: Some(payload.id), org_id: Some(org_id) }).await;
+      let _ = broadcast_to_channel(backend, &Channel::org_resource(org_id, "users"), &LiveEvent::UsersUpdated { user_id: Some(payload.id), org_id: Some(org_id) }).await;
     }
   }
   Ok(Json(serde_json::json!({ "ok": true })).into_response())

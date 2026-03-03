@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import Typography from "@mui/material/Typography";
 import Box from "@mui/material/Box";
 import Button from "@mui/material/Button";
@@ -18,7 +18,7 @@ import Alert from "@mui/material/Alert";
 import CircularProgress from "@mui/material/CircularProgress";
 import TablePagination from "@mui/material/TablePagination";
 import Chip from "@mui/material/Chip";
-import { attachWsDebugLogging, getWsUrl } from "@/utils/ws";
+import { useLiveUpdates } from "@/context/LiveWs";
 import { useTablePaginationDefaults } from "@/hooks/useTablePaginationDefaults";
 
 type AuditLogEntry = {
@@ -53,7 +53,12 @@ export default function AuditLogPage() {
 	const [eventKind, setEventKind] = useState("");
 	const [action, setAction] = useState("");
 	const [reason, setReason] = useState("");
-	const [wsConnected, setWsConnected] = useState(false);
+	const { connected: wsConnected } = useLiveUpdates("audit-log", (data) => {
+		if (data && typeof data === "object" && "type" in data && (data as { type: string }).type === "audit_log" && "entry" in data) {
+			setEntries((prev) => [(data as { entry: AuditLogEntry }).entry, ...prev]);
+			setTotal((prev) => prev + 1);
+		}
+	});
 
 	const fetchData = useCallback(async () => {
 		setError(null);
@@ -104,44 +109,6 @@ export default function AuditLogPage() {
 		setRowsPerPage(defaultRowsPerPage);
 		setPage(0);
 	}, [defaultRowsPerPage]);
-
-	// Live updates: subscribe to audit-log WebSocket channel and prepend new entries.
-	// Delay connect so the connection is not interrupted while the page is still loading.
-	const entriesRef = useRef(entries);
-	entriesRef.current = entries;
-	const auditWsRef = useRef<WebSocket | null>(null);
-	useEffect(() => {
-		const t = setTimeout(() => {
-			const ws = new WebSocket(getWsUrl());
-			attachWsDebugLogging(ws);
-			auditWsRef.current = ws;
-			ws.onopen = () => {
-				setWsConnected(true);
-				ws.send(JSON.stringify({ type: "subscribe", channel: "audit-log" }));
-			};
-			ws.onclose = () => setWsConnected(false);
-			ws.onerror = () => setWsConnected(false);
-			ws.onmessage = (event) => {
-				try {
-					const msg = JSON.parse(event.data);
-					if (msg?.type === "audit_log" && msg?.entry) {
-						setEntries((prev) => [msg.entry as AuditLogEntry, ...prev]);
-						setTotal((prev) => prev + 1);
-					}
-				} catch {
-					// ignore non-JSON or invalid messages
-				}
-			};
-		}, 600);
-		return () => {
-			clearTimeout(t);
-			if (auditWsRef.current) {
-				auditWsRef.current.close();
-				auditWsRef.current = null;
-			}
-			setWsConnected(false);
-		};
-	}, []);
 
 	const handleApplyFilters = () => {
 		setPage(0);
