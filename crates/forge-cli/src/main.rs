@@ -4,6 +4,10 @@ mod dev;
 mod new;
 mod serve;
 
+/// Serializes tests that change process cwd so they don't race (used by serve/dev/create_new_project tests).
+#[cfg(test)]
+pub(crate) static CHDIR_TEST_LOCK: std::sync::Mutex<()> = std::sync::Mutex::new(());
+
 use clap::{CommandFactory, Parser, Subcommand};
 use new::create_new_project;
 
@@ -164,6 +168,15 @@ mod tests {
     }
 
     #[test]
+    fn commands_enum_has_dev_variant() {
+      let cmd = Commands::Dev {};
+      match cmd {
+        Commands::Dev {} => (),
+        _ => panic!("Expected Dev variant"),
+      }
+    }
+
+    #[test]
     fn commands_enum_has_serve_variant() {
       // Given: Commands enum
       // When: Creating Serve variant
@@ -237,9 +250,27 @@ mod tests {
 
     static CREATE_PROJECT_LOCK: Mutex<()> = Mutex::new(());
 
+    /// Restores FORGE_TEMPLATES_DIR on drop (so test can restore env even on panic).
+    struct RestoreForgeTemplatesDir(Option<String>);
+    impl Drop for RestoreForgeTemplatesDir {
+      fn drop(&mut self) {
+        if let Some(ref v) = self.0 {
+          unsafe { std::env::set_var("FORGE_TEMPLATES_DIR", v); }
+        } else {
+          unsafe { std::env::remove_var("FORGE_TEMPLATES_DIR"); }
+        }
+      }
+    }
+
     #[test]
     fn create_new_project_succeeds_with_valid_name() {
       let _guard = CREATE_PROJECT_LOCK.lock().unwrap();
+      // Point at this crate's template so the test is hermetic regardless of cwd.
+      let template_parent =
+        std::path::Path::new(env!("CARGO_MANIFEST_DIR")).join("templates");
+      let _env_guard = RestoreForgeTemplatesDir(std::env::var("FORGE_TEMPLATES_DIR").ok());
+      unsafe { std::env::set_var("FORGE_TEMPLATES_DIR", &template_parent); }
+
       // Given: A temporary directory (use full path so test is safe when run in parallel).
       // Single project creation for all content assertions to reduce disk usage.
       let temp_dir = tempdir().unwrap();
@@ -334,8 +365,51 @@ mod tests {
     }
   }
 
-  /// Test suite for serve::run
+  /// Test suite for serve::run (error paths only; success path runs the server).
   mod serve_run {
-    // ... (rest of the file remains same)
+    use super::*;
+    use forge::config::{AppConfig, DatabaseConfig, FrontendConfig, ServerConfig};
+    use forge::ForgeConfig;
+
+    fn default_config() -> ForgeConfig {
+      ForgeConfig {
+        app: AppConfig { name: "test".to_string() },
+        server: ServerConfig { host: "127.0.0.1".to_string(), port: 3000 },
+        database: DatabaseConfig {
+          url: "sqlite::memory:".to_string(),
+          max_connections: None,
+          min_connections: None,
+          connect_timeout: None,
+          idle_timeout: None,
+          auto_migrate: true,
+          auto_seed: false,
+        },
+        cache: None,
+        frontend: FrontendConfig { port: 5173 },
+      }
+    }
+
+    #[test]
+    fn serve_run_err_when_no_cargo_toml() {
+      let tmp = tempdir().unwrap();
+      let orig = std::env::current_dir().unwrap();
+      let _ = std::env::set_current_dir(tmp.path());
+      let r = serve::run(&default_config());
+      let _ = std::env::set_current_dir(orig);
+      let err = r.unwrap_err();
+      assert!(err.to_string().contains("No Cargo.toml found"));
+    }
+
+    #[test]
+    fn serve_run_err_when_no_app_main() {
+      let tmp = tempdir().unwrap();
+      std::fs::write(tmp.path().join("Cargo.toml"), "[workspace]\nmembers = []\n").unwrap();
+      let orig = std::env::current_dir().unwrap();
+      let _ = std::env::set_current_dir(tmp.path());
+      let r = serve::run(&default_config());
+      let _ = std::env::set_current_dir(orig);
+      let err = r.unwrap_err();
+      assert!(err.to_string().contains("main.rs"));
+    }
   }
 }

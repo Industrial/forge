@@ -53,6 +53,15 @@ impl HttpResponseCacheLayer {
       format!("GET:{}", path)
     }
   }
+
+  /// Inserts a raw cache entry (for testing cache-hit path that adds cache-control when missing).
+  #[cfg(test)]
+  pub async fn test_insert_raw(&self, key: &str, status: StatusCode, headers: HeaderMap, body: Bytes) {
+    self
+      .cache
+      .insert(key.to_string(), CachedResponse { status, headers, body })
+      .await;
+  }
 }
 
 impl<S> Layer<S> for HttpResponseCacheLayer {
@@ -194,6 +203,8 @@ where
 mod tests {
   use super::*;
   use forge_config::HttpResponseCacheConfig;
+  use std::task::Poll;
+  use tower::ServiceExt;
 
   #[test]
   fn from_config_enabled_returns_some() {
@@ -208,5 +219,319 @@ mod tests {
     };
     let layer = HttpResponseCacheLayer::from_config(&cfg).unwrap();
     let _ = layer;
+  }
+
+  #[test]
+  fn from_config_disabled_returns_none() {
+    let cfg = CacheConfig {
+      enabled: false,
+      application: None,
+      http_response: Some(HttpResponseCacheConfig {
+        enabled: true,
+        default_ttl_secs: 60,
+        no_cache_paths: None,
+      }),
+    };
+    assert!(HttpResponseCacheLayer::from_config(&cfg).is_none());
+  }
+
+  #[test]
+  fn from_config_no_http_response_returns_none() {
+    let cfg = CacheConfig {
+      enabled: true,
+      application: None,
+      http_response: None,
+    };
+    assert!(HttpResponseCacheLayer::from_config(&cfg).is_none());
+  }
+
+  #[test]
+  fn from_config_http_response_disabled_returns_none() {
+    let cfg = CacheConfig {
+      enabled: true,
+      application: None,
+      http_response: Some(HttpResponseCacheConfig {
+        enabled: false,
+        default_ttl_secs: 60,
+        no_cache_paths: None,
+      }),
+    };
+    assert!(HttpResponseCacheLayer::from_config(&cfg).is_none());
+  }
+
+  /// Mock inner service that returns a fixed 200 OK with body.
+  #[derive(Clone)]
+  struct MockInner {
+    status: StatusCode,
+    body: Bytes,
+  }
+
+  impl MockInner {
+    fn ok(body: &str) -> Self {
+      Self {
+        status: StatusCode::OK,
+        body: Bytes::from(body.to_string()),
+      }
+    }
+    fn with_status(status: StatusCode) -> Self {
+      Self {
+        status,
+        body: Bytes::new(),
+      }
+    }
+  }
+
+  impl Service<Request<Body>> for MockInner {
+    type Response = Response<Body>;
+    type Error = std::convert::Infallible;
+    type Future = std::future::Ready<Result<Self::Response, Self::Error>>;
+
+    fn poll_ready(
+      &mut self,
+      _cx: &mut std::task::Context<'_>,
+    ) -> Poll<Result<(), Self::Error>> {
+      Poll::Ready(Ok(()))
+    }
+
+    fn call(&mut self, _req: Request<Body>) -> Self::Future {
+      let res = Response::builder()
+        .status(self.status)
+        .body(Body::from(self.body.clone()))
+        .unwrap();
+      std::future::ready(Ok(res))
+    }
+  }
+
+  #[tokio::test]
+  async fn layer_get_request_cache_miss_then_hit() {
+    let cfg = CacheConfig {
+      enabled: true,
+      application: None,
+      http_response: Some(HttpResponseCacheConfig {
+        enabled: true,
+        default_ttl_secs: 300,
+        no_cache_paths: None,
+      }),
+    };
+    let layer = HttpResponseCacheLayer::from_config(&cfg).unwrap();
+    let mut svc = layer.layer(MockInner::ok("hello"));
+
+    let req = Request::builder()
+      .method(Method::GET)
+      .uri("/api/foo")
+      .body(Body::empty())
+      .unwrap();
+    let res = svc.ready().await.unwrap().call(req).await.unwrap();
+    assert_eq!(res.status(), StatusCode::OK);
+    let body = to_bytes(res.into_body(), 1024).await.unwrap();
+    assert_eq!(body.as_ref(), b"hello");
+
+    // Same path: cache hit
+    let req2 = Request::builder()
+      .method(Method::GET)
+      .uri("/api/foo")
+      .body(Body::empty())
+      .unwrap();
+    let res2 = svc.ready().await.unwrap().call(req2).await.unwrap();
+    assert_eq!(res2.status(), StatusCode::OK);
+    let body2 = to_bytes(res2.into_body(), 1024).await.unwrap();
+    assert_eq!(body2.as_ref(), b"hello");
+  }
+
+  #[tokio::test]
+  async fn layer_non_get_passes_through() {
+    let cfg = CacheConfig {
+      enabled: true,
+      application: None,
+      http_response: Some(HttpResponseCacheConfig {
+        enabled: true,
+        default_ttl_secs: 300,
+        no_cache_paths: None,
+      }),
+    };
+    let layer = HttpResponseCacheLayer::from_config(&cfg).unwrap();
+    let mut svc = layer.layer(MockInner::ok("post-body"));
+
+    let req = Request::builder()
+      .method(Method::POST)
+      .uri("/api/foo")
+      .body(Body::empty())
+      .unwrap();
+    let res = svc.ready().await.unwrap().call(req).await.unwrap();
+    assert_eq!(res.status(), StatusCode::OK);
+    let body = to_bytes(res.into_body(), 1024).await.unwrap();
+    assert_eq!(body.as_ref(), b"post-body");
+  }
+
+  #[tokio::test]
+  async fn layer_skip_path_not_cached() {
+    let cfg = CacheConfig {
+      enabled: true,
+      application: None,
+      http_response: Some(HttpResponseCacheConfig {
+        enabled: true,
+        default_ttl_secs: 300,
+        no_cache_paths: Some(vec!["/health".into()]),
+      }),
+    };
+    let layer = HttpResponseCacheLayer::from_config(&cfg).unwrap();
+    let mut svc = layer.layer(MockInner::ok("health"));
+
+    let req = Request::builder()
+      .method(Method::GET)
+      .uri("/health")
+      .body(Body::empty())
+      .unwrap();
+    let res = svc.ready().await.unwrap().call(req).await.unwrap();
+    assert_eq!(res.status(), StatusCode::OK);
+    let body = to_bytes(res.into_body(), 1024).await.unwrap();
+    assert_eq!(body.as_ref(), b"health");
+  }
+
+  #[tokio::test]
+  async fn layer_non_success_not_cached() {
+    let cfg = CacheConfig {
+      enabled: true,
+      application: None,
+      http_response: Some(HttpResponseCacheConfig {
+        enabled: true,
+        default_ttl_secs: 300,
+        no_cache_paths: None,
+      }),
+    };
+    let layer = HttpResponseCacheLayer::from_config(&cfg).unwrap();
+    let mut svc = layer.layer(MockInner::with_status(StatusCode::NOT_FOUND));
+
+    let req = Request::builder()
+      .method(Method::GET)
+      .uri("/api/missing")
+      .body(Body::empty())
+      .unwrap();
+    let res = svc.ready().await.unwrap().call(req).await.unwrap();
+    assert_eq!(res.status(), StatusCode::NOT_FOUND);
+  }
+
+  #[tokio::test]
+  async fn layer_root_skip_exact() {
+    let cfg = CacheConfig {
+      enabled: true,
+      application: None,
+      http_response: Some(HttpResponseCacheConfig {
+        enabled: true,
+        default_ttl_secs: 300,
+        no_cache_paths: Some(vec!["/".into()]),
+      }),
+    };
+    let layer = HttpResponseCacheLayer::from_config(&cfg).unwrap();
+    let mut svc = layer.layer(MockInner::ok("root"));
+
+    let req = Request::builder()
+      .method(Method::GET)
+      .uri("/")
+      .body(Body::empty())
+      .unwrap();
+    let res = svc.ready().await.unwrap().call(req).await.unwrap();
+    assert_eq!(res.status(), StatusCode::OK);
+    let body = to_bytes(res.into_body(), 1024).await.unwrap();
+    assert_eq!(body.as_ref(), b"root");
+  }
+
+  #[tokio::test]
+  async fn layer_get_with_query_string_caches_by_full_uri() {
+    let cfg = CacheConfig {
+      enabled: true,
+      application: None,
+      http_response: Some(HttpResponseCacheConfig {
+        enabled: true,
+        default_ttl_secs: 300,
+        no_cache_paths: None,
+      }),
+    };
+    let layer = HttpResponseCacheLayer::from_config(&cfg).unwrap();
+    let mut svc = layer.layer(MockInner::ok("with-query"));
+
+    let req = Request::builder()
+      .method(Method::GET)
+      .uri("/api/foo?bar=baz")
+      .body(Body::empty())
+      .unwrap();
+    let res = svc.ready().await.unwrap().call(req).await.unwrap();
+    assert_eq!(res.status(), StatusCode::OK);
+    let body = to_bytes(res.into_body(), 1024).await.unwrap();
+    assert_eq!(body.as_ref(), b"with-query");
+
+    // Same path + query: cache hit
+    let req2 = Request::builder()
+      .method(Method::GET)
+      .uri("/api/foo?bar=baz")
+      .body(Body::empty())
+      .unwrap();
+    let res2 = svc.ready().await.unwrap().call(req2).await.unwrap();
+    assert_eq!(res2.status(), StatusCode::OK);
+    let body2 = to_bytes(res2.into_body(), 1024).await.unwrap();
+    assert_eq!(body2.as_ref(), b"with-query");
+  }
+
+  #[tokio::test]
+  async fn layer_cache_hit_adds_cache_control_when_missing() {
+    let cfg = CacheConfig {
+      enabled: true,
+      application: None,
+      http_response: Some(HttpResponseCacheConfig {
+        enabled: true,
+        default_ttl_secs: 300,
+        no_cache_paths: None,
+      }),
+    };
+    let layer = HttpResponseCacheLayer::from_config(&cfg).unwrap();
+    layer
+      .test_insert_raw(
+        "GET:/api/raw",
+        StatusCode::OK,
+        HeaderMap::new(),
+        Bytes::from("raw"),
+      )
+      .await;
+    let mut svc = layer.layer(MockInner::ok("ignored"));
+
+    let req = Request::builder()
+      .method(Method::GET)
+      .uri("/api/raw")
+      .body(Body::empty())
+      .unwrap();
+    let res = svc.ready().await.unwrap().call(req).await.unwrap();
+    assert_eq!(res.status(), StatusCode::OK);
+    assert!(res.headers().contains_key("cache-control"));
+    let body = to_bytes(res.into_body(), 1024).await.unwrap();
+    assert_eq!(body.as_ref(), b"raw");
+  }
+
+  #[tokio::test]
+  async fn layer_body_exceeding_limit_returns_500() {
+    const BODY_LIMIT: usize = 10 * 1024 * 1024;
+    let oversized = vec![0u8; BODY_LIMIT + 1];
+    let cfg = CacheConfig {
+      enabled: true,
+      application: None,
+      http_response: Some(HttpResponseCacheConfig {
+        enabled: true,
+        default_ttl_secs: 300,
+        no_cache_paths: None,
+      }),
+    };
+    let layer = HttpResponseCacheLayer::from_config(&cfg).unwrap();
+    let inner = MockInner {
+      status: StatusCode::OK,
+      body: Bytes::from(oversized),
+    };
+    let mut svc = layer.layer(inner);
+
+    let req = Request::builder()
+      .method(Method::GET)
+      .uri("/api/large")
+      .body(Body::empty())
+      .unwrap();
+    let res = svc.ready().await.unwrap().call(req).await.unwrap();
+    assert_eq!(res.status(), StatusCode::INTERNAL_SERVER_ERROR);
   }
 }

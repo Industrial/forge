@@ -73,8 +73,18 @@ mod tests {
       headers.get("referrer-policy").and_then(|v| v.to_str().ok()),
       Some("strict-origin-when-cross-origin")
     );
-    assert!(headers.get("content-security-policy").is_some());
-    assert!(headers.get("permissions-policy").is_some());
+    assert_eq!(
+      headers
+        .get("content-security-policy")
+        .and_then(|v| v.to_str().ok()),
+      Some("default-src 'none'; frame-ancestors 'none'")
+    );
+    assert_eq!(
+      headers
+        .get("permissions-policy")
+        .and_then(|v| v.to_str().ok()),
+      Some("geolocation=(), camera=(), microphone=()")
+    );
     assert_eq!(
       headers.get("cross-origin-resource-policy").and_then(|v| v.to_str().ok()),
       Some("same-site")

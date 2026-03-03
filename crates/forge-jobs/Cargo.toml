@@ -16,5 +16,11 @@ serde = { version = "1.0", features = ["derive"] }
 tokio = { version = "1", features = ["time"] }
 tracing = "0.1"
 
+[dev-dependencies]
+sea-orm = { version = "1.1", features = ["runtime-tokio-rustls", "sqlx-sqlite", "macros"] }
+sea-orm-tracing = "0.2"
+serde_json = "1.0"
+tokio = { version = "1", features = ["rt-multi-thread", "macros", "time"] }
+
 [lints.rust]
 unexpected_cfgs = { level = "warn", check-cfg = ['cfg(coverage)'] }

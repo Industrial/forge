@@ -173,3 +173,49 @@ where
     Ok(OptionalRequireAuth(None))
   }
 }
+
+#[cfg(test)]
+mod tests {
+  use super::extract_bearer;
+  use axum::http::HeaderValue;
+
+  #[test]
+  fn extract_bearer_none_for_no_header() {
+    assert_eq!(extract_bearer(None), None);
+  }
+
+  #[test]
+  fn extract_bearer_some_for_valid_bearer() {
+    let hv = HeaderValue::from_static("Bearer my-token");
+    assert_eq!(extract_bearer(Some(&hv)), Some("my-token".to_string()));
+  }
+
+  #[test]
+  fn extract_bearer_strips_whitespace() {
+    let hv = HeaderValue::from_static("Bearer  token-with-spaces  ");
+    assert_eq!(
+      extract_bearer(Some(&hv)),
+      Some("token-with-spaces".to_string())
+    );
+  }
+
+  #[test]
+  fn extract_bearer_none_for_non_bearer() {
+    let hv = HeaderValue::from_static("Basic dXNlcjpwYXNz");
+    assert_eq!(extract_bearer(Some(&hv)), None);
+  }
+
+  #[test]
+  fn extract_bearer_none_for_empty_after_bearer() {
+    let hv = HeaderValue::from_static("Bearer ");
+    assert_eq!(extract_bearer(Some(&hv)), Some("".to_string()));
+  }
+
+  #[test]
+  fn token_user_debug_and_clone() {
+    let u = super::TokenUser(42u64);
+    let _ = format!("{:?}", u);
+    let u2 = u.clone();
+    assert_eq!(u2.0, 42u64);
+  }
+}

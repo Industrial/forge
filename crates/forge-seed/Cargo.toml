@@ -11,5 +11,9 @@ description = "Database seeding for Forge framework"
 forge-db = { path = "../forge-db" }
 futures = "0.3"
 
+[dev-dependencies]
+forge-config = { path = "../forge-config" }
+tokio = { version = "1", features = ["rt", "macros"] }
+
 [lints.rust]
 unexpected_cfgs = { level = "warn", check-cfg = ['cfg(coverage)'] }

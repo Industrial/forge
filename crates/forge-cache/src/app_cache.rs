@@ -50,3 +50,74 @@ impl NoOpAppCache {
   pub async fn set(&self, _key: &str, _value: String) {}
   pub async fn delete(&self, _key: &str) {}
 }
+
+#[cfg(test)]
+mod tests {
+  use super::*;
+  use forge_config::ApplicationCacheConfig;
+
+  #[tokio::test]
+  async fn from_config_returns_none_when_disabled() {
+    let config = CacheConfig {
+      enabled: false,
+      application: Some(ApplicationCacheConfig {
+        enabled: true,
+        max_capacity: 1000,
+        default_ttl_secs: 300,
+      }),
+      http_response: None,
+    };
+    assert!(AppCache::from_config(&config).is_none());
+  }
+
+  #[tokio::test]
+  async fn from_config_returns_none_when_no_application_config() {
+    let config = CacheConfig {
+      enabled: true,
+      application: None,
+      http_response: None,
+    };
+    assert!(AppCache::from_config(&config).is_none());
+  }
+
+  #[tokio::test]
+  async fn from_config_returns_none_when_application_disabled() {
+    let config = CacheConfig {
+      enabled: true,
+      application: Some(ApplicationCacheConfig {
+        enabled: false,
+        max_capacity: 1000,
+        default_ttl_secs: 300,
+      }),
+      http_response: None,
+    };
+    assert!(AppCache::from_config(&config).is_none());
+  }
+
+  #[tokio::test]
+  async fn from_config_returns_some_when_enabled() {
+    let config = CacheConfig {
+      enabled: true,
+      application: Some(ApplicationCacheConfig {
+        enabled: true,
+        max_capacity: 100,
+        default_ttl_secs: 60,
+      }),
+      http_response: None,
+    };
+    let cache = AppCache::from_config(&config).unwrap();
+    cache.set("k", "v".to_string()).await;
+    assert_eq!(cache.get("k").await.as_deref(), Some("v"));
+    cache.delete("k").await;
+    assert!(cache.get("k").await.is_none());
+  }
+
+  #[tokio::test]
+  async fn noop_app_cache_returns_none_and_ignores_write() {
+    let cache = NoOpAppCache;
+    assert!(cache.get("any").await.is_none());
+    cache.set("k", "v".to_string()).await;
+    cache.delete("k").await;
+    assert!(cache.get("k").await.is_none());
+  }
+}

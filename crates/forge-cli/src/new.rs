@@ -25,7 +25,7 @@ fn template_dir() -> PathBuf {
 
 /// Directories that must not be copied into new projects (local caches, deps, etc.).
 pub(crate) fn should_skip_dir(name: &str) -> bool {
-  matches!(name, ".devenv" | "node_modules" | ".git")
+  matches!(name, ".devenv" | "node_modules" | ".git" | "target")
 }
 
 pub fn create_new_project(name: &str) -> Result<(), Box<dyn std::error::Error>> {
@@ -140,10 +140,11 @@ mod tests {
   use std::io::Write;
 
   #[test]
-  fn should_skip_dir_skips_devenv_node_modules_git() {
+  fn should_skip_dir_skips_devenv_node_modules_git_target() {
     assert!(should_skip_dir(".devenv"));
     assert!(should_skip_dir("node_modules"));
     assert!(should_skip_dir(".git"));
+    assert!(should_skip_dir("target"));
   }
 
   #[test]

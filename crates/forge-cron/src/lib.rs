@@ -80,8 +80,33 @@ mod tests {
   }
 
   #[test]
+  fn next_interval_run_with_last_run_in_past_uses_now() {
+    let past = Instant::now() - Duration::from_secs(10);
+    let (next, last) = next_interval_run(Duration::from_secs(5), Some(past));
+    let now = Instant::now();
+    assert!(next <= now + Duration::from_millis(100));
+    assert!(last.is_some());
+  }
+
+  #[test]
+  fn next_interval_run_with_last_run_yields_future() {
+    let past = Instant::now() - Duration::from_secs(1);
+    let (next, last) = next_interval_run(Duration::from_secs(60), Some(past));
+    let now = Instant::now();
+    assert!(next > now);
+    assert!(last.unwrap() > now);
+  }
+
+  #[test]
   fn next_hourly_run_returns_future_instant() {
     let next = next_hourly_run(0);
+    let now = Instant::now();
+    assert!(next > now);
+  }
+
+  #[test]
+  fn next_hourly_run_clamps_minute() {
+    let next = next_hourly_run(99);
     let now = Instant::now();
     assert!(next > now);
   }
@@ -91,5 +116,28 @@ mod tests {
     let next = next_daily_run(3, 0);
     let now = Instant::now();
     assert!(next > now);
+  }
+
+  #[test]
+  fn next_daily_run_clamps_hour_and_minute() {
+    let next = next_daily_run(25, 99);
+    let now = Instant::now();
+    assert!(next > now);
+  }
+
+  #[test]
+  fn cron_schedule_derive_clone_debug() {
+    let interval = CronSchedule::Interval(Duration::from_secs(30));
+    let hourly = CronSchedule::Hourly { minute: 15 };
+    let daily = CronSchedule::Daily {
+      hour: 9,
+      minute: 0,
+    };
+    let _ = format!("{:?}", interval);
+    let _ = format!("{:?}", hourly);
+    let _ = format!("{:?}", daily);
+    let _ = interval.clone();
+    let _ = hourly.clone();
+    let _ = daily.clone();
   }
 }

@@ -10,7 +10,7 @@ use std::task::{Context as TaskContext, Poll};
 use tower::{Layer, Service};
 use tracing_subscriber::EnvFilter;
 
-struct HeaderExtractor<'a>(&'a axum::http::HeaderMap);
+pub(crate) struct HeaderExtractor<'a>(&'a axum::http::HeaderMap);
 
 impl opentelemetry::propagation::Extractor for HeaderExtractor<'_> {
   fn get(&self, key: &str) -> Option<&str> {
@@ -129,6 +129,11 @@ pub fn env_filter() -> EnvFilter {
 #[cfg(test)]
 mod tests {
   use super::*;
+  use axum::body::Body;
+  use axum::http::Request;
+  use opentelemetry::propagation::Extractor;
+  use std::convert::Infallible;
+  use tower::ServiceExt;
 
   #[test]
   fn trace_id_from_traceparent_valid_returns_some() {
@@ -143,5 +148,170 @@ mod tests {
   #[test]
   fn trace_id_from_traceparent_none_returns_none() {
     assert_eq!(trace_id_from_traceparent(None), None);
+  }
+
+  #[test]
+  fn trace_id_from_traceparent_empty_string_returns_none() {
+    assert_eq!(trace_id_from_traceparent(Some("")), None);
+  }
+
+  #[test]
+  fn trace_id_from_traceparent_single_part_returns_none() {
+    assert_eq!(trace_id_from_traceparent(Some("00")), None);
+  }
+
+  #[test]
+  fn trace_id_from_traceparent_wrong_length_returns_none() {
+    assert_eq!(
+      trace_id_from_traceparent(Some("00-0000000000000000000000000000000-00-00")),
+      None
+    );
+    assert_eq!(
+      trace_id_from_traceparent(Some("00-000000000000000000000000000000001-00-00")),
+      None
+    );
+  }
+
+  #[test]
+  fn trace_id_from_traceparent_non_hex_returns_none() {
+    assert_eq!(
+      trace_id_from_traceparent(Some("00-gggggggggggggggggggggggggggggggg-00-00")),
+      None
+    );
+  }
+
+  #[test]
+  fn trace_id_from_traceparent_whitespace_trimmed() {
+    let trace_id = "00000000000000000000000000000001";
+    let header = format!("  00-{}-0000000000000000-00  ", trace_id);
+    assert_eq!(
+      trace_id_from_traceparent(Some(header.as_str())),
+      Some(trace_id.to_string())
+    );
+  }
+
+  #[test]
+  fn init_otel_sets_global_propagator_and_provider() {
+    init_otel();
+    let _ = global::tracer_provider();
+    global::get_text_map_propagator(|_p| ());
+  }
+
+  #[test]
+  fn env_filter_returns_default_when_env_unset() {
+    let _filter = env_filter();
+  }
+
+  #[test]
+  fn env_filter_uses_rust_log_when_set() {
+    // SAFETY: single-threaded test; we restore the env after
+    unsafe {
+      std::env::set_var("RUST_LOG", "debug");
+    }
+    let _filter = env_filter();
+    unsafe {
+      std::env::remove_var("RUST_LOG");
+    }
+  }
+
+  #[test]
+  fn header_extractor_keys_and_get() {
+    let mut headers = axum::http::HeaderMap::new();
+    headers.insert(
+      axum::http::header::HeaderName::from_static("traceparent"),
+      axum::http::header::HeaderValue::from_static(
+        "00-00000000000000000000000000000001-0000000000000000-00",
+      ),
+    );
+    let ext = crate::HeaderExtractor(&headers);
+    assert_eq!(ext.keys(), vec!["traceparent", "tracestate"]);
+    assert_eq!(
+      ext.get("traceparent"),
+      Some("00-00000000000000000000000000000001-0000000000000000-00")
+    );
+    assert_eq!(ext.get("tracestate"), None);
+    assert_eq!(ext.get("other"), None);
+  }
+
+  #[test]
+  fn header_extractor_get_returns_none_for_invalid_utf8() {
+    let mut headers = axum::http::HeaderMap::new();
+    let invalid_utf8 =
+      axum::http::header::HeaderValue::from_bytes(b"invalid-\xff-utf8").unwrap();
+    headers.insert(
+      axum::http::header::HeaderName::from_static("x-custom"),
+      invalid_utf8,
+    );
+    let ext = crate::HeaderExtractor(&headers);
+    assert_eq!(ext.get("x-custom"), None);
+  }
+
+  #[test]
+  fn otel_layer_builds_without_panic() {
+    init_otel();
+    let _layer = otel_layer();
+  }
+
+  #[test]
+  fn find_current_trace_id_returns_some_after_init() {
+    init_otel();
+    let id = find_current_trace_id();
+    assert!(id.is_some());
+    let id = id.unwrap();
+    assert_eq!(id.len(), 32);
+    assert!(id.chars().all(|c| c.is_ascii_hexdigit()));
+  }
+
+  #[test]
+  fn find_current_trace_id_uses_active_span_when_present() {
+    use opentelemetry::trace::Tracer;
+    init_otel();
+    let tracer = global::tracer("forge");
+    let span = tracer.start("test_span");
+    let expected_id = span.span_context().trace_id().to_string();
+    let ctx = opentelemetry::Context::current().with_span(span);
+    let _guard = ctx.attach();
+    let id = find_current_trace_id();
+    assert_eq!(id.as_deref(), Some(expected_id.as_str()));
+  }
+
+  #[test]
+  fn find_current_trace_id_uses_instrumentation_sdk_when_no_otel_span() {
+    use tracing_subscriber::prelude::*;
+    init_otel();
+    let layer = otel_layer();
+    let subscriber = tracing_subscriber::registry().with(layer);
+    let id = tracing::subscriber::with_default(subscriber, || {
+      let _span = tracing::info_span!("test_instrumentation").entered();
+      find_current_trace_id()
+    });
+    assert!(id.is_some());
+    let id = id.unwrap();
+    assert_eq!(id.len(), 32);
+    assert!(id.chars().all(|c| c.is_ascii_hexdigit()));
+  }
+
+  #[tokio::test]
+  async fn trace_context_propagation_layer_wraps_service() {
+    init_otel();
+    let layer = TraceContextPropagationLayer::default();
+    let svc = layer.layer(tower::service_fn(|_req: Request<Body>| async {
+      Ok::<_, Infallible>(())
+    }));
+    let req = Request::builder()
+      .header("traceparent", "00-00000000000000000000000000000001-0000000000000000-00")
+      .body(Body::empty())
+      .unwrap();
+    let _ = svc.oneshot(req).await.unwrap();
+  }
+
+  #[tokio::test]
+  async fn trace_context_propagation_layer_poll_ready() {
+    init_otel();
+    let layer = TraceContextPropagationLayer;
+    let mut svc = layer.layer(tower::service_fn(|_req: Request<Body>| async {
+      Ok::<_, Infallible>(())
+    }));
+    let _ = svc.ready().await.unwrap();
   }
 }

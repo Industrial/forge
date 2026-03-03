@@ -104,6 +104,7 @@ mod tests {
 
   #[test]
   fn run_err_when_no_cargo_toml() {
+    let _guard = crate::CHDIR_TEST_LOCK.lock().unwrap();
     let tmp = tempfile::tempdir().unwrap();
     let orig = std::env::current_dir().unwrap();
     let _ = std::env::set_current_dir(tmp.path());
@@ -115,6 +116,7 @@ mod tests {
 
   #[test]
   fn run_err_when_not_workspace() {
+    let _guard = crate::CHDIR_TEST_LOCK.lock().unwrap();
     let tmp = tempfile::tempdir().unwrap();
     std::fs::File::create(tmp.path().join("Cargo.toml"))
       .unwrap()
@@ -130,6 +132,7 @@ mod tests {
 
   #[test]
   fn run_err_when_no_app_main() {
+    let _guard = crate::CHDIR_TEST_LOCK.lock().unwrap();
     let tmp = tempfile::tempdir().unwrap();
     std::fs::File::create(tmp.path().join("Cargo.toml"))
       .unwrap()
@@ -140,6 +143,6 @@ mod tests {
     let r = run(&default_config());
     let _ = std::env::set_current_dir(orig);
     let err = r.unwrap_err();
-    assert!(err.to_string().contains("main.rs"));
+    assert!(err.to_string().contains("main.rs"), "expected error about main.rs, got: {}", err);
   }
 }

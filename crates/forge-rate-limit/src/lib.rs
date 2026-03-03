@@ -15,6 +15,21 @@ pub struct RequesterOrgKey {
   pub user_id: uuid::Uuid,
 }
 
+/// Builds a [`RequesterOrgKey`] from an optional user implementing [`AuthzContext`].
+/// Used by [`RequesterOrgKeyExtractor`] and testable in isolation.
+#[inline]
+pub fn requester_org_key_from_user<U: AuthzContext>(user: Option<&U>) -> RequesterOrgKey {
+  user
+    .map(|u| RequesterOrgKey {
+      organization_id: u.organization_id(),
+      user_id: u.requester_id(),
+    })
+    .unwrap_or(RequesterOrgKey {
+      organization_id: None,
+      user_id: uuid::Uuid::nil(),
+    })
+}
+
 /// Extracts `(organization_id, user_id)` from `AuthSession` in request extensions.
 #[derive(Clone, Debug)]
 pub struct RequesterOrgKeyExtractor<B> {
@@ -43,19 +58,11 @@ where
   type Key = RequesterOrgKey;
 
   fn extract<T>(&self, req: &axum::http::Request<T>) -> Result<Self::Key, GovernorError> {
-    let key = req
+    let user = req
       .extensions()
       .get::<AuthSession<B>>()
-      .and_then(|auth| auth.user.as_ref())
-      .map(|user| RequesterOrgKey {
-        organization_id: user.organization_id(),
-        user_id: user.requester_id(),
-      })
-      .unwrap_or(RequesterOrgKey {
-        organization_id: None,
-        user_id: uuid::Uuid::nil(),
-      });
-    Ok(key)
+      .and_then(|auth| auth.user.as_ref());
+    Ok(requester_org_key_from_user(user))
   }
 }
 
@@ -64,6 +71,24 @@ mod tests {
   use super::*;
   use axum::http::Request;
   use axum_login::AuthUser;
+
+  /// Mock user with configurable org for testing requester_org_key_from_user.
+  #[derive(Clone, Debug)]
+  struct MockUserWithOrg {
+    organization_id: Option<uuid::Uuid>,
+    user_id: uuid::Uuid,
+  }
+  impl AuthzContext for MockUserWithOrg {
+    fn requester_id(&self) -> uuid::Uuid {
+      self.user_id
+    }
+    fn subject_id(&self) -> uuid::Uuid {
+      self.user_id
+    }
+    fn organization_id(&self) -> Option<uuid::Uuid> {
+      self.organization_id
+    }
+  }
 
   #[test]
   fn requester_org_key_equality_and_hash() {
@@ -81,11 +106,58 @@ mod tests {
     set.insert(a);
     set.insert(b);
     assert_eq!(set.len(), 1);
+    let org_id = uuid::Uuid::new_v4();
+    let c = RequesterOrgKey {
+      organization_id: Some(org_id),
+      user_id: id,
+    };
+    let d = RequesterOrgKey {
+      organization_id: Some(org_id),
+      user_id: id,
+    };
+    assert_eq!(c, d);
+    assert_ne!(a, c);
+    set.insert(c);
+    set.insert(d);
+    assert_eq!(set.len(), 2);
+  }
+
+  #[test]
+  fn requester_org_key_from_user_none() {
+    let key = requester_org_key_from_user::<MockUserWithOrg>(None);
+    assert!(key.organization_id.is_none());
+    assert_eq!(key.user_id, uuid::Uuid::nil());
+  }
+
+  #[test]
+  fn requester_org_key_from_user_some_without_org() {
+    let user = MockUserWithOrg {
+      organization_id: None,
+      user_id: uuid::Uuid::new_v4(),
+    };
+    let key = requester_org_key_from_user(Some(&user));
+    assert!(key.organization_id.is_none());
+    assert_eq!(key.user_id, user.user_id);
+  }
+
+  #[test]
+  fn requester_org_key_from_user_some_with_org() {
+    let org_id = uuid::Uuid::new_v4();
+    let user_id = uuid::Uuid::new_v4();
+    let user = MockUserWithOrg {
+      organization_id: Some(org_id),
+      user_id,
+    };
+    let key = requester_org_key_from_user(Some(&user));
+    assert_eq!(key.organization_id, Some(org_id));
+    assert_eq!(key.user_id, user_id);
   }
 
   #[test]
   fn requester_org_key_extractor_new_and_default() {
     use async_trait::async_trait;
+    use axum_login::AuthnBackend;
+    use axum_login::UserId;
     #[derive(Clone)]
     struct DummyBackend;
     #[async_trait]
@@ -95,18 +167,18 @@ mod tests {
       type Error = std::io::Error;
       async fn authenticate(
         &self,
-        _: Self::Credentials,
+        _creds: Self::Credentials,
       ) -> Result<Option<Self::User>, Self::Error> {
         Ok(None)
       }
       async fn get_user(
         &self,
-        _: &<Self::User as AuthUser>::Id,
+        _user_id: &UserId<Self>,
       ) -> Result<Option<Self::User>, Self::Error> {
         Ok(None)
       }
     }
-    static MOCK_AUTH_HASH: [u8; 0] = [];
+    static _MOCK_AUTH_HASH: [u8; 0] = [];
     #[derive(Clone, Debug)]
     struct MockUser;
     impl AuthUser for MockUser {
@@ -115,7 +187,7 @@ mod tests {
         uuid::Uuid::nil()
       }
       fn session_auth_hash(&self) -> &[u8] {
-        &MOCK_AUTH_HASH
+        &_MOCK_AUTH_HASH
       }
     }
     impl AuthzContext for MockUser {
@@ -135,5 +207,110 @@ mod tests {
     let key = ext.extract(&req).unwrap();
     assert!(key.organization_id.is_none());
     assert_eq!(key.user_id, uuid::Uuid::nil());
+  }
+
+  /// Integration test: request through auth layer so AuthSession is present with a user,
+  /// then call the extractor to cover the "user present" branch in extract().
+  #[tokio::test]
+  async fn requester_org_key_extractor_with_auth_session_user() {
+    use async_trait::async_trait;
+    use axum::extract::Request;
+    use axum::routing::{get, post};
+    use axum::{Json, Router};
+    use axum_login::{AuthManagerLayerBuilder, AuthnBackend, UserId};
+    use tower_sessions::{MemoryStore, SessionManagerLayer};
+
+    static AUTH_HASH: [u8; 0] = [];
+    #[derive(Clone, Debug)]
+    struct TestUser {
+      organization_id: Option<uuid::Uuid>,
+      user_id: uuid::Uuid,
+    }
+    impl AuthUser for TestUser {
+      type Id = uuid::Uuid;
+      fn id(&self) -> Self::Id {
+        self.user_id
+      }
+      fn session_auth_hash(&self) -> &[u8] {
+        &AUTH_HASH
+      }
+    }
+    impl AuthzContext for TestUser {
+      fn requester_id(&self) -> uuid::Uuid {
+        self.user_id
+      }
+      fn subject_id(&self) -> uuid::Uuid {
+        self.user_id
+      }
+      fn organization_id(&self) -> Option<uuid::Uuid> {
+        self.organization_id
+      }
+    }
+
+    #[derive(Clone)]
+    struct TestBackend {
+      user: TestUser,
+    }
+    #[async_trait]
+    impl AuthnBackend for TestBackend {
+      type User = TestUser;
+      type Credentials = ();
+      type Error = std::convert::Infallible;
+      async fn authenticate(
+        &self,
+        _creds: Self::Credentials,
+      ) -> Result<Option<Self::User>, Self::Error> {
+        Ok(Some(self.user.clone()))
+      }
+      async fn get_user(
+        &self,
+        user_id: &UserId<Self>,
+      ) -> Result<Option<Self::User>, Self::Error> {
+        if *user_id == self.user.id() {
+          Ok(Some(self.user.clone()))
+        } else {
+          Ok(None)
+        }
+      }
+    }
+
+    let org_id = uuid::Uuid::new_v4();
+    let user_id = uuid::Uuid::new_v4();
+    let backend = TestBackend {
+      user: TestUser {
+        organization_id: Some(org_id),
+        user_id,
+      },
+    };
+    let store = MemoryStore::default();
+    let session_layer = SessionManagerLayer::new(store);
+    let auth_layer = AuthManagerLayerBuilder::new(backend, session_layer).build();
+
+    async fn key_handler(request: Request) -> Json<RequesterOrgKey> {
+      let ext = RequesterOrgKeyExtractor::<TestBackend>::new();
+      let key = ext.extract(&request).unwrap();
+      Json(key)
+    }
+
+    async fn login_handler(mut auth: axum_login::AuthSession<TestBackend>) -> &'static str {
+      let user = auth.authenticate(()).await.unwrap().unwrap();
+      auth.login(&user).await.unwrap();
+      "ok"
+    }
+
+    let app = Router::new()
+      .route("/login", post(login_handler))
+      .route("/key", get(key_handler))
+      .layer(auth_layer);
+
+    let client = axum::test::TestClient::new(app);
+    let login_res = client.post("/login").send().await;
+    assert!(login_res.status().is_success());
+
+    let key_res = client.get("/key").send().await;
+    assert!(key_res.status().is_success());
+    let key: RequesterOrgKey = key_res.json().await;
+    assert_eq!(key.organization_id, Some(org_id));
+    assert_eq!(key.user_id, user_id);
   }
 }

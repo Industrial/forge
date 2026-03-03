@@ -7,12 +7,19 @@ license = "MIT OR Apache-2.0"
 repository = "https://github.com/Industrial/forge"
 description = "Structured audit logging for Forge framework"
 
+[features]
+# Enable for tests that use MockDatabase (optional to keep DatabaseConnection Clone in the tree)
+mock = ["sea-orm/mock"]
+
 [dependencies]
 chrono = { version = "0.4", features = ["serde"] }
 forge-authz = { path = "../forge-authz" }
 sea-orm = { version = "1.1", features = ["sqlx-sqlite"] }
 tracing = "0.1"
 uuid = { version = "1.0", features = ["v4", "serde"] }
+
+[dev-dependencies]
+tokio = { version = "1", features = ["rt", "macros"] }
 
 [lints.rust]
 unexpected_cfgs = { level = "warn", check-cfg = ['cfg(coverage)'] }

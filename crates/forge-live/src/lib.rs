@@ -7,10 +7,14 @@
 mod backend;
 mod channel;
 mod event;
+#[cfg(feature = "redis")]
+mod redis_backend;
 
 pub use backend::{ConnectionId, InMemoryLiveBackend, LiveBackend};
 pub use channel::Channel;
 pub use event::LiveEvent;
+#[cfg(feature = "redis")]
+pub use redis_backend::RedisLiveBackend;
 
 use std::sync::Arc;
 use uuid::Uuid;

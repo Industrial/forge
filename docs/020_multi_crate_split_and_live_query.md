@@ -213,7 +213,37 @@ The existing **docs/014_real_time_websockets.md** describes raw WebSocket and SS
 3. **Phase 3**: Add **forge-live** with in-memory backend only; integrate into **forge** app builder (optional feature or method like `with_live_query()`).
 4. **Phase 4**: Introduce **LiveBackend** trait and Redis implementation; document configuration for multi-instance deployments.
 
-### 7.2 Trade-offs
+### 7.2 Multi-instance configuration (Redis LiveBackend)
+
+When running **multiple server instances** (e.g. behind a load balancer), the default **in-memory** Live Query backend only reaches connections on the same process. To broadcast to all instances, use the **Redis** backend so that each instance publishes to Redis and receives from Redis, then fans out to its local WebSocket connections.
+
+**Setup:**
+
+1. **Enable the `redis` feature** on `forge-live` (and on `forge` if you depend on it with that feature):
+   ```toml
+   [dependencies]
+   forge-live = { path = "...", features = ["redis"] }
+   ```
+
+2. **Create the backend** at startup with a Redis URL shared by all instances:
+   ```rust
+   let live_backend = forge_live::RedisLiveBackend::connect("redis://127.0.0.1/").await?;
+   ```
+
+3. **Use the same API**: `Arc<RedisLiveBackend>` implements `LiveBackend`, so you pass it to the app builder (e.g. `with_live_query()`) and use `broadcast_to_channel` / `broadcast_to_org` in handlers as with the in-memory backend.
+
+**Behaviour:**
+
+- Each instance keeps **local** connection and subscription state; Redis is used only for **pub/sub** of broadcast payloads.
+- When any instance calls `broadcast(channel, payload)`, it **PUBLISH**es to Redis; every instance (including the publisher) **SUBSCRIBE**s to channels that at least one local connection has joined and, on message, fans out to those local connections.
+- All instances must use the **same Redis** (or same Redis Cluster) and the same channel naming (e.g. `org:{uuid}`) so that broadcasts are consistent.
+
+**Configuration:**
+
+- Provide the Redis URL via environment or config (e.g. `LIVE_REDIS_URL` or from `config/app.toml`). Use a single Redis instance or a managed Redis service; ensure the URL is reachable from every app instance.
+- No application code change is required beyond choosing `InMemoryLiveBackend::new()` vs `RedisLiveBackend::connect(url).await` and enabling the `redis` feature.
+
+### 7.3 Trade-offs
 
 - **Many small crates**: Clear boundaries, better reuse and incremental compile; more Cargo.toml and version management; refactors that cross crates require more coordination.
 - **Fewer, coarser crates**: e.g. **forge-core** (error, config, validation), **forge-db**, **forge-auth** (authn + authz), **forge-cache**, **forge-background** (cron + jobs), **forge-observability** (health + tracing), **forge-live**, **forge**. Simpler workspace and fewer version bumps; less fine-grained reuse.

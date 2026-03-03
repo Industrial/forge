@@ -46,10 +46,92 @@ pub use sea_orm_tracing::TracedConnection as DbConnection;
 mod tests {
   use super::*;
 
+  fn memory_config() -> DatabaseConfig {
+    DatabaseConfig {
+      url: "sqlite::memory:".to_string(),
+      max_connections: None,
+      min_connections: None,
+      connect_timeout: None,
+      idle_timeout: None,
+      auto_migrate: false,
+      auto_seed: false,
+    }
+  }
+
   #[tokio::test]
   async fn initialize_database_memory_succeeds() {
+    let config = memory_config();
+    let res = initialize_database(&config).await;
+    assert!(res.is_ok());
+  }
+
+  #[tokio::test]
+  async fn initialize_database_with_all_options_succeeds() {
     let config = DatabaseConfig {
       url: "sqlite::memory:".to_string(),
+      max_connections: Some(5),
+      min_connections: Some(1),
+      connect_timeout: Some(10),
+      idle_timeout: Some(30),
+      auto_migrate: false,
+      auto_seed: false,
+    };
+    let res = initialize_database(&config).await;
+    assert!(res.is_ok());
+  }
+
+  #[tokio::test]
+  async fn initialize_database_without_sql_debug_skips_logging() {
+    // Unset so the branch that skips sqlx_logging is taken (dev env often has FORGE_SQL_DEBUG=1).
+    unsafe { std::env::remove_var("FORGE_SQL_DEBUG") };
+    let prev = std::env::var("FORGE_SQL_DEBUG").ok();
+    let res = initialize_database(&memory_config()).await;
+    if let Some(p) = prev.as_deref() {
+      unsafe { std::env::set_var("FORGE_SQL_DEBUG", p) };
+    } else {
+      unsafe { std::env::remove_var("FORGE_SQL_DEBUG") };
+    }
+    assert!(res.is_ok());
+  }
+
+  #[tokio::test]
+  async fn initialize_database_with_sql_debug_env_enables_logging() {
+    let prev = std::env::var("FORGE_SQL_DEBUG").ok();
+    // SAFETY: test only; single-threaded test, restore after
+    unsafe {
+      std::env::set_var("FORGE_SQL_DEBUG", "1");
+    }
+    let res = initialize_database(&memory_config()).await;
+    if let Some(p) = prev.as_deref() {
+      unsafe { std::env::set_var("FORGE_SQL_DEBUG", p) };
+    } else {
+      unsafe { std::env::remove_var("FORGE_SQL_DEBUG") };
+    }
+    assert!(res.is_ok());
+  }
+
+  #[tokio::test]
+  async fn initialize_database_with_sql_debug_true_enables_logging() {
+    // Ensure prev is None so the remove_var restore path is covered.
+    unsafe { std::env::remove_var("FORGE_SQL_DEBUG") };
+    let prev = std::env::var("FORGE_SQL_DEBUG").ok();
+    // SAFETY: test only; single-threaded test, restore after
+    unsafe {
+      std::env::set_var("FORGE_SQL_DEBUG", "true");
+    }
+    let res = initialize_database(&memory_config()).await;
+    if let Some(p) = prev.as_deref() {
+      unsafe { std::env::set_var("FORGE_SQL_DEBUG", p) };
+    } else {
+      unsafe { std::env::remove_var("FORGE_SQL_DEBUG") };
+    }
+    assert!(res.is_ok());
+  }
+
+  #[tokio::test]
+  async fn initialize_database_fails_on_invalid_url() {
+    let config = DatabaseConfig {
+      url: "invalid-scheme://bad".to_string(),
       max_connections: None,
       min_connections: None,
       connect_timeout: None,
@@ -58,6 +140,6 @@ mod tests {
       auto_seed: false,
     };
     let res = initialize_database(&config).await;
-    assert!(res.is_ok());
+    assert!(res.is_err());
   }
 }
