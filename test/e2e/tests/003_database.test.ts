@@ -18,6 +18,6 @@ test.describe("e2e prebuilt database config", () => {
 		expect(prebuiltExists()).toBe(true);
 		assertProjectLayout();
 		await page.goto("/");
-		await expect(page.locator("#root")).toBeVisible({ timeout: 30_000 });
+		await expect(page.locator("#root")).toBeVisible();
 	});
 });

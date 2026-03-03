@@ -29,7 +29,7 @@ test.describe("e2e profile select and session profile", () => {
 			.locator("input")
 			.fill(SEED_PASSWORD);
 		await page.getByTestId("login-submit").click();
-		await expect(page).toHaveURL(/\/select-profile/, { timeout: 15_000 });
+		await expect(page).toHaveURL(/\/select-profile/);
 		await expect(
 			page.getByRole("heading", { name: "Select profile" }),
 		).toBeVisible();
@@ -48,7 +48,7 @@ test.describe("e2e profile select and session profile", () => {
 			.locator("input")
 			.fill(SEED_PASSWORD);
 		await page.getByTestId("login-submit").click();
-		await expect(page).toHaveURL(/\/dashboard/, { timeout: 15_000 });
+		await expect(page).toHaveURL(/\/dashboard/);
 		await expect(page).not.toHaveURL(/\/select-profile/);
 	});
 
@@ -65,10 +65,10 @@ test.describe("e2e profile select and session profile", () => {
 			.locator("input")
 			.fill(SEED_PASSWORD);
 		await page.getByTestId("login-submit").click();
-		await expect(page).toHaveURL(/\/select-profile/, { timeout: 15_000 });
+		await expect(page).toHaveURL(/\/select-profile/);
 		// Select first profile card (order may vary)
 		await page.locator('[data-testid^="profile-"]').first().click();
-		await expect(page).toHaveURL(/\/dashboard/, { timeout: 15_000 });
+		await expect(page).toHaveURL(/\/dashboard/);
 		await expect(page.getByTestId("dashboard-heading")).toContainText(
 			"Dashboard",
 		);
@@ -88,7 +88,7 @@ test.describe("e2e profile select and session profile", () => {
 			.locator("input")
 			.fill(SEED_PASSWORD);
 		await page.getByTestId("login-submit").click();
-		await expect(page).toHaveURL(/\/select-profile/, { timeout: 15_000 });
+		await expect(page).toHaveURL(/\/select-profile/);
 		await page.goto("/dashboard");
 		await expect(page).toHaveURL(/\/select-profile/, { timeout: 10_000 });
 	});
@@ -106,7 +106,7 @@ test.describe("e2e profile select and session profile", () => {
 			.locator("input")
 			.fill(SEED_PASSWORD);
 		await page.getByTestId("login-submit").click();
-		await expect(page).toHaveURL(/\/dashboard/, { timeout: 15_000 });
+		await expect(page).toHaveURL(/\/dashboard/);
 		await page.getByRole("link", { name: "Users" }).click();
 		await expect(page).toHaveURL(/\/dashboard\/users/);
 		await expect(
@@ -129,9 +129,9 @@ test.describe("e2e profile select and session profile", () => {
 			.locator("input")
 			.fill(SEED_PASSWORD);
 		await page.getByTestId("login-submit").click();
-		await expect(page).toHaveURL(/\/select-profile/, { timeout: 15_000 });
+		await expect(page).toHaveURL(/\/select-profile/);
 		await page.locator('[data-testid^="profile-"]').first().click();
-		await expect(page).toHaveURL(/\/dashboard/, { timeout: 15_000 });
+		await expect(page).toHaveURL(/\/dashboard/);
 		await page.getByRole("link", { name: "Users" }).click();
 		await expect(page).toHaveURL(/\/dashboard\/users/);
 		await expect(page.getByRole("heading", { name: "Users" })).toBeVisible();
@@ -154,12 +154,12 @@ test.describe("e2e profile select and session profile", () => {
 		await page.getByTestId("register-email").locator("input").fill(email);
 		await page.getByTestId("register-password").locator("input").fill(password);
 		await page.getByTestId("register-submit").click();
-		await expect(page).toHaveURL(/\/login/, { timeout: 15_000 });
+		await expect(page).toHaveURL(/\/login/);
 
 		await page.getByTestId("login-email").locator("input").fill(email);
 		await page.getByTestId("login-password").locator("input").fill(password);
 		await page.getByTestId("login-submit").click();
-		await expect(page).toHaveURL(/\/dashboard/, { timeout: 15_000 });
+		await expect(page).toHaveURL(/\/dashboard/);
 		await expect(page.getByTestId("dashboard-heading")).toContainText(
 			"Dashboard",
 		);

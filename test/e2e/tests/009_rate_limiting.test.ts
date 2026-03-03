@@ -7,7 +7,7 @@ test.describe("e2e rate limiting", () => {
 		assertProjectLayout();
 		for (let i = 0; i < 5; i++) {
 			await page.goto("/");
-			await expect(page.locator("#root")).toBeVisible({ timeout: 30_000 });
+			await expect(page.locator("#root")).toBeVisible();
 		}
 	});
 });

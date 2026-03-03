@@ -72,7 +72,7 @@ test.describe("e2e permission-based dashboard", () => {
 		).toBeVisible();
 
 		await page.goto("/dashboard/organizations");
-		await expect(page).toHaveURL(/\/dashboard$/);
+		await expect(page).toHaveURL(/\/dashboard$/, { timeout: 10_000 });
 	});
 
 	test("viewer has Dashboard, Users, and Permissions (read) nav; no Organizations", async ({
@@ -88,7 +88,7 @@ test.describe("e2e permission-based dashboard", () => {
 			.locator("input")
 			.fill(SEED_PASSWORD);
 		await page.getByTestId("login-submit").click();
-		await expect(page).toHaveURL(/\/dashboard/, { timeout: 15_000 });
+		await expect(page).toHaveURL(/\/dashboard/);
 
 		await expect(page.getByRole("link", { name: "Dashboard" })).toBeVisible();
 		await expect(page.getByRole("link", { name: "Users" })).toBeVisible();
@@ -98,7 +98,7 @@ test.describe("e2e permission-based dashboard", () => {
 		).not.toBeVisible();
 
 		await page.goto("/dashboard/organizations");
-		await expect(page).toHaveURL(/\/dashboard$/);
+		await expect(page).toHaveURL(/\/dashboard$/, { timeout: 10_000 });
 
 		await page.goto("/dashboard/roles-and-permissions");
 		await expect(page).toHaveURL(/\/dashboard\/roles-and-permissions/);
