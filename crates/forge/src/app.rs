@@ -46,15 +46,17 @@ pub type MigratorFn =
   Box<dyn Fn() -> BoxFuture<'static, Result<(), Box<dyn std::error::Error>>> + Send + Sync>;
 
 /// Type alias for the auth installer function.
-/// Args: router, db, optional per-user rate limit, optional token lookup for Bearer auth.
+/// Args: router, db, optional per-user rate limit, optional token lookup for Bearer auth, whether session auth is enabled.
 pub type AuthInstallerFn = Box<
   dyn FnOnce(
       Router<DbConnection>,
       DbConnection,
       Option<u32>,
       Option<TokenLookupFn>,
+      bool, // with_session_auth
     ) -> BoxFuture<'static, Router<DbConnection>>
-    + Send,
+    + Send
+    + Sync,
 >;
 
 /// Initialize the tracing subscriber for logging and OpenTelemetry (017).
@@ -80,6 +82,8 @@ fn init_tracing_impl() {
 ///
 /// Provides a fluent API for configuring and running Axum-based web applications.
 pub struct App {
+  /// Whether the app is configured for token-only authentication.
+  token_only_auth: bool,
   /// The Axum router containing all configured routes and middleware.
   router: Router<DbConnection>,
   /// Application configuration loaded from `config/app.toml` and `config/db.toml`
@@ -98,6 +102,8 @@ pub struct App {
   rate_limit_per_user: Option<u32>,
   /// Optional token lookup for Bearer auth: (db, raw_token) -> Option<user_id>. Used when with_token_auth is set.
   token_lookup: Option<TokenLookupFn>,
+  /// Whether session authentication is enabled. If false, no session layer is installed.
+  with_session_auth: bool,
   /// Cron tasks to run in-process when serve() is used.
   cron_tasks: Vec<(String, CronSchedule, CronTaskBox)>,
   /// Optional Live Query backend for real-time broadcast (e.g. [forge_live::InMemoryLiveBackend]).
@@ -144,6 +150,7 @@ impl App {
       rate_limit_per_ip: None,
       rate_limit_per_user: None,
       token_lookup: None,
+      with_session_auth: true,
       cron_tasks: Vec::new(),
       live_backend: None,
     })
@@ -216,10 +223,16 @@ impl App {
 
   /// Register authentication and session management.
   pub fn with_auth<B, F>(mut self, backend_factory: F) -> Self
+  #[cfg(feature = "session")]
   where
     B: axum_login::AuthnBackend + Send + Sync + Clone + 'static,
-    B::User:
-      axum_login::AuthUser<Id = uuid::Uuid> + crate::authz::AuthzContext + Send + Clone + 'static,
+    B::User: crate::authz::AuthzContext + Send + Clone + 'static,
+    B::User: axum_login::AuthUser<Id = uuid::Uuid>,
+    F: Fn(DbConnection) -> B + Send + Sync + 'static,
+#[cfg(not(feature = "session"))]
+  where
+    B: forge_auth::Backend + Send + Sync + Clone + 'static,
+    B::User: crate::authz::AuthzContext + Send + Clone + 'static,
     F: Fn(DbConnection) -> B + Send + Sync + 'static,
   {
     self.auth_installer = Some(Box::new(
@@ -239,7 +252,7 @@ impl App {
 
           // Session cookie security: HttpOnly (XSS), Secure in production (HTTPS only),
           // SameSite=Lax (CSRF + allows top-level nav), Path=/ (site-wide). See OWASP session guidance.
-          // In development (e.g. HTTP localhost), Secure must be false or browsers won't send the cookie.
+          // In development (e.g. HTTP localhost), Secure must be false or browsers won\'t send the cookie.
           let secure = !crate::config::effective_environment().eq_ignore_ascii_case("development");
           let session_layer = SessionManagerLayer::new(session_store)
             .with_http_only(true)
@@ -288,6 +301,57 @@ impl App {
       Box::pin(lookup(db, token)) as BoxFuture<'static, Option<uuid::Uuid>>
     });
     self.token_lookup = Some(lookup);
+    self
+  }
+
+  /// Register API token (Bearer) authentication as the ONLY authentication method.
+  /// No sessions are used. The closure receives (db, raw_token) and returns the user id if the token is valid.
+  /// Used by [`.serve`](Self::serve) and [`.into_router`](Self::into_router).
+  pub fn with_token_auth_only<B, F, Fut>(mut self, backend_factory: B, token_lookup: F) -> Self
+  #[cfg(feature = "session")]
+  where
+    B: WithTokenAuthOnlyBackend + Fn(DbConnection) -> <B as WithTokenAuthOnlyBackend>::Backend + Send + Sync + 'static,
+    F: Fn(DbConnection, String) -> Fut + Send + Sync + 'static,
+    Fut: Future<Output = Option<uuid::Uuid>> + Send + 'static,
+    <B as WithTokenAuthOnlyBackend>::Backend: axum_login::AuthnBackend + Send + Sync + Clone + 'static,
+    <B as WithTokenAuthOnlyBackend>::User: crate::authz::AuthzContext + Send + Clone + 'static,
+    <B as WithTokenAuthOnlyBackend>::User: axum_login::AuthUser<Id = uuid::Uuid>,
+#[cfg(not(feature = "session"))]
+  where
+    B: WithTokenAuthOnlyBackend + Fn(DbConnection) -> <B as WithTokenAuthOnlyBackend>::Backend + Send + Sync + 'static,
+    F: Fn(DbConnection, String) -> Fut + Send + Sync + 'static,
+    Fut: Future<Output = Option<uuid::Uuid>> + Send + 'static,
+    <B as WithTokenAuthOnlyBackend>::Backend: forge_auth::Backend + Send + Sync + Clone + 'static,
+    <B as WithTokenAuthOnlyBackend>::User: crate::authz::AuthzContext + Send + Clone + 'static,
+  {
+    let token_lookup = Arc::new(move |db: DbConnection, token: String| {
+      Box::pin(token_lookup(db, token)) as BoxFuture<'static, Option<uuid::Uuid>>
+    });
+    self.token_only_auth = true;
+    self.auth_installer = Some(Box::new(
+      move |router, db_conn, rate_limit_per_user, _| {
+        Box::pin(async move {
+          info!("Installing token-only authentication middleware (no sessions)...");
+
+          let backend = backend_factory(db_conn.clone());
+          let token_layer = TokenAuthLayer::new(db_conn.clone(), backend.clone(), token_lookup.clone());
+          let router = router.layer(token_layer);
+
+          if let Some(n) = rate_limit_per_user {
+            let burst = n.max(1);
+            let conf = GovernorConfigBuilder::default()
+              .per_second(1)
+              .burst_size(burst)
+              .key_extractor(forge_rate_limit::RequesterOrgKeyExtractor::<B::Backend>::new())
+              .finish()
+              .expect("GovernorConfigBuilder per-user");
+            router.layer(GovernorLayer::new(Arc::new(conf)))
+          } else {
+            router
+          }
+        })
+      },
+    ));
     self
   }
 
@@ -343,7 +407,7 @@ impl App {
   }
 
   /// Register a cron task that runs on the given schedule (in-process when [`.serve`](Self::serve) is used).
-  /// The task receives the app's database connection. No external cron library; uses Interval / Hourly / Daily.
+  /// The task receives the app\'s database connection. No external cron library; uses Interval / Hourly / Daily.
   pub fn with_cron<F, Fut>(mut self, name: &str, schedule: CronSchedule, f: F) -> Self
   where
     F: Fn(DbConnection) -> Fut + Send + Sync + 'static,
@@ -378,6 +442,7 @@ impl App {
       rate_limit_per_ip,
       rate_limit_per_user,
       token_lookup,
+      with_session_auth,
       cron_tasks,
       live_backend,
     } = self;
@@ -487,21 +552,22 @@ impl App {
     let cron_runner = if cron_tasks.is_empty() {
       None
     } else {
-      Some((
-        db_conn.clone(),
+      Some(
+        (db_conn.clone(),
         CronRunner {
           tasks: cron_tasks,
           job_pool_url: config.database.url.clone(),
         },
-      ))
-    };
+      )
+    );
+    }
 
     (router, db_conn, cron_runner, response_cache_layer)
   }
 
   /// Consumes the App and returns the underlying Axum router and optionally a cron runner.
   /// When cron tasks are registered, the second element is `Some((db, runner))` so [`.serve`](Self::serve) can spawn them.
-  /// For tests that only need the router, use `let (router, _) = app.into_router().await`.
+  /// For tests that only need the router, use `let (router, _) = app.into_router().await`.\
   /// The returned router has state applied and is `Router<()>`, so it can be used with `into_make_service_with_connect_info`.
   pub async fn into_router(self) -> (Router<()>, Option<(DbConnection, CronRunner)>) {
     let (router, db_conn, cron_runner, response_cache_layer) =
@@ -516,9 +582,12 @@ impl App {
     (router, cron_runner)
   }
 
-  /// Returns the router **before** state and HTTP response cache are applied, so you can apply custom state (e.g. `(DbConnection, InertiaConfig)` for [Inertia](https://docs.rs/axum-inertia) apps).
+  /// Returns the router **before** state and HTTP response cache are applied,
+  /// so you can apply custom state (e.g. `(DbConnection, InertiaConfig)` for [Inertia](https://docs.rs/axum-inertia) apps).
   ///
-  /// Use this when you need combined app state (e.g. DB + Inertia). Then apply state with `router.with_state((db_conn, inertia_config))`, then apply the returned cache layer if `Some`, then run the server (or use your own `serve` flow).
+  /// Use this when you need combined app state (e.g. DB + Inertia).
+  /// Then apply state with `router.with_state((db_conn, inertia_config))`, then apply the returned cache layer if `Some`,
+  /// then run the server (or use your own `serve` flow).
   ///
   /// # Example (Inertia)
   ///

@@ -1,6 +1,7 @@
 pub use forge_authz::*;
 
 use async_trait::async_trait;
+#[cfg(feature = "session")]
 use axum_login::{AuthSession, AuthnBackend};
 use sea_orm::ConnectionTrait;
 

@@ -10,7 +10,7 @@ description = "Authentication (password hashing, API token, session) for Forge f
 [dependencies]
 argon2 = "0.5"
 axum = "0.8"
-axum-login = "0.17"
+axum-login = { version = "0.17", optional = true }
 forge-authz = { path = "../forge-authz" }
 forge-core = { path = "../forge-core" }
 forge-db = { path = "../forge-db" }
@@ -20,6 +20,9 @@ sha2 = "0.10"
 subtle = "2.5"
 tower = { version = "0.5", features = ["util"] }
 uuid = { version = "1.0", features = ["v4"] }
+
+[features]
+session = ["axum-login"]
 
 [lints.rust]
 unexpected_cfgs = { level = "warn", check-cfg = ['cfg(coverage)'] }

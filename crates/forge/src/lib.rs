@@ -55,15 +55,20 @@ pub use validation::{Valid, Validate};
 pub use async_trait;
 pub use axum;
 pub use axum::http;
+#[cfg(feature = "session")]
+#[cfg(feature = "session")]
 pub use axum_login;
 pub use chrono;
 pub use sea_orm;
 pub use sea_orm_migration;
 pub use serde;
 pub use serde_json;
-pub use tokio;
+#[cfg(feature = "session")]
 pub use tower_sessions;
+#[cfg(feature = "session")]
 pub use tower_sessions_sqlx_store;
+pub use tokio;
+
 pub use uuid;
 
 /// Re-exported axum extractors for convenience
