@@ -214,10 +214,13 @@ mod tests {
   #[tokio::test]
   async fn requester_org_key_extractor_with_auth_session_user() {
     use async_trait::async_trait;
+    use axum::body::Body;
     use axum::extract::Request;
+    use axum::http::{Request as HttpRequest, StatusCode};
     use axum::routing::{get, post};
-    use axum::{Json, Router};
+    use axum::Router;
     use axum_login::{AuthManagerLayerBuilder, AuthnBackend, UserId};
+    use tower::ServiceExt;
     use tower_sessions::{MemoryStore, SessionManagerLayer};
 
     static AUTH_HASH: [u8; 0] = [];
@@ -274,6 +277,27 @@ mod tests {
       }
     }
 
+    async fn key_handler(req: Request) -> (StatusCode, String) {
+      let ext = RequesterOrgKeyExtractor::<TestBackend>::new();
+      let key = ext.extract(&req).unwrap();
+      (
+        StatusCode::OK,
+        format!(
+          "{}:{}",
+          key.organization_id
+            .map(|u| u.to_string())
+            .unwrap_or_default(),
+          key.user_id
+        ),
+      )
+    }
+
+    async fn login_handler(mut auth: axum_login::AuthSession<TestBackend>) -> &'static str {
+      let user = auth.authenticate(()).await.unwrap().unwrap();
+      auth.login(&user).await.unwrap();
+      "ok"
+    }
+
     let org_id = uuid::Uuid::new_v4();
     let user_id = uuid::Uuid::new_v4();
     let backend = TestBackend {
@@ -286,31 +310,51 @@ mod tests {
     let session_layer = SessionManagerLayer::new(store);
     let auth_layer = AuthManagerLayerBuilder::new(backend, session_layer).build();
 
-    async fn key_handler(request: Request) -> Json<RequesterOrgKey> {
-      let ext = RequesterOrgKeyExtractor::<TestBackend>::new();
-      let key = ext.extract(&request).unwrap();
-      Json(key)
-    }
-
-    async fn login_handler(mut auth: axum_login::AuthSession<TestBackend>) -> &'static str {
-      let user = auth.authenticate(()).await.unwrap().unwrap();
-      auth.login(&user).await.unwrap();
-      "ok"
-    }
-
     let app = Router::new()
       .route("/login", post(login_handler))
       .route("/key", get(key_handler))
       .layer(auth_layer);
 
-    let client = axum::test::TestClient::new(app);
-    let login_res = client.post("/login").send().await;
+    // Request /key without logging in: AuthSession present but user None (covers that branch)
+    let key_req_anon = HttpRequest::builder()
+      .uri("/key")
+      .body(Body::empty())
+      .unwrap();
+    let key_res_anon = app.clone().oneshot(key_req_anon).await.unwrap();
+    assert!(key_res_anon.status().is_success());
+    let body_anon =
+      axum::body::to_bytes(key_res_anon.into_body(), usize::MAX)
+        .await
+        .unwrap();
+    assert_eq!(
+      std::str::from_utf8(&body_anon).unwrap(),
+      ":00000000-0000-0000-0000-000000000000"
+    );
+
+    let login_req = HttpRequest::builder()
+      .method("POST")
+      .uri("/login")
+      .body(Body::empty())
+      .unwrap();
+    let login_res = app.clone().oneshot(login_req).await.unwrap();
     assert!(login_res.status().is_success());
 
-    let key_res = client.get("/key").send().await;
+    let cookie = login_res
+      .headers()
+      .get("set-cookie")
+      .cloned()
+      .expect("session cookie");
+    let key_req = HttpRequest::builder()
+      .uri("/key")
+      .header("cookie", cookie)
+      .body(Body::empty())
+      .unwrap();
+    let key_res = app.oneshot(key_req).await.unwrap();
     assert!(key_res.status().is_success());
-    let key: RequesterOrgKey = key_res.json().await;
-    assert_eq!(key.organization_id, Some(org_id));
-    assert_eq!(key.user_id, user_id);
+    let body = axum::body::to_bytes(key_res.into_body(), usize::MAX)
+      .await
+      .unwrap();
+    let s = std::str::from_utf8(&body).unwrap();
+    assert_eq!(s, format!("{}:{}", org_id, user_id));
   }
 }

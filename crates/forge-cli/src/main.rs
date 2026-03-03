@@ -391,6 +391,7 @@ mod tests {
 
     #[test]
     fn serve_run_err_when_no_cargo_toml() {
+      let _guard = crate::CHDIR_TEST_LOCK.lock().unwrap();
       let tmp = tempdir().unwrap();
       let orig = std::env::current_dir().unwrap();
       let _ = std::env::set_current_dir(tmp.path());
@@ -402,6 +403,7 @@ mod tests {
 
     #[test]
     fn serve_run_err_when_no_app_main() {
+      let _guard = crate::CHDIR_TEST_LOCK.lock().unwrap();
       let tmp = tempdir().unwrap();
       std::fs::write(tmp.path().join("Cargo.toml"), "[workspace]\nmembers = []\n").unwrap();
       let orig = std::env::current_dir().unwrap();

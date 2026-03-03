@@ -114,7 +114,6 @@ mod tests {
   use forge_cron::CronTaskBox;
   use sea_orm::{ConnectOptions, Database};
   use sea_orm_tracing::TracedConnection;
-  use std::future::Future;
   use std::pin::Pin;
 
   fn ok_task() -> CronTaskBox {

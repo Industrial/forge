@@ -1382,6 +1382,7 @@ dependencies = [
  "axum-login",
  "forge-authz",
  "tokio",
+ "tower",
  "tower-sessions",
  "tower_governor",
  "uuid",
