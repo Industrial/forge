@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from "react";
-import { getWsUrl } from "@/utils/ws";
+import { attachWsDebugLogging, getWsUrl } from "@/utils/ws";
 
 /**
  * Live event payloads from the backend (forge-live).
@@ -38,6 +38,7 @@ export function useLiveChannel(
 			return;
 		}
 		const ws = new WebSocket(getWsUrl());
+		attachWsDebugLogging(ws);
 		wsRef.current = ws;
 		ws.onopen = () => {
 			ws.send(JSON.stringify({ type: "subscribe", channel }));
@@ -58,9 +59,14 @@ export function useLiveChannel(
 		};
 	}, [channel]);
 
+	// Delay WebSocket until after the page has loaded so the Vite proxy (dev) or
+	// same-origin backend is ready; avoids "connection interrupted while page was loading".
+	const CONNECT_DELAY_MS = 600;
+
 	useEffect(() => {
-		connect();
+		const t = setTimeout(() => connect(), CONNECT_DELAY_MS);
 		return () => {
+			clearTimeout(t);
 			if (wsRef.current) {
 				wsRef.current.close();
 				wsRef.current = null;

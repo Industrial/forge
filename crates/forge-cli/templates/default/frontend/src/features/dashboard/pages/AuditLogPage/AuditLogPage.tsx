@@ -18,7 +18,7 @@ import Alert from "@mui/material/Alert";
 import CircularProgress from "@mui/material/CircularProgress";
 import TablePagination from "@mui/material/TablePagination";
 import Chip from "@mui/material/Chip";
-import { getWsUrl } from "@/utils/ws";
+import { attachWsDebugLogging, getWsUrl } from "@/utils/ws";
 import { useTablePaginationDefaults } from "@/hooks/useTablePaginationDefaults";
 
 type AuditLogEntry = {
@@ -105,29 +105,42 @@ export default function AuditLogPage() {
 		setPage(0);
 	}, [defaultRowsPerPage]);
 
-	// Live updates: subscribe to audit-log WebSocket channel and prepend new entries
+	// Live updates: subscribe to audit-log WebSocket channel and prepend new entries.
+	// Delay connect so the connection is not interrupted while the page is still loading.
 	const entriesRef = useRef(entries);
 	entriesRef.current = entries;
+	const auditWsRef = useRef<WebSocket | null>(null);
 	useEffect(() => {
-		const ws = new WebSocket(getWsUrl());
-		ws.onopen = () => {
-			setWsConnected(true);
-			ws.send(JSON.stringify({ type: "subscribe", channel: "audit-log" }));
-		};
-		ws.onclose = () => setWsConnected(false);
-		ws.onerror = () => setWsConnected(false);
-		ws.onmessage = (event) => {
-			try {
-				const msg = JSON.parse(event.data);
-				if (msg?.type === "audit_log" && msg?.entry) {
-					setEntries((prev) => [msg.entry as AuditLogEntry, ...prev]);
-					setTotal((prev) => prev + 1);
+		const t = setTimeout(() => {
+			const ws = new WebSocket(getWsUrl());
+			attachWsDebugLogging(ws);
+			auditWsRef.current = ws;
+			ws.onopen = () => {
+				setWsConnected(true);
+				ws.send(JSON.stringify({ type: "subscribe", channel: "audit-log" }));
+			};
+			ws.onclose = () => setWsConnected(false);
+			ws.onerror = () => setWsConnected(false);
+			ws.onmessage = (event) => {
+				try {
+					const msg = JSON.parse(event.data);
+					if (msg?.type === "audit_log" && msg?.entry) {
+						setEntries((prev) => [msg.entry as AuditLogEntry, ...prev]);
+						setTotal((prev) => prev + 1);
+					}
+				} catch {
+					// ignore non-JSON or invalid messages
 				}
-			} catch {
-				// ignore non-JSON or invalid messages
+			};
+		}, 600);
+		return () => {
+			clearTimeout(t);
+			if (auditWsRef.current) {
+				auditWsRef.current.close();
+				auditWsRef.current = null;
 			}
+			setWsConnected(false);
 		};
-		return () => ws.close();
 	}, []);
 
 	const handleApplyFilters = () => {

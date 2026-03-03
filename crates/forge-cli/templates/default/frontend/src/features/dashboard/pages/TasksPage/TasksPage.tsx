@@ -10,7 +10,7 @@ import TableContainer from "@mui/material/TableContainer";
 import TableHead from "@mui/material/TableHead";
 import TableRow from "@mui/material/TableRow";
 import Typography from "@mui/material/Typography";
-import { getWsUrl } from "@/utils/ws";
+import { attachWsDebugLogging, getWsUrl } from "@/utils/ws";
 
 export type TaskStatus = "planned" | "running" | "ran";
 
@@ -57,12 +57,11 @@ export default function TasksPage() {
 	const connectWs = useCallback(() => {
 		const wsUrl = getWsUrl();
 		const ws = new WebSocket(wsUrl);
+		attachWsDebugLogging(ws);
 		wsRef.current = ws;
 		ws.onopen = () => {
 			setWsConnected(true);
-			ws.send(
-				JSON.stringify({ type: "subscribe", channel: "tasks" }),
-			);
+			ws.send(JSON.stringify({ type: "subscribe", channel: "tasks" }));
 		};
 		ws.onclose = () => setWsConnected(false);
 		ws.onerror = () => setWsConnected(false);
