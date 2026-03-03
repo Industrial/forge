@@ -1,4 +1,4 @@
-use forge::DbConnection;
+use forge_db::DbConnection;
 use uuid::Uuid;
 
 fn base_url() -> String {

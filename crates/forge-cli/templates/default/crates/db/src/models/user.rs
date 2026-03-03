@@ -1,9 +1,8 @@
-use forge::ForgeAuthUser;
-use forge::authz::{AuthzContext, Role};
+use forge_auth::{AuthzContext, Role};
 use sea_orm::entity::prelude::*;
 use serde::{Deserialize, Serialize};
 
-#[derive(Clone, Debug, PartialEq, DeriveEntityModel, Serialize, Deserialize, ForgeAuthUser)]
+#[derive(Clone, Debug, PartialEq, DeriveEntityModel, Serialize, Deserialize)]
 #[sea_orm(table_name = "user")]
 pub struct Model {
   #[sea_orm(primary_key, auto_increment = false)]
@@ -21,7 +20,20 @@ pub struct Model {
   pub updated_at: chrono::NaiveDateTime,
 }
 
+impl axum_login::AuthUser for Model {
+  type Id = Uuid;
+  fn id(&self) -> Self::Id {
+    self.id
+  }
+  fn session_auth_hash(&self) -> &[u8] {
+    self.password_hash.as_bytes()
+  }
+}
+
 impl AuthzContext for Model {
+  type RequesterId = Uuid;
+  type SubjectId = Uuid;
+
   fn requester_id(&self) -> Uuid {
     self.id
   }

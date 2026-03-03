@@ -1,3 +1,3 @@
 [workspace]
 resolver = "2"
-members = ["crates/forge-audit", "crates/forge-auth", "crates/forge-authz", "crates/forge-cache", "crates/forge-config", "crates/forge-core", "crates/forge-cron", "crates/forge-db", "crates/forge-health", "crates/forge-jobs", "crates/forge-live", "crates/forge-macros", "crates/forge-observability", "crates/forge-rate-limit", "crates/forge-security", "crates/forge-seed", "crates/forge", "crates/forge-cli"]
+members = ["crates/forge-app", "crates/forge-audit", "crates/forge-auth", "crates/forge-cache", "crates/forge-config", "crates/forge-core", "crates/forge-cron", "crates/forge-db", "crates/forge-health", "crates/forge-jobs", "crates/forge-live", "crates/forge-observability", "crates/forge-rate-limit", "crates/forge-security", "crates/forge-seed", "crates/forge-cli"]

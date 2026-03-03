@@ -12,7 +12,7 @@ Existing doc: `docs/018_inertia_rendering.md` (Inertia.js + axum-inertia + Vite)
 2. **Scaffold** – `forge new` generates a Vite + Inertia frontend (React or Vue), `axum-inertia` in the app crate, combined state (DbConnection + InertiaConfig), and a minimal build pipeline (npm/pnpm in crate dir).
 3. **Demo SPA** – Pages that demonstrate:
    - **Home** – i18n (locale from Accept-Language or switcher), greeting.
-   - **Auth** – Login / Register forms, logout; session-based auth (existing Forge auth).
+   - **Auth** – Login / Register forms, logout; token-based auth (existing Forge auth; Bearer token + scope headers).
    - **WebSocket** – Page that opens `/ws`, sends/receives messages (echo or chat).
    - **Dashboard** (optional) – Authenticated page showing user + maybe trace id (observability).
 4. **E2E** – Test 018: build frontend in prebuilt project, start server, verify:

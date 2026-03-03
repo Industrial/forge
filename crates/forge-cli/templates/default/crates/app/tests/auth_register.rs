@@ -15,6 +15,7 @@ async fn post_register_valid_201() {
     "/api/auth/register",
     None,
     Some(body),
+    None,
   )
   .await
   .unwrap();
@@ -34,6 +35,7 @@ async fn post_register_invalid_email_422() {
     "/api/auth/register",
     None,
     Some(body),
+    None,
   )
   .await
   .unwrap();
@@ -53,6 +55,7 @@ async fn post_register_short_password_422() {
     "/api/auth/register",
     None,
     Some(body),
+    None,
   )
   .await
   .unwrap();

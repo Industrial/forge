@@ -42,6 +42,11 @@ pub async fn initialize_database(
 /// Database connection type with OpenTelemetry tracing on all DB operations.
 pub use sea_orm_tracing::TracedConnection as DbConnection;
 
+/// Wrap a raw database connection for use as [DbConnection] (traced). Use after [initialize_database] when the app needs a single traced connection for state and cron.
+pub fn wrap_traced(conn: DatabaseConnection) -> DbConnection {
+  DbConnection::wrap(conn)
+}
+
 #[cfg(test)]
 mod tests {
   use super::*;

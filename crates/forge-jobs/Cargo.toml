@@ -9,8 +9,8 @@ description = "Background jobs (Apalis) for Forge framework"
 
 [dependencies]
 apalis = "1.0.0-rc.4"
+apalis-codec = "0.1.0-rc.4"
 apalis-sqlite = { version = "1.0.0-rc.4", features = ["tokio-comp", "migrate", "json"] }
-forge-cron = { path = "../forge-cron" }
 forge-db = { path = "../forge-db" }
 serde = { version = "1.0", features = ["derive"] }
 tokio = { version = "1", features = ["time"] }

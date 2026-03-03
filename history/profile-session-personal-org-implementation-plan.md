@@ -1,5 +1,7 @@
 # Implementation Plan: Profile in Session, Personal Org, Profile Select
 
+**Historical:** Session-based auth has been removed. Scope (org, role) is now provided by request headers (`X-Organization-Id`, `X-Role-Name`) and token; there is no server-side session or session profile. This doc is kept for context on personal-org and profile-select UX; implementation uses token + headers.
+
 **Scope**: Template app (default) in `crates/forge-cli/templates/default/`.  
 **Goals**: (1) Personal org = first org; auto-create on user creation; seeds use same logic. (2) Profile (org, role) stored in session (Option B). (3) Profile-select page after login when multiple profiles; all data/UI scoped to session profile.
 

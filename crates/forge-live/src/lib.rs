@@ -44,3 +44,9 @@ pub async fn broadcast_to_org<B: LiveBackend + ?Sized>(
 ) -> Result<(), forge_core::Error> {
   broadcast_to_channel(backend, &org_channel(org_id), event).await
 }
+
+/// No-op for in-memory backend; reserved for future DB/Redis-backed connection cleanup.
+/// Called periodically by the app cron when Live Query is enabled.
+pub async fn sweep_expired_connections<C>(_db: C) {
+  // In-memory backend does not persist connections; Redis/DB backends could implement cleanup here.
+}

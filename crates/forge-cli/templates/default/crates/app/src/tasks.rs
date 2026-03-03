@@ -1,7 +1,7 @@
 //! In-memory task list for the dashboard tasks page. Updated by a background loop and broadcast via forge-live.
 
 use chrono::{DateTime, Utc};
-use forge::live::{Channel, InMemoryLiveBackend, LiveBackend};
+use forge_live::{Channel, InMemoryLiveBackend, LiveBackend};
 use serde::Serialize;
 use std::sync::Arc;
 use tokio::sync::RwLock;

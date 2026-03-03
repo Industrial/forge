@@ -22,14 +22,14 @@ Forge provides **rate limiting** via [tower-governor](https://crates.io/crates/t
 | Strategy | Key source | Use case |
 |----------|------------|----------|
 | **Per-IP** | Peer IP (or `X-Forwarded-For` when trusted) | Login, signup, public API. |
-| **Per-org** | `auth.organization_id()` from session | Authenticated API; fair usage across tenants. |
-| **Per-user (per-org)** | `(auth.organization_id(), auth.requester_id())` from session | Throttle individual users within an organization. |
+| **Per-org** | `organization_id` from request scope (e.g. `X-Organization-Id` or `RequestScope` extension) | Authenticated API; fair usage across tenants. |
+| **Per-user (per-org)** | `(organization_id, user_id)` from `TokenUser` + scope headers | Throttle individual users within an organization. |
 
 ### Integration
 
 - **Per-IP**: Use tower-governor’s built-in key extractor (peer IP). Applied as a layer to the router; health routes are excluded.
-- **Per-org**: Custom key extractor that uses `AuthSession` to get `organization_id`; when missing, fall back to per-IP or a shared key. Requires auth to be installed. (Not yet implemented; doc only.)
-- **Per-user (per-org)**: `RequesterOrgKeyExtractor` reads `AuthSession` from request extensions (set by axum-login) and keys by `(organization_id, user_id)`. Applied inside the auth layer; unauthenticated requests get 401. Use `.with_rate_limit_per_user(n)` with `.with_auth(...)`.
+- **Per-org**: Custom key extractor that uses the request scope (e.g. `RequestScope` or `X-Organization-Id`) to get `organization_id`; when missing, fall back to per-IP or a shared key. Requires auth to be installed. (Not yet implemented; doc only.)
+- **Per-user (per-org)**: `RequesterOrgKeyExtractor` reads `TokenUser` and `RequestScope` from request extensions (set by the token auth layer and app scope logic) and keys by `(organization_id, user_id)`. Applied inside the auth layer; unauthenticated requests get 401. Use `.with_rate_limit_per_user(n)` with `.with_token_auth(...)`.
 
 ### Response
 

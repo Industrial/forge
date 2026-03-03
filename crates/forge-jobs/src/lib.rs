@@ -1,18 +1,26 @@
-//! Background jobs via Apalis + SQLite for scheduled tasks.
+//! Background jobs via Apalis + SQLite. Generic job queue and worker; no scheduling.
 
 use apalis::prelude::*;
 use apalis_sqlite::SqliteStorage;
-use forge_cron::{CronSchedule, CronTaskBox, next_daily_run, next_hourly_run, next_interval_run};
 use forge_db::DbConnection;
 use std::collections::HashMap;
+use std::pin::Pin;
 use std::sync::Arc;
 use tracing::{error, info};
 
-/// Single job type for all scheduled tasks.
+/// Single job type: identified by task name for dispatch.
 #[derive(Clone, Debug, serde::Serialize, serde::Deserialize)]
 pub struct ScheduledTaskJob {
   pub task_name: String,
 }
+
+/// Type-erased task: takes DB, returns a future. Used by the worker to run jobs by name.
+pub type TaskFn = Box<
+  dyn Fn(DbConnection)
+    -> Pin<Box<dyn Future<Output = Result<(), Box<dyn std::error::Error + Send + Sync>>> + Send>>
+    + Send
+    + Sync,
+>;
 
 fn normalize_job_pool_url(url: &str) -> &str {
   if url == "sqlite::memory:" {
@@ -22,79 +30,46 @@ fn normalize_job_pool_url(url: &str) -> &str {
   }
 }
 
-/// Runs the scheduler loops and the worker. Uses SQLite URL for the job queue.
-pub async fn run_scheduler_and_worker(
-  db_url: &str,
-  db: DbConnection,
-  tasks: Vec<(String, CronSchedule, CronTaskBox)>,
-) -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
-  use apalis_sqlite::SqlitePool;
-  use tokio::time::{Instant, sleep_until};
+/// Storage handle for the job queue (Apalis SqliteStorage with default codec and fetcher).
+pub type JobQueueStorage =
+  SqliteStorage<ScheduledTaskJob, apalis_codec::json::JsonCodec<Vec<u8>>, apalis_sqlite::fetcher::SqliteFetcher>;
 
+/// Sets up the job queue storage. Returns a cloneable storage: use one clone for pushing jobs,
+/// pass another to [run_worker].
+pub async fn setup_queue(
+  db_url: &str,
+) -> Result<JobQueueStorage, Box<dyn std::error::Error + Send + Sync>> {
+  use apalis_sqlite::SqlitePool;
   let url = normalize_job_pool_url(db_url);
   let pool = SqlitePool::connect(url).await?;
   SqliteStorage::<(), (), ()>::setup(&pool).await?;
+  Ok(SqliteStorage::new(&pool))
+}
 
-  let storage_for_worker = SqliteStorage::<ScheduledTaskJob, (), ()>::new(&pool);
-  let storage_for_scheduler = storage_for_worker.clone();
-
-  let mut registry = HashMap::new();
-  let mut schedule_list = Vec::new();
-  for (name, schedule, task) in tasks {
-    registry.insert(name.clone(), task);
-    schedule_list.push((name, schedule));
-  }
-  let registry: Arc<HashMap<String, CronTaskBox>> = Arc::new(registry);
-
-  for (name, schedule) in schedule_list {
-    let name = name.clone();
-    let mut storage = storage_for_scheduler.clone();
-    let mut last_interval: Option<Instant> = None;
-    tokio::spawn(async move {
-      loop {
-        let next_instant = match &schedule {
-          CronSchedule::Interval(d) => {
-            let (next, new) = next_interval_run(*d, last_interval);
-            last_interval = new;
-            next
-          }
-          CronSchedule::Hourly { minute } => next_hourly_run(*minute),
-          CronSchedule::Daily { hour, minute } => next_daily_run(*hour, *minute),
-        };
-        sleep_until(next_instant).await;
-        if let Err(e) = storage
-          .push(ScheduledTaskJob {
-            task_name: name.clone(),
-          })
-          .await
-        {
-          error!(cron = %name, error = %e, "failed to enqueue scheduled task");
-        } else {
-          info!(cron = %name, "enqueued scheduled task");
-        }
-      }
-    });
-  }
-
-  let registry_worker = registry.clone();
+/// Runs the worker: pulls jobs from `storage` and dispatches by name using `registry`.
+/// Spawns the worker in the background and returns immediately.
+pub async fn run_worker(
+  storage: JobQueueStorage,
+  db: DbConnection,
+  registry: Arc<HashMap<String, TaskFn>>,
+) -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
   let worker = WorkerBuilder::new("forge-scheduled-tasks")
-    .backend(storage_for_worker)
-    .data((registry_worker, db))
+    .backend(storage)
+    .data((registry, db))
     .build(run_scheduled_task);
   tokio::spawn(async move {
     if let Err(e) = worker.run().await {
       error!(error = %e, "forge scheduled tasks worker exited with error");
     }
   });
-
   Ok(())
 }
 
 async fn run_scheduled_task(
   job: ScheduledTaskJob,
-  data: Data<(Arc<HashMap<String, CronTaskBox>>, DbConnection)>,
+  data: Data<(Arc<HashMap<String, TaskFn>>, DbConnection)>,
 ) -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
-  let (registry, db): &(Arc<HashMap<String, CronTaskBox>>, DbConnection) = &data;
+  let (registry, db): &(Arc<HashMap<String, TaskFn>>, DbConnection) = &data;
   if let Some(task) = registry.get(&job.task_name) {
     if let Err(e) = (task)(db.clone()).await {
       error!(task = %job.task_name, error = %e, "scheduled task failed");
@@ -111,13 +86,12 @@ async fn run_scheduled_task(
 mod tests {
   use super::*;
   use apalis::prelude::Data;
-  use forge_cron::CronTaskBox;
   use sea_orm::{ConnectOptions, Database};
   use sea_orm_tracing::TracedConnection;
-  use std::pin::Pin;
+  use std::time::Duration;
 
-  fn ok_task() -> CronTaskBox {
-    Box::new(|_db: forge_db::DbConnection| {
+  fn ok_task() -> TaskFn {
+    Box::new(|_db: DbConnection| {
       Box::pin(async move { Ok(()) })
         as Pin<
           Box<dyn Future<Output = Result<(), Box<dyn std::error::Error + Send + Sync>>> + Send>,
@@ -125,11 +99,11 @@ mod tests {
     })
   }
 
-  fn err_task() -> CronTaskBox {
-    Box::new(|_db: forge_db::DbConnection| Box::pin(async move { Err("task failed".into()) }))
+  fn err_task() -> TaskFn {
+    Box::new(|_db: DbConnection| Box::pin(async move { Err("task failed".into()) }))
   }
 
-  async fn test_db() -> forge_db::DbConnection {
+  async fn test_db() -> DbConnection {
     let conn = Database::connect(ConnectOptions::new("sqlite::memory:".to_string()))
       .await
       .unwrap();
@@ -207,80 +181,36 @@ mod tests {
   }
 
   #[tokio::test]
-  async fn run_scheduler_and_worker_starts_with_empty_tasks() {
-    let db = test_db().await;
-    let res = run_scheduler_and_worker("sqlite::memory:", db, vec![]).await;
+  async fn setup_queue_succeeds_with_memory_url() {
+    let res = setup_queue("sqlite::memory:").await;
     assert!(res.is_ok());
   }
 
   #[tokio::test]
-  async fn run_scheduler_and_worker_starts_with_one_task() {
-    let db = test_db().await;
-    let tasks = vec![(
-      "test-cron".to_string(),
-      forge_cron::CronSchedule::Interval(std::time::Duration::from_millis(10)),
-      ok_task(),
-    )];
-    let res = run_scheduler_and_worker("sqlite::memory:", db, tasks).await;
-    assert!(res.is_ok());
-    tokio::time::sleep(std::time::Duration::from_millis(50)).await;
-  }
-
-  #[tokio::test]
-  async fn run_scheduler_and_worker_with_hourly_schedule() {
-    let db = test_db().await;
-    let tasks = vec![(
-      "hourly".to_string(),
-      forge_cron::CronSchedule::Hourly { minute: 0 },
-      ok_task(),
-    )];
-    let res = run_scheduler_and_worker("sqlite::memory:", db, tasks).await;
-    assert!(res.is_ok());
-    tokio::time::sleep(std::time::Duration::from_millis(50)).await;
-  }
-
-  #[tokio::test]
-  async fn run_scheduler_and_worker_with_daily_schedule() {
-    let db = test_db().await;
-    let tasks = vec![(
-      "daily".to_string(),
-      forge_cron::CronSchedule::Daily {
-        hour: 12,
-        minute: 0,
-      },
-      ok_task(),
-    )];
-    let res = run_scheduler_and_worker("sqlite::memory:", db, tasks).await;
-    assert!(res.is_ok());
-    tokio::time::sleep(std::time::Duration::from_millis(50)).await;
-  }
-
-  #[tokio::test]
-  async fn run_scheduler_and_worker_fails_on_invalid_db_url() {
-    let db = test_db().await;
-    let res = run_scheduler_and_worker("invalid://bad", db, vec![]).await;
+  async fn setup_queue_fails_on_invalid_db_url() {
+    let res = setup_queue("invalid://bad").await;
     assert!(res.is_err());
   }
 
   #[tokio::test]
-  #[cfg(unix)]
-  async fn run_scheduler_and_worker_fails_when_setup_cannot_write() {
-    use std::io::Write;
+  async fn run_worker_starts_with_empty_registry() {
     let db = test_db().await;
-    let dir = std::env::temp_dir().join("forge_jobs_readonly_test");
-    let _ = std::fs::create_dir_all(&dir);
-    let path = dir.join("readonly.sqlite");
-    std::fs::File::create(&path)
-      .unwrap()
-      .write_all(b"")
-      .unwrap();
-    let mut perms = std::fs::metadata(&path).unwrap().permissions();
-    perms.set_readonly(true);
-    std::fs::set_permissions(&path, perms).unwrap();
-    let url = format!("sqlite://{}", path.display());
-    let res = run_scheduler_and_worker(&url, db, vec![]).await;
-    assert!(res.is_err());
-    let _ = std::fs::remove_file(&path);
-    let _ = std::fs::remove_dir(&dir);
+    let storage = setup_queue("sqlite::memory:").await.unwrap();
+    let registry = Arc::new(HashMap::new());
+    let res = run_worker(storage, db, registry).await;
+    assert!(res.is_ok());
+    tokio::time::sleep(Duration::from_millis(50)).await;
+  }
+
+  #[tokio::test]
+  async fn run_worker_starts_with_one_task() {
+    let db = test_db().await;
+    let storage = setup_queue("sqlite::memory:").await.unwrap();
+    let mut reg = HashMap::new();
+    reg.insert("test-task".to_string(), ok_task());
+    let registry = Arc::new(reg);
+    let res = run_worker(storage, db, registry).await;
+    assert!(res.is_ok());
+    tokio::time::sleep(Duration::from_millis(50)).await;
   }
 }

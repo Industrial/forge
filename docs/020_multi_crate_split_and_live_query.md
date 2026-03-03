@@ -8,12 +8,11 @@ This document describes a proposed **multi-crate architecture** for the Forge fr
 
 ### 1.1 Current state
 
-- **forge**: A single library crate containing all framework functionality: app builder, config, database, cache, auth, audit, cron, health, observability, rate limiting, security headers, seed, token auth, validation, and integration with **forge-authz**.
+- **forge**: A single library crate containing all framework functionality: app builder, config, database, cache, auth, audit, cron, health, observability, rate limiting, security headers, seed, token auth, validation, and integration with **forge-auth** (authn + authz).
 - **forge-cli**: CLI for scaffolding and running applications (`forge new`, `forge dev`, etc.).
-- **forge-macros**: Procedural macros used by applications built with Forge.
-- **forge-authz**: Separate crate for authorization (policies, `AuthzContext`, `Action`).
+- **forge-auth**: Crate for authentication (Bearer token, password hashing) and authorization (policies, `AuthzContext`, `Action`, `RequestScope`).
 
-The **forge** crate is a monolith: every application pulls in all dependencies (axum, sea_orm, tower-sessions, moka, opentelemetry, apalis, etc.) even if it uses only a subset of features. Module boundaries exist internally but there is no way to depend on “only cache” or “only db” without depending on the whole framework.
+The **forge** crate is a monolith: every application pulls in all dependencies (axum, sea_orm, moka, opentelemetry, apalis, etc.) even if it uses only a subset of features. Module boundaries exist internally but there is no way to depend on “only cache” or “only db” without depending on the whole framework.
 
 ### 1.2 Goals of the split
 
@@ -90,8 +89,7 @@ The following is a **full** decomposition of the current **forge** library into 
 | Crate | Contents | Internal deps |
 |-------|----------|----------------|
 | **forge-cache** | `AppCache`, `NoOpAppCache`, `CacheConfig` (if not in config), `HttpResponseCacheLayer` / `HttpResponseCacheService`. | forge-config |
-| **forge-authz** | *(Already exists.)* Policies, `AuthzContext`, `Action`, permission checks. | — |
-| **forge-auth** | `token_auth` (Bearer/session), session management (tower-sessions, axum-login), authn. | forge-core, forge-authz |
+| **forge-auth** | `token_auth` (Bearer), authz (`AuthzContext`, `Action`, `Role`, `RequestScope`), password hashing, authn. Merges former forge-authz. | forge-core |
 | **forge-audit** | `AuditEvent`, `EventKind`, `Outcome`, `AuditError`. | forge-core, forge-authz |
 | **forge-observability** | Tracing setup, OpenTelemetry layers, trace context propagation, `find_current_trace_id`, `trace_id_from_traceparent`. | forge-core |
 | **forge-security** | `security_headers::add_security_headers`. | — |
@@ -128,7 +126,7 @@ The following is a **full** decomposition of the current **forge** library into 
 
 | Crate | Contents | Internal deps |
 |-------|----------|----------------|
-| **forge** | `App` builder, `init_tracing()`, re-exports of public APIs from all other crates, `into_router()`, `serve()`, registration of routes/layers for health, cache, auth, cron, observability, rate limit, security, and optionally Live Query. | forge-config, forge-db, forge-cache, forge-auth, forge-authz, forge-audit, forge-observability, forge-security, forge-rate-limit, forge-cron, forge-health, forge-seed, forge-jobs, forge-live (optional), forge-macros |
+| **forge** | `App` builder, `init_tracing()`, re-exports of public APIs from all other crates, `into_router()`, `serve()`, registration of routes/layers for health, cache, auth, cron, observability, rate limit, security, and optionally Live Query. | forge-config, forge-db, forge-cache, forge-auth, forge-authz, forge-audit, forge-observability, forge-security, forge-rate-limit, forge-cron, forge-health, forge-seed, forge-jobs, forge-live (optional) |
 
 **Purpose**: One entry point for “full framework” usage; composes all crates and preserves backward compatibility for existing apps.
 

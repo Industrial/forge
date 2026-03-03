@@ -176,13 +176,22 @@ name = "app"
 version = "0.1.0"
 dependencies = [
  "accept-language",
- "axum 0.8.8",
+ "axum",
  "axum-login",
  "chrono",
  "db",
  "fluent",
  "fluent-templates",
- "forge",
+ "forge-app",
+ "forge-audit",
+ "forge-auth",
+ "forge-cache",
+ "forge-config",
+ "forge-core",
+ "forge-cron",
+ "forge-db",
+ "forge-live",
+ "forge-observability",
  "futures-util",
  "sea-orm",
  "serde",
@@ -191,8 +200,6 @@ dependencies = [
  "tokio",
  "tower",
  "tower-http",
- "tower-sessions",
- "tower-sessions-sqlx-store",
  "tracing",
  "unic-langid",
  "uuid",
@@ -287,45 +294,11 @@ checksum = "c08606f8c3cbf4ce6ec8e28fb0014a2c086708fe954eaa885384a6165172e7e8"
 
 [[package]]
 name = "axum"
-version = "0.7.9"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "edca88bc138befd0323b20752846e6587272d3b03b0343c8ea28a6f819e6e71f"
-dependencies = [
- "async-trait",
- "axum-core 0.4.5",
- "bytes",
- "futures-util",
- "http",
- "http-body",
- "http-body-util",
- "hyper",
- "hyper-util",
- "itoa",
- "matchit 0.7.3",
- "memchr",
- "mime",
- "percent-encoding",
- "pin-project-lite",
- "rustversion",
- "serde",
- "serde_json",
- "serde_path_to_error",
- "serde_urlencoded",
- "sync_wrapper",
- "tokio",
- "tower",
- "tower-layer",
- "tower-service",
- "tracing",
-]
-
-[[package]]
-name = "axum"
 version = "0.8.8"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "8b52af3cb4058c895d37317bb27508dccc8e5f2d39454016b297bf4a400597b8"
 dependencies = [
- "axum-core 0.5.6",
+ "axum-core",
  "base64",
  "bytes",
  "form_urlencoded",
@@ -336,7 +309,7 @@ dependencies = [
  "hyper",
  "hyper-util",
  "itoa",
- "matchit 0.8.4",
+ "matchit",
  "memchr",
  "mime",
  "percent-encoding",
@@ -350,27 +323,6 @@ dependencies = [
  "tokio",
  "tokio-tungstenite",
  "tower",
- "tower-layer",
- "tower-service",
- "tracing",
-]
-
-[[package]]
-name = "axum-core"
-version = "0.4.5"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "09f2bd6146b97ae3359fa0cc6d6b376d9539582c7b4220f041a33ec24c226199"
-dependencies = [
- "async-trait",
- "bytes",
- "futures-util",
- "http",
- "http-body",
- "http-body-util",
- "mime",
- "pin-project-lite",
- "rustversion",
- "sync_wrapper",
  "tower-layer",
  "tower-service",
  "tracing",
@@ -402,7 +354,7 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "b0da8e8e4cf127a9b71b578e9a8fa9833e70f893e428ed5453c85e44bf0fd8eb"
 dependencies = [
  "async-trait",
- "axum 0.8.8",
+ "axum",
  "form_urlencoded",
  "serde",
  "subtle",
@@ -416,31 +368,12 @@ dependencies = [
 ]
 
 [[package]]
-name = "axum-tracing-opentelemetry"
-version = "0.33.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "dea2f3f7670fb07753f3d41fad35f95200141977a9473267bcd6a4ae2284c011"
-dependencies = [
- "axum 0.8.8",
- "futures-core",
- "futures-util",
- "http",
- "opentelemetry",
- "opentelemetry-semantic-conventions",
- "pin-project-lite",
- "tower",
- "tracing",
- "tracing-opentelemetry",
- "tracing-opentelemetry-instrumentation-sdk",
-]
-
-[[package]]
 name = "axum-valid"
 version = "0.24.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "3881b4b05ede123ff3c82f41c63e47425443556365b47b2ba4d05098a5bd2645"
 dependencies = [
- "axum 0.8.8",
+ "axum",
  "garde",
  "serde",
  "validator",
@@ -788,8 +721,11 @@ name = "db"
 version = "0.1.0"
 dependencies = [
  "async-trait",
+ "axum-login",
  "chrono",
- "forge",
+ "forge-auth",
+ "forge-core",
+ "forge-db",
  "reqwest",
  "sea-orm",
  "sea-orm-migration",
@@ -1088,73 +1024,41 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "77ce24cb58228fbb8aa041425bb1050850ac19177686ea6e0f41a70416f56fdb"
 
 [[package]]
-name = "forge"
+name = "forge-app"
 version = "0.1.0"
 dependencies = [
- "apalis",
- "apalis-sqlite",
- "argon2",
- "async-trait",
- "axum 0.8.8",
+ "axum",
  "axum-login",
- "axum-tracing-opentelemetry",
- "axum-valid",
- "bytes",
- "chrono",
- "figment",
- "forge-audit",
  "forge-auth",
- "forge-authz",
  "forge-cache",
  "forge-config",
- "forge-core",
  "forge-cron",
  "forge-db",
  "forge-health",
- "forge-jobs",
  "forge-live",
- "forge-macros",
  "forge-observability",
  "forge-rate-limit",
- "forge-security",
- "forge-seed",
  "futures",
  "governor",
- "hex",
- "http",
- "log",
- "moka",
- "opentelemetry",
- "opentelemetry_sdk",
  "sea-orm",
  "sea-orm-migration",
- "sea-orm-tracing",
- "serde",
- "serde_json",
- "sha2",
- "sqlx",
- "subtle",
  "tokio",
  "tower",
  "tower-http",
- "tower-sessions",
- "tower-sessions-sqlx-store",
  "tower_governor",
  "tracing",
  "tracing-log",
- "tracing-opentelemetry",
- "tracing-opentelemetry-instrumentation-sdk",
  "tracing-subscriber",
  "uuid",
- "validator",
 ]
 
 [[package]]
 name = "forge-audit"
 version = "0.1.0"
 dependencies = [
+ "async-trait",
  "chrono",
- "forge-authz",
+ "forge-auth",
  "sea-orm",
  "tracing",
  "uuid",
@@ -1165,30 +1069,19 @@ name = "forge-auth"
 version = "0.1.0"
 dependencies = [
  "argon2",
- "axum 0.8.8",
+ "async-trait",
+ "axum",
  "axum-login",
- "forge-authz",
  "forge-core",
  "forge-db",
  "futures",
  "hex",
- "sha2",
- "subtle",
- "tower",
- "uuid",
-]
-
-[[package]]
-name = "forge-authz"
-version = "0.1.0"
-dependencies = [
- "async-trait",
- "axum 0.7.9",
- "axum-login",
  "sea-orm",
  "serde",
+ "sha2",
+ "subtle",
  "thiserror 2.0.18",
- "tracing",
+ "tower",
  "uuid",
 ]
 
@@ -1196,7 +1089,7 @@ dependencies = [
 name = "forge-cache"
 version = "0.1.0"
 dependencies = [
- "axum 0.8.8",
+ "axum",
  "bytes",
  "forge-config",
  "http",
@@ -1225,9 +1118,12 @@ dependencies = [
 name = "forge-cron"
 version = "0.1.0"
 dependencies = [
+ "apalis-core",
  "chrono",
  "forge-db",
+ "forge-jobs",
  "tokio",
+ "tracing",
 ]
 
 [[package]]
@@ -1244,7 +1140,7 @@ dependencies = [
 name = "forge-health"
 version = "0.1.0"
 dependencies = [
- "axum 0.8.8",
+ "axum",
  "forge-db",
  "sea-orm",
 ]
@@ -1254,8 +1150,8 @@ name = "forge-jobs"
 version = "0.1.0"
 dependencies = [
  "apalis",
+ "apalis-codec",
  "apalis-sqlite",
- "forge-cron",
  "forge-db",
  "serde",
  "tokio",
@@ -1275,19 +1171,10 @@ dependencies = [
 ]
 
 [[package]]
-name = "forge-macros"
-version = "0.1.0"
-dependencies = [
- "proc-macro2",
- "quote",
- "syn",
-]
-
-[[package]]
 name = "forge-observability"
 version = "0.1.0"
 dependencies = [
- "axum 0.8.8",
+ "axum",
  "opentelemetry",
  "opentelemetry_sdk",
  "tower",
@@ -1300,26 +1187,11 @@ dependencies = [
 name = "forge-rate-limit"
 version = "0.1.0"
 dependencies = [
- "axum 0.8.8",
+ "axum",
  "axum-login",
- "forge-authz",
+ "forge-auth",
  "tower_governor",
  "uuid",
-]
-
-[[package]]
-name = "forge-security"
-version = "0.1.0"
-dependencies = [
- "axum 0.8.8",
-]
-
-[[package]]
-name = "forge-seed"
-version = "0.1.0"
-dependencies = [
- "forge-db",
- "futures",
 ]
 
 [[package]]
@@ -2087,12 +1959,6 @@ dependencies = [
 
 [[package]]
 name = "matchit"
-version = "0.7.3"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "0e7465ac9959cc2b1404e8e2367b43684a6d13790fe23056cc8c6c5a6b7bcb94"
-
-[[package]]
-name = "matchit"
 version = "0.8.4"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "47e1ffaa40ddd1f3ed91f717a33c8c0ee23fff369e3aa8772b9605cc1d22f4c3"
@@ -2740,25 +2606,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "rmp"
-version = "0.8.15"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "4ba8be72d372b2c9b35542551678538b562e7cf86c3315773cae48dfbfe7790c"
-dependencies = [
- "num-traits",
-]
-
-[[package]]
-name = "rmp-serde"
-version = "1.3.1"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "72f81bee8c8ef9b577d1681a70ebbc962c232461e397b22c208c43c04b67a155"
-dependencies = [
- "rmp",
- "serde",
-]
-
-[[package]]
 name = "rsa"
 version = "0.9.10"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -3281,7 +3128,6 @@ dependencies = [
  "sha2",
  "smallvec",
  "thiserror 2.0.18",
- "time",
  "tokio",
  "tokio-stream",
  "tracing",
@@ -3367,7 +3213,6 @@ dependencies = [
  "sqlx-core",
  "stringprep",
  "thiserror 2.0.18",
- "time",
  "tracing",
  "uuid",
  "whoami",
@@ -3407,7 +3252,6 @@ dependencies = [
  "sqlx-core",
  "stringprep",
  "thiserror 2.0.18",
- "time",
  "tracing",
  "uuid",
  "whoami",
@@ -3434,7 +3278,6 @@ dependencies = [
  "serde_urlencoded",
  "sqlx-core",
  "thiserror 2.0.18",
- "time",
  "tracing",
  "url",
  "uuid",
@@ -3749,7 +3592,7 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "fec7c61a0695dc1887c1b53952990f3ad2e3a31453e1f49f10e75424943a93ec"
 dependencies = [
  "async-trait",
- "axum 0.8.8",
+ "axum",
  "base64",
  "bytes",
  "h2",
@@ -3796,7 +3639,7 @@ version = "0.11.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "151b5a3e3c45df17466454bb74e9ecedecc955269bdedbf4d150dfa393b55a36"
 dependencies = [
- "axum-core 0.5.6",
+ "axum-core",
  "cookie",
  "futures-util",
  "http",
@@ -3871,7 +3714,7 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "ce8cce604865576b7751b7a6bc3058f754569a60d689328bb74c52b1d87e355b"
 dependencies = [
  "async-trait",
- "axum-core 0.5.6",
+ "axum-core",
  "base64",
  "futures",
  "http",
@@ -3898,26 +3741,12 @@ dependencies = [
 ]
 
 [[package]]
-name = "tower-sessions-sqlx-store"
-version = "0.15.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "e054622079f57fc1a7d6a6089c9334f963d62028fe21dc9eddd58af9a78480b3"
-dependencies = [
- "async-trait",
- "rmp-serde",
- "sqlx",
- "thiserror 1.0.69",
- "time",
- "tower-sessions-core",
-]
-
-[[package]]
 name = "tower_governor"
 version = "0.8.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "44de9b94d849d3c46e06a883d72d408c2de6403367b39df2b1c9d9e7b6736fe6"
 dependencies = [
- "axum 0.8.8",
+ "axum",
  "forwarded-header-value",
  "governor",
  "http",
@@ -3994,7 +3823,6 @@ version = "0.32.3"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "95d05242e88c440ef1bc997c7ae5e0ed76085c5d817ca29c0be12f0813b024e7"
 dependencies = [
- "http",
  "opentelemetry",
  "opentelemetry-semantic-conventions",
  "tracing",

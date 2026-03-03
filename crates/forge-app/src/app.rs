@@ -1,15 +1,19 @@
 //! Forge App builder - the core of the web framework.
 
-use std::future::Future;
 use std::sync::Arc;
 
-use axum::{Router, handler::Handler, routing::delete, routing::get, routing::post};
-use axum_login::AuthManagerLayerBuilder;
+use axum::{Router, handler::Handler};
+use forge_cache::HttpResponseCacheLayer;
+use forge_config::ForgeConfig;
+use forge_cron::{CronRunner, CronSchedule, CronTaskBox};
+use forge_db::{initialize_database, wrap_traced, DbConnection};
+use forge_health::{healthz, livez, readyz};
+use forge_observability::{env_filter, init_otel, otel_layer};
+use forge_auth::token_auth::{TokenAuthLayer, TokenLookupFn};
+use forge_rate_limit::RequesterOrgKeyExtractor;
 use futures::future::BoxFuture;
 use governor::middleware::NoOpMiddleware;
 use sea_orm::{ConnectionTrait, DbBackend};
-
-use crate::DbConnection;
 use sea_orm_migration::MigratorTrait;
 use tokio::signal;
 use tower::ServiceBuilder;
@@ -19,22 +23,11 @@ use tower_governor::{
   key_extractor::PeerIpKeyExtractor,
 };
 use tower_http::trace::{DefaultMakeSpan, DefaultOnRequest, DefaultOnResponse, TraceLayer};
-use tower_sessions::{Expiry, SessionManagerLayer};
-use tower_sessions_sqlx_store::SqliteStore;
 use tracing::{info, warn};
 use tracing_subscriber::prelude::*;
 
+#[cfg(feature = "opentelemetry")]
 use axum_tracing_opentelemetry::middleware::{OtelAxumLayer, OtelInResponseLayer};
-
-use crate::cache;
-use crate::cache_http_layer;
-use crate::config::{self, ForgeConfig};
-use crate::cron::{CronRunner, CronSchedule, CronTaskBox};
-use crate::db;
-use crate::observability;
-use crate::token_auth::TokenAuthLayer;
-use crate::token_auth::TokenLookupFn;
-use forge_security;
 
 /// Type alias for the idempotent seeding function.
 pub type SeedFn = Box<
@@ -46,14 +39,13 @@ pub type MigratorFn =
   Box<dyn Fn() -> BoxFuture<'static, Result<(), Box<dyn std::error::Error>>> + Send + Sync>;
 
 /// Type alias for the auth installer function.
-/// Args: router, db, optional per-user rate limit, optional token lookup for Bearer auth, whether session auth is enabled.
+/// Args: router, db, optional per-user rate limit, optional token lookup for Bearer auth.
 pub type AuthInstallerFn = Box<
   dyn FnOnce(
       Router<DbConnection>,
       DbConnection,
       Option<u32>,
       Option<TokenLookupFn>,
-      bool, // with_session_auth
     ) -> BoxFuture<'static, Router<DbConnection>>
     + Send
     + Sync,
@@ -69,10 +61,10 @@ pub fn init_tracing() {
 /// Internal helper that sets up OpenTelemetry and the tracing subscriber.
 /// When [FORGE_SQL_DEBUG] is set, set `RUST_LOG=sqlx=debug` (e.g. in devenv) to see SQL statements.
 fn init_tracing_impl() {
-  observability::init_otel();
+  init_otel();
   let _ = tracing_subscriber::registry()
-    .with(observability::otel_layer())
-    .with(observability::env_filter())
+    .with(otel_layer())
+    .with(env_filter())
     .with(tracing_subscriber::fmt::layer())
     .try_init();
   let _ = tracing_log::LogTracer::init();
@@ -88,8 +80,6 @@ pub struct App {
   router: Router<DbConnection>,
   /// Application configuration loaded from `config/app.toml` and `config/db.toml`
   config: ForgeConfig,
-  /// Database connection (if configured)
-  db: Option<DbConnection>,
   /// Optional migrator function to run on startup
   migrator: Option<MigratorFn>,
   /// Optional seeder to run on startup
@@ -102,8 +92,6 @@ pub struct App {
   rate_limit_per_user: Option<u32>,
   /// Optional token lookup for Bearer auth: (db, raw_token) -> Option<user_id>. Used when with_token_auth is set.
   token_lookup: Option<TokenLookupFn>,
-  /// Whether session authentication is enabled. If false, no session layer is installed.
-  with_session_auth: bool,
   /// Cron tasks to run in-process when serve() is used.
   cron_tasks: Vec<(String, CronSchedule, CronTaskBox)>,
   /// Optional Live Query backend for real-time broadcast (e.g. [forge_live::InMemoryLiveBackend]).
@@ -123,7 +111,7 @@ impl App {
   pub fn try_new() -> Result<Self, Box<dyn std::error::Error>> {
     info!("Initializing Forge application");
 
-    let config = config::load_config()?;
+    let config = forge_config::load_config()?;
     info!("Application config: {:?}", config.app);
     info!("Server config: {:?}", config.server);
     info!("Database config: {:?}", config.database);
@@ -143,17 +131,21 @@ impl App {
     Ok(Self {
       router,
       config,
-      db: None,
       migrator: None,
       seeder: None,
       auth_installer: None,
       rate_limit_per_ip: None,
       rate_limit_per_user: None,
       token_lookup: None,
-      with_session_auth: true,
       cron_tasks: Vec::new(),
       live_backend: None,
+      token_only_auth: false,
     })
+  }
+
+  /// Returns a reference to the application configuration.
+  pub fn config(&self) -> &ForgeConfig {
+    &self.config
   }
 
   /// Enable Live Query: in-memory channel broadcast for real-time sync.
@@ -201,8 +193,8 @@ impl App {
   {
     self.migrator = Some(Box::new(move || {
       Box::pin(async move {
-        let config = config::load_config()?;
-        let db = db::initialize_database(&config.database).await?;
+        let config = forge_config::load_config()?;
+        let db = initialize_database(&config.database).await?;
         M::up(&db, None).await.map_err(|e| e.into())
       })
     }));
@@ -221,333 +213,167 @@ impl App {
     self
   }
 
-  /// Register authentication and session management.
+  /// Register authentication (token/Bearer only).
   pub fn with_auth<B, F>(mut self, backend_factory: F) -> Self
-  #[cfg(feature = "session")]
   where
     B: axum_login::AuthnBackend + Send + Sync + Clone + 'static,
-    B::User: crate::authz::AuthzContext + Send + Clone + 'static,
+    B::User: forge_auth::AuthzContext<RequesterId = uuid::Uuid, SubjectId = uuid::Uuid>
+      + Send
+      + Clone
+      + 'static,
     B::User: axum_login::AuthUser<Id = uuid::Uuid>,
-    F: Fn(DbConnection) -> B + Send + Sync + 'static,
-#[cfg(not(feature = "session"))]
-  where
-    B: forge_auth::Backend + Send + Sync + Clone + 'static,
-    B::User: crate::authz::AuthzContext + Send + Clone + 'static,
     F: Fn(DbConnection) -> B + Send + Sync + 'static,
   {
     self.auth_installer = Some(Box::new(
       move |router, db_conn, rate_limit_per_user, token_lookup| {
         Box::pin(async move {
           if db_conn.get_database_backend() != DbBackend::Sqlite {
-            warn!("Authentication currently only supports SQLite session store out-of-the-box.");
+            warn!("Authentication currently only
+            supported with Sqlite. Skipping auth setup.");
             return router;
           }
 
-          let pool = db_conn.inner().get_sqlite_connection_pool();
-          let session_store = SqliteStore::new(pool.clone());
+          let auth_backend = backend_factory(db_conn.clone());
 
-          if let Err(e) = session_store.migrate().await {
-            warn!("Failed to migrate sessions table: {}", e);
-          }
-
-          // Session cookie security: HttpOnly (XSS), Secure in production (HTTPS only),
-          // SameSite=Lax (CSRF + allows top-level nav), Path=/ (site-wide). See OWASP session guidance.
-          // In development (e.g. HTTP localhost), Secure must be false or browsers won\'t send the cookie.
-          let secure = !crate::config::effective_environment().eq_ignore_ascii_case("development");
-          let session_layer = SessionManagerLayer::new(session_store)
-            .with_http_only(true)
-            .with_secure(secure)
-            .with_same_site(tower_sessions::cookie::SameSite::Lax)
-            .with_path("/")
-            .with_expiry(Expiry::OnInactivity(
-              tower_sessions::cookie::time::Duration::days(30),
-            ));
-
-          let backend = backend_factory(db_conn.clone());
-          let auth_layer = AuthManagerLayerBuilder::new(backend.clone(), session_layer).build();
-
-          let router = if let Some(ref lookup) = token_lookup {
-            let token_layer = TokenAuthLayer::new(db_conn.clone(), backend, lookup.clone());
-            router.layer(token_layer).layer(auth_layer)
+          let router = if let Some(lookup) = token_lookup {
+            router.layer(TokenAuthLayer::new(db_conn.clone(), auth_backend, lookup))
           } else {
-            router.layer(auth_layer)
+            router
           };
 
-          if let Some(n) = rate_limit_per_user {
-            let burst = n.max(1);
-            let mut builder = GovernorConfigBuilder::default();
-            builder.per_second(1).burst_size(burst);
-            let mut builder2 =
-              builder.key_extractor(forge_rate_limit::RequesterOrgKeyExtractor::<B>::new());
-            let conf = builder2.finish().expect("GovernorConfigBuilder per-user");
+          let router = if let Some(rpm) = rate_limit_per_user {
+            let mut builder = GovernorConfigBuilder::default()
+              .key_extractor(RequesterOrgKeyExtractor::<B>::new());
+            builder.per_second(1).burst_size(rpm.max(1));
+            let conf = builder.finish().expect("GovernorConfig per-user");
             router.layer(GovernorLayer::new(Arc::new(conf)))
           } else {
             router
-          }
+          };
+          router
         })
-      },
-    ));
+      }),
+    );
     self
   }
 
-  /// Enable API token (Bearer) authentication alongside session auth. The closure receives (db, raw_token)
-  /// and returns the user id if the token is valid (e.g. lookup by token hash in api_tokens table).
-  pub fn with_token_auth<F, Fut>(mut self, lookup: F) -> Self
+  /// Enables token (Bearer) authentication for the application.
+  pub fn with_token_auth_only<B, F>(mut self, backend_factory: F, token_lookup: TokenLookupFn) -> Self
   where
-    F: Fn(DbConnection, String) -> Fut + Send + Sync + 'static,
-    Fut: Future<Output = Option<uuid::Uuid>> + Send + 'static,
-  {
-    let lookup = Arc::new(move |db: DbConnection, token: String| {
-      Box::pin(lookup(db, token)) as BoxFuture<'static, Option<uuid::Uuid>>
-    });
-    self.token_lookup = Some(lookup);
-    self
-  }
-
-  /// Register API token (Bearer) authentication as the ONLY authentication method.
-  /// No sessions are used. The closure receives (db, raw_token) and returns the user id if the token is valid.
-  /// Used by [`.serve`](Self::serve) and [`.into_router`](Self::into_router).
-  pub fn with_token_auth_only<B, F, Fut>(mut self, backend_factory: B, token_lookup: F) -> Self
-  #[cfg(feature = "session")]
-  where
-    B: WithTokenAuthOnlyBackend + Fn(DbConnection) -> <B as WithTokenAuthOnlyBackend>::Backend + Send + Sync + 'static,
-    F: Fn(DbConnection, String) -> Fut + Send + Sync + 'static,
-    Fut: Future<Output = Option<uuid::Uuid>> + Send + 'static,
-    <B as WithTokenAuthOnlyBackend>::Backend: axum_login::AuthnBackend + Send + Sync + Clone + 'static,
-    <B as WithTokenAuthOnlyBackend>::User: crate::authz::AuthzContext + Send + Clone + 'static,
-    <B as WithTokenAuthOnlyBackend>::User: axum_login::AuthUser<Id = uuid::Uuid>,
-#[cfg(not(feature = "session"))]
-  where
-    B: WithTokenAuthOnlyBackend + Fn(DbConnection) -> <B as WithTokenAuthOnlyBackend>::Backend + Send + Sync + 'static,
-    F: Fn(DbConnection, String) -> Fut + Send + Sync + 'static,
-    Fut: Future<Output = Option<uuid::Uuid>> + Send + 'static,
-    <B as WithTokenAuthOnlyBackend>::Backend: forge_auth::Backend + Send + Sync + Clone + 'static,
-    <B as WithTokenAuthOnlyBackend>::User: crate::authz::AuthzContext + Send + Clone + 'static,
-  {
-    let token_lookup = Arc::new(move |db: DbConnection, token: String| {
-      Box::pin(token_lookup(db, token)) as BoxFuture<'static, Option<uuid::Uuid>>
-    });
-    self.token_only_auth = true;
-    self.auth_installer = Some(Box::new(
-      move |router, db_conn, rate_limit_per_user, _| {
-        Box::pin(async move {
-          info!("Installing token-only authentication middleware (no sessions)...");
-
-          let backend = backend_factory(db_conn.clone());
-          let token_layer = TokenAuthLayer::new(db_conn.clone(), backend.clone(), token_lookup.clone());
-          let router = router.layer(token_layer);
-
-          if let Some(n) = rate_limit_per_user {
-            let burst = n.max(1);
-            let conf = GovernorConfigBuilder::default()
-              .per_second(1)
-              .burst_size(burst)
-              .key_extractor(forge_rate_limit::RequesterOrgKeyExtractor::<B::Backend>::new())
-              .finish()
-              .expect("GovernorConfigBuilder per-user");
-            router.layer(GovernorLayer::new(Arc::new(conf)))
-          } else {
-            router
-          }
-        })
-      },
-    ));
-    self
-  }
-
-  /// Get a reference to the application configuration.
-  pub fn config(&self) -> &ForgeConfig {
-    &self.config
-  }
-
-  /// Get a reference to the database connection (if available).
-  pub fn db(&self) -> Option<&DbConnection> {
-    self.db.as_ref()
-  }
-
-  /// Add a GET route to the application.
-  pub fn route<H, T>(mut self, path: &str, handler: H) -> Self
-  where
-    H: Handler<T, DbConnection>,
-    T: 'static,
-  {
-    self.router = self.router.route(path, get(handler));
-    self
-  }
-
-  /// Add a POST route to the application (e.g. for /api/auth/register, /api/auth/login).
-  pub fn post_route<H, T>(mut self, path: &str, handler: H) -> Self
-  where
-    H: Handler<T, DbConnection>,
-    T: 'static,
-  {
-    self.router = self.router.route(path, post(handler));
-    self
-  }
-
-  /// Add a DELETE route to the application (e.g. for /api/auth/tokens/:id).
-  pub fn delete_route<H, T>(mut self, path: &str, handler: H) -> Self
-  where
-    H: Handler<T, DbConnection>,
-    T: 'static,
-  {
-    self.router = self.router.route(path, delete(handler));
-    self
-  }
-
-  /// Add a route with multiple HTTP methods (e.g. get, post, patch, delete). Use for paths like
-  /// `/api/dashboard/users` or `/api/dashboard/organizations`. Do not wrap the handler in `get()`;
-  /// pass the method router directly so all methods are registered.
-  pub fn route_methods<M>(mut self, path: &str, method_router: M) -> Self
-  where
-    M: Into<axum::routing::MethodRouter<DbConnection>> + Send + 'static,
-  {
-    self.router = self.router.route(path, method_router.into());
-    self
-  }
-
-  /// Register a cron task that runs on the given schedule (in-process when [`.serve`](Self::serve) is used).
-  /// The task receives the app\'s database connection. No external cron library; uses Interval / Hourly / Daily.
-  pub fn with_cron<F, Fut>(mut self, name: &str, schedule: CronSchedule, f: F) -> Self
-  where
-    F: Fn(DbConnection) -> Fut + Send + Sync + 'static,
-    Fut: std::future::Future<Output = Result<(), Box<dyn std::error::Error + Send + Sync>>>
+    B: axum_login::AuthnBackend + Send + Sync + Clone + 'static,
+    B::User: forge_auth::AuthzContext<RequesterId = uuid::Uuid, SubjectId = uuid::Uuid>
       + Send
+      + Clone
       + 'static,
+    B::User: axum_login::AuthUser<Id = uuid::Uuid>,
+    F: Fn(DbConnection) -> B + Send + Sync + 'static,
   {
-    let task: CronTaskBox = Box::new(move |db| Box::pin(f(db)));
-    self.cron_tasks.push((name.to_string(), schedule, task));
+    self.token_only_auth = true;
+    self.token_lookup = Some(token_lookup);
+    self.with_auth(backend_factory)
+  }
+
+  /// Configures the application to include health check endpoints: /healthz, /livez, /readyz.
+  /// These endpoints are excluded from IP-based rate limiting.
+  pub fn with_health_routes(mut self) -> Self {
+    let router = self
+      .router
+      .route("/healthz", axum::routing::get(healthz))
+      .route("/livez", axum::routing::get(livez))
+      .route("/readyz", axum::routing::get(readyz));
+    self.router = router;
     self
   }
 
-  /// Builds the router and returns it **before** applying state and HTTP response cache.
-  /// Used by [`.into_router`](Self::into_router) and by apps that need custom state (e.g. Inertia with `(DbConnection, InertiaConfig)`).
+  /// Mounts a `Router` at the given path.
+  pub fn route(mut self, path: &str, service: impl Handler<(), DbConnection>) -> Self {
+    self.router = self.router.route(path, axum::routing::get(service));
+    self
+  }
+
+  /// Mounts a `Router` at the given path for any HTTP method.
+  pub fn nest(mut self, path: &str, router: Router<DbConnection>) -> Self {
+    self.router = self.router.nest(path, router);
+    self
+  }
+
+  /// Build the router with all configured middleware and services.
   async fn build_router_until_state(
     self,
   ) -> (
     Router<DbConnection>,
     DbConnection,
     Option<(DbConnection, CronRunner)>,
-    Option<cache_http_layer::HttpResponseCacheLayer>,
+    Option<HttpResponseCacheLayer>,
   ) {
-    Self::init_tracing();
+    let db_raw = initialize_database(&self.config.database).await.unwrap_or_else(|e| {
+      eprintln!("Error initializing database: {}", e);
+      std::process::exit(1);
+    });
 
-    let App {
-      mut router,
-      config,
-      db: _,
-      migrator,
-      seeder,
-      auth_installer,
-      rate_limit_per_ip,
-      rate_limit_per_user,
-      token_lookup,
-      with_session_auth,
-      cron_tasks,
-      live_backend,
-    } = self;
-
-    info!(
-      "Initializing database connection to {}",
-      config.database.url
-    );
-    let db_conn = db::initialize_database(&config.database)
-      .await
-      .unwrap_or_else(|e| {
-        eprintln!("Database connection error: {}", e);
+    if let Some(migrator) = self.migrator {
+      info!("Running migrations...");
+      migrator().await.unwrap_or_else(|e| {
+        eprintln!("Error running migrations: {}", e);
         std::process::exit(1);
       });
-    let db_conn = DbConnection::from(db_conn);
-
-    if config.database.auto_migrate
-      && let Some(run_migrations) = migrator
-    {
-      info!("Running database migrations...");
-      run_migrations().await.unwrap_or_else(|e| {
-        eprintln!("Migration error: {}", e);
-        std::process::exit(1);
-      });
+      info!("Migrations completed.");
     }
 
-    if config.database.auto_seed
-      && let Some(seeder_fn) = seeder
-    {
-      info!("Running database seeder...");
-      seeder_fn(db_conn.clone()).await.unwrap_or_else(|e| {
-        eprintln!("Seeding error: {}", e);
+    let db_conn = wrap_traced(db_raw);
+
+    if let Some(seeder) = self.seeder {
+      info!("Running seed function...");
+      seeder(db_conn.clone()).await.unwrap_or_else(|e| {
+        eprintln!("Error running seed function: {}", e);
         std::process::exit(1);
       });
+      info!("Seed function completed.");
     }
+
+    let mut router = self.router;
+
+    // OpenTelemetry layers (017)
+    #[cfg(feature = "opentelemetry")]
+    {
+      router = router
+        .layer(OtelAxumLayer::default())
+        .layer(OtelInResponseLayer::default());
+    }
+
+    // IP-based rate limiting (Governor)
+    if let Some(config) = self.rate_limit_per_ip {
+      router = router.layer(GovernorLayer::new(config));
+    }
+
+    let auth_installer = self.auth_installer;
+    let token_lookup = self.token_lookup;
+    let rate_limit_per_user = self.rate_limit_per_user;
 
     if let Some(installer) = auth_installer {
-      info!("Installing authentication middleware...");
       router = installer(router, db_conn.clone(), rate_limit_per_user, token_lookup).await;
     }
 
-    let health_routes = Router::new()
-      .route("/healthz", get(crate::health::healthz))
-      .route("/livez", get(crate::health::livez))
-      .route("/readyz", get(crate::health::readyz));
+    let mut cron_tasks = self.cron_tasks;
+    if let Some(live_backend) = self.live_backend {
+      router = router.layer(axum::Extension(live_backend));
+      cron_tasks.push((
+        "forge-live-sweep".to_string(),
+        CronSchedule::Interval(std::time::Duration::from_secs(60)),
+        Box::new(|db_conn| {
+          Box::pin(async move {
+            forge_live::sweep_expired_connections(db_conn).await;
+            Ok(())
+          })
+        }),
+      ));
+    }
 
-    router = if let Some(conf) = rate_limit_per_ip {
-      let limited = router.layer(GovernorLayer::new(conf));
-      limited.merge(health_routes)
-    } else {
-      router.merge(health_routes)
-    };
-
-    router = router.layer(tower::util::MapResponseLayer::new(
-      forge_security::add_security_headers,
-    ));
-
-    router = router
-      .layer(observability::TraceContextPropagationLayer)
-      .layer(OtelInResponseLayer)
-      .layer(OtelAxumLayer::default());
-
-    let app_cache = config
+    let response_cache_layer = self
+      .config
       .cache
       .as_ref()
-      .and_then(cache::AppCache::from_config)
-      .map(Arc::new);
-    if app_cache.is_some() {
-      info!("Application cache enabled");
-    }
-    let cache_ext = app_cache.clone();
-    router = router.layer(tower::util::MapRequestLayer::new(
-      move |mut req: axum::extract::Request| {
-        req.extensions_mut().insert(cache_ext.clone());
-        req
-      },
-    ));
-
-    if let Some(ref live) = live_backend {
-      let live_ext = live.clone();
-      router = router.layer(tower::util::MapRequestLayer::new(
-        move |mut req: axum::extract::Request| {
-          req.extensions_mut().insert(Some(live_ext.clone()));
-          req
-        },
-      ));
-      info!("Live Query enabled");
-    } else {
-      router = router.layer(tower::util::MapRequestLayer::new(
-        |mut req: axum::extract::Request| {
-          req
-            .extensions_mut()
-            .insert(None::<Arc<forge_live::InMemoryLiveBackend>>);
-          req
-        },
-      ));
-    }
-
-    let response_cache_layer = config.cache.as_ref().and_then(|cache_cfg| {
-      let layer = cache_http_layer::HttpResponseCacheLayer::from_config(cache_cfg);
-      if layer.is_some() {
-        info!("HTTP response cache enabled");
-      }
-      layer
-    });
+      .and_then(HttpResponseCacheLayer::from_config);
 
     let cron_runner = if cron_tasks.is_empty() {
       None
@@ -556,11 +382,11 @@ impl App {
         (db_conn.clone(),
         CronRunner {
           tasks: cron_tasks,
-          job_pool_url: config.database.url.clone(),
+          job_pool_url: self.config.database.url.clone(),
         },
       )
-    );
-    }
+    )
+    };
 
     (router, db_conn, cron_runner, response_cache_layer)
   }
@@ -606,7 +432,7 @@ impl App {
     Router<DbConnection>,
     DbConnection,
     Option<(DbConnection, CronRunner)>,
-    Option<cache_http_layer::HttpResponseCacheLayer>,
+    Option<HttpResponseCacheLayer>,
   ) {
     self.build_router_until_state().await
   }
@@ -646,11 +472,6 @@ impl App {
         Err(e.into())
       }
     }
-  }
-
-  /// Initialize the tracing subscriber for logging and OpenTelemetry (017).
-  fn init_tracing() {
-    init_tracing_impl();
   }
 
   /// Log server start message.
@@ -721,6 +542,7 @@ impl Default for App {
 #[cfg(test)]
 mod tests {
   use super::*;
+  use axum::extract::State;
   use axum::response::Html;
   use std::fs;
   use std::path::Path;
@@ -780,6 +602,14 @@ auto_seed = false
     }
   }
 
+  async fn test_handler_hello(_: State<DbConnection>) -> &'static str {
+    "Hello"
+  }
+
+  async fn test_handler_api(_: State<DbConnection>) -> Html<&'static str> {
+    Html("<h1>API</h1>")
+  }
+
   mod route_registration {
     use super::*;
 
@@ -790,7 +620,8 @@ auto_seed = false
       std::env::set_current_dir(temp_dir.path()).unwrap();
       setup_test_config(temp_dir.path(), "test_app");
 
-      let app = App::new().route("/", || async { "Hello" });
+      let router = Router::new().route("/", axum::routing::get(test_handler_hello));
+      let app = App::new().nest("/", router);
       let _ = app;
 
       std::env::set_current_dir(original_cwd).unwrap();
@@ -803,7 +634,8 @@ auto_seed = false
       std::env::set_current_dir(temp_dir.path()).unwrap();
       setup_test_config(temp_dir.path(), "test_app");
 
-      let app = App::new().route("/api", || async { Html("<h1>API</h1>") });
+      let router = Router::new().route("/api", axum::routing::get(test_handler_api));
+      let app = App::new().nest("/", router);
       let _ = app;
 
       std::env::set_current_dir(original_cwd).unwrap();

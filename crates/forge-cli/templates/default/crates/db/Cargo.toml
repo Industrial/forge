@@ -4,8 +4,11 @@ version = "0.1.0"
 edition = "2024"
 
 [dependencies]
-# In-repo path for `forge dev` from templates/default; replaced by `forge new`
-forge = { path = "../../../../../forge" }
+# In-repo paths for `forge dev` from templates/default; replaced by `forge new`
+axum-login = "0.17"
+forge-auth = { path = "../../../../../forge-auth" }
+forge-core = { path = "../../../../../forge-core" }
+forge-db = { path = "../../../../../forge-db" }
 sea-orm = { version = "1.1", default-features = false, features = [
   "runtime-tokio-rustls",
   "sqlx-sqlite",

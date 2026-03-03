@@ -23,7 +23,7 @@ This document lists all current seed data, how each would be replaced by an API 
 | 11 | **User: multi@email.com** | `user`, `membership`, `user_org_role` | Three memberships: Personal (viewer), Default (viewer), Other (editor). |
 
 All users share password `password` (constant `SEED_PASSWORD`).  
-`user.current_org_id` / `user.current_role` are set for legacy/display but are deprecated for auth (session profile is source of truth).
+`user.current_org_id` / `user.current_role` are deprecated; scope is provided by request headers (`X-Organization-Id`, `X-Role-Name`) when calling the API.
 
 ---
 

@@ -1,4 +1,5 @@
 import { Effect } from "effect";
+import { useApi } from "../utils/api";
 
 type UserMembership = {
 	org_id: string;
@@ -15,8 +16,8 @@ export type User = {
 	memberships: UserMembership[];
 };
 
-function fetchUsersApi(): Promise<{ users: User[] }> {
-	return fetch("/api/dashboard/users", { credentials: "include" }).then(async (res) => {
+function fetchUsersApi(api: ReturnType<typeof useApi>): Promise<{ users: User[] }> {
+	return api("/api/dashboard/users").then(async (res) => {
 		if (res.status === 403) {
 			throw new Error("You do not have permission to view users.");
 		}
@@ -42,7 +43,7 @@ function fetchUsersApi(): Promise<{ users: User[] }> {
  * Effect that fetches the users list from the dashboard API.
  * Fails with Error on non-OK or permission/unauthorized responses.
  */
-export const fetchUsersEffect = Effect.tryPromise({
-	try: () => fetchUsersApi(),
+export const fetchUsersEffect = (api: ReturnType<typeof useApi>) => Effect.tryPromise({
+	try: () => fetchUsersApi(api),
 	catch: (e) => (e instanceof Error ? e : new Error("Failed to load users")),
 }).pipe(Effect.map((data) => (data.users ?? []) as User[]));

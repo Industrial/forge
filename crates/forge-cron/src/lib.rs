@@ -1,10 +1,16 @@
-//! Cron-style schedule types and next-run calculation for the Forge framework.
+//! Cron-style schedule types, next-run calculation, and cron job runner for the Forge framework.
+//! Built on [forge_jobs](forge_jobs) for the job queue and worker.
 
+use apalis_core::backend::TaskSink;
 use chrono::Utc;
 use forge_db::DbConnection;
+use forge_jobs::{run_worker, setup_queue, ScheduledTaskJob, TaskFn};
+use std::collections::HashMap;
 use std::future::Future;
 use std::pin::Pin;
-use tokio::time::Instant;
+use std::sync::Arc;
+use tokio::time::{sleep_until, Instant};
+use tracing::{error, info};
 
 /// Schedule for a cron task.
 #[derive(Clone, Debug)]
@@ -67,6 +73,80 @@ pub fn next_daily_run(hour: u32, minute: u32) -> Instant {
   };
   let delay_secs = (next_ts - now_ts).max(0) as u64;
   Instant::now() + std::time::Duration::from_secs(delay_secs)
+}
+
+/// Runner that starts the cron scheduler loops and the job worker via [forge_jobs].
+pub struct CronRunner {
+  /// (task name, schedule, task closure)
+  pub tasks: Vec<(String, CronSchedule, CronTaskBox)>,
+  /// SQLite URL for the job queue (e.g. from config).
+  pub job_pool_url: String,
+}
+
+impl CronRunner {
+  /// Spawns the scheduler loops and worker in the background.
+  pub fn spawn(self, db: DbConnection) {
+    let url = self.job_pool_url.clone();
+    let tasks = self.tasks;
+    tokio::spawn(async move {
+      if let Err(e) = run_scheduler_and_worker(&url, db, tasks).await {
+        error!(error = %e, "scheduler/worker failed");
+      }
+    });
+  }
+}
+
+/// Runs the cron scheduler loops (push jobs by schedule) and the job worker.
+/// Uses [forge_jobs::setup_queue] and [forge_jobs::run_worker].
+pub async fn run_scheduler_and_worker(
+  db_url: &str,
+  db: DbConnection,
+  tasks: Vec<(String, CronSchedule, CronTaskBox)>,
+) -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
+  let storage = setup_queue(db_url).await?;
+  let storage_for_worker = storage.clone();
+  let storage_for_scheduler = storage;
+
+  let mut registry: HashMap<String, TaskFn> = HashMap::new();
+  let mut schedule_list = Vec::new();
+  for (name, schedule, task) in tasks {
+    let task_fn: TaskFn = Box::new(move |db: DbConnection| (task)(db));
+    registry.insert(name.clone(), task_fn);
+    schedule_list.push((name, schedule));
+  }
+  let registry = Arc::new(registry);
+
+  for (name, schedule) in schedule_list {
+    let name = name.clone();
+    let mut storage = storage_for_scheduler.clone();
+    let mut last_interval: Option<Instant> = None;
+    tokio::spawn(async move {
+      loop {
+        let next_instant = match &schedule {
+          CronSchedule::Interval(d) => {
+            let (next, new) = next_interval_run(*d, last_interval);
+            last_interval = new;
+            next
+          }
+          CronSchedule::Hourly { minute } => next_hourly_run(*minute),
+          CronSchedule::Daily { hour, minute } => next_daily_run(*hour, *minute),
+        };
+        sleep_until(next_instant).await;
+        if let Err(e) = storage
+          .push(ScheduledTaskJob {
+            task_name: name.clone(),
+          })
+          .await
+        {
+          error!(cron = %name, error = %e, "failed to enqueue scheduled task");
+        } else {
+          info!(cron = %name, "enqueued scheduled task");
+        }
+      }
+    });
+  }
+
+  run_worker(storage_for_worker, db, registry).await
 }
 
 #[cfg(test)]

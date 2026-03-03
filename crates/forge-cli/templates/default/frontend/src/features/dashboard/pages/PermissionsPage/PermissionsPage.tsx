@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useState } from "react";
+import { useOutletContext } from "react-router-dom";
 import Typography from "@mui/material/Typography";
 import Box from "@mui/material/Box";
 import Button from "@mui/material/Button";
@@ -21,6 +22,7 @@ import CircularProgress from "@mui/material/CircularProgress";
 import Chip from "@mui/material/Chip";
 import { useTablePaginationDefaults } from "@/hooks/useTablePaginationDefaults";
 import { useLiveUpdates } from "@/context/LiveWs";
+import { useApi } from "../../../../utils/api";
 
 type Assignment = {
 	scope: string;
@@ -34,6 +36,7 @@ const ORG_ROLES = ["owner", "admin", "editor", "viewer"] as const;
 const GLOBAL_ROLES = ["platform_admin"] as const;
 
 export default function PermissionsPage() {
+	const { api } = useOutletContext<{ api: ReturnType<typeof useApi> }>();
 	const [liveRefreshTrigger, setLiveRefreshTrigger] = useState(0);
 	const { connected: wsConnected } = useLiveUpdates("role_permissions", () => {
 		setLiveRefreshTrigger((n) => n + 1);
@@ -56,8 +59,8 @@ export default function PermissionsPage() {
 		setError(null);
 		try {
 			const [assignRes, permRes] = await Promise.all([
-				fetch("/api/dashboard/role-permissions", { credentials: "include" }),
-				fetch("/api/dashboard/permissions", { credentials: "include" }),
+				api("/api/dashboard/role-permissions"),
+				api("/api/dashboard/permissions"),
 			]);
 			if (!assignRes.ok || !permRes.ok) {
 				if (assignRes.status === 403 || permRes.status === 403) {
@@ -84,7 +87,7 @@ export default function PermissionsPage() {
 		} finally {
 			setLoading(false);
 		}
-	}, []);
+	}, [api]);
 
 	useEffect(() => {
 		fetchData();
@@ -107,10 +110,9 @@ export default function PermissionsPage() {
 		setAdding(true);
 		setError(null);
 		try {
-			const res = await fetch("/api/dashboard/role-permissions", {
+			const res = await api("/api/dashboard/role-permissions", {
 				method: "POST",
 				headers: { "Content-Type": "application/json" },
-				credentials: "include",
 				body: JSON.stringify({
 					scope: addScope,
 					role_name: addRole,
@@ -145,10 +147,9 @@ export default function PermissionsPage() {
 				permission_key: a.permission_key,
 			};
 			if (a.org_id != null && a.org_id !== "") body.org_id = a.org_id;
-			const res = await fetch("/api/dashboard/role-permissions", {
+			const res = await api("/api/dashboard/role-permissions", {
 				method: "DELETE",
 				headers: { "Content-Type": "application/json" },
-				credentials: "include",
 				body: JSON.stringify(body),
 			});
 			if (res.status === 403) {

@@ -1,6 +1,6 @@
 //! Adds one user (multi@email.com) to both Default and CoolOrg: editor in Default, viewer in CoolOrg.
 
-use forge::DbConnection;
+use forge_db::DbConnection;
 use uuid::Uuid;
 
 fn base_url() -> String {

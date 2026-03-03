@@ -1,6 +1,6 @@
 use sea_orm_migration::prelude::*;
 
-/// Audit log table. Table and column names must match forge::audit::log raw SQL (snake_case).
+/// Audit log table. Table and column names must match forge_audit::log raw SQL (snake_case).
 #[derive(Iden)]
 pub enum AuditLog {
   #[iden = "audit_log"]

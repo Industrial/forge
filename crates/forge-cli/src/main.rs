@@ -46,8 +46,7 @@ fn main() -> std::process::ExitCode {
       std::process::ExitCode::SUCCESS
     }
     Some(Commands::Dev {}) => {
-      use forge::config;
-      let config = match config::load_config() {
+      let config = match forge_config::load_config() {
         Ok(c) => c,
         Err(e) => {
           eprintln!("Error: {}", e);
@@ -61,8 +60,7 @@ fn main() -> std::process::ExitCode {
       std::process::ExitCode::SUCCESS
     }
     Some(Commands::Serve {}) => {
-      use forge::config;
-      let config = match config::load_config() {
+      let config = match forge_config::load_config() {
         Ok(c) => c,
         Err(e) => {
           eprintln!("Error: {}", e);
@@ -308,13 +306,16 @@ mod tests {
       assert!(cargo_content.contains("crates/db"));
       let app_cargo = fs::read_to_string(project_path.join("crates/app/Cargo.toml")).unwrap();
       assert!(app_cargo.contains("name = \"app\""));
-      assert!(app_cargo.contains("forge ="));
+      assert!(
+        app_cargo.contains("forge-app =") || app_cargo.contains("forge_config ="),
+        "generated app should depend on forge-app or forge-config"
+      );
       assert!(app_cargo.contains("db ="));
 
       // lib.rs: Forge app building (explicit imports, cron, route_methods for dashboard)
       let lib_content = fs::read_to_string(project_path.join("crates/app/src/lib.rs")).unwrap();
       assert!(
-        lib_content.contains("use forge::") && lib_content.contains("App"),
+        (lib_content.contains("use forge_app::") || lib_content.contains("use forge::")) && lib_content.contains("App"),
         "generated app should use explicit forge imports"
       );
       assert!(
@@ -336,7 +337,7 @@ mod tests {
       let main_content = fs::read_to_string(project_path.join("crates/app/src/main.rs")).unwrap();
       assert!(
         !main_content.contains("forge::prelude"),
-        "generated main should use explicit imports"
+        "generated main should use explicit imports (no prelude)"
       );
       assert!(
         main_content.contains(".serve()") || main_content.contains("into_router_before_state"),
@@ -380,8 +381,7 @@ mod tests {
   /// Test suite for serve::run (error paths only; success path runs the server).
   mod serve_run {
     use super::*;
-    use forge::ForgeConfig;
-    use forge::config::{AppConfig, DatabaseConfig, FrontendConfig, ServerConfig};
+    use forge_config::{AppConfig, DatabaseConfig, ForgeConfig, FrontendConfig, ServerConfig};
 
     fn default_config() -> ForgeConfig {
       ForgeConfig {

@@ -1,4 +1,4 @@
-//! API token (Bearer) authentication: layer and extractor for dual session/token auth.
+//! API token (Bearer) authentication: layer and extractor.
 
 use std::future::Future;
 use std::pin::Pin;
@@ -10,10 +10,13 @@ use axum::extract::FromRequestParts;
 use axum::http::StatusCode;
 use axum::http::header::AUTHORIZATION;
 use axum::http::request::Parts;
-use axum_login::AuthSession;
-use axum_login::AuthUser;
-use axum_login::AuthnBackend;
-use forge_authz::AuthzContext;
+
+use axum_login::{AuthnBackend, AuthUser};
+
+use crate::authz::{AuthzContext, RequestScope, Role};
+
+/// Re-export password/API token helpers so existing `forge_auth::token_auth::*` imports keep working.
+pub use crate::password::{hash_api_token, hash_password, verify_api_token, verify_password};
 use forge_db::DbConnection;
 use futures::future::BoxFuture;
 use tower::{Layer, Service};
@@ -25,32 +28,83 @@ pub type TokenLookupFn =
 
 /// Wrapper to store token-authenticated user in request extensions.
 #[derive(Clone, Debug)]
-pub struct TokenUser<U>(pub U);
+pub struct TokenUser<U> {
+  pub user: U,
+  pub extensions: axum::http::Extensions,
+}
+
+impl<U> AuthzContext for TokenUser<U>
+where
+  U: AuthzContext<RequesterId = Uuid, SubjectId = Uuid>,
+{
+  type RequesterId = Uuid;
+  type SubjectId = Uuid;
+
+  fn requester_id(&self) -> Uuid {
+    self.user.requester_id()
+  }
+
+  fn subject_id(&self) -> Uuid {
+    self.user.subject_id()
+  }
+
+  fn organization_id(&self) -> Option<Uuid> {
+    self.extensions
+      .get::<RequestScope>()
+      .map(|scope| scope.organization_id)
+      .or_else(|| self.user.organization_id())
+  }
+
+  fn role(&self) -> Option<Role> {
+    self.extensions
+      .get::<RequestScope>()
+      .map(|scope| scope.role.clone())
+      .or_else(|| self.user.role())
+  }
+}
+
+impl<U>
+  AuthUser for TokenUser<U>
+where
+  U: AuthUser<Id = Uuid> + Send + Sync + 'static,
+{
+  type Id = Uuid;
+  fn id(&self) -> Self::Id {
+    self.user.id()
+  }
+
+  fn session_auth_hash(&self) -> &[u8] {
+    self.user.session_auth_hash()
+  }
+}
+
 
 /// Tower layer: if `Authorization: Bearer <token>` is present, looks up user and inserts TokenUser.
 #[derive(Clone)]
-pub struct TokenAuthLayer<B> {
+pub struct TokenAuthLayer<B, U> {
+  _user: std::marker::PhantomData<U>,
   db: DbConnection,
   backend: Arc<B>,
   lookup: TokenLookupFn,
 }
 
-impl<B> TokenAuthLayer<B> {
+impl<B, U> TokenAuthLayer<B, U> {
   pub fn new(db: DbConnection, backend: B, lookup: TokenLookupFn) -> Self {
     Self {
       db,
       backend: Arc::new(backend),
       lookup,
+      _user: std::marker::PhantomData,
     }
   }
 }
 
-impl<B, S> Layer<S> for TokenAuthLayer<B>
+impl<B, U, S> Layer<S> for TokenAuthLayer<B, U>
 where
-  B: AuthnBackend + Clone + 'static,
-  B::User: Send + 'static,
+  B: AuthnBackend<User = U> + Clone + Send + Sync + 'static,
+  U: AuthUser<Id = Uuid> + Send + 'static,
 {
-  type Service = TokenAuthService<B, S>;
+  type Service = TokenAuthService<B, U, S>;
 
   fn layer(&self, inner: S) -> Self::Service {
     TokenAuthService {
@@ -58,18 +112,20 @@ where
       backend: Arc::clone(&self.backend),
       lookup: Arc::clone(&self.lookup),
       inner,
+      _user: std::marker::PhantomData,
     }
   }
 }
 
-pub struct TokenAuthService<B, S> {
+pub struct TokenAuthService<B, U, S> {
+  _user: std::marker::PhantomData<U>,
   db: DbConnection,
   backend: Arc<B>,
   lookup: TokenLookupFn,
   inner: S,
 }
 
-impl<B, S> Clone for TokenAuthService<B, S>
+impl<B, U, S> Clone for TokenAuthService<B, U, S>
 where
   S: Clone,
 {
@@ -79,14 +135,15 @@ where
       backend: Arc::clone(&self.backend),
       lookup: Arc::clone(&self.lookup),
       inner: self.inner.clone(),
+      _user: std::marker::PhantomData,
     }
   }
 }
 
-impl<B, S> Service<axum::http::Request<Body>> for TokenAuthService<B, S>
+impl<B, U, S> Service<axum::http::Request<Body>> for TokenAuthService<B, U, S>
 where
-  B: AuthnBackend + Send + Sync + 'static,
-  B::User: AuthUser<Id = Uuid> + Send + 'static,
+  B: AuthnBackend<User = U> + Send + Sync + 'static,
+  U: AuthUser<Id = Uuid> + Send + 'static,
   S: Service<axum::http::Request<Body>, Response = axum::response::Response>
     + Clone
     + Send
@@ -105,6 +162,7 @@ where
     let db = self.db.clone();
     let backend = Arc::clone(&self.backend);
     let lookup = Arc::clone(&self.lookup);
+    let req_extensions = req.extensions().clone(); // Clone extensions before mutable borrow
     let mut inner = self.inner.clone();
 
     Box::pin(async move {
@@ -112,7 +170,7 @@ where
         && let Some(user_id) = lookup(db.clone(), token).await
         && let Ok(Some(user)) = backend.get_user(&user_id).await
       {
-        req.extensions_mut().insert(TokenUser(user));
+        req.extensions_mut().insert(TokenUser { user, extensions: req_extensions });
       }
       inner.call(req).await
     })
@@ -125,25 +183,24 @@ pub(crate) fn extract_bearer(value: Option<&axum::http::HeaderValue>) -> Option<
   v.strip_prefix(prefix).map(|s| s.trim().to_string())
 }
 
-/// Extractor: current user from token (extension) or session.
+/// Extractor: current user from token (request extension set by [TokenAuthLayer]).
 #[derive(Clone, Debug)]
-pub struct RequireAuth<B: AuthnBackend>(pub B::User);
-
-impl<B, S> FromRequestParts<S> for RequireAuth<B>
+pub struct RequireAuth<B, U>(pub U, std::marker::PhantomData<B>)
 where
-  B: AuthnBackend + Send + Sync + 'static,
-  B::User: AuthzContext + AuthUser<Id = Uuid> + Send + Clone + 'static,
+    B: AuthnBackend<User = U>,
+    U: AuthUser;
+
+impl<B, U, S> FromRequestParts<S> for RequireAuth<B, U>
+where
+  B: AuthnBackend<User = U> + Send + Sync + 'static,
+  U: AuthzContext + AuthUser<Id = Uuid> + Send + Clone + 'static,
   S: Send + Sync,
 {
   type Rejection = (StatusCode, &'static str);
 
   async fn from_request_parts(parts: &mut Parts, _state: &S) -> Result<Self, Self::Rejection> {
-    if let Some(user) = OptionalRequireAuth::<B>::from_request_parts(parts, _state)
-      .await
-      .ok()
-      .and_then(|o| o.0)
-    {
-      return Ok(RequireAuth(user));
+    if let Some(token_user) = parts.extensions.get::<TokenUser<U>>() {
+      return Ok(RequireAuth(token_user.user.clone(), std::marker::PhantomData));
     }
     Err((StatusCode::UNAUTHORIZED, "Authentication required"))
   }
@@ -151,26 +208,24 @@ where
 
 /// Extractor: current user or None.
 #[derive(Clone, Debug)]
-pub struct OptionalRequireAuth<B: AuthnBackend>(pub Option<B::User>);
-
-impl<B, S> FromRequestParts<S> for OptionalRequireAuth<B>
+pub struct OptionalRequireAuth<B, U>(pub Option<U>, std::marker::PhantomData<B>)
 where
-  B: AuthnBackend + Send + Sync + 'static,
-  B::User: AuthzContext + AuthUser<Id = Uuid> + Send + Clone + 'static,
+    B: AuthnBackend<User = U>,
+    U: AuthUser;
+
+impl<B, U, S> FromRequestParts<S> for OptionalRequireAuth<B, U>
+where
+  B: AuthnBackend<User = U> + Send + Sync + 'static,
+  U: AuthzContext + AuthUser<Id = Uuid> + Send + Clone + 'static,
   S: Send + Sync,
 {
   type Rejection = (StatusCode, &'static str);
 
   async fn from_request_parts(parts: &mut Parts, _state: &S) -> Result<Self, Self::Rejection> {
-    if let Some(token_user) = parts.extensions.get::<TokenUser<B::User>>() {
-      return Ok(OptionalRequireAuth(Some(token_user.0.clone())));
+    if let Some(token_user) = parts.extensions.get::<TokenUser<U>>() {
+      return Ok(OptionalRequireAuth(Some(token_user.user.clone()), std::marker::PhantomData));
     }
-    if let Some(session) = parts.extensions.get::<AuthSession<B>>()
-      && let Some(ref user) = session.user
-    {
-      return Ok(OptionalRequireAuth(Some(user.clone())));
-    }
-    Ok(OptionalRequireAuth(None))
+    Ok(OptionalRequireAuth(None, std::marker::PhantomData))
   }
 }
 
@@ -178,6 +233,26 @@ where
 mod tests {
   use super::extract_bearer;
   use axum::http::HeaderValue;
+  use axum_login::AuthUser; // Added AuthUser import for the test
+  use uuid::Uuid;
+  use axum::http::Extensions; // Added Extensions import for the test
+
+  // A mock user for testing purposes
+  #[derive(Clone, Debug)]
+  struct MockUser { 
+    id: Uuid, 
+    session_auth_hash_val: Vec<u8> 
+  }
+
+  impl AuthUser for MockUser {
+    type Id = Uuid;
+    fn id(&self) -> Self::Id {
+        self.id
+    }
+    fn session_auth_hash(&self) -> &[u8] {
+        &self.session_auth_hash_val
+    }
+  }
 
   #[test]
   fn extract_bearer_none_for_no_header() {
@@ -213,9 +288,12 @@ mod tests {
 
   #[test]
   fn token_user_debug_and_clone() {
-    let u = super::TokenUser(42u64);
+    let user_id = Uuid::new_v4();
+    let mock_user = MockUser { id: user_id, session_auth_hash_val: vec![1, 2, 3] };
+    let u = super::TokenUser { user: mock_user.clone(), extensions: Extensions::new() };
     let _ = format!("{:?}", u);
     let u2 = u.clone();
-    assert_eq!(u2.0, 42u64);
+    assert_eq!(u2.user.id(), user_id);
+    assert_eq!(u2.user.session_auth_hash(), mock_user.session_auth_hash());
   }
 }

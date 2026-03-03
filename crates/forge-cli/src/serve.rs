@@ -1,6 +1,6 @@
 //! Production mode: build frontend, then run Rust server serving static assets.
 
-use forge::ForgeConfig;
+use forge_config::ForgeConfig;
 use std::process::Command;
 
 /// Build frontend (if present), then run the app with FORGE_ENVIRONMENT=production.
@@ -75,8 +75,7 @@ pub fn run(config: &ForgeConfig) -> Result<(), Box<dyn std::error::Error>> {
 #[cfg(test)]
 mod tests {
   use super::*;
-  use forge::ForgeConfig;
-  use forge::config::{AppConfig, DatabaseConfig, FrontendConfig, ServerConfig};
+  use forge_config::{AppConfig, DatabaseConfig, ForgeConfig, FrontendConfig, ServerConfig};
   use std::io::Write;
 
   fn default_config() -> ForgeConfig {

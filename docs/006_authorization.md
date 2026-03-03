@@ -6,7 +6,7 @@ Forge provides a "Shallow Gate + Deep Scope" authorization framework designed fo
 
 Forge's authorization engine is built on six core primitives:
 
-1. **Requester**: The session holder (e.g., a Support Agent or a User).
+1. **Requester**: The authenticated identity (e.g., a Support Agent or a User), established via Bearer token.
 2. **Subject**: The identity context being acted upon (usually `Requester == Subject`).
 3. **Object**: The resource (e.g., `Organization`, `Project`, `Invoice`).
 4. **Action**: The intent (`Read`, `Create`, `Update`, `Delete`, `Manage`).
@@ -19,9 +19,9 @@ Forge's authorization engine is built on six core primitives:
 |------------|-----------------------------|--------|
 | **Action** | `enum Action`               | `Action::Read`, `Action::Manage`, etc. |
 | **Role**   | `enum Role`                 | `Role::Owner`, `Role::Admin`, etc. |
-| **Requester** | `auth.requester_id()`   | `uuid::Uuid` – who is holding the session. |
+| **Requester** | `auth.requester_id()`   | `uuid::Uuid` – authenticated user (from token). |
 | **Subject**   | `auth.subject_id()`     | `uuid::Uuid` – identity context (self or impersonated). |
-| **Organization** | `auth.organization_id()` | `Option<uuid::Uuid>` – current tenant scope. |
+| **Organization** | `auth.organization_id()` or scope | `Option<uuid::Uuid>` – tenant scope (from `X-Organization-Id` or request scope). |
 | **Object** | Generic type `R` in `ForgePolicy<R>` | Any entity (e.g. `Project`, `Invoice`). |
 | **Logic**  | `trait ForgePolicy<R>`  | `async fn can(...) -> Result<bool, AuthzError>`. |
 
@@ -34,13 +34,13 @@ Import what you need from `forge` and `forge::authz` (e.g. `use forge::App;`, `u
 Implicitly scopes all database queries at the ORM level to prevent data leakage between tenants.
 
 - **Ghost Mode**: If a user attempts to access a resource they do not own, the query returns `None`, resulting in **404 Not Found** rather than **403 Forbidden**, preventing resource enumeration.
-- **Convention**: `Entity::find().scoped(&auth_session)` (requires entity to derive `ForgeScoped` and have an `organization_id` column).
+- **Convention**: `Entity::find().scoped(&scope)` (requires entity to derive `ForgeScoped` and have an `organization_id` column); scope comes from the request (e.g. `RequestScope` or token user + headers).
 
 ### B. Shallow Gate (Handler Guards)
 
 Explicitly validates entry rights at the handler level for non-database actions or fast-failing.
 
-- **Convention**: `auth.guard(Action::Manage, Role::Admin)?` – returns `Err(AuthzError::Forbidden)` if the session user’s role does not match.
+- **Convention**: `auth.guard(Action::Manage, Role::Admin)?` – returns `Err(AuthzError::Forbidden)` if the authenticated user’s role (from token/scope) does not match.
 
 ## 3. Secure-by-Default Implementation (for `forge new`)
 
@@ -50,17 +50,16 @@ A generated application must include the following so that every user has a Requ
 
 | Table           | Columns | Purpose |
 |----------------|---------|---------|
-| **user**       | `id`, `email`, `password_hash`, `is_active`, `is_admin`, `current_org_id`, `current_role`, `created_at`, `updated_at` | Identity; `current_org_id` and `current_role` track active scope and role for the session. |
+| **user**       | `id`, `email`, `password_hash`, `is_active`, `is_admin`, `created_at`, `updated_at` | Identity; scope (org, role) comes from request headers (`X-Organization-Id`, `X-Role-Name`) or from membership lookup. |
 | **organization** | `id`, `name`, `slug`, `created_at`, `updated_at` | Multi-tenant container. |
 | **membership** | `id`, `user_id`, `org_id`, `role`, `created_at`, `updated_at` | Links users to organizations with a specific `Role` (stored as string, e.g. `owner`, `admin`, `editor`, `viewer`). |
-| **sessions**   | (existing) | Session store. |
 
 Migration order:
 
-1. `m20220101_000001_create_user_table` – user table including nullable `current_org_id` (UUID) and `current_role` (string).
-2. `m20220101_000002_create_sessions_table` – sessions table.
-3. `m20220101_000003_create_organizations_table` – organizations table.
-4. `m20220101_000004_create_memberships_table` – memberships table (foreign keys to user and organization).
+1. `m20220101_000001_create_user_table` – user table.
+2. `m20220101_000002_create_organizations_table` – organizations table.
+3. `m20220101_000003_create_memberships_table` – memberships table (foreign keys to user and organization).
+4. (Optional) `m..._create_api_tokens_table` – token hashes for Bearer auth.
 
 ### B. Atomic Registration Flow
 
@@ -69,42 +68,33 @@ When a user signs up, the application must perform an atomic transaction:
 1. **Create User** (the Requester).
 2. **Create Organization** (default tenant, e.g. “Personal” or derived from email).
 3. **Create Membership** (link user + org with `Role::Owner`).
-4. **Set current context**: Update `user.current_org_id` and `user.current_role` to the new org and `"owner"`.
+All in a single database transaction. The client receives a token; scope (org, role) is sent on each request via headers (`X-Organization-Id`, `X-Role-Name`) or derived from the token and membership.
 
-All in a single database transaction so the user is immediately in a valid authz state.
+### C. Auth and Scope
 
-### C. Auth Backend (Eager-Load Role and Org)
+The app uses token auth (Bearer) and optional scope extractors:
 
-The `AuthnBackend` used by the app must ensure that the loaded user has `current_org_id` and `current_role` set so that `AuthzContext` and `guard()` work:
-
-- **authenticate**: After validating credentials, load the user’s default (or first) membership; set `user.current_org_id` and `user.current_role` from that membership, then return the user.
-- **get_user**: When loading the user by ID, re-load or join membership so that `current_org_id` and `current_role` are populated (or keep them stored on the user row and read them).
-
-This makes the session “authz-ready” without extra lookups in every handler.
+- **Identity**: Validated from `Authorization: Bearer <token>`; the handler receives a `TokenUser` (or similar) with user id.
+- **Scope**: Request scope (organization, role) comes from headers or from a `RequestScope` extractor that validates the user's membership and injects org/role. This feeds `AuthzContext` and `guard()`.
 
 ### D. The `AuthzContext` Trait
 
-The `User` model (or the type used as `AuthnBackend::User`) must implement `AuthzContext` so that `AuthSession` can provide Requester, Subject, Organization, and Role:
+The type representing the authenticated user (and scope) must implement `AuthzContext` so that handlers can access Requester, Subject, Organization, and Role:
 
 ```rust
-impl AuthzContext for user::Model {
+// Example: AuthzContext can be implemented by a wrapper that holds user + scope (org/role from request).
+impl AuthzContext for AuthenticatedUser {
     fn requester_id(&self) -> Uuid {
-        self.id
+        self.user.id
     }
     fn subject_id(&self) -> Uuid {
-        self.id
+        self.user.id
     }
     fn organization_id(&self) -> Option<Uuid> {
-        self.current_org_id
+        self.organization_id  // from X-Organization-Id / RequestScope
     }
     fn role(&self) -> Option<Role> {
-        self.current_role.as_deref().and_then(|s| match s {
-            "owner" => Some(Role::Owner),
-            "admin" => Some(Role::Admin),
-            "editor" => Some(Role::Editor),
-            "viewer" => Some(Role::Viewer),
-            _ => None,
-        })
+        self.role.as_ref().cloned()  // from X-Role-Name or membership lookup
     }
 }
 ```
@@ -128,7 +118,7 @@ Fetch a resource only if it belongs to the current user’s organization. Unauth
 
 ```rust
 pub async fn get_project(
-    auth: AuthSession<Backend>,
+    auth: RequireAuth,  // or your token + scope extractor
     Path(id): Path<Uuid>,
     State(db): State<DatabaseConnection>,
 ) -> Result<Json<Project>, Error> {
@@ -148,7 +138,7 @@ Restrict an action to a specific role (e.g. only Owner can delete the org).
 
 ```rust
 pub async fn delete_org(
-    auth: AuthSession<Backend>,
+    auth: RequireAuth,  // or your token + scope extractor
     State(db): State<DatabaseConnection>,
 ) -> Result<StatusCode, Error> {
     auth.guard(Action::Delete, Role::Owner)?;
@@ -160,18 +150,7 @@ pub async fn delete_org(
 
 ### `ForgeScoped` Trait
 
-Entities that belong to an organization should derive `ForgeScoped` (and have an `organization_id` column). The macro injects a filter so that `.scoped(&auth)` restricts rows to `auth.organization_id()`.
-
-```rust
-// In db crate, entity with organization_id column
-#[derive(Clone, Debug, PartialEq, DeriveEntityModel, Serialize, Deserialize, ForgeScoped)]
-#[sea_orm(table_name = "project")]
-pub struct Model {
-    // ...
-    pub organization_id: Uuid,
-    // ...
-}
-```
+Entities that belong to an organization can use the `ForgeScoped` trait (from `forge_auth`) so that `.scoped(&context)` restricts rows to `context.organization_id()`. Implement `ForgeScoped<Entity>` for `Select<Entity>` (filter by the appropriate column, e.g. `organization_id`).
 
 ### `ForgePolicy` Trait (ReBAC)
 

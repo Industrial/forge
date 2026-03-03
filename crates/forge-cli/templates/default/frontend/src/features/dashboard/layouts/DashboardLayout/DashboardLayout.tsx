@@ -1,11 +1,12 @@
 import { useState, useEffect } from "react";
-import { useLocation } from "react-router-dom";
+import { useLocation, Outlet } from "react-router-dom";
 import Box from "@mui/material/Box";
 import Drawer from "@mui/material/Drawer";
 import useMediaQuery from "@mui/material/useMediaQuery";
 import { useTheme } from "@mui/material/styles";
 import Sidebar from "../../components/Sidebar/Sidebar";
 import Navbar from "../../../../components/Navbar";
+import { useApi } from "../../../../utils/api";
 
 export type DashboardLayoutProps = {
 	children: React.ReactNode;
@@ -21,6 +22,7 @@ export default function DashboardLayout({
 	const theme = useTheme();
 	const isDesktop = useMediaQuery(theme.breakpoints.up("md"));
 	const location = useLocation();
+	const api = useApi();
 	const [sidebarExpanded, setSidebarExpanded] = useState(true);
 	const [mobileOpen, setMobileOpen] = useState(false);
 
@@ -50,6 +52,7 @@ export default function DashboardLayout({
 					<Sidebar
 						expanded={sidebarExpanded}
 						onToggle={() => setSidebarExpanded((e) => !e)}
+						api={api}
 					/>
 				) : (
 					<Drawer
@@ -74,6 +77,7 @@ export default function DashboardLayout({
 							hideToggle
 							disableBorder
 							fullWidth
+							api={api}
 						/>
 					</Drawer>
 				)}
@@ -87,7 +91,7 @@ export default function DashboardLayout({
 						px: 2,
 					}}
 				>
-					{children}
+					<Outlet context={{ api }} />
 				</Box>
 			</Box>
 		</>

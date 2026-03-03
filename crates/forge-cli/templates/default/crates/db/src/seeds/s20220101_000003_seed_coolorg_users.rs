@@ -1,6 +1,6 @@
 //! Seeds CoolOrg: organization, four roles, role permissions, and same user set as Default (owner@coolorg.org, etc.).
 
-use forge::DbConnection;
+use forge_db::DbConnection;
 use uuid::Uuid;
 
 fn base_url() -> String {

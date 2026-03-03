@@ -1,5 +1,6 @@
 use axum::{extract::State, response::IntoResponse};
-use forge::{AppCache, DbConnection};
+use forge_cache::AppCache;
+use forge_db::DbConnection;
 use std::sync::Arc;
 
 const CACHE_KEY: &str = "demo";
@@ -13,7 +14,7 @@ pub async fn handler(
     if let Some(v) = c.get(CACHE_KEY).await {
       v
     } else {
-      let v = format!("cached-{}", forge::uuid::Uuid::new_v4());
+      let v = format!("cached-{}", uuid::Uuid::new_v4());
       c.set(CACHE_KEY, v.clone()).await;
       v
     }

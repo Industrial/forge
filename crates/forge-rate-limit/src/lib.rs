@@ -2,10 +2,12 @@
 //!
 //! Per-IP limiting uses tower_governor's `PeerIpKeyExtractor` (in the app layer).
 //! Per-requester (per user per organization) uses `RequesterOrgKeyExtractor`,
-//! which reads `AuthSession` from request extensions (set by axum-login's layer).
+//! which reads identity from `TokenUser` (Bearer) and organization from `RequestScope`
+//! in request extensions (e.g. from scope-from-headers middleware) or from the user's auth context.
 
-use axum_login::{AuthSession, AuthnBackend};
-use forge_authz::AuthzContext;
+use axum_login::AuthnBackend;
+use forge_auth::token_auth::TokenUser;
+use forge_auth::{AuthzContext, RequestScope};
 use tower_governor::{errors::GovernorError, key_extractor::KeyExtractor};
 
 /// Key for per-requester rate limiting: `(organization_id, user_id)`.
@@ -18,11 +20,14 @@ pub struct RequesterOrgKey {
 /// Builds a [`RequesterOrgKey`] from an optional user implementing [`AuthzContext`].
 /// Used by [`RequesterOrgKeyExtractor`] and testable in isolation.
 #[inline]
-pub fn requester_org_key_from_user<U: AuthzContext>(user: Option<&U>) -> RequesterOrgKey {
+pub fn requester_org_key_from_user<U: AuthzContext>(user: Option<&U>) -> RequesterOrgKey
+where
+  <U as AuthzContext>::RequesterId: Into<uuid::Uuid>,
+{
   user
     .map(|u| RequesterOrgKey {
       organization_id: u.organization_id(),
-      user_id: u.requester_id(),
+      user_id: u.requester_id().into(),
     })
     .unwrap_or(RequesterOrgKey {
       organization_id: None,
@@ -30,7 +35,9 @@ pub fn requester_org_key_from_user<U: AuthzContext>(user: Option<&U>) -> Request
     })
 }
 
-/// Extracts `(organization_id, user_id)` from `AuthSession` in request extensions.
+/// Extracts `(organization_id, user_id)` from request extensions: user from
+/// `TokenUser` (Bearer); organization from `RequestScope` (scope-from-headers middleware)
+/// or from the user's context.
 #[derive(Clone, Debug)]
 pub struct RequesterOrgKeyExtractor<B> {
   _backend: std::marker::PhantomData<B>,
@@ -53,16 +60,25 @@ impl<B> Default for RequesterOrgKeyExtractor<B> {
 impl<B> KeyExtractor for RequesterOrgKeyExtractor<B>
 where
   B: AuthnBackend + Send + Sync + 'static,
-  B::User: AuthzContext + Send,
+  B::User: AuthzContext<RequesterId = uuid::Uuid, SubjectId = uuid::Uuid> + Send,
 {
   type Key = RequesterOrgKey;
 
   fn extract<T>(&self, req: &axum::http::Request<T>) -> Result<Self::Key, GovernorError> {
-    let user = req
-      .extensions()
-      .get::<AuthSession<B>>()
-      .and_then(|auth| auth.user.as_ref());
-    Ok(requester_org_key_from_user(user))
+    let ext = req.extensions();
+    let (user_id, org_from_user) = if let Some(tu) = ext.get::<TokenUser<B::User>>() {
+      (tu.requester_id(), tu.organization_id())
+    } else {
+      (uuid::Uuid::nil(), None)
+    };
+    let organization_id = ext
+      .get::<RequestScope>()
+      .map(|s| s.organization_id)
+      .or(org_from_user);
+    Ok(RequesterOrgKey {
+      organization_id,
+      user_id,
+    })
   }
 }
 
@@ -79,10 +95,12 @@ mod tests {
     user_id: uuid::Uuid,
   }
   impl AuthzContext for MockUserWithOrg {
-    fn requester_id(&self) -> uuid::Uuid {
+    type RequesterId = uuid::Uuid;
+    type SubjectId = uuid::Uuid;
+    fn requester_id(&self) -> Self::RequesterId {
       self.user_id
     }
-    fn subject_id(&self) -> uuid::Uuid {
+    fn subject_id(&self) -> Self::SubjectId {
       self.user_id
     }
     fn organization_id(&self) -> Option<uuid::Uuid> {
@@ -153,6 +171,76 @@ mod tests {
     assert_eq!(key.user_id, user_id);
   }
 
+  /// Extractor with TokenUser + RequestScope: org from scope extension, user_id from TokenUser.
+  #[test]
+  fn requester_org_key_extractor_with_token_user_and_scope() {
+    use axum::http::Extensions;
+    use forge_auth::token_auth::TokenUser;
+    use forge_auth::RequestScope;
+    use forge_auth::Role;
+
+    static H: [u8; 0] = [];
+    #[derive(Clone, Debug)]
+    struct U;
+    impl AuthUser for U {
+      type Id = uuid::Uuid;
+      fn id(&self) -> Self::Id {
+        uuid::Uuid::nil()
+      }
+      fn session_auth_hash(&self) -> &[u8] {
+        &H
+      }
+    }
+    impl AuthzContext for U {
+      type RequesterId = uuid::Uuid;
+      type SubjectId = uuid::Uuid;
+      fn requester_id(&self) -> Self::RequesterId {
+        uuid::Uuid::nil()
+      }
+      fn subject_id(&self) -> Self::SubjectId {
+        uuid::Uuid::nil()
+      }
+      fn organization_id(&self) -> Option<uuid::Uuid> {
+        None
+      }
+    }
+
+    #[derive(Clone)]
+    struct Be;
+    #[async_trait::async_trait]
+    impl axum_login::AuthnBackend for Be {
+      type User = U;
+      type Credentials = ();
+      type Error = std::io::Error;
+      async fn authenticate(
+        &self,
+        _: Self::Credentials,
+      ) -> Result<Option<Self::User>, Self::Error> {
+        Ok(None)
+      }
+      async fn get_user(
+        &self,
+        _: &axum_login::UserId<Self>,
+      ) -> Result<Option<Self::User>, Self::Error> {
+        Ok(None)
+      }
+    }
+
+    let org_id = uuid::Uuid::new_v4();
+    let mut req = Request::builder().body(()).unwrap();
+    req.extensions_mut().insert(TokenUser::<U> {
+      user: U,
+      extensions: Extensions::new(),
+    });
+    req.extensions_mut().insert(RequestScope {
+      organization_id: org_id,
+      role: Role::Viewer,
+    });
+    let key = RequesterOrgKeyExtractor::<Be>::new().extract(&req).unwrap();
+    assert_eq!(key.organization_id, Some(org_id), "org from RequestScope");
+    assert_eq!(key.user_id, uuid::Uuid::nil(), "user_id from TokenUser");
+  }
+
   #[test]
   fn requester_org_key_extractor_new_and_default() {
     use async_trait::async_trait;
@@ -188,10 +276,12 @@ mod tests {
       }
     }
     impl AuthzContext for MockUser {
-      fn requester_id(&self) -> uuid::Uuid {
+      type RequesterId = uuid::Uuid;
+      type SubjectId = uuid::Uuid;
+      fn requester_id(&self) -> Self::RequesterId {
         uuid::Uuid::nil()
       }
-      fn subject_id(&self) -> uuid::Uuid {
+      fn subject_id(&self) -> Self::SubjectId {
         uuid::Uuid::nil()
       }
       fn organization_id(&self) -> Option<uuid::Uuid> {
@@ -206,19 +296,13 @@ mod tests {
     assert_eq!(key.user_id, uuid::Uuid::nil());
   }
 
-  /// Integration test: request through auth layer so AuthSession is present with a user,
-  /// then call the extractor to cover the "user present" branch in extract().
+  /// Test extractor when TokenUser and RequestScope are in extensions (user present branch).
   #[tokio::test]
-  async fn requester_org_key_extractor_with_auth_session_user() {
+  async fn requester_org_key_extractor_with_token_user() {
     use async_trait::async_trait;
-    use axum::Router;
-    use axum::body::Body;
-    use axum::extract::Request;
-    use axum::http::{Request as HttpRequest, StatusCode};
-    use axum::routing::{get, post};
-    use axum_login::{AuthManagerLayerBuilder, AuthnBackend, UserId};
-    use tower::ServiceExt;
-    use tower_sessions::{MemoryStore, SessionManagerLayer};
+    use axum::http::Request;
+    use axum_login::{AuthnBackend, UserId};
+    use forge_auth::Role;
 
     static AUTH_HASH: [u8; 0] = [];
     #[derive(Clone, Debug)]
@@ -226,7 +310,7 @@ mod tests {
       organization_id: Option<uuid::Uuid>,
       user_id: uuid::Uuid,
     }
-    impl AuthUser for TestUser {
+    impl axum_login::AuthUser for TestUser {
       type Id = uuid::Uuid;
       fn id(&self) -> Self::Id {
         self.user_id
@@ -236,10 +320,12 @@ mod tests {
       }
     }
     impl AuthzContext for TestUser {
-      fn requester_id(&self) -> uuid::Uuid {
+      type RequesterId = uuid::Uuid;
+      type SubjectId = uuid::Uuid;
+      fn requester_id(&self) -> Self::RequesterId {
         self.user_id
       }
-      fn subject_id(&self) -> uuid::Uuid {
+      fn subject_id(&self) -> Self::SubjectId {
         self.user_id
       }
       fn organization_id(&self) -> Option<uuid::Uuid> {
@@ -248,107 +334,37 @@ mod tests {
     }
 
     #[derive(Clone)]
-    struct TestBackend {
-      user: TestUser,
-    }
+    struct TestBackend;
     #[async_trait]
     impl AuthnBackend for TestBackend {
       type User = TestUser;
       type Credentials = ();
       type Error = std::convert::Infallible;
-      async fn authenticate(
-        &self,
-        _creds: Self::Credentials,
-      ) -> Result<Option<Self::User>, Self::Error> {
-        Ok(Some(self.user.clone()))
+      async fn authenticate(&self, _: Self::Credentials) -> Result<Option<Self::User>, Self::Error> {
+        Ok(None)
       }
-      async fn get_user(&self, user_id: &UserId<Self>) -> Result<Option<Self::User>, Self::Error> {
-        if *user_id == self.user.id() {
-          Ok(Some(self.user.clone()))
-        } else {
-          Ok(None)
-        }
+      async fn get_user(&self, _: &UserId<Self>) -> Result<Option<Self::User>, Self::Error> {
+        Ok(None)
       }
     }
-
-    async fn key_handler(req: Request) -> (StatusCode, String) {
-      let ext = RequesterOrgKeyExtractor::<TestBackend>::new();
-      let key = ext.extract(&req).unwrap();
-      (
-        StatusCode::OK,
-        format!(
-          "{}:{}",
-          key
-            .organization_id
-            .map(|u| u.to_string())
-            .unwrap_or_default(),
-          key.user_id
-        ),
-      )
-    }
-
-    async fn login_handler(mut auth: axum_login::AuthSession<TestBackend>) -> &'static str {
-      let user = auth.authenticate(()).await.unwrap().unwrap();
-      auth.login(&user).await.unwrap();
-      "ok"
-    }
-
     let org_id = uuid::Uuid::new_v4();
     let user_id = uuid::Uuid::new_v4();
-    let backend = TestBackend {
-      user: TestUser {
-        organization_id: Some(org_id),
-        user_id,
-      },
+    let user = TestUser {
+      organization_id: Some(org_id),
+      user_id,
     };
-    let store = MemoryStore::default();
-    let session_layer = SessionManagerLayer::new(store);
-    let auth_layer = AuthManagerLayerBuilder::new(backend, session_layer).build();
-
-    let app = Router::new()
-      .route("/login", post(login_handler))
-      .route("/key", get(key_handler))
-      .layer(auth_layer);
-
-    // Request /key without logging in: AuthSession present but user None (covers that branch)
-    let key_req_anon = HttpRequest::builder()
-      .uri("/key")
-      .body(Body::empty())
-      .unwrap();
-    let key_res_anon = app.clone().oneshot(key_req_anon).await.unwrap();
-    assert!(key_res_anon.status().is_success());
-    let body_anon = axum::body::to_bytes(key_res_anon.into_body(), usize::MAX)
-      .await
-      .unwrap();
-    assert_eq!(
-      std::str::from_utf8(&body_anon).unwrap(),
-      ":00000000-0000-0000-0000-000000000000"
-    );
-
-    let login_req = HttpRequest::builder()
-      .method("POST")
-      .uri("/login")
-      .body(Body::empty())
-      .unwrap();
-    let login_res = app.clone().oneshot(login_req).await.unwrap();
-    assert!(login_res.status().is_success());
-
-    let cookie = login_res
-      .headers()
-      .get("set-cookie")
-      .cloned()
-      .expect("session cookie");
-    let key_req = HttpRequest::builder()
-      .uri("/key")
-      .header("cookie", cookie)
-      .body(Body::empty())
-      .unwrap();
-    let key_res = app.oneshot(key_req).await.unwrap();
-    assert!(key_res.status().is_success());
-    let body = axum::body::to_bytes(key_res.into_body(), usize::MAX)
-      .await
-      .unwrap();
-    let s = std::str::from_utf8(&body).unwrap();
-    assert_eq!(s, format!("{}:{}", org_id, user_id));
+    let token_user = TokenUser::<TestUser> {
+      user: user.clone(),
+      extensions: axum::http::Extensions::new(),
+    };
+    let mut req = Request::builder().body(()).unwrap();
+    req.extensions_mut().insert(token_user);
+    req.extensions_mut().insert(RequestScope {
+      organization_id: org_id,
+      role: Role::Admin,
+    });
+    let key = RequesterOrgKeyExtractor::<TestBackend>::new().extract(&req).unwrap();
+    assert_eq!(key.organization_id, Some(org_id));
+    assert_eq!(key.user_id, user_id);
   }
 }

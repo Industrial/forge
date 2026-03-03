@@ -1,41 +1,38 @@
 //! WebSocket handler: forge-live connection and subscriptions. Authenticated
 //! connections receive server-derived channel subscriptions (see docs/021).
+//! Scope (org/role) comes from X-Organization-Id and X-Role-Name headers.
 
 use axum::{
   extract::ws::{Message, WebSocket, WebSocketUpgrade},
-  extract::{Extension, State},
+  extract::{Extension, Request, State},
   http::StatusCode,
   response::{IntoResponse, Response},
 };
-use axum_login::AuthSession;
-use forge::live::{Channel, InMemoryLiveBackend, LiveBackend};
-use forge::DbConnection;
+use forge_db::DbConnection;
+use forge_live::{Channel, InMemoryLiveBackend, LiveBackend};
+use forge_auth::token_auth::RequireAuth;
 use futures_util::{SinkExt, StreamExt};
 use std::sync::Arc;
 use tokio::sync::mpsc;
 
-use crate::handlers::auth::{channels_from_permissions, get_profile_from_session, resolve_permissions};
+use crate::handlers::auth::{channels_from_permissions, get_scope_from_headers_map, resolve_permissions};
 use crate::tasks::TaskState;
 use db::auth::Backend;
-use tower_sessions::Session;
 
 pub async fn handler(
   ws: WebSocketUpgrade,
-  session: Session,
-  auth_session: AuthSession<Backend>,
+  Request(req): Request,
+  RequireAuth(user): RequireAuth<Backend>,
   State(db): State<DbConnection>,
   Extension(live_backend): Extension<Option<Arc<InMemoryLiveBackend>>>,
   Extension(task_state): Extension<Arc<TaskState>>,
 ) -> Response {
   tracing::debug!(target: "app::handlers", "route: GET /ws (upgrade)");
-  let Some(ref user) = auth_session.user else {
-    return (StatusCode::UNAUTHORIZED, "Unauthorized").into_response();
-  };
   let Some(backend) = live_backend else {
     return (StatusCode::SERVICE_UNAVAILABLE, "Live Query not enabled").into_response();
   };
-  let profile = get_profile_from_session(&session).await;
-  let permissions = resolve_permissions(&db, user, profile.as_ref()).await;
+  let profile = get_scope_from_headers_map(req.headers(), &user, &db).await;
+  let permissions = resolve_permissions(&db, &user, profile.as_ref()).await;
   let current_org_id = profile.as_ref().map(|p| p.org_id);
   let channels = channels_from_permissions(&permissions, current_org_id);
   let backend = backend.clone();

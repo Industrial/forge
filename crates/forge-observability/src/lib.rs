@@ -123,7 +123,6 @@ pub fn env_filter() -> EnvFilter {
   EnvFilter::try_from_default_env()
     .unwrap_or_else(|_| EnvFilter::new("info"))
     .add_directive("axum_tracing_opentelemetry=error".parse().unwrap())
-    .add_directive("tower_sessions_core=error".parse().unwrap())
 }
 
 #[cfg(test)]

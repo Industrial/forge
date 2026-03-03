@@ -1,0 +1,51 @@
+[package]
+name = "forge-app"
+version = "0.1.0"
+edition = "2024"
+authors = ["Tom Wieland <tom.wieland@gmail.com>"]
+license = "MIT OR Apache-2.0"
+repository = "https://github.com/Industrial/forge"
+description = "Forge application builder — fluent API for configuring and running Axum apps"
+
+[dependencies]
+axum = { version = "0.8", features = ["ws"] }
+tokio = { version = "1", features = ["full"] }
+tower = { version = "0.5", features = ["util"] }
+tower-http = { version = "0.6", features = ["trace"] }
+tracing = "0.1"
+tracing-log = "0.2"
+tracing-subscriber = { version = "0.3", features = ["env-filter"] }
+futures = "0.3"
+sea-orm = { version = "1.1", default-features = false, features = [
+  "runtime-tokio-rustls",
+  "sqlx-sqlite",
+  "macros",
+  "with-uuid",
+  "with-chrono",
+] }
+sea-orm-migration = "1.1"
+axum-login = "0.17"
+uuid = { version = "1.0", features = ["v4", "serde"] }
+forge-auth = { path = "../forge-auth" }
+forge-cache = { path = "../forge-cache" }
+forge-config = { path = "../forge-config" }
+forge-cron = { path = "../forge-cron" }
+forge-db = { path = "../forge-db" }
+forge-health = { path = "../forge-health" }
+forge-live = { path = "../forge-live" }
+forge-observability = { path = "../forge-observability" }
+forge-rate-limit = { path = "../forge-rate-limit" }
+tower_governor = "0.8"
+governor = "0.10"
+axum-tracing-opentelemetry = { version = "0.33", optional = true }
+
+[features]
+default = []
+opentelemetry = ["dep:axum-tracing-opentelemetry"]
+
+[dev-dependencies]
+reqwest = "0.12"
+tempfile = "3.10"
+
+[lints.rust]
+unexpected_cfgs = { level = "warn", check-cfg = ['cfg(coverage)'] }

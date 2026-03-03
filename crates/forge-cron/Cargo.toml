@@ -8,9 +8,12 @@ repository = "https://github.com/Industrial/forge"
 description = "Cron-style schedule types for Forge framework"
 
 [dependencies]
+apalis-core = "1.0.0-rc.4"
 chrono = { version = "0.4", features = ["serde"] }
 forge-db = { path = "../forge-db" }
+forge-jobs = { path = "../forge-jobs" }
 tokio = { version = "1", features = ["time"] }
+tracing = "0.1"
 
 [lints.rust]
 unexpected_cfgs = { level = "warn", check-cfg = ['cfg(coverage)'] }

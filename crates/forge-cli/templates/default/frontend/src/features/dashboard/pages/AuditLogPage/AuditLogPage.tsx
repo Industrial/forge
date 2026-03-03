@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useState } from "react";
+import { useOutletContext } from "react-router-dom";
 import Typography from "@mui/material/Typography";
 import Box from "@mui/material/Box";
 import Button from "@mui/material/Button";
@@ -20,6 +21,7 @@ import TablePagination from "@mui/material/TablePagination";
 import Chip from "@mui/material/Chip";
 import { useLiveUpdates } from "@/context/LiveWs";
 import { useTablePaginationDefaults } from "@/hooks/useTablePaginationDefaults";
+import { useApi } from "../../../../utils/api";
 
 type AuditLogEntry = {
 	id: string;
@@ -40,6 +42,7 @@ const EVENT_KINDS = ["auth", "authz", "mutation", "custom"] as const;
 const ACTIONS = ["read", "create", "update", "delete", "manage"] as const;
 
 export default function AuditLogPage() {
+	const { api } = useOutletContext<{ api: ReturnType<typeof useApi> }>();
 	const [entries, setEntries] = useState<AuditLogEntry[]>([]);
 	const [total, setTotal] = useState(0);
 	const [loading, setLoading] = useState(true);
@@ -73,9 +76,7 @@ export default function AuditLogPage() {
 			if (eventKind) params.set("event_kind", eventKind);
 			if (action) params.set("action", action);
 			if (reason.trim()) params.set("reason", reason.trim());
-			const res = await fetch(`/api/dashboard/audit-log?${params.toString()}`, {
-				credentials: "include",
-			});
+			const res = await api(`/api/dashboard/audit-log?${params.toString()}`);
 			if (res.status === 403) {
 				setError("You do not have permission to view the audit log.");
 				setEntries([]);
@@ -98,7 +99,7 @@ export default function AuditLogPage() {
 		} finally {
 			setLoading(false);
 		}
-	}, [page, rowsPerPage, from, to, outcome, eventKind, action, reason]);
+	}, [page, rowsPerPage, from, to, outcome, eventKind, action, reason, api]);
 
 	useEffect(() => {
 		fetchData();

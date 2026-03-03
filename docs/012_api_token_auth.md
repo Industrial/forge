@@ -1,10 +1,10 @@
 # API Token / Token Auth
 
-Forge currently supports **session-based authentication** only (cookies via `tower-sessions` and `axum-login`). This document describes **API token authentication**: Bearer tokens or API keys for headless clients, CLIs, mobile apps, and machine-to-machine access.
+Forge uses **Bearer token authentication** as the primary auth mechanism: identity is established via `Authorization: Bearer <token>`, and scope (organization, role) is provided by request headers (`X-Organization-Id`, `X-Role-Name`). This document describes the token storage, lookup, and extractors.
 
 ## Objectives
 
-1. **Dual auth modes**: Allow the same app to accept either session cookies (browser) or a Bearer token / API key (programmatic).
+1. **Token-based identity**: All authenticated access (browser SPA, CLI, mobile, M2M) uses Bearer tokens; login/register return a token in the response body.
 2. **Token lifecycle**: Create, list, revoke tokens; optional expiry and scopes.
 3. **Secure storage**: Store token hashes (never plaintext); use constant-time comparison where applicable.
 4. **Unified identity**: Token auth resolves to the same `User` (and optional org/role) as session auth so authorization and audit stay consistent.
@@ -13,7 +13,7 @@ Forge currently supports **session-based authentication** only (cookies via `tow
 
 | Client type        | Typical auth        | Example                          |
 |--------------------|---------------------|----------------------------------|
-| Browser (SPA / SSR)| Session (cookie)    | Already supported via `with_auth` |
+| Browser (SPA / SSR)| Bearer token (store in memory/localStorage) | Send `Authorization: Bearer <token>` and scope headers |
 | CLI / script       | Bearer token or API key | `Authorization: Bearer <token>`  |
 | Mobile app         | Bearer token        | OAuth2 access token or app-specific token |
 | Third-party API    | API key (header or query) | `X-API-Key: <key>` or `?api_key=<key>` |
@@ -42,10 +42,10 @@ Forge currently supports **session-based authentication** only (cookies via `tow
 
 ### 3. Middleware / extractor
 
-- Run **after** session auth: if the request has no valid session, check for a Bearer token or API key.
-- Look up token by hash, validate expiry (and optional scopes), load `User` (and org/role if applicable).
-- Inject the same auth context (`axum_login`-style or Forge’s `AuthzContext`) so handlers don’t care whether the user came from a cookie or a token.
-- Rate limiting and audit can treat token-authenticated requests like session-authenticated ones (e.g. per user_id).
+- Forge’s auth layer checks for `Authorization: Bearer <token>` on each request.
+- Look up token by hash, validate expiry (and optional scopes), load `User`.
+- Scope (org, role) comes from request headers `X-Organization-Id` and `X-Role-Name`; the app may use an extractor (e.g. `RequireScope`) that validates the user has that org/role and injects it into the auth context.
+- Rate limiting and audit key by user (and optionally org from scope).
 
 ### 4. Token creation and revocation
 
@@ -55,7 +55,7 @@ Forge currently supports **session-based authentication** only (cookies via `tow
 
 ## Integration with existing Forge auth
 
-- **`forge::auth`**: Add helpers for hashing and verifying token secrets (similar in spirit to password hashing; verification must be constant-time).
+- **`forge_auth::token_auth`**: Helpers for hashing and verifying token secrets (and passwords); verification is constant-time.
 - **`App::with_auth`**: Extend or add a companion (e.g. `with_token_auth`) so the same `AuthnBackend` (or a wrapper) can resolve users from both session and token.
 - **Authorization**: No change: once the requester is identified (user_id, org, role), `forge-authz` and audit behave as today.
 - **Sessions**: Token auth does not create a session; it only authenticates the request. Optional: allow “create session from token” for browser flows that start with a token (e.g. magic link).

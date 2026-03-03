@@ -26,7 +26,7 @@ import Select from "@mui/material/Select";
 import MenuItem from "@mui/material/MenuItem";
 import Chip from "@mui/material/Chip";
 import { useLiveUpdates } from "../../../../context/LiveWs";
-import { useSession } from "../../../../context/Session";
+import { useAuth } from "../../../../context/Auth";
 import { Schema } from "effect";
 import { runPromise } from "../../../../lib/runEffect";
 import { effectSchemaResolver } from "../../../../lib/effectSchemaResolver";
@@ -68,13 +68,17 @@ function membershipsSummary(memberships: User["memberships"]) {
 }
 
 export default function UsersPage() {
-	const { permissions } = useSession();
+	const { permissions } = useAuth();
+	const { api } = useOutletContext<{ api: ReturnType<typeof useApi> }>();
+	const { api } = useOutletContext<{ api: ReturnType<typeof useApi> }>();
+	const { api } = useOutletContext<{ api: ReturnType<typeof useApi> }>();
 	const canRead = permissions.includes(USERS_READ);
 	const canWrite = permissions.includes(USERS_WRITE);
 	const [liveRefreshTrigger, setLiveRefreshTrigger] = useState(0);
 	const { connected: wsConnected } = useLiveUpdates("users", () => {
 		setLiveRefreshTrigger((n) => n + 1);
 	});
+	const { api } = useOutletContext<{ api: ReturnType<typeof useApi> }>();
 	const fetchUsers = useCallback(async () => {
 		if (!canRead) {
 			setLoading(false);
@@ -83,7 +87,7 @@ export default function UsersPage() {
 		}
 		setError(null);
 		try {
-			const list = await runPromise(fetchUsersEffect);
+			const list = await runPromise(fetchUsersEffect(api));
 			setUsers(list);
 		} catch (e) {
 			setError(e instanceof Error ? e.message : "Failed to load users.");
@@ -130,8 +134,7 @@ export default function UsersPage() {
 	const fetchOrgs = useCallback(async () => {
 		if (!canRead) return;
 		try {
-			const res = await fetch("/api/dashboard/organizations", {
-				credentials: "include",
+			const res = await api("/api/dashboard/organizations", {
 			});
 			if (res.ok) {
 				const data = await res.json();
@@ -156,8 +159,7 @@ export default function UsersPage() {
 			return;
 		}
 		try {
-			const res = await fetch(`/api/dashboard/roles?org_id=${encodeURIComponent(orgId)}`, {
-				credentials: "include",
+			const res = await api(`/api/dashboard/roles?org_id=${encodeURIComponent(orgId)}`, {
 			});
 			if (res.ok) {
 				const data = await res.json();
@@ -186,10 +188,9 @@ export default function UsersPage() {
 		setAdding(true);
 		setError(null);
 		try {
-			const res = await fetch("/api/dashboard/users", {
+			const res = await api("/api/dashboard/users", {
 				method: "POST",
 				headers: { "Content-Type": "application/json" },
-				credentials: "include",
 				body: JSON.stringify({
 					email: data.email,
 					password: data.password,
@@ -226,10 +227,9 @@ export default function UsersPage() {
 		setSaving(true);
 		setError(null);
 		try {
-			const res = await fetch("/api/dashboard/users", {
+			const res = await api("/api/dashboard/users", {
 				method: "PATCH",
 				headers: { "Content-Type": "application/json" },
-				credentials: "include",
 				body: JSON.stringify({
 					id: editUser.id,
 					email: data.email.trim() || undefined,
@@ -258,10 +258,9 @@ export default function UsersPage() {
 		setDeletingId(id);
 		setError(null);
 		try {
-			const res = await fetch("/api/dashboard/users", {
+			const res = await api("/api/dashboard/users", {
 				method: "DELETE",
 				headers: { "Content-Type": "application/json" },
-				credentials: "include",
 				body: JSON.stringify({ id }),
 			});
 			if (res.status === 403) {

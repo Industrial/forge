@@ -52,6 +52,7 @@ pub fn create_new_project(name: &str) -> Result<(), Box<dyn std::error::Error>> 
   }
 
   let exe_path = std::env::current_exe().unwrap();
+  // Workspace root (when run from repo target/debug/forge) for path replacements in template Cargo.toml.
   let forge_path_str = exe_path
     .parent()
     .unwrap()
@@ -59,8 +60,6 @@ pub fn create_new_project(name: &str) -> Result<(), Box<dyn std::error::Error>> 
     .unwrap()
     .parent()
     .unwrap()
-    .join("crates")
-    .join("forge")
     .display()
     .to_string();
 
@@ -125,7 +124,16 @@ fn copy_template_dir(
         let replaced = text
           .replace("{{PROJECT_NAME}}", project_name)
           .replace("{{FORGE_PATH}}", forge_path)
-          .replace("../../../../../forge", forge_path);
+          .replace("../../../../../forge-app", &format!("{}/crates/forge-app", forge_path))
+          .replace("../../../../../forge-auth", &format!("{}/crates/forge-auth", forge_path))
+          .replace("../../../../../forge-audit", &format!("{}/crates/forge-audit", forge_path))
+          .replace("../../../../../forge-cache", &format!("{}/crates/forge-cache", forge_path))
+          .replace("../../../../../forge-config", &format!("{}/crates/forge-config", forge_path))
+          .replace("../../../../../forge-core", &format!("{}/crates/forge-core", forge_path))
+          .replace("../../../../../forge-cron", &format!("{}/crates/forge-cron", forge_path))
+          .replace("../../../../../forge-db", &format!("{}/crates/forge-db", forge_path))
+          .replace("../../../../../forge-live", &format!("{}/crates/forge-live", forge_path))
+          .replace("../../../../../forge-observability", &format!("{}/crates/forge-observability", forge_path));
         fs::write(&dest_path, replaced)?;
       }
     }

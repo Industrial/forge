@@ -10,22 +10,24 @@ use std::sync::Arc;
 use std::time::Duration;
 
 use axum::Router;
-use db::auth::Backend;
-use forge::{App, CronSchedule};
+use forge_app::App;
+use forge_cron::CronSchedule;
 use tempfile::TempDir;
 
+pub mod error;
 pub mod handlers;
 pub mod permissions;
 pub mod tasks;
 
+pub use error::Error;
+
 /// Build the Forge [App] with all template routes. Requires CWD to be a directory that contains
 /// `config/app.toml` and `config/db.toml` (e.g. project root or a temp dir from [build_router_for_test]).
-pub fn make_app(live_backend: Arc<forge::live::InMemoryLiveBackend>) -> App {
+pub fn make_app(live_backend: Arc<forge_live::InMemoryLiveBackend>) -> App {
   let app = App::new()
     .with_migrations(db::Migrator)
     .with_seed(|db| Box::pin(db::run_seeds(db)))
-    .with_auth(|db| Backend::new(db))
-    .with_token_auth(db::token_lookup)
+    .with_token_auth_only(|db| db::auth::Backend::new(db), db::token_lookup)
     .with_cron(
       "heartbeat",
       CronSchedule::Interval(Duration::from_secs(60)),
@@ -44,11 +46,8 @@ pub fn make_app(live_backend: Arc<forge::live::InMemoryLiveBackend>) -> App {
     .post_route("/api/auth/register", handlers::auth::register)
     .post_route("/api/auth/login", handlers::auth::login)
     .route("/api/auth/logout", handlers::auth::logout)
-    .route("/api/auth/profile", handlers::auth::profile)
-    .route("/api/auth/profiles", handlers::auth::profiles_list)
-    .post_route("/api/auth/switch-profile", handlers::auth::set_profile)
-    .post_route("/api/auth/set-profile", handlers::auth::set_profile)
-    .route("/api/auth/session", handlers::auth::session_json)
+    .route("/api/auth/me", axum::routing::get(handlers::auth::get_me))
+    .route("/api/auth/profiles", axum::routing::get(handlers::auth::profiles_list))
     .post_route("/api/auth/tokens", handlers::auth::create_token)
     .route("/api/auth/admin", handlers::auth::admin_only)
     // Unprotected REST API (no auth)
@@ -170,8 +169,8 @@ pub async fn build_router_for_test(
     _temp: temp,
   };
 
-  forge::init_tracing();
-  let live_backend = Arc::new(forge::live::InMemoryLiveBackend::new());
+  forge_app::init_tracing();
+  let live_backend = Arc::new(forge_live::InMemoryLiveBackend::new());
   let app = make_app(live_backend.clone());
 
   let (router, db_conn, _cron_runner, response_cache) = app.into_router_before_state().await;
@@ -193,7 +192,7 @@ pub async fn build_router_for_test(
 /// Default password for all seed users (must match db seeds).
 pub const SEED_PASSWORD: &str = "password";
 
-/// Log in as a seed user via POST /api/auth/login; returns the session cookie value to use as the `Cookie` header.
+/// Log in as a seed user via POST /api/auth/login; returns the Bearer token.
 /// Use with [build_router_for_test]. Seed users: admin@admin.com, viewer@default.org, editor@default.org, etc.
 pub async fn login_as_seed_user(
   router: &axum::Router,
@@ -217,34 +216,34 @@ pub async fn login_as_seed_user(
     let msg = String::from_utf8_lossy(&bytes);
     return Err(format!("login failed {}: {}", status, msg).into());
   }
-  let headers = res.headers();
-  let cookie = headers
-    .get_all("set-cookie")
-    .iter()
-    .filter_map(|v| v.to_str().ok())
-    .collect::<Vec<_>>()
-    .join("; ");
-  if cookie.is_empty() {
-    return Err("login succeeded but no Set-Cookie in response".into());
-  }
-  Ok(cookie)
+  let bytes = axum::body::to_bytes(res.into_body(), usize::MAX).await?;
+  let json: serde_json::Value = serde_json::from_slice(&bytes)?;
+  let token = json["token"].as_str().ok_or("token not found in response")?;
+  Ok(token.to_string())
 }
 
 /// Test helper: run one request and return status and body. Used by integration tests.
+/// Pass optional `extra_headers` for scope (e.g. `[("X-Organization-Id", org_id), ("X-Role-Name", role_name)]`) when calling dashboard APIs.
 pub async fn test_request(
   router: &axum::Router,
   method: &str,
   path: &str,
-  cookie: Option<&str>,
+  token: Option<&str>,
   body: Option<&str>,
+  extra_headers: Option<&[(&str, &str)]>,
 ) -> Result<(axum::http::StatusCode, Vec<u8>), Box<dyn std::error::Error + Send + Sync>> {
   use axum::body::Body;
   use axum::http::Request;
   use tower::util::ServiceExt;
 
   let mut builder = Request::builder().method(method).uri(path);
-  if let Some(c) = cookie {
-    builder = builder.header("cookie", c);
+  if let Some(t) = token {
+    builder = builder.header("authorization", format!("Bearer {}", t));
+  }
+  if let Some(headers) = extra_headers {
+    for (k, v) in headers.iter() {
+      builder = builder.header(*k, *v);
+    }
   }
   let req = if let Some(b) = body {
     builder
@@ -257,4 +256,24 @@ pub async fn test_request(
   let status = res.status();
   let bytes = axum::body::to_bytes(res.into_body(), usize::MAX).await?;
   Ok((status, bytes.to_vec()))
+}
+
+/// Log in and return (token, org_id, role_name) from the first profile. Use for dashboard tests that need scope headers.
+pub async fn auth_with_profile(
+  router: &axum::Router,
+  email: &str,
+  password: &str,
+) -> Result<(String, String, String), Box<dyn std::error::Error + Send + Sync>> {
+  let token = login_as_seed_user(router, email, password).await?;
+  let (status, body) = test_request(router, "GET", "/api/auth/profiles", Some(&token), None, None).await?;
+  if status != axum::http::StatusCode::OK {
+    let msg = String::from_utf8_lossy(&body);
+    return Err(format!("GET /api/auth/profiles failed {}: {}", status, msg).into());
+  }
+  let json: serde_json::Value = serde_json::from_slice(&body)?;
+  let profiles = json["profiles"].as_array().ok_or("profiles array missing")?;
+  let first = profiles.first().ok_or("no profiles")?;
+  let org_id = first["org_id"].as_str().ok_or("org_id missing")?;
+  let role_name = first["role"].as_str().ok_or("role missing")?;
+  Ok((token, org_id.to_string(), role_name.to_string()))
 }

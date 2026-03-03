@@ -2,8 +2,8 @@
 //! Unique to the platform admin; other orgs (Default, Other, Personal) are created in the next seed.
 
 use chrono::Utc;
-use forge::DbConnection;
-use forge::auth::hash_password;
+use forge_db::DbConnection;
+use forge_auth::token_auth::hash_password;
 use sea_orm::{ColumnTrait, EntityTrait, QueryFilter, Set};
 use tracing::info;
 use uuid::Uuid;

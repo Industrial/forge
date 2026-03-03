@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useState } from "react";
+import { useOutletContext } from "react-router-dom";
 import Typography from "@mui/material/Typography";
 import Box from "@mui/material/Box";
 import Button from "@mui/material/Button";
@@ -23,6 +24,7 @@ import InputLabel from "@mui/material/InputLabel";
 import Select from "@mui/material/Select";
 import MenuItem from "@mui/material/MenuItem";
 import { useLiveUpdates } from "../../../../context/LiveWs";
+import { useApi } from "../../../../utils/api";
 
 type Role = {
 	id: string;
@@ -36,6 +38,9 @@ type Role = {
 type Organization = { id: string; name: string; slug: string };
 
 export default function RolesPage() {
+	const { api } = useOutletContext<{ api: ReturnType<typeof useApi> }>();
+	const { api } = useOutletContext<{ api: ReturnType<typeof useApi> }>();
+	const { api } = useOutletContext<{ api: ReturnType<typeof useApi> }>();
 	const [liveRefreshTrigger, setLiveRefreshTrigger] = useState(0);
 	const { connected: wsConnected } = useLiveUpdates("roles", () => {
 		setLiveRefreshTrigger((n) => n + 1);
@@ -59,7 +64,7 @@ export default function RolesPage() {
 	const fetchRoles = useCallback(async () => {
 		setError(null);
 		try {
-			const res = await fetch("/api/dashboard/roles", { credentials: "include" });
+			const res = await api("/api/dashboard/roles");
 			if (res.status === 403) {
 				setError("You do not have permission to view roles.");
 				setRoles([]);
@@ -78,11 +83,11 @@ export default function RolesPage() {
 		} finally {
 			setLoading(false);
 		}
-	}, []);
+	}, [api]);
 
 	const fetchOrgs = useCallback(async () => {
 		try {
-			const res = await fetch("/api/dashboard/organizations", { credentials: "include" });
+			const res = await api("/api/dashboard/organizations");
 			if (res.ok) {
 				const data = await res.json();
 				setOrganizations(data.organizations ?? []);
@@ -90,7 +95,7 @@ export default function RolesPage() {
 		} catch {
 			// optional
 		}
-	}, []);
+	}, [api]);
 
 	useEffect(() => {
 		fetchRoles();
@@ -115,10 +120,9 @@ export default function RolesPage() {
 				display_name: addDisplayName.trim() || undefined,
 			};
 			if (orgId) body.org_id = orgId;
-			const res = await fetch("/api/dashboard/roles", {
+			const res = await api("/api/dashboard/roles", {
 				method: "POST",
 				headers: { "Content-Type": "application/json" },
-				credentials: "include",
 				body: JSON.stringify(body),
 			});
 			if (res.status === 403) {
@@ -153,10 +157,9 @@ export default function RolesPage() {
 		setSaving(true);
 		setError(null);
 		try {
-			const res = await fetch("/api/dashboard/roles", {
+			const res = await api("/api/dashboard/roles", {
 				method: "PATCH",
 				headers: { "Content-Type": "application/json" },
-				credentials: "include",
 				body: JSON.stringify({
 					id: editRole.id,
 					name: editName.trim() || undefined,
@@ -185,10 +188,9 @@ export default function RolesPage() {
 		setDeletingId(id);
 		setError(null);
 		try {
-			const res = await fetch("/api/dashboard/roles", {
+			const res = await api("/api/dashboard/roles", {
 				method: "DELETE",
 				headers: { "Content-Type": "application/json" },
-				credentials: "include",
 				body: JSON.stringify({ id }),
 			});
 			if (res.status === 403) {

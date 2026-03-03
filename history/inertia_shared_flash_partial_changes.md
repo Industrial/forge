@@ -1,5 +1,9 @@
 # Inertia: Shared Data, Flash Messages, Partial Reloads — Files and Changes
 
+**Historical note:** This plan assumed session-based auth with `tower-sessions` and `Session` extractors. Forge has since moved to **token-based auth** (Bearer token + scope headers). Session and tower-sessions have been removed; flash/shared data would be implemented differently (e.g. one-time tokens in redirects or client state).
+
+---
+
 This document lists every file changed to implement **(1) shared data**, **(2) flash messages**, and **(3) partial reloads** in the default Forge Inertia template.
 
 ---

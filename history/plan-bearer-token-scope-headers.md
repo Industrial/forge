@@ -1,5 +1,7 @@
 # Plan: Bearer-Only Auth + Scope from Headers (X-Organization-Id, X-Role-Id)
 
+**Status: Implemented.** Session-based auth has been removed; Forge uses Bearer tokens and scope headers as described below.
+
 **Goal:** Remove session-based auth. Use Bearer tokens for identity. Use **only** request headers for scope: `X-Organization-Id` and `X-Role-Id` (organization id never from URL).
 
 ---

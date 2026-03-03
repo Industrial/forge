@@ -1,6 +1,6 @@
 //! Development mode: Vite dev server + Rust server (hot reload).
 
-use forge::ForgeConfig;
+use forge_config::ForgeConfig;
 use std::net::{TcpStream, ToSocketAddrs};
 use std::process::{Child, Command};
 use std::time::Duration;
@@ -121,8 +121,7 @@ pub fn run(config: &ForgeConfig) -> Result<(), Box<dyn std::error::Error>> {
 #[cfg(test)]
 mod tests {
   use super::*;
-  use forge::ForgeConfig;
-  use forge::config::{AppConfig, DatabaseConfig, FrontendConfig, ServerConfig};
+  use forge_config::{AppConfig, DatabaseConfig, ForgeConfig, FrontendConfig, ServerConfig};
   use std::io::Write;
 
   fn default_config() -> ForgeConfig {

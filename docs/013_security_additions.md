@@ -160,7 +160,7 @@ Implement the following for highest alignment with OWASP and modern best practic
 
 ### Phase 3: CSRF
 
-- [x] **SameSite** on session cookie — Forge sets `SameSite=Lax` on the session cookie when auth is used (tower-sessions default is Strict; we use Lax for better compatibility with top-level navigations).
+- [x] **Token-based auth** — Forge uses Bearer tokens (no session cookies); clients send `Authorization: Bearer <token>` and scope headers. No session cookie to harden.
 - [ ] **CSRF token** (synchronizer or signed double-submit, session-bound) for state-changing requests, with validation middleware. Requires token generation, injection (forms/SPA), and middleware; no single sane default without app cooperation.
 - [ ] **Fetch Metadata** check for state-changing methods: reject `Sec-Fetch-Site: cross-site` when token is not present; fallback to Origin/Referer when Fetch Metadata absent. Goes with CSRF token.
 - [ ] Config to exempt paths (e.g. webhooks, token-authenticated API). Goes with CSRF.

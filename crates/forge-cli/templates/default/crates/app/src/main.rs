@@ -6,17 +6,17 @@ use app::make_app;
 
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
-  forge::init_tracing();
-  let live_backend = std::sync::Arc::new(forge::live::InMemoryLiveBackend::new());
+  forge_app::init_tracing();
+  let live_backend = std::sync::Arc::new(forge_live::InMemoryLiveBackend::new());
   let app = make_app(live_backend.clone());
 
-  let app = if forge::config::effective_environment().eq_ignore_ascii_case("production") {
+  let app = if forge_config::effective_environment().eq_ignore_ascii_case("production") {
     app.with_rate_limit_per_ip(60).with_rate_limit_per_user(60)
   } else {
     app
   };
 
-  let is_production = forge::config::effective_environment().eq_ignore_ascii_case("production");
+  let is_production = forge_config::effective_environment().eq_ignore_ascii_case("production");
   let host = app.config().server.host.clone();
   let port = app.config().server.port;
 
@@ -65,7 +65,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
     listener,
     router.into_make_service_with_connect_info::<std::net::SocketAddr>(),
   )
-  .with_graceful_shutdown(forge::app::shutdown_signal_future())
+  .with_graceful_shutdown(forge_app::shutdown_signal_future())
   .await?;
   Ok(())
 }
