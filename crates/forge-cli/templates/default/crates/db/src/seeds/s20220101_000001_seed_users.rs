@@ -67,6 +67,7 @@ async fn ensure_org(
 }
 
 /// Creates a user and their memberships + role assignments if the user does not exist.
+/// Every user has at least one org (first in `memberships` = personal org). Session profile is source of truth for active org/role.
 async fn ensure_user(
   db: &DbConnection,
   email: &str,

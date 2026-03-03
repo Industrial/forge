@@ -21,7 +21,8 @@ use forge::auth::hash_password;
 use db::auth::Backend;
 use db::models::{audit_log, membership, org_role, organization, role_permission, user, user_org_role};
 
-use crate::handlers::auth::{resolve_permissions, DASHBOARD_PERMISSIONS};
+use crate::handlers::auth::{CurrentProfile, has_global_scope, require_profile, resolve_permissions, DASHBOARD_PERMISSIONS};
+use tower_sessions::Session;
 
 const PERMISSION_READ: &str = "dashboard.permissions.read";
 const PERMISSION_WRITE: &str = "dashboard.permissions.write";
@@ -42,8 +43,9 @@ async fn require_permission(
   user: &user::Model,
   db: &DbConnection,
   permission: &str,
+  profile: Option<&CurrentProfile>,
 ) -> Option<Response> {
-  let permissions = resolve_permissions(db, user).await;
+  let permissions = resolve_permissions(db, user, profile).await;
   if has_permission(&permissions, permission) {
     return None;
   }
@@ -56,41 +58,52 @@ async fn require_permission(
   )
 }
 
-/// Org scope for dashboard list endpoints (users, roles, role-permissions). No is_admin bypass — only current org.
-pub(crate) fn scope_org_for_dashboard_lists(user: &user::Model) -> Option<Uuid> {
-  user.current_org_id
+/// Org scope for dashboard list endpoints from session profile.
+pub(crate) fn scope_org_from_profile(profile: &CurrentProfile) -> Uuid {
+  profile.org_id
 }
 
 /// GET /api/dashboard/permissions — list known permission keys (code-defined). Requires dashboard.permissions.read.
 pub async fn list_permissions(
+  session: Session,
   RequireAuth(user): RequireAuth<Backend>,
   State(db): State<DbConnection>,
 ) -> Result<impl IntoResponse, ForgeError> {
-  if let Some(resp) = require_permission(&user, &db, PERMISSION_READ).await {
+  let profile = match require_profile(&session).await {
+    Ok(p) => p,
+    Err((code, json)) => return Ok((code, json).into_response()),
+  };
+  if let Some(resp) = require_permission(&user, &db, PERMISSION_READ, Some(&profile)).await {
     return Ok(resp);
   }
   let list: Vec<&str> = DASHBOARD_PERMISSIONS.to_vec();
   Ok(Json(serde_json::json!({ "permissions": list })).into_response())
 }
 
-/// GET /api/dashboard/role-permissions — list role–permission assignments. Requires dashboard.permissions.read. Scoped to current org only.
+/// GET /api/dashboard/role-permissions — list role–permission assignments. Requires dashboard.permissions.read. Global scope: all; else current org only.
 pub async fn list_role_permissions(
+  session: Session,
   RequireAuth(user): RequireAuth<Backend>,
   State(db): State<DbConnection>,
 ) -> Result<impl IntoResponse, ForgeError> {
-  if let Some(resp) = require_permission(&user, &db, PERMISSION_READ).await {
+  let profile = match require_profile(&session).await {
+    Ok(p) => p,
+    Err((code, json)) => return Ok((code, json).into_response()),
+  };
+  if let Some(resp) = require_permission(&user, &db, PERMISSION_READ, Some(&profile)).await {
     return Ok(resp);
   }
-  let org_id = match scope_org_for_dashboard_lists(&user) {
-    Some(id) => id,
-    None => return Ok(Json(serde_json::json!({ "assignments": [] })).into_response()),
+  let rows = if has_global_scope(&db, &user, PERMISSION_READ).await {
+    role_permission::Entity::find().all(&db).await
+  } else {
+    let org_id = scope_org_from_profile(&profile);
+    role_permission::Entity::find()
+      .filter(role_permission::Column::Scope.eq("org"))
+      .filter(role_permission::Column::OrgId.eq(org_id))
+      .all(&db)
+      .await
   };
-  let rows = role_permission::Entity::find()
-    .filter(role_permission::Column::Scope.eq("org"))
-    .filter(role_permission::Column::OrgId.eq(org_id))
-    .all(&db)
-    .await
-    .map_err(|e| ForgeError::Generic(e.to_string()))?;
+  let rows = rows.map_err(|e| ForgeError::Generic(e.to_string()))?;
   let list: Vec<serde_json::Value> = rows
     .into_iter()
     .map(|r| {
@@ -107,11 +120,16 @@ pub async fn list_role_permissions(
 
 /// GET /api/dashboard/tasks — list tasks (ran, running, planned). Requires dashboard. Live updates via WebSocket channel "tasks".
 pub async fn list_tasks(
+  session: Session,
   RequireAuth(user): RequireAuth<Backend>,
   State(db): State<DbConnection>,
   Extension(task_state): Extension<std::sync::Arc<crate::tasks::TaskState>>,
 ) -> Result<impl IntoResponse, ForgeError> {
-  if let Some(resp) = require_permission(&user, &db, "dashboard").await {
+  let profile = match require_profile(&session).await {
+    Ok(p) => p,
+    Err((code, json)) => return Ok((code, json).into_response()),
+  };
+  if let Some(resp) = require_permission(&user, &db, "dashboard", Some(&profile)).await {
     return Ok(resp);
   }
   let tasks = task_state.store.read().await.clone();
@@ -141,26 +159,25 @@ pub(crate) fn default_limit() -> u64 {
 
 /// GET /api/dashboard/audit-log — list audit log entries. Requires dashboard.audit.read. Non-admin: only current org. Supports filters and pagination.
 pub async fn list_audit_log(
+  session: Session,
   RequireAuth(user): RequireAuth<Backend>,
   State(db): State<DbConnection>,
   Query(q): Query<ListAuditLogQuery>,
 ) -> Result<impl IntoResponse, ForgeError> {
-  if let Some(resp) = require_permission(&user, &db, PERMISSION_AUDIT_READ).await {
+  let profile = match require_profile(&session).await {
+    Ok(p) => p,
+    Err((code, json)) => return Ok((code, json).into_response()),
+  };
+  if let Some(resp) = require_permission(&user, &db, PERMISSION_AUDIT_READ, Some(&profile)).await {
     return Ok(resp);
   }
   let limit = q.limit.min(200);
   let offset = q.offset;
 
   let mut query = audit_log::Entity::find();
-  if !user.is_admin {
-    match user.current_org_id {
-      Some(org_id) => {
-        query = query.filter(audit_log::Column::OrganizationId.eq(org_id));
-      }
-      None => {
-        return Ok(Json(serde_json::json!({ "entries": [], "total": 0 })).into_response());
-      }
-    }
+  let global_audit = has_global_scope(&db, &user, PERMISSION_AUDIT_READ).await;
+  if !global_audit {
+    query = query.filter(audit_log::Column::OrganizationId.eq(profile.org_id));
   }
   if let Some(ref from) = q.from {
     if let Ok(naive) = NaiveDateTime::parse_from_str(from, "%Y-%m-%dT%H:%M:%S%.fZ") {
@@ -242,14 +259,19 @@ pub struct AddRolePermissionBody {
   pub org_id: Option<Uuid>,
 }
 
-/// POST /api/dashboard/role-permissions — add one role–permission assignment. Requires dashboard.permissions.write. Admin: any scope/org; else only scope=org and current_org_id.
+/// POST /api/dashboard/role-permissions — add one role–permission assignment. Requires dashboard.permissions.write. Admin: any scope/org; else only scope=org and session profile org.
 pub async fn add_role_permission(
+  session: Session,
   RequireAuth(user): RequireAuth<Backend>,
   State(db): State<DbConnection>,
   Extension(live_backend): Extension<Option<Arc<InMemoryLiveBackend>>>,
   Json(payload): Json<AddRolePermissionBody>,
 ) -> Result<impl IntoResponse, ForgeError> {
-  if let Some(resp) = require_permission(&user, &db, PERMISSION_WRITE).await {
+  let profile = match require_profile(&session).await {
+    Ok(p) => p,
+    Err((code, json)) => return Ok((code, json).into_response()),
+  };
+  if let Some(resp) = require_permission(&user, &db, PERMISSION_WRITE, Some(&profile)).await {
     return Ok(resp);
   }
   let scope = payload.scope.trim();
@@ -273,7 +295,8 @@ pub async fn add_role_permission(
         .into_response(),
     );
   }
-  let org_id_opt = if user.is_admin {
+  let global_perm = has_global_scope(&db, &user, PERMISSION_WRITE).await;
+  let org_id_opt = if global_perm {
     if scope == "org" {
       match payload.org_id {
         Some(id) => Some(id),
@@ -295,23 +318,12 @@ pub async fn add_role_permission(
       return Ok(
         (
           StatusCode::FORBIDDEN,
-          Json(serde_json::json!({ "error": "only org scope allowed for non-admin" })),
+          Json(serde_json::json!({ "error": "only org scope allowed" })),
         )
           .into_response(),
       );
     }
-    match user.current_org_id {
-      Some(id) => Some(id),
-      None => {
-        return Ok(
-          (
-            StatusCode::FORBIDDEN,
-            Json(serde_json::json!({ "error": "current_org_id required for org scope" })),
-          )
-            .into_response(),
-        );
-      }
-    }
+    Some(profile.org_id)
   };
   let id = Uuid::new_v4();
   let mut model = role_permission::ActiveModel {
@@ -349,20 +361,26 @@ pub struct DeleteRolePermissionBody {
   pub org_id: Option<Uuid>,
 }
 
-/// DELETE /api/dashboard/role-permissions — remove one role–permission assignment. Requires dashboard.permissions.write. Admin: any; else only scope=org and current_org_id.
+/// DELETE /api/dashboard/role-permissions — remove one role–permission assignment. Requires dashboard.permissions.write. Admin: any; else only scope=org and session profile org.
 pub async fn delete_role_permission(
+  session: Session,
   RequireAuth(user): RequireAuth<Backend>,
   State(db): State<DbConnection>,
   Extension(live_backend): Extension<Option<Arc<InMemoryLiveBackend>>>,
   Json(payload): Json<DeleteRolePermissionBody>,
 ) -> Result<impl IntoResponse, ForgeError> {
-  if let Some(resp) = require_permission(&user, &db, PERMISSION_WRITE).await {
+  let profile = match require_profile(&session).await {
+    Ok(p) => p,
+    Err((code, json)) => return Ok((code, json).into_response()),
+  };
+  if let Some(resp) = require_permission(&user, &db, PERMISSION_WRITE, Some(&profile)).await {
     return Ok(resp);
   }
   let scope = payload.scope.trim();
   let role_name = payload.role_name.trim();
   let permission_key = payload.permission_key.trim();
-  let org_id_opt = if user.is_admin {
+  let global_perm = has_global_scope(&db, &user, PERMISSION_WRITE).await;
+  let org_id_opt = if global_perm {
     if scope == "org" {
       if payload.org_id.is_none() {
         return Ok(
@@ -382,12 +400,12 @@ pub async fn delete_role_permission(
       return Ok(
         (
           StatusCode::FORBIDDEN,
-          Json(serde_json::json!({ "error": "only org scope allowed for non-admin" })),
+          Json(serde_json::json!({ "error": "only org scope allowed" })),
         )
           .into_response(),
       );
     }
-    user.current_org_id
+    Some(profile.org_id)
   };
   let mut q = role_permission::Entity::delete_many()
     .filter(role_permission::Column::Scope.eq(scope))
@@ -415,10 +433,15 @@ pub async fn delete_role_permission(
 
 /// GET /api/dashboard/organizations — list all organizations. Requires dashboard.organizations.read (global).
 pub async fn list_organizations(
+  session: Session,
   RequireAuth(user): RequireAuth<Backend>,
   State(db): State<DbConnection>,
 ) -> Result<impl IntoResponse, ForgeError> {
-  if let Some(resp) = require_permission(&user, &db, PERMISSION_ORGS_READ).await {
+  let profile = match require_profile(&session).await {
+    Ok(p) => p,
+    Err((code, json)) => return Ok((code, json).into_response()),
+  };
+  if let Some(resp) = require_permission(&user, &db, PERMISSION_ORGS_READ, Some(&profile)).await {
     return Ok(resp);
   }
   let rows = organization::Entity::find()
@@ -447,25 +470,35 @@ pub struct ListRolesQuery {
   pub org_id: Option<Uuid>,
 }
 
-/// GET /api/dashboard/roles — list org roles. Scoped to current org only (query org_id ignored). Requires dashboard.roles.read.
+/// GET /api/dashboard/roles — list org roles. Global scope: all orgs; else current org only. Requires dashboard.roles.read.
 pub async fn list_roles(
+  session: Session,
   RequireAuth(user): RequireAuth<Backend>,
   State(db): State<DbConnection>,
   Query(_q): Query<ListRolesQuery>,
 ) -> Result<impl IntoResponse, ForgeError> {
-  if let Some(resp) = require_permission(&user, &db, PERMISSION_ROLES_READ).await {
+  let profile = match require_profile(&session).await {
+    Ok(p) => p,
+    Err((code, json)) => return Ok((code, json).into_response()),
+  };
+  if let Some(resp) = require_permission(&user, &db, PERMISSION_ROLES_READ, Some(&profile)).await {
     return Ok(resp);
   }
-  let org_id = match scope_org_for_dashboard_lists(&user) {
-    Some(id) => id,
-    None => return Ok(Json(serde_json::json!({ "roles": [] })).into_response()),
+  let rows = if has_global_scope(&db, &user, PERMISSION_ROLES_READ).await {
+    org_role::Entity::find()
+      .order_by_asc(org_role::Column::OrgId)
+      .order_by_asc(org_role::Column::Name)
+      .all(&db)
+      .await
+  } else {
+    let org_id = scope_org_from_profile(&profile);
+    org_role::Entity::find()
+      .filter(org_role::Column::OrgId.eq(org_id))
+      .order_by_asc(org_role::Column::Name)
+      .all(&db)
+      .await
   };
-  let rows = org_role::Entity::find()
-    .filter(org_role::Column::OrgId.eq(org_id))
-    .order_by_asc(org_role::Column::Name)
-    .all(&db)
-    .await
-    .map_err(|e: sea_orm::DbErr| ForgeError::Generic(e.to_string()))?;
+  let rows = rows.map_err(|e: sea_orm::DbErr| ForgeError::Generic(e.to_string()))?;
   let list: Vec<serde_json::Value> = rows
     .into_iter()
     .map(|r| {
@@ -489,37 +522,35 @@ pub struct CreateRoleBody {
   pub display_name: Option<String>,
 }
 
-/// POST /api/dashboard/roles — create org role. Requires dashboard.roles.write. org_id must be current org.
+/// POST /api/dashboard/roles — create org role. Requires dashboard.roles.write. Global scope: any org_id; else session profile org only.
 pub async fn create_role(
+  session: Session,
   RequireAuth(user): RequireAuth<Backend>,
   State(db): State<DbConnection>,
   Extension(live_backend): Extension<Option<Arc<InMemoryLiveBackend>>>,
   Json(payload): Json<CreateRoleBody>,
 ) -> Result<impl IntoResponse, ForgeError> {
-  if let Some(resp) = require_permission(&user, &db, PERMISSION_ROLES_WRITE).await {
+  let profile = match require_profile(&session).await {
+    Ok(p) => p,
+    Err((code, json)) => return Ok((code, json).into_response()),
+  };
+  if let Some(resp) = require_permission(&user, &db, PERMISSION_ROLES_WRITE, Some(&profile)).await {
     return Ok(resp);
   }
-  let org_id = match user.current_org_id {
-    Some(id) => id,
-    None => {
+  let org_id = if has_global_scope(&db, &user, PERMISSION_ROLES_WRITE).await {
+    payload.org_id.or(Some(profile.org_id)).ok_or_else(|| ForgeError::Generic("org_id required".into()))?
+  } else {
+    if payload.org_id.map(|pid| pid != profile.org_id).unwrap_or(false) {
       return Ok(
         (
           StatusCode::FORBIDDEN,
-          Json(serde_json::json!({ "error": "No organization context" })),
+          Json(serde_json::json!({ "error": "Can only create roles in your current organization" })),
         )
           .into_response(),
       );
     }
+    profile.org_id
   };
-  if payload.org_id.map(|pid| pid != org_id).unwrap_or(false) {
-    return Ok(
-      (
-        StatusCode::FORBIDDEN,
-        Json(serde_json::json!({ "error": "Can only create roles in your current organization" })),
-      )
-        .into_response(),
-    );
-  }
   let name = payload.name.trim();
   if name.is_empty() {
     return Ok(
@@ -586,12 +617,17 @@ pub struct UpdateRoleBody {
 
 /// PATCH /api/dashboard/roles — update org role. Requires dashboard.roles.write.
 pub async fn update_role(
+  session: Session,
   RequireAuth(user): RequireAuth<Backend>,
   State(db): State<DbConnection>,
   Extension(live_backend): Extension<Option<Arc<InMemoryLiveBackend>>>,
   Json(payload): Json<UpdateRoleBody>,
 ) -> Result<impl IntoResponse, ForgeError> {
-  if let Some(resp) = require_permission(&user, &db, PERMISSION_ROLES_WRITE).await {
+  let profile = match require_profile(&session).await {
+    Ok(p) => p,
+    Err((code, json)) => return Ok((code, json).into_response()),
+  };
+  if let Some(resp) = require_permission(&user, &db, PERMISSION_ROLES_WRITE, Some(&profile)).await {
     return Ok(resp);
   }
   let role = org_role::Entity::find_by_id(payload.id)
@@ -599,7 +635,8 @@ pub async fn update_role(
     .await
     .map_err(|e| ForgeError::Generic(e.to_string()))?
     .ok_or_else(|| ForgeError::Generic("Role not found".into()))?;
-  if user.current_org_id != Some(role.org_id) && !user.is_admin {
+  let can_write_org = has_global_scope(&db, &user, PERMISSION_ROLES_WRITE).await || profile.org_id == role.org_id;
+  if !can_write_org {
     return Ok(
       (
         StatusCode::FORBIDDEN,
@@ -651,12 +688,17 @@ pub struct DeleteRoleBody {
 
 /// DELETE /api/dashboard/roles — delete org role. Requires dashboard.roles.write. Fails if any user has this role.
 pub async fn delete_role(
+  session: Session,
   RequireAuth(user): RequireAuth<Backend>,
   State(db): State<DbConnection>,
   Extension(live_backend): Extension<Option<Arc<InMemoryLiveBackend>>>,
   Json(payload): Json<DeleteRoleBody>,
 ) -> Result<impl IntoResponse, ForgeError> {
-  if let Some(resp) = require_permission(&user, &db, PERMISSION_ROLES_WRITE).await {
+  let profile = match require_profile(&session).await {
+    Ok(p) => p,
+    Err((code, json)) => return Ok((code, json).into_response()),
+  };
+  if let Some(resp) = require_permission(&user, &db, PERMISSION_ROLES_WRITE, Some(&profile)).await {
     return Ok(resp);
   }
   let role = org_role::Entity::find_by_id(payload.id)
@@ -664,7 +706,8 @@ pub async fn delete_role(
     .await
     .map_err(|e| ForgeError::Generic(e.to_string()))?
     .ok_or_else(|| ForgeError::Generic("Role not found".into()))?;
-  if user.current_org_id != Some(role.org_id) && !user.is_admin {
+  let can_write_org = has_global_scope(&db, &user, PERMISSION_ROLES_WRITE).await || profile.org_id == role.org_id;
+  if !can_write_org {
     return Ok(
       (
         StatusCode::FORBIDDEN,
@@ -717,12 +760,17 @@ fn slug_from_name(name: &str) -> String {
 
 /// POST /api/dashboard/organizations — create organization. Requires dashboard.organizations.write.
 pub async fn create_organization(
+  session: Session,
   RequireAuth(user): RequireAuth<Backend>,
   State(db): State<DbConnection>,
   Extension(live_backend): Extension<Option<Arc<InMemoryLiveBackend>>>,
   Json(payload): Json<CreateOrganizationBody>,
 ) -> Result<impl IntoResponse, ForgeError> {
-  if let Some(resp) = require_permission(&user, &db, PERMISSION_ORGS_WRITE).await {
+  let profile = match require_profile(&session).await {
+    Ok(p) => p,
+    Err((code, json)) => return Ok((code, json).into_response()),
+  };
+  if let Some(resp) = require_permission(&user, &db, PERMISSION_ORGS_WRITE, Some(&profile)).await {
     return Ok(resp);
   }
   let name = payload.name.trim();
@@ -800,12 +848,17 @@ pub struct UpdateOrganizationBody {
 
 /// PATCH /api/dashboard/organizations — update organization. Requires dashboard.organizations.write.
 pub async fn update_organization(
+  session: Session,
   RequireAuth(user): RequireAuth<Backend>,
   State(db): State<DbConnection>,
   Extension(live_backend): Extension<Option<Arc<InMemoryLiveBackend>>>,
   Json(payload): Json<UpdateOrganizationBody>,
 ) -> Result<impl IntoResponse, ForgeError> {
-  if let Some(resp) = require_permission(&user, &db, PERMISSION_ORGS_WRITE).await {
+  let profile = match require_profile(&session).await {
+    Ok(p) => p,
+    Err((code, json)) => return Ok((code, json).into_response()),
+  };
+  if let Some(resp) = require_permission(&user, &db, PERMISSION_ORGS_WRITE, Some(&profile)).await {
     return Ok(resp);
   }
   let org = organization::Entity::find_by_id(payload.id)
@@ -853,12 +906,17 @@ pub struct DeleteOrganizationBody {
 
 /// DELETE /api/dashboard/organizations — delete organization. Requires dashboard.organizations.write.
 pub async fn delete_organization(
+  session: Session,
   RequireAuth(user): RequireAuth<Backend>,
   State(db): State<DbConnection>,
   Extension(live_backend): Extension<Option<Arc<InMemoryLiveBackend>>>,
   Json(payload): Json<DeleteOrganizationBody>,
 ) -> Result<impl IntoResponse, ForgeError> {
-  if let Some(resp) = require_permission(&user, &db, PERMISSION_ORGS_WRITE).await {
+  let profile = match require_profile(&session).await {
+    Ok(p) => p,
+    Err((code, json)) => return Ok((code, json).into_response()),
+  };
+  if let Some(resp) = require_permission(&user, &db, PERMISSION_ORGS_WRITE, Some(&profile)).await {
     return Ok(resp);
   }
   let result = organization::Entity::delete_by_id(payload.id)
@@ -881,28 +939,41 @@ pub async fn delete_organization(
   Ok(Json(serde_json::json!({ "ok": true })).into_response())
 }
 
-/// GET /api/dashboard/users — list users. Requires dashboard.users.read. Scoped to current org only (no is_admin bypass).
+/// GET /api/dashboard/users — list users. Requires dashboard.users.read. Global scope: all orgs; else session profile org only.
 pub async fn list_users(
+  session: Session,
   RequireAuth(user): RequireAuth<Backend>,
   State(db): State<DbConnection>,
 ) -> Result<impl IntoResponse, ForgeError> {
-  if let Some(resp) = require_permission(&user, &db, PERMISSION_USERS_READ).await {
+  let profile = match require_profile(&session).await {
+    Ok(p) => p,
+    Err((code, json)) => return Ok((code, json).into_response()),
+  };
+  if let Some(resp) = require_permission(&user, &db, PERMISSION_USERS_READ, Some(&profile)).await {
     return Ok(resp);
   }
-  let scope_org_id = match scope_org_for_dashboard_lists(&user) {
-    Some(id) => id,
-    None => return Ok(Json(serde_json::json!({ "users": [] })).into_response()),
+  let global_users = has_global_scope(&db, &user, PERMISSION_USERS_READ).await;
+  let (user_ids, scope_org_id_opt): (Vec<Uuid>, Option<Uuid>) = if global_users {
+    let all_memberships = membership::Entity::find()
+      .all(&db)
+      .await
+      .map_err(|e: sea_orm::DbErr| ForgeError::Generic(e.to_string()))?;
+    let ids: Vec<Uuid> = all_memberships.iter().map(|m| m.user_id).collect::<std::collections::HashSet<_>>().into_iter().collect();
+    (ids, None)
+  } else {
+    let scope_org_id = scope_org_from_profile(&profile);
+    let user_ids: Vec<Uuid> = membership::Entity::find()
+      .filter(membership::Column::OrgId.eq(scope_org_id))
+      .all(&db)
+      .await
+      .map_err(|e: sea_orm::DbErr| ForgeError::Generic(e.to_string()))?
+      .into_iter()
+      .map(|m| m.user_id)
+      .collect::<std::collections::HashSet<_>>()
+      .into_iter()
+      .collect();
+    (user_ids, Some(scope_org_id))
   };
-  let user_ids: Vec<Uuid> = membership::Entity::find()
-    .filter(membership::Column::OrgId.eq(scope_org_id))
-    .all(&db)
-    .await
-    .map_err(|e: sea_orm::DbErr| ForgeError::Generic(e.to_string()))?
-    .into_iter()
-    .map(|m| m.user_id)
-    .collect::<std::collections::HashSet<_>>()
-    .into_iter()
-    .collect();
   if user_ids.is_empty() {
     return Ok(Json(serde_json::json!({ "users": [] })).into_response());
   }
@@ -911,17 +982,20 @@ pub async fn list_users(
     .all(&db)
     .await
     .map_err(|e: sea_orm::DbErr| ForgeError::Generic(e.to_string()))?;
-  let org_row = organization::Entity::find_by_id(scope_org_id)
-    .one(&db)
-    .await
-    .map_err(|e: sea_orm::DbErr| ForgeError::Generic(e.to_string()))?;
-  let org_name = org_row.as_ref().map(|o| o.name.clone()).unwrap_or_else(|| "—".to_string());
-  let all_uors = user_org_role::Entity::find()
-    .filter(user_org_role::Column::UserId.is_in(user_ids.clone()))
-    .filter(user_org_role::Column::OrgId.eq(scope_org_id))
-    .all(&db)
-    .await
-    .map_err(|e: sea_orm::DbErr| ForgeError::Generic(e.to_string()))?;
+  let all_uors = if global_users {
+    user_org_role::Entity::find()
+      .filter(user_org_role::Column::UserId.is_in(user_ids.clone()))
+      .all(&db)
+      .await
+      .map_err(|e: sea_orm::DbErr| ForgeError::Generic(e.to_string()))?
+  } else {
+    user_org_role::Entity::find()
+      .filter(user_org_role::Column::UserId.is_in(user_ids.clone()))
+      .filter(user_org_role::Column::OrgId.eq(scope_org_id_opt.unwrap()))
+      .all(&db)
+      .await
+      .map_err(|e: sea_orm::DbErr| ForgeError::Generic(e.to_string()))?
+  };
   let role_ids: Vec<Uuid> = all_uors.iter().map(|x| x.role_id).collect::<std::collections::HashSet<_>>().into_iter().collect();
   let roles = if role_ids.is_empty() {
     vec![]
@@ -934,19 +1008,39 @@ pub async fn list_users(
   };
   let role_map: std::collections::HashMap<Uuid, org_role::Model> =
     roles.into_iter().map(|r| (r.id, r)).collect();
+  let org_ids: Vec<Uuid> = all_uors.iter().map(|x| x.org_id).collect::<std::collections::HashSet<_>>().into_iter().collect();
+  let orgs = if org_ids.is_empty() {
+    vec![]
+  } else {
+    organization::Entity::find()
+      .filter(organization::Column::Id.is_in(org_ids))
+      .all(&db)
+      .await
+      .map_err(|e: sea_orm::DbErr| ForgeError::Generic(e.to_string()))?
+  };
+  let org_map: std::collections::HashMap<Uuid, organization::Model> =
+    orgs.into_iter().map(|o| (o.id, o)).collect();
   let list: Vec<serde_json::Value> = users
     .into_iter()
     .map(|u| {
-      let role_names: Vec<String> = all_uors
-        .iter()
-        .filter(|x| x.user_id == u.id)
-        .filter_map(|x| role_map.get(&x.role_id).map(|r| r.name.clone()))
+      let uors_for_user: Vec<_> = all_uors.iter().filter(|x| x.user_id == u.id).collect();
+      let mut org_to_roles: std::collections::HashMap<Uuid, Vec<String>> = std::collections::HashMap::new();
+      for x in &uors_for_user {
+        if let Some(role) = role_map.get(&x.role_id) {
+          org_to_roles.entry(x.org_id).or_default().push(role.name.clone());
+        }
+      }
+      let mems: Vec<serde_json::Value> = org_to_roles
+        .into_iter()
+        .map(|(org_id, role_names)| {
+          let org_name = org_map.get(&org_id).map(|o| o.name.clone()).unwrap_or_else(|| "—".to_string());
+          serde_json::json!({
+            "org_id": org_id.to_string(),
+            "org_name": org_name,
+            "roles": role_names,
+          })
+        })
         .collect();
-      let mems = vec![serde_json::json!({
-        "org_id": scope_org_id.to_string(),
-        "org_name": org_name,
-        "roles": role_names,
-      })];
       serde_json::json!({
         "id": u.id.to_string(),
         "email": u.email,
@@ -968,14 +1062,19 @@ pub struct CreateUserBody {
   pub role_ids: Vec<Uuid>,
 }
 
-/// POST /api/dashboard/users — create user and add to org with given roles. Requires dashboard.users.write. Non-admin: org_id must be current_org_id.
+/// POST /api/dashboard/users — create user and add to org with given roles. Requires dashboard.users.write. Non-admin: org_id must match session profile org.
 pub async fn create_user(
+  session: Session,
   RequireAuth(user): RequireAuth<Backend>,
   State(db): State<DbConnection>,
   Extension(live_backend): Extension<Option<Arc<InMemoryLiveBackend>>>,
   Json(payload): Json<CreateUserBody>,
 ) -> Result<impl IntoResponse, ForgeError> {
-  if let Some(resp) = require_permission(&user, &db, PERMISSION_USERS_WRITE).await {
+  let profile = match require_profile(&session).await {
+    Ok(p) => p,
+    Err((code, json)) => return Ok((code, json).into_response()),
+  };
+  if let Some(resp) = require_permission(&user, &db, PERMISSION_USERS_WRITE, Some(&profile)).await {
     return Ok(resp);
   }
   let email = payload.email.trim();
@@ -997,9 +1096,10 @@ pub async fn create_user(
         .into_response(),
     );
   }
-  let org_id = match user.current_org_id {
-    Some(id) if id == payload.org_id => id,
-    _ => {
+  let org_id = if has_global_scope(&db, &user, PERMISSION_USERS_WRITE).await {
+    payload.org_id
+  } else {
+    if profile.org_id != payload.org_id {
       return Ok(
         (
           StatusCode::FORBIDDEN,
@@ -1008,6 +1108,7 @@ pub async fn create_user(
           .into_response(),
       );
     }
+    payload.org_id
   };
   if payload.role_ids.is_empty() {
     return Ok(
@@ -1141,12 +1242,17 @@ pub struct UpdateUserBody {
 
 /// PATCH /api/dashboard/users — update user (email, is_active). Requires dashboard.users.write.
 pub async fn update_user(
+  session: Session,
   RequireAuth(user): RequireAuth<Backend>,
   State(db): State<DbConnection>,
   Extension(live_backend): Extension<Option<Arc<InMemoryLiveBackend>>>,
   Json(payload): Json<UpdateUserBody>,
 ) -> Result<impl IntoResponse, ForgeError> {
-  if let Some(resp) = require_permission(&user, &db, PERMISSION_USERS_WRITE).await {
+  let profile = match require_profile(&session).await {
+    Ok(p) => p,
+    Err((code, json)) => return Ok((code, json).into_response()),
+  };
+  if let Some(resp) = require_permission(&user, &db, PERMISSION_USERS_WRITE, Some(&profile)).await {
     return Ok(resp);
   }
   let u = user::Entity::find_by_id(payload.id)
@@ -1167,9 +1273,7 @@ pub async fn update_user(
   am.updated_at = Set(chrono::Utc::now().naive_utc());
   am.update(&db).await.map_err(|e| ForgeError::Generic(e.to_string()))?;
   if let Some(ref backend) = live_backend {
-    if let Some(org_id) = user.current_org_id {
-      let _ = broadcast_to_channel(backend, &Channel::org_resource(org_id, "users"), &LiveEvent::UsersUpdated { user_id: Some(payload.id), org_id: Some(org_id) }).await;
-    }
+    let _ = broadcast_to_channel(backend, &Channel::org_resource(profile.org_id, "users"), &LiveEvent::UsersUpdated { user_id: Some(payload.id), org_id: Some(profile.org_id) }).await;
   }
   Ok(Json(serde_json::json!({ "ok": true })).into_response())
 }
@@ -1181,12 +1285,17 @@ pub struct DeleteUserBody {
 
 /// DELETE /api/dashboard/users — delete user and their memberships. Requires dashboard.users.write.
 pub async fn delete_user(
+  session: Session,
   RequireAuth(user): RequireAuth<Backend>,
   State(db): State<DbConnection>,
   Extension(live_backend): Extension<Option<Arc<InMemoryLiveBackend>>>,
   Json(payload): Json<DeleteUserBody>,
 ) -> Result<impl IntoResponse, ForgeError> {
-  if let Some(resp) = require_permission(&user, &db, PERMISSION_USERS_WRITE).await {
+  let profile = match require_profile(&session).await {
+    Ok(p) => p,
+    Err((code, json)) => return Ok((code, json).into_response()),
+  };
+  if let Some(resp) = require_permission(&user, &db, PERMISSION_USERS_WRITE, Some(&profile)).await {
     return Ok(resp);
   }
   membership::Entity::delete_many()
@@ -1208,9 +1317,7 @@ pub async fn delete_user(
     );
   }
   if let Some(ref backend) = live_backend {
-    if let Some(org_id) = user.current_org_id {
-      let _ = broadcast_to_channel(backend, &Channel::org_resource(org_id, "users"), &LiveEvent::UsersUpdated { user_id: Some(payload.id), org_id: Some(org_id) }).await;
-    }
+    let _ = broadcast_to_channel(backend, &Channel::org_resource(profile.org_id, "users"), &LiveEvent::UsersUpdated { user_id: Some(payload.id), org_id: Some(profile.org_id) }).await;
   }
   Ok(Json(serde_json::json!({ "ok": true })).into_response())
 }
@@ -1218,7 +1325,7 @@ pub async fn delete_user(
 #[cfg(test)]
 mod tests {
   use super::*;
-  use chrono::Utc;
+  use crate::handlers::auth::CurrentProfile;
 
   #[test]
   fn has_permission_true_when_key_in_list() {
@@ -1242,66 +1349,24 @@ mod tests {
     assert_eq!(default_limit(), 50);
   }
 
-  /// Scope for dashboard lists must be current org only; is_admin must not expand scope.
+  /// Scope for dashboard lists comes from session profile.
   #[test]
-  fn scope_org_for_dashboard_lists_uses_only_current_org() {
-    let now = Utc::now().naive_utc();
+  fn scope_org_from_profile_returns_profile_org_id() {
     let org_a = Uuid::new_v4();
-    let user_none = user::Model {
-      id: Uuid::new_v4(),
-      email: "a@x.org".to_string(),
-      password_hash: "".to_string(),
-      is_active: true,
-      is_admin: false,
-      current_org_id: None,
-      current_role: Some("viewer".to_string()),
-      created_at: now,
-      updated_at: now,
+    let profile = CurrentProfile {
+      org_id: org_a,
+      role_name: "viewer".to_string(),
     };
-    let user_org_a = user::Model {
-      id: Uuid::new_v4(),
-      email: "b@x.org".to_string(),
-      password_hash: "".to_string(),
-      is_active: true,
-      is_admin: false,
-      current_org_id: Some(org_a),
-      current_role: Some("viewer".to_string()),
-      created_at: now,
-      updated_at: now,
-    };
-    let user_admin_org_a = user::Model {
-      id: Uuid::new_v4(),
-      email: "admin@x.org".to_string(),
-      password_hash: "".to_string(),
-      is_active: true,
-      is_admin: true,
-      current_org_id: Some(org_a),
-      current_role: Some("owner".to_string()),
-      created_at: now,
-      updated_at: now,
-    };
-    assert_eq!(scope_org_for_dashboard_lists(&user_none), None);
-    assert_eq!(scope_org_for_dashboard_lists(&user_org_a), Some(org_a));
-    assert_eq!(scope_org_for_dashboard_lists(&user_admin_org_a), Some(org_a));
+    assert_eq!(scope_org_from_profile(&profile), org_a);
   }
 
-  /// Ensures that even with is_admin=true we do not get "all orgs" — only current_org_id.
   #[test]
-  fn scope_org_ignores_is_admin_no_cross_org() {
-    let now = Utc::now().naive_utc();
-    let org_a = Uuid::new_v4();
-    let admin = user::Model {
-      id: Uuid::new_v4(),
-      email: "admin@x.org".to_string(),
-      password_hash: "".to_string(),
-      is_active: true,
-      is_admin: true,
-      current_org_id: Some(org_a),
-      current_role: Some("owner".to_string()),
-      created_at: now,
-      updated_at: now,
+  fn scope_org_from_profile_uses_given_org() {
+    let org_b = Uuid::new_v4();
+    let profile = CurrentProfile {
+      org_id: org_b,
+      role_name: "admin".to_string(),
     };
-    let scope = scope_org_for_dashboard_lists(&admin);
-    assert_eq!(scope, Some(org_a));
+    assert_eq!(scope_org_from_profile(&profile), org_b);
   }
 }

@@ -3,14 +3,10 @@
 use forge::ForgeConfig;
 use std::net::{TcpStream, ToSocketAddrs};
 use std::process::{Child, Command};
-use std::time::{Duration, Instant};
+use std::time::Duration;
 
-fn wait_for_server(
-  host: &str,
-  port: u16,
-  timeout: Duration,
-) -> Result<(), Box<dyn std::error::Error>> {
-  let deadline = Instant::now() + timeout;
+/// Wait until the HTTP server is accepting connections. No timeout — waits as long as needed.
+fn wait_for_server(host: &str, port: u16) -> Result<(), Box<dyn std::error::Error>> {
   let addr = (host, port)
     .to_socket_addrs()?
     .next()
@@ -18,9 +14,6 @@ fn wait_for_server(
   loop {
     if TcpStream::connect_timeout(&addr, Duration::from_millis(500)).is_ok() {
       return Ok(());
-    }
-    if Instant::now() >= deadline {
-      return Err("timed out waiting for HTTP server to start".into());
     }
     std::thread::sleep(Duration::from_millis(200));
   }
@@ -78,7 +71,7 @@ pub fn run(config: &ForgeConfig) -> Result<(), Box<dyn std::error::Error>> {
   let mut vite_child: Option<Child> = None;
   if has_frontend {
     eprintln!("Waiting for HTTP server on {}:{}…", host, port);
-    if let Err(e) = wait_for_server(&host, port, Duration::from_secs(90)) {
+    if let Err(e) = wait_for_server(&host, port) {
       let _ = cargo_child.kill();
       let _ = cargo_child.wait();
       return Err(e);

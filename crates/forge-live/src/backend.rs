@@ -36,7 +36,9 @@ pub trait LiveBackend: Send + Sync {
 
 /// In-memory backend: channel → set of connection IDs, connection ID → sender.
 pub struct InMemoryLiveBackend {
+  /// Map from channel name to set of connection IDs subscribed to it.
   channels: RwLock<HashMap<String, HashSet<ConnectionId>>>,
+  /// Map from connection ID to sender and subscribed channels.
   connections: RwLock<HashMap<ConnectionId, ConnectionEntry>>,
 }
 

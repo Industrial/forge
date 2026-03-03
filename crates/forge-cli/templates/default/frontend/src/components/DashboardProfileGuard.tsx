@@ -1,0 +1,20 @@
+import React from "react";
+import { Navigate } from "react-router-dom";
+import { useSession } from "../context/Session";
+
+type DashboardProfileGuardProps = { children: React.ReactNode };
+
+/**
+ * Redirects to /select-profile when the user is logged in but has no session profile set.
+ * Use inside ProtectedRoute so it only runs for authenticated users.
+ */
+export default function DashboardProfileGuard({ children }: DashboardProfileGuardProps) {
+	const { user, needs_profile_select, loading } = useSession();
+
+	if (loading) return null;
+	if (user == null) return null; // ProtectedRoute handles unauthenticated
+	if (needs_profile_select) {
+		return <Navigate to="/select-profile" replace />;
+	}
+	return <>{children}</>;
+}

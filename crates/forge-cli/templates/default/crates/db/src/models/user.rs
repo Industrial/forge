@@ -13,7 +13,9 @@ pub struct Model {
   pub password_hash: String,
   pub is_active: bool,
   pub is_admin: bool,
+  /// Deprecated for authz: session profile (current_org_id, current_role_name) is the source of truth. Kept for seeds/display.
   pub current_org_id: Option<Uuid>,
+  /// Deprecated for authz: use session profile. Kept for seeds/display.
   pub current_role: Option<String>,
   pub created_at: chrono::NaiveDateTime,
   pub updated_at: chrono::NaiveDateTime,

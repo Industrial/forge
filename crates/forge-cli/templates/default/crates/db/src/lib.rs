@@ -24,6 +24,7 @@ impl MigratorTrait for Migrator {
       Box::new(migrations::m20220101_000009_create_org_role_table::Migration),
       Box::new(migrations::m20220101_000010_create_user_org_role_table::Migration),
       Box::new(migrations::m20220101_000011_org_roles_and_user_org_role_data::Migration),
+      Box::new(migrations::m20220101_000012_create_user_global_role_table::Migration),
     ]
   }
 }
@@ -31,6 +32,7 @@ impl MigratorTrait for Migrator {
 pub async fn run_seeds(db: DbConnection) -> Result<(), Box<dyn std::error::Error>> {
   seeds::s20220101_000001_seed_users::seed(&db).await?;
   seeds::s20220101_000002_seed_role_permissions::seed(&db).await?;
+  seeds::s20220101_000003_seed_user_global_roles::seed(&db).await?;
   Ok(())
 }
 
@@ -65,8 +67,8 @@ mod tests {
   use super::*;
 
   #[test]
-  fn migrator_returns_eleven_migrations() {
+  fn migrator_returns_twelve_migrations() {
     let migrations = Migrator::migrations();
-    assert_eq!(migrations.len(), 11);
+    assert_eq!(migrations.len(), 12);
   }
 }

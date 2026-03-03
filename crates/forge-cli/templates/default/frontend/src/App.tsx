@@ -9,8 +9,10 @@ import Layout from "./layouts/Layout";
 import DashboardLayout from "./features/dashboard/layouts/DashboardLayout/DashboardLayout";
 import AuthenticationLayout from "./features/authentication/layouts/AuthenticationLayout/AuthenticationLayout";
 import ProtectedRoute from "./components/ProtectedRoute";
+import DashboardProfileGuard from "./components/DashboardProfileGuard";
 import DashboardPermissionGuard from "./components/DashboardPermissionGuard";
 import LoginPage from "./features/authentication/pages/LoginPage/LoginPage";
+import SelectProfilePage from "./features/authentication/pages/SelectProfilePage/SelectProfilePage";
 import RegisterPage from "./features/authentication/pages/RegisterPage/RegisterPage";
 import HomePage from "./features/home/pages/HomePage/HomePage";
 import DashboardPage from "./features/dashboard/pages/DashboardPage/DashboardPage";
@@ -80,6 +82,16 @@ function App() {
 							</AuthenticationLayout>
 						}
 					/>
+					<Route
+						path="/select-profile"
+						element={
+							<ProtectedRoute>
+								<AuthenticationLayout>
+									<SelectProfilePage />
+								</AuthenticationLayout>
+							</ProtectedRoute>
+						}
+					/>
 					<Route path="/ws-demo" element={<WebsocketsDemoPage />} />
 					<Route
 						path="/"
@@ -95,9 +107,11 @@ function App() {
 						path="/dashboard"
 						element={
 							<ProtectedRoute>
-								<DashboardLayout {...layoutProps}>
-									<Outlet />
-								</DashboardLayout>
+								<DashboardProfileGuard>
+									<DashboardLayout {...layoutProps}>
+										<Outlet />
+									</DashboardLayout>
+								</DashboardProfileGuard>
 							</ProtectedRoute>
 						}
 					>

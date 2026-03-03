@@ -9,3 +9,4 @@ pub mod m20220101_000008_add_org_id_to_role_permission;
 pub mod m20220101_000009_create_org_role_table;
 pub mod m20220101_000010_create_user_org_role_table;
 pub mod m20220101_000011_org_roles_and_user_org_role_data;
+pub mod m20220101_000012_create_user_global_role_table;

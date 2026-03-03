@@ -21,7 +21,7 @@ use uuid::Uuid;
 use validator::Validate;
 
 use db::auth::Backend;
-use db::models::{api_token, membership, org_role, organization, role_permission, user, user_org_role};
+use db::models::{api_token, membership, org_role, organization, role_permission, user, user_global_role, user_org_role};
 
 /// Code-defined dashboard permission keys. Used for resolution and for listing in APIs.
 /// Resources have .read (view/list) and .write (create/update/delete) where applicable.
@@ -38,31 +38,77 @@ pub const DASHBOARD_PERMISSIONS: &[&str] = &[
   "dashboard.audit.read",
 ];
 
-/// Resolves the list of permission keys for the current user. Global admin gets all; otherwise org role's permissions from `role_permission`.
-pub async fn resolve_permissions(db: &DbConnection, user: &user::Model) -> Vec<String> {
-  if user.is_admin {
-    return DASHBOARD_PERMISSIONS
-      .iter()
-      .map(|s| (*s).to_string())
-      .collect();
-  }
-  let role_name = match user.current_role.as_deref() {
-    Some(r) => r,
-    None => return vec![],
-  };
-  let org_id = match user.current_org_id {
-    Some(id) => id,
-    None => return vec![],
-  };
-  let rows = role_permission::Entity::find()
-    .filter(role_permission::Column::Scope.eq("org"))
-    .filter(role_permission::Column::OrgId.eq(org_id))
-    .filter(role_permission::Column::RoleName.eq(role_name))
+/// Resolves the list of permission keys for the current user from org-scoped and global-scope role_permission.
+/// Uses session profile when provided; otherwise only global-scope permissions are included.
+pub async fn resolve_permissions(db: &DbConnection, user: &user::Model, profile: Option<&CurrentProfile>) -> Vec<String> {
+  let mut keys = std::collections::HashSet::<String>::new();
+
+  // Global-scope: user_global_role -> role_permission with scope=global and org_id=null.
+  let global_roles: Vec<String> = user_global_role::Entity::find()
+    .filter(user_global_role::Column::UserId.eq(user.id))
     .all(db)
     .await
     .ok()
-    .unwrap_or_default();
-  rows.into_iter().map(|r| r.permission_key).collect()
+    .unwrap_or_default()
+    .into_iter()
+    .map(|r| r.role_name)
+    .collect();
+  if !global_roles.is_empty() {
+    let global_perms = role_permission::Entity::find()
+      .filter(role_permission::Column::Scope.eq("global"))
+      .filter(role_permission::Column::OrgId.is_null())
+      .filter(role_permission::Column::RoleName.is_in(global_roles))
+      .all(db)
+      .await
+      .ok()
+      .unwrap_or_default();
+    for r in global_perms {
+      keys.insert(r.permission_key);
+    }
+  }
+
+  // Org-scoped: session profile (org + role) from role_permission.
+  if let Some(p) = profile {
+    let rows = role_permission::Entity::find()
+      .filter(role_permission::Column::Scope.eq("org"))
+      .filter(role_permission::Column::OrgId.eq(p.org_id))
+      .filter(role_permission::Column::RoleName.eq(&p.role_name))
+      .all(db)
+      .await
+      .ok()
+      .unwrap_or_default();
+    for r in rows {
+      keys.insert(r.permission_key);
+    }
+  }
+
+  keys.into_iter().collect()
+}
+
+/// True if the user has the given permission at global scope (via user_global_role + role_permission scope=global).
+pub async fn has_global_scope(db: &DbConnection, user: &user::Model, permission_key: &str) -> bool {
+  let global_roles: Vec<String> = user_global_role::Entity::find()
+    .filter(user_global_role::Column::UserId.eq(user.id))
+    .all(db)
+    .await
+    .ok()
+    .unwrap_or_default()
+    .into_iter()
+    .map(|r| r.role_name)
+    .collect();
+  if global_roles.is_empty() {
+    return false;
+  }
+  let exists = role_permission::Entity::find()
+    .filter(role_permission::Column::Scope.eq("global"))
+    .filter(role_permission::Column::OrgId.is_null())
+    .filter(role_permission::Column::RoleName.is_in(global_roles))
+    .filter(role_permission::Column::PermissionKey.eq(permission_key))
+    .one(db)
+    .await
+    .ok()
+    .flatten();
+  exists.is_some()
 }
 
 /// Derives live-update channel subscriptions from the user's permissions and current org.
@@ -95,9 +141,40 @@ pub fn channels_from_permissions(
   out
 }
 
-/// Session keys for one-time flash messages (read once then cleared). No longer set by auth; kept for session_json shape. (read once then cleared). No longer set by auth; kept for session_json shape.
+/// Session keys for one-time flash messages (read once then cleared). No longer set by auth; kept for session_json shape.
 pub const FLASH_MESSAGE: &str = "flash_message";
 pub const FLASH_ERROR: &str = "flash_error";
+
+/// Session keys for the active profile (org + role). Source of truth for dashboard scope; not stored on user row.
+pub const SESSION_CURRENT_ORG_ID: &str = "current_org_id";
+pub const SESSION_CURRENT_ROLE_NAME: &str = "current_role_name";
+
+/// Active profile for the current request: org and role from session. Use [get_profile_from_session] or [require_profile] in handlers.
+#[derive(Clone, Debug)]
+pub struct CurrentProfile {
+  pub org_id: Uuid,
+  pub role_name: String,
+}
+
+/// Reads current profile from session if both org_id and role_name are set.
+pub async fn get_profile_from_session(session: &Session) -> Option<CurrentProfile> {
+  let org_id: Uuid = session.get(SESSION_CURRENT_ORG_ID).await.ok().flatten()?;
+  let role_name: String = session.get(SESSION_CURRENT_ROLE_NAME).await.ok().flatten()?;
+  Some(CurrentProfile { org_id, role_name })
+}
+
+/// Requires a profile in session; returns 403 with code `profile_required` if missing (frontend can redirect to profile-select).
+pub async fn require_profile(
+  session: &Session,
+) -> Result<CurrentProfile, (StatusCode, Json<serde_json::Value>)> {
+  match get_profile_from_session(session).await {
+    Some(p) => Ok(p),
+    None => Err((
+      StatusCode::FORBIDDEN,
+      Json(serde_json::json!({ "code": "profile_required", "error": "Please select a profile" })),
+    )),
+  }
+}
 
 #[derive(Deserialize, Validate)]
 pub struct RegisterRequest {
@@ -108,6 +185,8 @@ pub struct RegisterRequest {
 }
 
 pub async fn register(
+  mut auth_session: AuthSession<Backend>,
+  session: Session,
   State(db): State<DbConnection>,
   Valid(Json(payload)): Valid<Json<RegisterRequest>>,
 ) -> Result<impl IntoResponse, ForgeError> {
@@ -199,6 +278,17 @@ pub async fn register(
 
   tx.commit().await?;
 
+  let user = user::Entity::find_by_id(user_id)
+    .one(&db)
+    .await?
+    .ok_or_else(|| ForgeError::Generic("User not found after register".into()))?;
+  auth_session
+    .login(&user)
+    .await
+    .map_err(|e| ForgeError::Generic(format!("Login after register: {}", e)))?;
+  session.insert(SESSION_CURRENT_ORG_ID, org_id).await.ok();
+  session.insert(SESSION_CURRENT_ROLE_NAME, "owner".to_string()).await.ok();
+
   Ok((StatusCode::CREATED, Json(serde_json::json!({ "ok": true }))).into_response())
 }
 
@@ -270,6 +360,7 @@ async fn broadcast_audit_entry(
 
 pub async fn login(
   mut auth_session: AuthSession<Backend>,
+  session: Session,
   State(db): State<DbConnection>,
   Extension(live_backend): Extension<Option<std::sync::Arc<InMemoryLiveBackend>>>,
   JsonOrForm(payload): JsonOrForm<LoginRequest>,
@@ -295,11 +386,28 @@ pub async fn login(
       .login(user)
       .await
       .map_err(|e| ForgeError::Generic(format!("Login error: {}", e)))?;
+    let uors = user_org_role::Entity::find()
+      .filter(user_org_role::Column::UserId.eq(user.id))
+      .all(&db)
+      .await
+      .unwrap_or_default();
+    let needs_profile_select = if uors.len() == 1 {
+      let uor = &uors[0];
+      if let Ok(Some(role)) = org_role::Entity::find_by_id(uor.role_id).one(&db).await {
+        session.insert(SESSION_CURRENT_ORG_ID, uor.org_id).await.ok();
+        session.insert(SESSION_CURRENT_ROLE_NAME, role.name.clone()).await.ok();
+        false
+      } else {
+        true
+      }
+    } else {
+      true
+    };
     let event = AuditEvent {
       event_kind: EventKind::Auth,
       actor_id: user.id,
       subject_id: Some(user.id),
-      organization_id: user.current_org_id,
+      organization_id: if uors.len() == 1 { Some(uors[0].org_id) } else { None },
       action: Action::Manage,
       resource_type: "auth".to_string(),
       resource_id: None,
@@ -309,7 +417,7 @@ pub async fn login(
     if let Ok(result) = forge::audit::log(&db, event.clone()).await {
       broadcast_audit_entry(live_backend.as_ref(), &event, &result).await;
     }
-    Ok((StatusCode::OK, Json(serde_json::json!({ "ok": true }))).into_response())
+    Ok((StatusCode::OK, Json(serde_json::json!({ "ok": true, "needs_profile_select": needs_profile_select }))).into_response())
   } else {
     tracing::debug!(target: "app::auth", "login failed: invalid credentials email={}", email);
     let event = AuditEvent {
@@ -425,8 +533,9 @@ pub struct SwitchProfileRequest {
   pub role_id: Option<String>,
 }
 
-/// Switch the current user's active profile (org + role). Updates user row; session will see new context on next request.
-pub async fn switch_profile(
+/// Set the current session's active profile (org + role). Writes to session only; does not update user row.
+pub async fn set_profile(
+  session: Session,
   RequireAuth(user): RequireAuth<Backend>,
   State(db): State<DbConnection>,
   Json(payload): Json<SwitchProfileRequest>,
@@ -459,15 +568,8 @@ pub async fn switch_profile(
       .ok_or_else(|| ForgeError::Generic("Role not found".into()))?;
     role_row.name
   };
-  let mut am: user::ActiveModel = user::Entity::find_by_id(user.id)
-    .one(&db)
-    .await?
-    .ok_or_else(|| ForgeError::Generic("User not found".into()))?
-    .into();
-  am.current_org_id = Set(Some(org_id));
-  am.current_role = Set(Some(role_name));
-  am.updated_at = Set(Utc::now().naive_utc());
-  am.update(&db).await?;
+  session.insert(SESSION_CURRENT_ORG_ID, org_id).await.ok();
+  session.insert(SESSION_CURRENT_ROLE_NAME, role_name.clone()).await.ok();
   Ok(Json(serde_json::json!({ "ok": true })).into_response())
 }
 
@@ -481,13 +583,17 @@ pub async fn session_json(
   let error: Option<String> = session.get(FLASH_ERROR).await.ok().flatten();
   session.remove::<String>(FLASH_MESSAGE).await.ok();
   session.remove::<String>(FLASH_ERROR).await.ok();
+  let session_org_id: Option<Uuid> = session.get(SESSION_CURRENT_ORG_ID).await.ok().flatten();
+  let session_role_name: Option<String> = session.get(SESSION_CURRENT_ROLE_NAME).await.ok().flatten();
+  let session_profile = session_org_id.and_then(|o| session_role_name.clone().map(|r| CurrentProfile { org_id: o, role_name: r }));
   let user = maybe_user.as_ref().map(|u| serde_json::json!({
     "id": u.id.to_string(),
     "email": u.email,
-    "current_org_id": u.current_org_id.map(|id| id.to_string()),
+    "current_org_id": session_org_id.map(|id| id.to_string()),
+    "current_role_name": session_role_name,
   }));
   let permissions: Vec<String> = match &maybe_user {
-    Some(u) => resolve_permissions(&db, u).await,
+    Some(u) => resolve_permissions(&db, u, session_profile.as_ref()).await,
     None => vec![],
   };
   let profiles: Vec<serde_json::Value> = match &maybe_user {
@@ -536,11 +642,13 @@ pub async fn session_json(
     }
     None => vec![],
   };
+  let needs_profile_select = maybe_user.is_some() && (session_org_id.is_none() || session_role_name.is_none());
   Json(serde_json::json!({
     "user": user,
     "profiles": profiles,
     "permissions": permissions,
-    "flash": { "message": message, "error": error }
+    "flash": { "message": message, "error": error },
+    "needs_profile_select": needs_profile_select
   }))
 }
 
@@ -667,5 +775,16 @@ mod tests {
   fn flash_constants_are_non_empty() {
     assert!(!FLASH_MESSAGE.is_empty());
     assert!(!FLASH_ERROR.is_empty());
+  }
+
+  #[test]
+  fn current_profile_holds_org_id_and_role_name() {
+    let org_id = Uuid::new_v4();
+    let profile = CurrentProfile {
+      org_id,
+      role_name: "viewer".to_string(),
+    };
+    assert_eq!(profile.org_id, org_id);
+    assert_eq!(profile.role_name, "viewer");
   }
 }

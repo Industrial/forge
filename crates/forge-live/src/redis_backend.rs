@@ -18,8 +18,11 @@ use crate::channel::Channel;
 /// Per-connection state: sender to client and set of subscribed channel names.
 type ConnectionEntry = (mpsc::UnboundedSender<Vec<u8>>, HashSet<String>);
 
+/// Internal command for the Redis backend task.
 enum RedisCommand {
+  /// Subscribe to a channel.
   Subscribe(String),
+  /// Publish a message to a channel.
   Publish(String, Vec<u8>),
 }
 
@@ -29,8 +32,11 @@ enum RedisCommand {
 /// and a background task subscribes to Redis and fans out received messages to
 /// local connections. Use this when running multiple app instances behind a load balancer.
 pub struct RedisLiveBackend {
+  /// Map from channel name to set of connection IDs subscribed to it.
   channels: RwLock<HashMap<String, HashSet<ConnectionId>>>,
+  /// Map from connection ID to sender and subscribed channels.
   connections: RwLock<HashMap<ConnectionId, ConnectionEntry>>,
+  /// Sender for commands to the Redis task.
   command_tx: mpsc::UnboundedSender<RedisCommand>,
 }
 
@@ -96,6 +102,7 @@ impl RedisLiveBackend {
     Ok(backend)
   }
 
+  /// Delivers a received Redis message to all local connections subscribed to the channel.
   fn fan_out_local(backend: &Arc<Self>, channel: &str, payload: &[u8]) {
     let ids: Vec<ConnectionId> = {
       let ch = backend.channels.read().unwrap();

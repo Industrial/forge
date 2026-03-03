@@ -18,6 +18,10 @@ import Alert from "@mui/material/Alert";
 import CircularProgress from "@mui/material/CircularProgress";
 import Chip from "@mui/material/Chip";
 import FormDialog from "../../../../components/FormDialog";
+import FormControl from "@mui/material/FormControl";
+import InputLabel from "@mui/material/InputLabel";
+import Select from "@mui/material/Select";
+import MenuItem from "@mui/material/MenuItem";
 import { useLiveUpdates } from "../../../../context/LiveWs";
 
 type Role = {
@@ -29,6 +33,8 @@ type Role = {
 	updated_at: string;
 };
 
+type Organization = { id: string; name: string; slug: string };
+
 export default function RolesPage() {
 	const [liveRefreshTrigger, setLiveRefreshTrigger] = useState(0);
 	const { connected: wsConnected } = useLiveUpdates("roles", () => {
@@ -36,11 +42,13 @@ export default function RolesPage() {
 	});
 
 	const [roles, setRoles] = useState<Role[]>([]);
+	const [organizations, setOrganizations] = useState<Organization[]>([]);
 	const [loading, setLoading] = useState(true);
 	const [error, setError] = useState<string | null>(null);
 	const [addOpen, setAddOpen] = useState(false);
 	const [addName, setAddName] = useState("");
 	const [addDisplayName, setAddDisplayName] = useState("");
+	const [addOrgId, setAddOrgId] = useState("");
 	const [adding, setAdding] = useState(false);
 	const [editRole, setEditRole] = useState<Role | null>(null);
 	const [editName, setEditName] = useState("");
@@ -72,9 +80,25 @@ export default function RolesPage() {
 		}
 	}, []);
 
+	const fetchOrgs = useCallback(async () => {
+		try {
+			const res = await fetch("/api/dashboard/organizations", { credentials: "include" });
+			if (res.ok) {
+				const data = await res.json();
+				setOrganizations(data.organizations ?? []);
+			}
+		} catch {
+			// optional
+		}
+	}, []);
+
 	useEffect(() => {
 		fetchRoles();
 	}, [fetchRoles, liveRefreshTrigger]);
+
+	useEffect(() => {
+		fetchOrgs();
+	}, [fetchOrgs]);
 
 	const handleAdd = async () => {
 		const name = addName.trim();
@@ -85,14 +109,17 @@ export default function RolesPage() {
 		setAdding(true);
 		setError(null);
 		try {
+			const orgId = addOrgId || organizations[0]?.id;
+			const body: { name: string; display_name?: string; org_id?: string } = {
+				name,
+				display_name: addDisplayName.trim() || undefined,
+			};
+			if (orgId) body.org_id = orgId;
 			const res = await fetch("/api/dashboard/roles", {
 				method: "POST",
 				headers: { "Content-Type": "application/json" },
 				credentials: "include",
-				body: JSON.stringify({
-					name,
-					display_name: addDisplayName.trim() || undefined,
-				}),
+				body: JSON.stringify(body),
 			});
 			if (res.status === 403) {
 				setError("You do not have permission to create roles.");
@@ -105,6 +132,7 @@ export default function RolesPage() {
 			}
 			setAddName("");
 			setAddDisplayName("");
+			setAddOrgId(organizations[0]?.id ?? "");
 			setAddOpen(false);
 			await fetchRoles();
 		} catch {
@@ -202,7 +230,10 @@ export default function RolesPage() {
 				<Button
 					variant="contained"
 					startIcon={<AddIcon />}
-					onClick={() => setAddOpen(true)}
+					onClick={() => {
+						setAddOrgId(organizations[0]?.id ?? "");
+						setAddOpen(true);
+					}}
 				>
 					Add role
 				</Button>
@@ -217,6 +248,7 @@ export default function RolesPage() {
 					<Table size="small" aria-label="Roles">
 						<TableHead>
 							<TableRow>
+								<TableCell>Organization</TableCell>
 								<TableCell>Name</TableCell>
 								<TableCell>Display name</TableCell>
 								<TableCell align="right">Actions</TableCell>
@@ -225,13 +257,16 @@ export default function RolesPage() {
 						<TableBody>
 							{roles.length === 0 ? (
 								<TableRow>
-									<TableCell colSpan={3} align="center">
+									<TableCell colSpan={4} align="center">
 										No roles. Add a role or ensure your organization has template roles.
 									</TableCell>
 								</TableRow>
 							) : (
 								roles.map((role) => (
 									<TableRow key={role.id}>
+										<TableCell>
+											{organizations.find((o) => o.id === role.org_id)?.name ?? role.org_id}
+										</TableCell>
 										<TableCell sx={{ fontWeight: 500 }}>{role.name}</TableCell>
 										<TableCell>{role.display_name ?? "—"}</TableCell>
 										<TableCell align="right">
@@ -266,10 +301,26 @@ export default function RolesPage() {
 				submitLabel="Add"
 				submittingLabel="Adding…"
 				onSubmit={handleAdd}
-				submitDisabled={!addName.trim()}
+				submitDisabled={!addName.trim() || (organizations.length > 1 && !addOrgId)}
 				submitting={adding}
 			>
 				<Box sx={{ display: "flex", flexDirection: "column", gap: 2, pt: 1, minWidth: 320 }}>
+					{organizations.length > 1 && (
+						<FormControl fullWidth size="small" disabled={adding} required>
+							<InputLabel>Organization</InputLabel>
+							<Select
+								label="Organization"
+								value={addOrgId}
+								onChange={(e) => setAddOrgId(e.target.value)}
+							>
+								{organizations.map((org) => (
+									<MenuItem key={org.id} value={org.id}>
+										{org.name}
+									</MenuItem>
+								))}
+							</Select>
+						</FormControl>
+					)}
 					<TextField
 						label="Name"
 						value={addName}

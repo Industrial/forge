@@ -47,7 +47,11 @@ export default function LoginPage() {
 			const resData = await res.json().catch(() => ({}));
 			if (res.ok) {
 				await refresh();
-				navigate(from, { replace: true });
+				if (resData.needs_profile_select === true) {
+					navigate("/select-profile", { replace: true });
+				} else {
+					navigate(from, { replace: true });
+				}
 				return;
 			}
 			setError(

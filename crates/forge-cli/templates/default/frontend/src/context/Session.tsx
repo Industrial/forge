@@ -9,8 +9,10 @@ import React, {
 export type SessionUser = {
 	id: string;
 	email: string;
-	/** Current organization context for dashboard; used for live WebSocket subscription. */
+	/** Current organization context from session (source of truth for dashboard scope). */
 	current_org_id: string | null;
+	/** Current role name from session. */
+	current_role_name?: string | null;
 };
 
 export type Flash = { message?: string; error?: string };
@@ -27,6 +29,8 @@ export type SessionState = {
 	profiles: Profile[];
 	permissions: string[];
 	flash: Flash | null;
+	/** When true, redirect to /select-profile before dashboard. */
+	needs_profile_select: boolean;
 	loading: boolean;
 	refresh: () => Promise<void>;
 };
@@ -44,17 +48,28 @@ async function fetchSession(): Promise<{
 	profiles: Profile[];
 	permissions: string[];
 	flash: Flash | null;
+	needs_profile_select: boolean;
 }> {
 	const res = await fetch("/api/auth/session", { credentials: "include" });
-	if (!res.ok) return { user: null, profiles: [], permissions: [], flash: null };
+	if (!res.ok) {
+		return {
+			user: null,
+			profiles: [],
+			permissions: [],
+			flash: null,
+			needs_profile_select: false,
+		};
+	}
 	const data = await res.json();
 	const user = data.user
 		? {
 				id: data.user.id,
 				email: data.user.email,
 				current_org_id: data.user.current_org_id ?? null,
+				current_role_name: data.user.current_role_name ?? null,
 			}
 		: null;
+	const needs_profile_select = Boolean(data.needs_profile_select);
 	return {
 		user,
 		profiles: Array.isArray(data.profiles) ? data.profiles : [],
@@ -63,6 +78,7 @@ async function fetchSession(): Promise<{
 			data.flash && (data.flash.message != null || data.flash.error != null)
 				? data.flash
 				: null,
+		needs_profile_select,
 	};
 }
 
@@ -71,26 +87,29 @@ export function SessionProvider({ children }: { children: React.ReactNode }) {
 	const [profiles, setProfiles] = useState<Profile[]>([]);
 	const [permissions, setPermissions] = useState<string[]>([]);
 	const [flash, setFlash] = useState<Flash | null>(null);
+	const [needs_profile_select, setNeedsProfileSelect] = useState(false);
 	const [loading, setLoading] = useState(true);
 
 	const refresh = useCallback(async () => {
-		const { user: u, profiles: p, permissions: perm, flash: f } =
+		const { user: u, profiles: p, permissions: perm, flash: f, needs_profile_select: need } =
 			await fetchSession();
 		setUser(u);
 		setProfiles(p);
 		setPermissions(perm);
 		setFlash(f);
+		setNeedsProfileSelect(need);
 	}, []);
 
 	useEffect(() => {
 		let cancelled = false;
 		fetchSession()
-			.then(({ user: u, profiles: p, permissions: perm, flash: f }) => {
+			.then(({ user: u, profiles: p, permissions: perm, flash: f, needs_profile_select: need }) => {
 				if (!cancelled) {
 					setUser(u);
 					setProfiles(p);
 					setPermissions(perm);
 					setFlash(f);
+					setNeedsProfileSelect(need);
 					setLoading(false);
 				}
 			})
@@ -100,6 +119,7 @@ export function SessionProvider({ children }: { children: React.ReactNode }) {
 					setProfiles([]);
 					setPermissions([]);
 					setFlash(null);
+					setNeedsProfileSelect(false);
 					setLoading(false);
 				}
 			});
@@ -110,7 +130,7 @@ export function SessionProvider({ children }: { children: React.ReactNode }) {
 
 	return (
 		<SessionContext.Provider
-			value={{ user, profiles, permissions, flash, loading, refresh }}
+			value={{ user, profiles, permissions, flash, needs_profile_select, loading, refresh }}
 		>
 			{children}
 		</SessionContext.Provider>

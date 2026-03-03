@@ -5,4 +5,5 @@ pub mod org_role;
 pub mod organization;
 pub mod role_permission;
 pub mod user;
+pub mod user_global_role;
 pub mod user_org_role;

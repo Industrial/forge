@@ -14,12 +14,14 @@ use futures_util::{SinkExt, StreamExt};
 use std::sync::Arc;
 use tokio::sync::mpsc;
 
-use crate::handlers::auth::{channels_from_permissions, resolve_permissions};
+use crate::handlers::auth::{channels_from_permissions, get_profile_from_session, resolve_permissions};
 use crate::tasks::TaskState;
 use db::auth::Backend;
+use tower_sessions::Session;
 
 pub async fn handler(
   ws: WebSocketUpgrade,
+  session: Session,
   auth_session: AuthSession<Backend>,
   State(db): State<DbConnection>,
   Extension(live_backend): Extension<Option<Arc<InMemoryLiveBackend>>>,
@@ -32,8 +34,10 @@ pub async fn handler(
   let Some(backend) = live_backend else {
     return (StatusCode::SERVICE_UNAVAILABLE, "Live Query not enabled").into_response();
   };
-  let permissions = resolve_permissions(&db, user).await;
-  let channels = channels_from_permissions(&permissions, user.current_org_id);
+  let profile = get_profile_from_session(&session).await;
+  let permissions = resolve_permissions(&db, user, profile.as_ref()).await;
+  let current_org_id = profile.as_ref().map(|p| p.org_id);
+  let channels = channels_from_permissions(&permissions, current_org_id);
   let backend = backend.clone();
   let task_state = task_state.clone();
   ws.on_upgrade(move |socket| handle_socket(socket, backend, task_state, channels))
