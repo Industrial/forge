@@ -5,7 +5,7 @@ set -euo pipefail
 # Same prebuilt project and server lifecycle as test-e2e, but API-only.
 
 INTEGRATION_API_PORT=30998
-PREBUILT=".tmp/e2e_prebuilt"
+PREBUILT=".tmp/integration_prebuilt"
 
 echo "> test-integration"
 
@@ -17,23 +17,23 @@ rm -rf .tmp/*
 echo "> test-integration > building forge CLI"
 cargo build -p forge-cli
 
-# Create project in .tmp using forge (run from .tmp so project is .tmp/e2e_prebuilt)
-echo "> test-integration > forge new e2e_prebuilt in .tmp"
+# Create project in .tmp using forge (run from .tmp so project is .tmp/integration_prebuilt)
+echo "> test-integration > forge new integration_prebuilt in .tmp"
 ROOT="$(pwd)"
-rm -rf .tmp/e2e_prebuilt
-(cd .tmp && FORGE_TEMPLATES_DIR="$ROOT/crates/forge-cli/templates" "$ROOT/target/debug/forge" new e2e_prebuilt)
+rm -rf .tmp/integration_prebuilt
+(cd .tmp && FORGE_TEMPLATES_DIR="$ROOT/crates/forge-cli/templates" "$ROOT/target/debug/forge" new integration_prebuilt)
 
 # Build the generated project (clean target to avoid stale dep-info from prior runs)
-echo "> test-integration > cargo build (e2e_prebuilt)"
-rm -rf "$ROOT/target/e2e_prebuilt"
-(cd "$ROOT/$PREBUILT" && CARGO_TARGET_DIR="$ROOT/target/e2e_prebuilt" cargo build)
+echo "> test-integration > cargo build (integration_prebuilt)"
+rm -rf "$ROOT/target/integration_prebuilt"
+(cd "$ROOT/$PREBUILT" && CARGO_TARGET_DIR="$ROOT/target/integration_prebuilt" cargo build)
 
 # Single config and DB for the run
 export FORGE_ENVIRONMENT=production
 echo "> test-integration > writing config (API port $INTEGRATION_API_PORT)"
 cat > "$PREBUILT/config/app.toml" <<EOF
 [app]
-name = "e2e_prebuilt"
+name = "integration_prebuilt"
 
 [server]
 host = "127.0.0.1"
@@ -68,7 +68,7 @@ cleanup() {
 trap cleanup EXIT
 
 echo "> test-integration > starting API server (port $INTEGRATION_API_PORT)"
-(cd "$PREBUILT" && CARGO_TARGET_DIR="$ROOT/target/e2e_prebuilt" cargo run --quiet) &
+(cd "$PREBUILT" && CARGO_TARGET_DIR="$ROOT/target/integration_prebuilt" cargo run --quiet) &
 API_PID=$!
 
 echo "> test-integration > waiting for API /healthz"
@@ -87,5 +87,5 @@ export E2E_API_URL="$API_URL"
 export E2E_BASE_URL="$API_URL"
 
 echo "> test-integration > running integration tests (prebuilt app)"
-(cd "$ROOT/$PREBUILT" && CARGO_TARGET_DIR="$ROOT/target/e2e_prebuilt" RUSTFLAGS='-D warnings' cargo test -- --test-threads=1)
+(cd "$ROOT/$PREBUILT" && CARGO_TARGET_DIR="$ROOT/target/integration_prebuilt" RUSTFLAGS='-D warnings' cargo test -- --test-threads=1)
 echo "> test-integration > done"
