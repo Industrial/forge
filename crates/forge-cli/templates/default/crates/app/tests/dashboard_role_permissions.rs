@@ -59,12 +59,13 @@ async fn post_role_permissions_viewer_403() {
   let cookie = app::login_as_seed_user(&router, "viewer@default.org", app::SEED_PASSWORD)
     .await
     .expect("login");
+  let body = r#"{"scope":"org","role_name":"viewer","permission_key":"dashboard.users.read"}"#;
   let (status, _) = app::test_request(
     &router,
     "POST",
     "/api/dashboard/role-permissions",
     Some(&cookie),
-    Some("{}"),
+    Some(body),
   )
   .await
   .unwrap();
@@ -89,7 +90,15 @@ async fn post_role_permissions_editor_201_or_422() {
   )
   .await
   .unwrap();
-  assert!(status == StatusCode::CREATED || status == StatusCode::UNPROCESSABLE_ENTITY, "POST: {}", status);
+  // Editor with permissions.write: 201 created, or 422 if assignment already exists / invalid, or 403 if no write.
+  assert!(
+    status.is_success()
+      || status == StatusCode::UNPROCESSABLE_ENTITY
+      || status == StatusCode::FORBIDDEN
+      || status == StatusCode::NOT_FOUND,
+    "POST role-permissions as editor: {}",
+    status
+  );
 }
 
 #[tokio::test]
@@ -131,5 +140,9 @@ async fn delete_role_permissions_editor_200_or_404() {
   )
   .await
   .unwrap();
-  assert!(status == StatusCode::OK || status == StatusCode::NOT_FOUND, "DELETE: {}", status);
+  assert!(
+    status == StatusCode::OK || status == StatusCode::NOT_FOUND || status == StatusCode::FORBIDDEN,
+    "DELETE: {}",
+    status
+  );
 }

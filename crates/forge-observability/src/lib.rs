@@ -236,8 +236,7 @@ mod tests {
   #[test]
   fn header_extractor_get_returns_none_for_invalid_utf8() {
     let mut headers = axum::http::HeaderMap::new();
-    let invalid_utf8 =
-      axum::http::header::HeaderValue::from_bytes(b"invalid-\xff-utf8").unwrap();
+    let invalid_utf8 = axum::http::header::HeaderValue::from_bytes(b"invalid-\xff-utf8").unwrap();
     headers.insert(
       axum::http::header::HeaderName::from_static("x-custom"),
       invalid_utf8,
@@ -299,7 +298,10 @@ mod tests {
       Ok::<_, Infallible>(())
     }));
     let req = Request::builder()
-      .header("traceparent", "00-00000000000000000000000000000001-0000000000000000-00")
+      .header(
+        "traceparent",
+        "00-00000000000000000000000000000001-0000000000000000-00",
+      )
       .body(Body::empty())
       .unwrap();
     let _ = svc.oneshot(req).await.unwrap();

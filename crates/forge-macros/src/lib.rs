@@ -109,14 +109,23 @@ mod tests {
 
   #[test]
   fn expand_forge_auth_user_produces_expected_tokens() {
-    let input: DeriveInput = parse_str("struct User { id: Uuid, password_hash: String }")
-      .expect("valid struct");
+    let input: DeriveInput =
+      parse_str("struct User { id: Uuid, password_hash: String }").expect("valid struct");
     let out = expand_forge_auth_user(input);
     let s = out.to_string();
-    assert!(s.contains("AuthUser"), "expansion should implement AuthUser");
+    assert!(
+      s.contains("AuthUser"),
+      "expansion should implement AuthUser"
+    );
     assert!(s.contains("id"), "expansion should have id()");
-    assert!(s.contains("session_auth_hash"), "expansion should have session_auth_hash()");
-    assert!(s.contains("password_hash"), "expansion should use password_hash");
+    assert!(
+      s.contains("session_auth_hash"),
+      "expansion should have session_auth_hash()"
+    );
+    assert!(
+      s.contains("password_hash"),
+      "expansion should use password_hash"
+    );
   }
 
   #[test]
@@ -124,33 +133,49 @@ mod tests {
     let input: DeriveInput = parse_str("struct Entity {}").expect("valid struct");
     let out = expand_forge_scoped(input);
     let s = out.to_string();
-    assert!(s.contains("ForgeScoped"), "expansion should implement ForgeScoped");
-    assert!(s.contains("OrganizationId"), "default column should be organization_id -> OrganizationId");
+    assert!(
+      s.contains("ForgeScoped"),
+      "expansion should implement ForgeScoped"
+    );
+    assert!(
+      s.contains("OrganizationId"),
+      "default column should be organization_id -> OrganizationId"
+    );
     assert!(s.contains("scoped"), "expansion should have scoped method");
   }
 
   #[test]
   fn expand_forge_scoped_custom_column() {
-    let input: DeriveInput = parse_str(r#"
+    let input: DeriveInput = parse_str(
+      r#"
       #[forge_scoped(tenant_id)]
       struct Entity {}
-    "#)
+    "#,
+    )
     .expect("valid struct");
     let out = expand_forge_scoped(input);
     let s = out.to_string();
-    assert!(s.contains("TenantId"), "custom column tenant_id -> TenantId");
+    assert!(
+      s.contains("TenantId"),
+      "custom column tenant_id -> TenantId"
+    );
   }
 
   /// When #[forge_scoped(...)] fails to parse as Ident, default column is used.
   #[test]
   fn expand_forge_scoped_invalid_attr_falls_back_to_default() {
-    let input: DeriveInput = parse_str(r#"
+    let input: DeriveInput = parse_str(
+      r#"
       #[forge_scoped("not_an_ident")]
       struct Entity {}
-    "#)
+    "#,
+    )
     .expect("valid struct");
     let out = expand_forge_scoped(input);
     let s = out.to_string();
-    assert!(s.contains("OrganizationId"), "fallback to default when attr parse fails");
+    assert!(
+      s.contains("OrganizationId"),
+      "fallback to default when attr parse fails"
+    );
   }
 }

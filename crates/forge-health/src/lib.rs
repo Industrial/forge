@@ -88,9 +88,7 @@ mod tests {
 
   #[test]
   fn readiness_result_to_response_err_returns_503() {
-    let err = sea_orm::DbErr::Conn(sea_orm::RuntimeErr::Internal(
-      "test failure".to_string(),
-    ));
+    let err = sea_orm::DbErr::Conn(sea_orm::RuntimeErr::Internal("test failure".to_string()));
     let (status, body) = readiness_result_to_response(Err(err));
     assert_eq!(status.as_u16(), 503);
     assert_eq!(body, "unavailable");

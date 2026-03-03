@@ -14,7 +14,7 @@ mock = ["sea-orm/mock"]
 [dependencies]
 chrono = { version = "0.4", features = ["serde"] }
 forge-authz = { path = "../forge-authz" }
-sea-orm = { version = "1.1", features = ["sqlx-sqlite"] }
+sea-orm = { version = "1.1", default-features = false, features = ["sqlx-sqlite", "with-uuid", "with-chrono"] }
 tracing = "0.1"
 uuid = { version = "1.0", features = ["v4", "serde"] }
 

@@ -95,7 +95,12 @@ pub fn load_config_from_dir(base: &Path) -> Result<ForgeConfig, Box<dyn std::err
         .merge(Toml::file(&cache_config_path))
         .extract::<CacheConfig>()
         .map_err(|e| -> Box<dyn std::error::Error> {
-          format!("Failed to parse {}. Error: {}", cache_config_path.display(), e).into()
+          format!(
+            "Failed to parse {}. Error: {}",
+            cache_config_path.display(),
+            e
+          )
+          .into()
         })?,
     );
   }
@@ -242,7 +247,10 @@ no_cache_paths = ["/health", "/ready"]
     assert!(http_cache.enabled);
     assert_eq!(http_cache.default_ttl_secs, 90);
     let expected_paths: Vec<String> = vec!["/health".into(), "/ready".into()];
-    assert_eq!(http_cache.no_cache_paths.as_deref(), Some(expected_paths.as_slice()));
+    assert_eq!(
+      http_cache.no_cache_paths.as_deref(),
+      Some(expected_paths.as_slice())
+    );
   }
 
   #[test]
@@ -399,7 +407,11 @@ auto_seed = false
     std::env::set_current_dir(dir.path()).unwrap();
     let res = load_config();
     std::env::set_current_dir(&orig).unwrap();
-    assert!(res.is_ok(), "load_config() should succeed when cwd has config: {:?}", res.err());
+    assert!(
+      res.is_ok(),
+      "load_config() should succeed when cwd has config: {:?}",
+      res.err()
+    );
     let cfg = res.unwrap();
     assert_eq!(cfg.app.name, "cwdapp");
     assert_eq!(cfg.server.port, 4000);
@@ -416,6 +428,9 @@ auto_seed = false
     drop(dir); // removes the directory while we're still in it
     let res = load_config();
     std::env::set_current_dir(&orig).unwrap(); // restore so later tests are not affected
-    assert!(res.is_err(), "load_config() should fail when cwd has been removed");
+    assert!(
+      res.is_err(),
+      "load_config() should fail when cwd has been removed"
+    );
   }
 }

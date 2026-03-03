@@ -171,10 +171,7 @@ mod tests {
       ) -> Result<Option<Self::User>, Self::Error> {
         Ok(None)
       }
-      async fn get_user(
-        &self,
-        _user_id: &UserId<Self>,
-      ) -> Result<Option<Self::User>, Self::Error> {
+      async fn get_user(&self, _user_id: &UserId<Self>) -> Result<Option<Self::User>, Self::Error> {
         Ok(None)
       }
     }
@@ -214,11 +211,11 @@ mod tests {
   #[tokio::test]
   async fn requester_org_key_extractor_with_auth_session_user() {
     use async_trait::async_trait;
+    use axum::Router;
     use axum::body::Body;
     use axum::extract::Request;
     use axum::http::{Request as HttpRequest, StatusCode};
     use axum::routing::{get, post};
-    use axum::Router;
     use axum_login::{AuthManagerLayerBuilder, AuthnBackend, UserId};
     use tower::ServiceExt;
     use tower_sessions::{MemoryStore, SessionManagerLayer};
@@ -265,10 +262,7 @@ mod tests {
       ) -> Result<Option<Self::User>, Self::Error> {
         Ok(Some(self.user.clone()))
       }
-      async fn get_user(
-        &self,
-        user_id: &UserId<Self>,
-      ) -> Result<Option<Self::User>, Self::Error> {
+      async fn get_user(&self, user_id: &UserId<Self>) -> Result<Option<Self::User>, Self::Error> {
         if *user_id == self.user.id() {
           Ok(Some(self.user.clone()))
         } else {
@@ -284,7 +278,8 @@ mod tests {
         StatusCode::OK,
         format!(
           "{}:{}",
-          key.organization_id
+          key
+            .organization_id
             .map(|u| u.to_string())
             .unwrap_or_default(),
           key.user_id
@@ -322,10 +317,9 @@ mod tests {
       .unwrap();
     let key_res_anon = app.clone().oneshot(key_req_anon).await.unwrap();
     assert!(key_res_anon.status().is_success());
-    let body_anon =
-      axum::body::to_bytes(key_res_anon.into_body(), usize::MAX)
-        .await
-        .unwrap();
+    let body_anon = axum::body::to_bytes(key_res_anon.into_body(), usize::MAX)
+      .await
+      .unwrap();
     assert_eq!(
       std::str::from_utf8(&body_anon).unwrap(),
       ":00000000-0000-0000-0000-000000000000"

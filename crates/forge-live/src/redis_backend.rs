@@ -43,8 +43,9 @@ impl RedisLiveBackend {
 
     let (command_tx, mut command_rx) = mpsc::unbounded_channel::<RedisCommand>();
     let channels: RwLock<HashMap<String, HashSet<ConnectionId>>> = RwLock::new(HashMap::new());
-    let connections: RwLock<HashMap<ConnectionId, (mpsc::UnboundedSender<Vec<u8>>, HashSet<String>)>> =
-      RwLock::new(HashMap::new());
+    let connections: RwLock<
+      HashMap<ConnectionId, (mpsc::UnboundedSender<Vec<u8>>, HashSet<String>)>,
+    > = RwLock::new(HashMap::new());
 
     let backend = Arc::new(Self {
       channels,
@@ -97,7 +98,9 @@ impl RedisLiveBackend {
   fn fan_out_local(backend: &Arc<Self>, channel: &str, payload: &[u8]) {
     let ids: Vec<ConnectionId> = {
       let ch = backend.channels.read().unwrap();
-      ch.get(channel).map(|s| s.iter().copied().collect()).unwrap_or_default()
+      ch.get(channel)
+        .map(|s| s.iter().copied().collect())
+        .unwrap_or_default()
     };
     let conns = backend.connections.read().unwrap();
     for id in ids {
@@ -170,6 +173,8 @@ impl LiveBackend for RedisLiveBackend {
 
   async fn broadcast(&self, channel: &Channel, payload: &[u8]) {
     let name = channel.as_str().to_string();
-    let _ = self.command_tx.send(RedisCommand::Publish(name, payload.to_vec()));
+    let _ = self
+      .command_tx
+      .send(RedisCommand::Publish(name, payload.to_vec()));
   }
 }

@@ -1,6 +1,6 @@
 use argon2::{
-  password_hash::{PasswordHash, PasswordHasher, PasswordVerifier, SaltString, rand_core::OsRng},
   Argon2,
+  password_hash::{PasswordHash, PasswordHasher, PasswordVerifier, SaltString, rand_core::OsRng},
 };
 use forge_core::Error;
 
@@ -20,7 +20,9 @@ pub fn verify_password(password: &str, hash: &str) -> Result<bool, Error> {
   let parsed_hash =
     PasswordHash::new(hash).map_err(|e| Error::Generic(format!("Invalid password hash: {}", e)))?;
   let argon2 = Argon2::default();
-  let is_valid = argon2.verify_password(password.as_bytes(), &parsed_hash).is_ok();
+  let is_valid = argon2
+    .verify_password(password.as_bytes(), &parsed_hash)
+    .is_ok();
   Ok(is_valid)
 }
 

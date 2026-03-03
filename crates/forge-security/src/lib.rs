@@ -55,14 +55,13 @@ mod tests {
 
   #[test]
   fn add_security_headers_sets_owasp_headers() {
-    let res: Response<Body> = Response::builder()
-      .status(200)
-      .body(Body::empty())
-      .unwrap();
+    let res: Response<Body> = Response::builder().status(200).body(Body::empty()).unwrap();
     let res = add_security_headers(res);
     let headers = res.headers();
     assert_eq!(
-      headers.get("x-content-type-options").and_then(|v| v.to_str().ok()),
+      headers
+        .get("x-content-type-options")
+        .and_then(|v| v.to_str().ok()),
       Some("nosniff")
     );
     assert_eq!(
@@ -86,11 +85,15 @@ mod tests {
       Some("geolocation=(), camera=(), microphone=()")
     );
     assert_eq!(
-      headers.get("cross-origin-resource-policy").and_then(|v| v.to_str().ok()),
+      headers
+        .get("cross-origin-resource-policy")
+        .and_then(|v| v.to_str().ok()),
       Some("same-site")
     );
     assert_eq!(
-      headers.get("cross-origin-opener-policy").and_then(|v| v.to_str().ok()),
+      headers
+        .get("cross-origin-opener-policy")
+        .and_then(|v| v.to_str().ok()),
       Some("same-origin")
     );
   }

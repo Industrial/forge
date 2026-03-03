@@ -10,10 +10,12 @@ description = "Database connection and initialization for Forge framework"
 [dependencies]
 forge-config = { path = "../forge-config" }
 log = "0.4"
-sea-orm = { version = "1.1", features = [
+sea-orm = { version = "1.1", default-features = false, features = [
   "runtime-tokio-rustls",
   "sqlx-sqlite",
   "macros",
+  "with-uuid",
+  "with-chrono",
 ] }
 sea-orm-tracing = "0.2"
 

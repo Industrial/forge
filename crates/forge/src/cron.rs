@@ -2,8 +2,10 @@
 
 use tracing::error;
 
-pub use forge_cron::{CronSchedule, CronTaskBox, next_daily_run, next_hourly_run, next_interval_run};
 use crate::DbConnection;
+pub use forge_cron::{
+  CronSchedule, CronTaskBox, next_daily_run, next_hourly_run, next_interval_run,
+};
 
 /// Runner that starts the job-based scheduler and worker.
 pub struct CronRunner {

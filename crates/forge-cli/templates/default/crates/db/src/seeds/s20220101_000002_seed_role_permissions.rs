@@ -15,9 +15,10 @@ const PERMISSIONS: &[&str] = &[
   "dashboard.roles.write",
   "dashboard.permissions.read",
   "dashboard.permissions.write",
+  "dashboard.audit.read",
 ];
 
-/// Org-scoped: owner and admin get users, roles, and permissions read+write (organizations list is platform-only).
+/// Org-scoped: owner and admin get users, roles, permissions read+write, and audit read (organizations list is platform-only).
 const ORG_OWNER_ADMIN: &[&str] = &[
   "dashboard",
   "dashboard.users.read",
@@ -26,17 +27,28 @@ const ORG_OWNER_ADMIN: &[&str] = &[
   "dashboard.roles.write",
   "dashboard.permissions.read",
   "dashboard.permissions.write",
+  "dashboard.audit.read",
 ];
 
-/// Org-scoped: editor can read and write users.
+/// Org-scoped: editor can read and write users, roles, and role-permissions.
 const ORG_EDITOR: &[&str] = &[
   "dashboard",
   "dashboard.users.read",
   "dashboard.users.write",
+  "dashboard.permissions.read",
+  "dashboard.permissions.write",
+  "dashboard.roles.read",
+  "dashboard.roles.write",
 ];
 
-/// Org-scoped: viewer can only read users list.
-const ORG_VIEWER: &[&str] = &["dashboard", "dashboard.users.read"];
+/// Org-scoped: viewer can read users list, audit log, permissions, and roles.
+const ORG_VIEWER: &[&str] = &[
+  "dashboard",
+  "dashboard.users.read",
+  "dashboard.audit.read",
+  "dashboard.permissions.read",
+  "dashboard.roles.read",
+];
 
 async fn ensure_role_permission<C: ConnectionTrait>(
   db: &C,

@@ -3,25 +3,14 @@ set -euo pipefail
 
 echo "> pre-push-fix"
 
-echo "> pre-push-fix > applying automatic fixes..."
-
-# Fix formatting issues
-echo "> pre-push-fix > cargo fmt"
 cargo fmt --all
-
-# Fix other Rust issues (clippy, etc.)
 bin/fix
-
-echo "> pre-push-fix > running validation checks..."
-
-# Run checks that verify fixes and catch unfixable issues
 bin/check
 bin/lint
 bin/build
 bin/test
 # bin/test-examples
+bin/test-integration
 bin/test-e2e
 bin/audit
 bin/check-docs
-
-echo "> pre-push-fix > all fixable issues resolved, validation passed!"

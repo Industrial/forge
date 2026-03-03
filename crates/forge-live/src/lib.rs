@@ -31,8 +31,7 @@ pub async fn broadcast_to_channel<B: LiveBackend + ?Sized>(
   channel: &Channel,
   event: &LiveEvent,
 ) -> Result<(), forge_core::Error> {
-  let payload =
-    serde_json::to_vec(event).map_err(|e| forge_core::Error::Generic(e.to_string()))?;
+  let payload = serde_json::to_vec(event).map_err(|e| forge_core::Error::Generic(e.to_string()))?;
   backend.broadcast(channel, &payload).await;
   Ok(())
 }

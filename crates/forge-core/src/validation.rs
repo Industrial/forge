@@ -26,7 +26,9 @@ mod tests {
 
   #[test]
   fn validate_rejects_invalid_request() {
-    let r = TestRequest { name: "".to_string() };
+    let r = TestRequest {
+      name: "".to_string(),
+    };
     let res = r.validate();
     assert!(res.is_err());
     let err = res.unwrap_err();

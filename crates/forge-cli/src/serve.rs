@@ -75,8 +75,8 @@ pub fn run(config: &ForgeConfig) -> Result<(), Box<dyn std::error::Error>> {
 #[cfg(test)]
 mod tests {
   use super::*;
-  use forge::config::{AppConfig, DatabaseConfig, FrontendConfig, ServerConfig};
   use forge::ForgeConfig;
+  use forge::config::{AppConfig, DatabaseConfig, FrontendConfig, ServerConfig};
   use std::io::Write;
 
   fn default_config() -> ForgeConfig {
@@ -143,6 +143,10 @@ mod tests {
     let r = run(&default_config());
     let _ = std::env::set_current_dir(orig);
     let err = r.unwrap_err();
-    assert!(err.to_string().contains("main.rs"), "expected error about main.rs, got: {}", err);
+    assert!(
+      err.to_string().contains("main.rs"),
+      "expected error about main.rs, got: {}",
+      err
+    );
   }
 }

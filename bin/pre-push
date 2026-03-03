@@ -10,6 +10,7 @@ bin/lint
 bin/build
 bin/test
 # bin/test-examples
+bin/test-integration
 bin/test-e2e
 bin/audit
 bin/check-docs

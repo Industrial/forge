@@ -111,7 +111,7 @@ pub async fn guard_and_audit_user<U: AuthzContext + Send>(
 #[cfg(test)]
 mod tests {
   use super::*;
-  use sea_orm::{Database, DatabaseConnection, ConnectionTrait, Statement};
+  use sea_orm::{ConnectionTrait, Database, DatabaseConnection, Statement};
 
   struct MockAuthzUser {
     role: Option<Role>,
@@ -134,11 +134,9 @@ mod tests {
   }
 
   async fn test_db_with_audit_log() -> DatabaseConnection {
-    let db = Database::connect(sea_orm::ConnectOptions::new(
-      "sqlite::memory:".to_string(),
-    ))
-    .await
-    .unwrap();
+    let db = Database::connect(sea_orm::ConnectOptions::new("sqlite::memory:".to_string()))
+      .await
+      .unwrap();
     db.execute(Statement::from_string(
       db.get_database_backend(),
       "CREATE TABLE audit_log (
@@ -201,8 +199,16 @@ mod tests {
       role: Some(Role::Admin),
       org_id: None,
     };
-    assert!(guard_and_audit_user(&user, &db, Action::Read, Role::Viewer, "x", None).await.is_ok());
-    assert!(guard_and_audit_user(&user, &db, Action::Update, Role::Editor, "x", None).await.is_ok());
+    assert!(
+      guard_and_audit_user(&user, &db, Action::Read, Role::Viewer, "x", None)
+        .await
+        .is_ok()
+    );
+    assert!(
+      guard_and_audit_user(&user, &db, Action::Update, Role::Editor, "x", None)
+        .await
+        .is_ok()
+    );
   }
 
   #[tokio::test]

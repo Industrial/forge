@@ -211,14 +211,15 @@ mod tests {
   )"#;
 
   async fn in_memory_db() -> DatabaseConnection {
-    let db = Database::connect(sea_orm::ConnectOptions::new(
-      "sqlite::memory:".to_string(),
+    let db = Database::connect(sea_orm::ConnectOptions::new("sqlite::memory:".to_string()))
+      .await
+      .unwrap();
+    db.execute(Statement::from_string(
+      db.get_database_backend(),
+      AUDIT_LOG_DDL,
     ))
     .await
     .unwrap();
-    db.execute(Statement::from_string(db.get_database_backend(), AUDIT_LOG_DDL))
-      .await
-      .unwrap();
     db
   }
 
@@ -406,7 +407,9 @@ mod tests {
       reason: None,
     };
     log(&db, event).await.unwrap();
-    let n = anonymize_actor(&db, actor_id, Some(replace_with)).await.unwrap();
+    let n = anonymize_actor(&db, actor_id, Some(replace_with))
+      .await
+      .unwrap();
     assert_eq!(n, 1);
   }
 

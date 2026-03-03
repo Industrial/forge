@@ -56,10 +56,23 @@ impl HttpResponseCacheLayer {
 
   /// Inserts a raw cache entry (for testing cache-hit path that adds cache-control when missing).
   #[cfg(test)]
-  pub async fn test_insert_raw(&self, key: &str, status: StatusCode, headers: HeaderMap, body: Bytes) {
+  pub async fn test_insert_raw(
+    &self,
+    key: &str,
+    status: StatusCode,
+    headers: HeaderMap,
+    body: Bytes,
+  ) {
     self
       .cache
-      .insert(key.to_string(), CachedResponse { status, headers, body })
+      .insert(
+        key.to_string(),
+        CachedResponse {
+          status,
+          headers,
+          body,
+        },
+      )
       .await;
   }
 }
@@ -286,10 +299,7 @@ mod tests {
     type Error = std::convert::Infallible;
     type Future = std::future::Ready<Result<Self::Response, Self::Error>>;
 
-    fn poll_ready(
-      &mut self,
-      _cx: &mut std::task::Context<'_>,
-    ) -> Poll<Result<(), Self::Error>> {
+    fn poll_ready(&mut self, _cx: &mut std::task::Context<'_>) -> Poll<Result<(), Self::Error>> {
       Poll::Ready(Ok(()))
     }
 

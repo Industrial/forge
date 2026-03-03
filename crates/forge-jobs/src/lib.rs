@@ -2,7 +2,7 @@
 
 use apalis::prelude::*;
 use apalis_sqlite::SqliteStorage;
-use forge_cron::{next_daily_run, next_hourly_run, next_interval_run, CronSchedule, CronTaskBox};
+use forge_cron::{CronSchedule, CronTaskBox, next_daily_run, next_hourly_run, next_interval_run};
 use forge_db::DbConnection;
 use std::collections::HashMap;
 use std::sync::Arc;
@@ -29,7 +29,7 @@ pub async fn run_scheduler_and_worker(
   tasks: Vec<(String, CronSchedule, CronTaskBox)>,
 ) -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
   use apalis_sqlite::SqlitePool;
-  use tokio::time::{sleep_until, Instant};
+  use tokio::time::{Instant, sleep_until};
 
   let url = normalize_job_pool_url(db_url);
   let pool = SqlitePool::connect(url).await?;
@@ -118,16 +118,15 @@ mod tests {
 
   fn ok_task() -> CronTaskBox {
     Box::new(|_db: forge_db::DbConnection| {
-      Box::pin(async move { Ok(()) }) as Pin<Box<dyn Future<Output = Result<(), Box<dyn std::error::Error + Send + Sync>>> + Send>>
+      Box::pin(async move { Ok(()) })
+        as Pin<
+          Box<dyn Future<Output = Result<(), Box<dyn std::error::Error + Send + Sync>>> + Send>,
+        >
     })
   }
 
   fn err_task() -> CronTaskBox {
-    Box::new(|_db: forge_db::DbConnection| {
-      Box::pin(async move {
-        Err("task failed".into())
-      })
-    })
+    Box::new(|_db: forge_db::DbConnection| Box::pin(async move { Err("task failed".into()) }))
   }
 
   async fn test_db() -> forge_db::DbConnection {
@@ -139,13 +138,22 @@ mod tests {
 
   #[test]
   fn normalize_job_pool_url_normalizes_sqlite_memory() {
-    assert_eq!(normalize_job_pool_url("sqlite::memory:"), "sqlite://:memory:");
+    assert_eq!(
+      normalize_job_pool_url("sqlite::memory:"),
+      "sqlite://:memory:"
+    );
   }
 
   #[test]
   fn normalize_job_pool_url_passthrough_for_other_urls() {
-    assert_eq!(normalize_job_pool_url("sqlite:///path/to/db.sqlite"), "sqlite:///path/to/db.sqlite");
-    assert_eq!(normalize_job_pool_url("sqlite://:memory:"), "sqlite://:memory:");
+    assert_eq!(
+      normalize_job_pool_url("sqlite:///path/to/db.sqlite"),
+      "sqlite:///path/to/db.sqlite"
+    );
+    assert_eq!(
+      normalize_job_pool_url("sqlite://:memory:"),
+      "sqlite://:memory:"
+    );
   }
 
   #[test]
@@ -262,7 +270,10 @@ mod tests {
     let dir = std::env::temp_dir().join("forge_jobs_readonly_test");
     let _ = std::fs::create_dir_all(&dir);
     let path = dir.join("readonly.sqlite");
-    std::fs::File::create(&path).unwrap().write_all(b"").unwrap();
+    std::fs::File::create(&path)
+      .unwrap()
+      .write_all(b"")
+      .unwrap();
     let mut perms = std::fs::metadata(&path).unwrap().permissions();
     perms.set_readonly(true);
     std::fs::set_permissions(&path, perms).unwrap();

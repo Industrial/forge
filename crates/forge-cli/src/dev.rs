@@ -128,8 +128,8 @@ pub fn run(config: &ForgeConfig) -> Result<(), Box<dyn std::error::Error>> {
 #[cfg(test)]
 mod tests {
   use super::*;
-  use forge::config::{AppConfig, DatabaseConfig, FrontendConfig, ServerConfig};
   use forge::ForgeConfig;
+  use forge::config::{AppConfig, DatabaseConfig, FrontendConfig, ServerConfig};
   use std::io::Write;
 
   fn default_config() -> ForgeConfig {

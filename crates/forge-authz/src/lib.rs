@@ -312,10 +312,7 @@ mod tests {
       .unwrap();
     let policy = AllowAllPolicy;
     let ctx = MockContext::default();
-    let ok = policy
-      .can(&ctx, Action::Read, &(), &db)
-      .await
-      .unwrap();
+    let ok = policy.can(&ctx, Action::Read, &(), &db).await.unwrap();
     assert!(ok);
   }
 
@@ -326,10 +323,7 @@ mod tests {
       .unwrap();
     let policy = DenyAllPolicy;
     let ctx = MockContext::default();
-    let ok = policy
-      .can(&ctx, Action::Delete, &(), &db)
-      .await
-      .unwrap();
+    let ok = policy.can(&ctx, Action::Delete, &(), &db).await.unwrap();
     assert!(!ok);
   }
 

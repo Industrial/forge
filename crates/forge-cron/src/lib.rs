@@ -16,8 +16,10 @@ pub enum CronSchedule {
 
 /// Type-erased cron task: takes DB, returns a future.
 pub type CronTaskBox = Box<
-  dyn Fn(DbConnection)
-    -> Pin<Box<dyn Future<Output = Result<(), Box<dyn std::error::Error + Send + Sync>>> + Send>>
+  dyn Fn(
+      DbConnection,
+    )
+      -> Pin<Box<dyn Future<Output = Result<(), Box<dyn std::error::Error + Send + Sync>>> + Send>>
     + Send
     + Sync,
 >;
@@ -129,10 +131,7 @@ mod tests {
   fn cron_schedule_derive_clone_debug() {
     let interval = CronSchedule::Interval(Duration::from_secs(30));
     let hourly = CronSchedule::Hourly { minute: 15 };
-    let daily = CronSchedule::Daily {
-      hour: 9,
-      minute: 0,
-    };
+    let daily = CronSchedule::Daily { hour: 9, minute: 0 };
     let _ = format!("{:?}", interval);
     let _ = format!("{:?}", hourly);
     let _ = format!("{:?}", daily);

@@ -32,9 +32,9 @@ use crate::config::{self, ForgeConfig};
 use crate::cron::{CronRunner, CronSchedule, CronTaskBox};
 use crate::db;
 use crate::observability;
-use forge_security;
 use crate::token_auth::TokenAuthLayer;
 use crate::token_auth::TokenLookupFn;
+use forge_security;
 
 /// Type alias for the idempotent seeding function.
 pub type SeedFn = Box<
@@ -468,7 +468,9 @@ impl App {
     } else {
       router = router.layer(tower::util::MapRequestLayer::new(
         |mut req: axum::extract::Request| {
-          req.extensions_mut().insert(None::<Arc<forge_live::InMemoryLiveBackend>>);
+          req
+            .extensions_mut()
+            .insert(None::<Arc<forge_live::InMemoryLiveBackend>>);
           req
         },
       ));

@@ -7,9 +7,9 @@ use std::task::{Context, Poll};
 
 use axum::body::Body;
 use axum::extract::FromRequestParts;
-use axum::http::request::Parts;
 use axum::http::StatusCode;
 use axum::http::header::AUTHORIZATION;
+use axum::http::request::Parts;
 use axum_login::AuthSession;
 use axum_login::AuthUser;
 use axum_login::AuthnBackend;

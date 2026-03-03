@@ -255,9 +255,13 @@ mod tests {
     impl Drop for RestoreForgeTemplatesDir {
       fn drop(&mut self) {
         if let Some(ref v) = self.0 {
-          unsafe { std::env::set_var("FORGE_TEMPLATES_DIR", v); }
+          unsafe {
+            std::env::set_var("FORGE_TEMPLATES_DIR", v);
+          }
         } else {
-          unsafe { std::env::remove_var("FORGE_TEMPLATES_DIR"); }
+          unsafe {
+            std::env::remove_var("FORGE_TEMPLATES_DIR");
+          }
         }
       }
     }
@@ -266,10 +270,11 @@ mod tests {
     fn create_new_project_succeeds_with_valid_name() {
       let _guard = CREATE_PROJECT_LOCK.lock().unwrap();
       // Point at this crate's template so the test is hermetic regardless of cwd.
-      let template_parent =
-        std::path::Path::new(env!("CARGO_MANIFEST_DIR")).join("templates");
+      let template_parent = std::path::Path::new(env!("CARGO_MANIFEST_DIR")).join("templates");
       let _env_guard = RestoreForgeTemplatesDir(std::env::var("FORGE_TEMPLATES_DIR").ok());
-      unsafe { std::env::set_var("FORGE_TEMPLATES_DIR", &template_parent); }
+      unsafe {
+        std::env::set_var("FORGE_TEMPLATES_DIR", &template_parent);
+      }
 
       // Given: A temporary directory (use full path so test is safe when run in parallel).
       // Single project creation for all content assertions to reduce disk usage.
@@ -368,13 +373,18 @@ mod tests {
   /// Test suite for serve::run (error paths only; success path runs the server).
   mod serve_run {
     use super::*;
-    use forge::config::{AppConfig, DatabaseConfig, FrontendConfig, ServerConfig};
     use forge::ForgeConfig;
+    use forge::config::{AppConfig, DatabaseConfig, FrontendConfig, ServerConfig};
 
     fn default_config() -> ForgeConfig {
       ForgeConfig {
-        app: AppConfig { name: "test".to_string() },
-        server: ServerConfig { host: "127.0.0.1".to_string(), port: 3000 },
+        app: AppConfig {
+          name: "test".to_string(),
+        },
+        server: ServerConfig {
+          host: "127.0.0.1".to_string(),
+          port: 3000,
+        },
         database: DatabaseConfig {
           url: "sqlite::memory:".to_string(),
           max_connections: None,

@@ -80,7 +80,10 @@ mod tests {
   #[test]
   #[should_panic(expected = "expected Io variant")]
   fn io_error_variant_panics_on_generic() {
-    assert_io(&Error::Generic("wrong".to_string()), io::ErrorKind::NotFound);
+    assert_io(
+      &Error::Generic("wrong".to_string()),
+      io::ErrorKind::NotFound,
+    );
   }
 
   #[test]

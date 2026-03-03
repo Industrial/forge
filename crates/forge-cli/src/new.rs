@@ -162,7 +162,11 @@ mod tests {
     std::fs::create_dir_all(&existing).unwrap();
     let err = create_new_project(existing.to_str().unwrap()).unwrap_err();
     let msg = err.to_string();
-    assert!(msg.contains("already exists"), "expected 'already exists', got: {}", msg);
+    assert!(
+      msg.contains("already exists"),
+      "expected 'already exists', got: {}",
+      msg
+    );
   }
 
   /// When FORGE_TEMPLATES_DIR points to a nonexistent path, create_new_project returns Err.
@@ -172,12 +176,16 @@ mod tests {
   fn create_new_project_err_when_template_dir_not_found() {
     let tmp = tempfile::tempdir().unwrap();
     let missing = tmp.path().join("nonexistent");
-    unsafe { std::env::set_var("FORGE_TEMPLATES_DIR", missing.as_os_str()); }
+    unsafe {
+      std::env::set_var("FORGE_TEMPLATES_DIR", missing.as_os_str());
+    }
     let out_dir = tmp.path().join("out");
     std::fs::create_dir_all(&out_dir).unwrap();
     let project_path = out_dir.join("myapp");
     let result = create_new_project(project_path.to_str().unwrap());
-    unsafe { std::env::remove_var("FORGE_TEMPLATES_DIR"); }
+    unsafe {
+      std::env::remove_var("FORGE_TEMPLATES_DIR");
+    }
     assert!(result.is_err(), "expected Err when template dir is missing");
   }
 
@@ -188,17 +196,26 @@ mod tests {
     std::fs::create_dir_all(&template_root).unwrap();
     let f = template_root.join("Cargo.toml");
     let mut f = std::fs::File::create(&f).unwrap();
-    f.write_all(b"name = \"{{PROJECT_NAME}}\"\npath = \"{{FORGE_PATH}}\"").unwrap();
+    f.write_all(b"name = \"{{PROJECT_NAME}}\"\npath = \"{{FORGE_PATH}}\"")
+      .unwrap();
     f.sync_all().unwrap();
     drop(f);
-    unsafe { std::env::set_var("FORGE_TEMPLATES_DIR", tmp.path().join("templates")); }
+    unsafe {
+      std::env::set_var("FORGE_TEMPLATES_DIR", tmp.path().join("templates"));
+    }
     let out_dir = tmp.path().join("out");
     std::fs::create_dir_all(&out_dir).unwrap();
     let project_path = out_dir.join("myapp");
     let result = create_new_project(project_path.to_str().unwrap());
-    unsafe { std::env::remove_var("FORGE_TEMPLATES_DIR"); }
+    unsafe {
+      std::env::remove_var("FORGE_TEMPLATES_DIR");
+    }
     result.expect("create_new_project should succeed");
     let generated = std::fs::read_to_string(project_path.join("Cargo.toml")).unwrap();
-    assert!(generated.contains("myapp"), "expected PROJECT_NAME replacement: {}", generated);
+    assert!(
+      generated.contains("myapp"),
+      "expected PROJECT_NAME replacement: {}",
+      generated
+    );
   }
 }
