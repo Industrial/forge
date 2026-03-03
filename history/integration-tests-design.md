@@ -165,7 +165,7 @@ That gives a **finite, enumerable list** of test cases. The “100%” is relati
 
 ## 3. Suggested next steps
 
-1. **Decide test location for template:** e.g. `templates/default/crates/app/tests/` (in-process, router + test DB) or a sibling `integration-tests` crate. Prefer in-process for speed and determinism; add a small “running server” suite only if you want a smoke test of the real binary.
+1. **Decide test location for template:** e.g. `templates/default/crates/app/tests/` (in-process, router + test DB) or a sibling `integration-tests` crate. Prefer in-process for speed and determinism; add a small “running server” suite only if you want a smoke test of the real binary. **Decision:** Template integration tests live in `crates/app/tests/`; the app exposes `build_router_for_test()` so tests get the same router with a temp config and in-memory DB.
 2. **Export a test router (and optionally test DB) from the template app** so integration tests can build the same app with a temp config + in-memory (or temp-file) DB and call the router without binding to a port.
 3. **Implement the derivation:** maintain a single source of truth (e.g. a table or a small DSL) for “route R + user class U → outcome”, then generate or hand-write one test per cell. That way the “list” is explicit and you can check that every route and every user class is covered.
 4. **For forge (framework):** keep a short list of framework integration tests (auth, health, session, migrations) in the forge repo; that list is independent of the template’s “every user path” list.

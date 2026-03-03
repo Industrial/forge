@@ -24,7 +24,7 @@ impl MigrationTrait for Migration {
     manager
       .create_table(
         Table::create()
-          .table(Organization::Table)
+          .table(Alias::new("organization"))
           .if_not_exists()
           .col(
             ColumnDef::new(Organization::Id)
@@ -56,7 +56,7 @@ impl MigrationTrait for Migration {
 
   async fn down(&self, manager: &SchemaManager) -> Result<(), DbErr> {
     manager
-      .drop_table(Table::drop().table(Organization::Table).to_owned())
+      .drop_table(Table::drop().table(Alias::new("organization")).to_owned())
       .await
   }
 }

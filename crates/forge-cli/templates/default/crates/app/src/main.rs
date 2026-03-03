@@ -1,29 +1,14 @@
-use std::time::Duration;
-
 use axum::response::{Html, IntoResponse};
 use axum::routing::get;
-use db::auth::Backend;
-use forge::{App, CronSchedule};
 use tower_http::services::ServeDir;
 
-mod handlers;
-mod tasks;
+use app::make_app;
 
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
   forge::init_tracing();
   let live_backend = std::sync::Arc::new(forge::live::InMemoryLiveBackend::new());
-  let app = App::new()
-    .with_migrations(db::Migrator)
-    .with_seed(|db| Box::pin(db::run_seeds(db)))
-    .with_auth(|db| Backend::new(db))
-    .with_token_auth(db::token_lookup)
-    .with_cron(
-      "heartbeat",
-      CronSchedule::Interval(Duration::from_secs(60)),
-      |_db| async move { Ok(()) },
-    )
-    .with_live_query_using(live_backend.clone());
+  let app = make_app(live_backend.clone());
 
   let app = if forge::config::effective_environment().eq_ignore_ascii_case("production") {
     app.with_rate_limit_per_ip(60).with_rate_limit_per_user(60)
@@ -35,57 +20,9 @@ async fn main() -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
   let host = app.config().server.host.clone();
   let port = app.config().server.port;
 
-  let app = app
-    .route("/api/cache-demo", handlers::cache_demo::handler)
-    .route("/api/cached-page", handlers::cached_page::handler)
-    .route(
-      "/api/observability/trace-id",
-      handlers::observability::trace_id,
-    )
-    .route("/ws", handlers::ws::handler)
-    .post_route("/api/auth/register", handlers::auth::register)
-    .post_route("/api/auth/login", handlers::auth::login)
-    .route("/api/auth/logout", handlers::auth::logout)
-    .route("/api/auth/profile", handlers::auth::profile)
-    .route("/api/auth/profiles", handlers::auth::profiles_list)
-    .post_route("/api/auth/switch-profile", handlers::auth::switch_profile)
-    .route("/api/auth/session", handlers::auth::session_json)
-    .post_route("/api/auth/tokens", handlers::auth::create_token)
-    .route("/api/auth/admin", handlers::auth::admin_only)
-    .route("/api/dashboard/permissions", get(handlers::dashboard::list_permissions))
-    .route_methods(
-      "/api/dashboard/role-permissions",
-      get(handlers::dashboard::list_role_permissions)
-        .post(handlers::dashboard::add_role_permission)
-        .delete(handlers::dashboard::delete_role_permission),
-    )
-    .route("/api/dashboard/tasks", get(handlers::dashboard::list_tasks))
-    .route("/api/dashboard/audit-log", get(handlers::dashboard::list_audit_log))
-    .route_methods(
-      "/api/dashboard/organizations",
-      get(handlers::dashboard::list_organizations)
-        .post(handlers::dashboard::create_organization)
-        .patch(handlers::dashboard::update_organization)
-        .delete(handlers::dashboard::delete_organization),
-    )
-    .route_methods(
-      "/api/dashboard/users",
-      get(handlers::dashboard::list_users)
-        .post(handlers::dashboard::create_user)
-        .patch(handlers::dashboard::update_user)
-        .delete(handlers::dashboard::delete_user),
-    )
-    .route_methods(
-      "/api/dashboard/roles",
-      get(handlers::dashboard::list_roles)
-        .post(handlers::dashboard::create_role)
-        .patch(handlers::dashboard::update_role)
-        .delete(handlers::dashboard::delete_role),
-    );
-
   let (router, db_conn, cron_runner, response_cache) = app.into_router_before_state().await;
 
-  let task_state = std::sync::Arc::new(tasks::TaskState::new());
+  let task_state = std::sync::Arc::new(app::tasks::TaskState::new());
   {
     let task_state = task_state.clone();
     let live_backend = live_backend.clone();
