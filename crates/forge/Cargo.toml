@@ -41,7 +41,21 @@ hex = "0.4"
 sqlx = { version = "0.8", features = ["runtime-tokio-rustls", "sqlite"] }
 uuid = { version = "1.0", features = ["v4", "serde"] }
 chrono = { version = "0.4", features = ["serde"] }
+forge-cache = { path = "../forge-cache" }
+forge-config = { path = "../forge-config" }
+forge-core = { path = "../forge-core" }
+forge-cron = { path = "../forge-cron" }
+forge-db = { path = "../forge-db" }
+forge-health = { path = "../forge-health" }
+forge-jobs = { path = "../forge-jobs" }
+forge-rate-limit = { path = "../forge-rate-limit" }
+forge-seed = { path = "../forge-seed" }
+forge-live = { path = "../forge-live" }
+forge-observability = { path = "../forge-observability" }
+forge-security = { path = "../forge-security" }
 forge-macros = { path = "../forge-macros" }
+forge-audit = { path = "../forge-audit" }
+forge-auth = { path = "../forge-auth" }
 forge-authz = { path = "../forge-authz" }
 tower_governor = "0.8"
 governor = "0.10"

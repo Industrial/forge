@@ -1,16 +1,14 @@
 //! Rate limiting key extractors and helpers.
 //!
-//! Per-IP limiting uses tower_governor's `PeerIpKeyExtractor` (see `app.rs`).
+//! Per-IP limiting uses tower_governor's `PeerIpKeyExtractor` (in the app layer).
 //! Per-requester (per user per organization) uses `RequesterOrgKeyExtractor`,
 //! which reads `AuthSession` from request extensions (set by axum-login's layer).
 
 use axum_login::{AuthSession, AuthnBackend};
+use forge_authz::AuthzContext;
 use tower_governor::{errors::GovernorError, key_extractor::KeyExtractor};
 
-use crate::authz::AuthzContext;
-
 /// Key for per-requester rate limiting: `(organization_id, user_id)`.
-/// Each user has a separate limit within each organization.
 #[derive(Clone, Copy, Debug, Eq, Hash, PartialEq)]
 pub struct RequesterOrgKey {
   pub organization_id: Option<uuid::Uuid>,
@@ -18,14 +16,8 @@ pub struct RequesterOrgKey {
 }
 
 /// Extracts `(organization_id, user_id)` from `AuthSession` in request extensions.
-/// Used for rate limiting per requester (per user, per organization).
-///
-/// Authenticated requests are keyed by (org_id, user_id). Unauthenticated requests
-/// use a sentinel key `(None, nil)` so they are rate-limited in a single bucket
-/// but not rejected (register/login must work without auth).
 #[derive(Clone, Debug)]
 pub struct RequesterOrgKeyExtractor<B> {
-  /// Phantom data for the backend type `B` (no runtime value).
   _backend: std::marker::PhantomData<B>,
 }
 
@@ -107,7 +99,10 @@ mod tests {
       ) -> Result<Option<Self::User>, Self::Error> {
         Ok(None)
       }
-      async fn get_user(&self, _: &<Self::User as AuthUser>::Id) -> Result<Option<Self::User>, Self::Error> {
+      async fn get_user(
+        &self,
+        _: &<Self::User as AuthUser>::Id,
+      ) -> Result<Option<Self::User>, Self::Error> {
         Ok(None)
       }
     }
@@ -135,11 +130,10 @@ mod tests {
       }
     }
     let ext = RequesterOrgKeyExtractor::<DummyBackend>::new();
-    let ext_default = RequesterOrgKeyExtractor::<DummyBackend>::default();
+    let _ext_default = RequesterOrgKeyExtractor::<DummyBackend>::default();
     let req = Request::builder().body(()).unwrap();
     let key = ext.extract(&req).unwrap();
     assert!(key.organization_id.is_none());
     assert_eq!(key.user_id, uuid::Uuid::nil());
-    let _ = ext_default;
   }
 }

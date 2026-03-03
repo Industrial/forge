@@ -1123,8 +1123,22 @@ dependencies = [
  "bytes",
  "chrono",
  "figment",
+ "forge-audit",
+ "forge-auth",
  "forge-authz",
+ "forge-cache",
+ "forge-config",
+ "forge-core",
+ "forge-cron",
+ "forge-db",
+ "forge-health",
+ "forge-jobs",
+ "forge-live",
  "forge-macros",
+ "forge-observability",
+ "forge-rate-limit",
+ "forge-security",
+ "forge-seed",
  "futures",
  "governor",
  "hex",
@@ -1159,6 +1173,35 @@ dependencies = [
 ]
 
 [[package]]
+name = "forge-audit"
+version = "0.1.0"
+dependencies = [
+ "chrono",
+ "forge-authz",
+ "sea-orm",
+ "tracing",
+ "uuid",
+]
+
+[[package]]
+name = "forge-auth"
+version = "0.1.0"
+dependencies = [
+ "argon2",
+ "axum 0.8.8",
+ "axum-login",
+ "forge-authz",
+ "forge-core",
+ "forge-db",
+ "futures",
+ "hex",
+ "sha2",
+ "subtle",
+ "tower",
+ "uuid",
+]
+
+[[package]]
 name = "forge-authz"
 version = "0.1.0"
 dependencies = [
@@ -1170,6 +1213,19 @@ dependencies = [
  "thiserror 2.0.18",
  "tracing",
  "uuid",
+]
+
+[[package]]
+name = "forge-cache"
+version = "0.1.0"
+dependencies = [
+ "axum 0.8.8",
+ "bytes",
+ "forge-config",
+ "http",
+ "moka",
+ "tower",
+ "tracing",
 ]
 
 [[package]]
@@ -1188,12 +1244,121 @@ dependencies = [
 ]
 
 [[package]]
+name = "forge-config"
+version = "0.1.0"
+dependencies = [
+ "figment",
+ "serde",
+ "tempfile",
+]
+
+[[package]]
+name = "forge-core"
+version = "0.1.0"
+dependencies = [
+ "axum-valid",
+ "validator",
+]
+
+[[package]]
+name = "forge-cron"
+version = "0.1.0"
+dependencies = [
+ "chrono",
+ "forge-db",
+ "tokio",
+]
+
+[[package]]
+name = "forge-db"
+version = "0.1.0"
+dependencies = [
+ "forge-config",
+ "log",
+ "sea-orm",
+ "sea-orm-tracing",
+]
+
+[[package]]
+name = "forge-health"
+version = "0.1.0"
+dependencies = [
+ "axum 0.8.8",
+ "forge-db",
+ "sea-orm",
+]
+
+[[package]]
+name = "forge-jobs"
+version = "0.1.0"
+dependencies = [
+ "apalis",
+ "apalis-sqlite",
+ "forge-cron",
+ "forge-db",
+ "serde",
+ "tokio",
+ "tracing",
+]
+
+[[package]]
+name = "forge-live"
+version = "0.1.0"
+dependencies = [
+ "async-trait",
+ "forge-core",
+ "serde",
+ "serde_json",
+ "tokio",
+ "uuid",
+]
+
+[[package]]
 name = "forge-macros"
 version = "0.1.0"
 dependencies = [
  "proc-macro2",
  "quote",
  "syn 2.0.115",
+]
+
+[[package]]
+name = "forge-observability"
+version = "0.1.0"
+dependencies = [
+ "axum 0.8.8",
+ "opentelemetry",
+ "opentelemetry_sdk",
+ "tower",
+ "tracing-opentelemetry",
+ "tracing-opentelemetry-instrumentation-sdk",
+ "tracing-subscriber",
+]
+
+[[package]]
+name = "forge-rate-limit"
+version = "0.1.0"
+dependencies = [
+ "axum 0.8.8",
+ "axum-login",
+ "forge-authz",
+ "tower_governor",
+ "uuid",
+]
+
+[[package]]
+name = "forge-security"
+version = "0.1.0"
+dependencies = [
+ "axum 0.8.8",
+]
+
+[[package]]
+name = "forge-seed"
+version = "0.1.0"
+dependencies = [
+ "forge-db",
+ "futures",
 ]
 
 [[package]]

@@ -2,7 +2,8 @@
 //! Sets X-Content-Type-Options, X-Frame-Options, Referrer-Policy, CSP (frame-ancestors),
 //! Permissions-Policy, and Cross-Origin-Resource-Policy on all responses.
 
-use axum::http::{HeaderMap, HeaderName, HeaderValue, Response};
+use axum::http::{HeaderMap, HeaderName, HeaderValue};
+use axum::response::Response;
 
 /// Injects OWASP-recommended security headers into a response.
 /// Used with `tower::ServiceBuilder::map_response`.
@@ -13,7 +14,6 @@ pub fn add_security_headers<B>(mut res: Response<B>) -> Response<B> {
 
 /// Inserts or removes OWASP-recommended security headers in the given map (used by [`add_security_headers`]).
 fn add_security_headers_to_map(headers: &mut HeaderMap) {
-  // OWASP: reduce fingerprinting — remove or genericize server-identifying headers
   headers.remove(HeaderName::from_static("server"));
   headers.remove(HeaderName::from_static("x-powered-by"));
 

@@ -1,0 +1,18 @@
+[package]
+name = "forge-rate-limit"
+version = "0.1.0"
+edition = "2024"
+authors = ["Tom Wieland <tom.wieland@gmail.com>"]
+license = "MIT OR Apache-2.0"
+repository = "https://github.com/Industrial/forge"
+description = "Rate limiting key extractors for Forge (per-IP, per-requester)"
+
+[dependencies]
+axum = "0.8"
+axum-login = "0.17"
+forge-authz = { path = "../forge-authz" }
+tower_governor = "0.8"
+uuid = { version = "1.0", features = ["v4"] }
+
+[lints.rust]
+unexpected_cfgs = { level = "warn", check-cfg = ['cfg(coverage)'] }

@@ -32,7 +32,7 @@ use crate::config::{self, ForgeConfig};
 use crate::cron::{CronRunner, CronSchedule, CronTaskBox};
 use crate::db;
 use crate::observability;
-use crate::security_headers;
+use forge_security;
 use crate::token_auth::TokenAuthLayer;
 use crate::token_auth::TokenLookupFn;
 
@@ -100,6 +100,8 @@ pub struct App {
   token_lookup: Option<TokenLookupFn>,
   /// Cron tasks to run in-process when serve() is used.
   cron_tasks: Vec<(String, CronSchedule, CronTaskBox)>,
+  /// Optional Live Query backend for real-time broadcast (e.g. [forge_live::InMemoryLiveBackend]).
+  live_backend: Option<Arc<forge_live::InMemoryLiveBackend>>,
 }
 
 impl App {
@@ -143,7 +145,16 @@ impl App {
       rate_limit_per_user: None,
       token_lookup: None,
       cron_tasks: Vec::new(),
+      live_backend: None,
     })
+  }
+
+  /// Enable Live Query: in-memory channel broadcast for real-time sync.
+  /// Handlers can use [Extension]<Option<Arc<forge_live::InMemoryLiveBackend>>>
+  /// and call [forge_live::broadcast_to_org] after mutations.
+  pub fn with_live_query(mut self) -> Self {
+    self.live_backend = Some(Arc::new(forge_live::InMemoryLiveBackend::new()));
+    self
   }
 
   /// Enable per-requester (per user, per organization) rate limiting.
@@ -247,7 +258,7 @@ impl App {
             let mut builder = GovernorConfigBuilder::default();
             builder.per_second(1).burst_size(burst);
             let mut builder2 =
-              builder.key_extractor(crate::rate_limit::RequesterOrgKeyExtractor::<B>::new());
+              builder.key_extractor(forge_rate_limit::RequesterOrgKeyExtractor::<B>::new());
             let conf = builder2.finish().expect("GovernorConfigBuilder per-user");
             router.layer(GovernorLayer::new(Arc::new(conf)))
           } else {
@@ -361,6 +372,7 @@ impl App {
       rate_limit_per_user,
       token_lookup,
       cron_tasks,
+      live_backend,
     } = self;
 
     info!(
@@ -413,7 +425,7 @@ impl App {
     };
 
     router = router.layer(tower::util::MapResponseLayer::new(
-      security_headers::add_security_headers,
+      forge_security::add_security_headers,
     ));
 
     router = router
@@ -436,6 +448,24 @@ impl App {
         req
       },
     ));
+
+    if let Some(ref live) = live_backend {
+      let live_ext = live.clone();
+      router = router.layer(tower::util::MapRequestLayer::new(
+        move |mut req: axum::extract::Request| {
+          req.extensions_mut().insert(Some(live_ext.clone()));
+          req
+        },
+      ));
+      info!("Live Query enabled");
+    } else {
+      router = router.layer(tower::util::MapRequestLayer::new(
+        |mut req: axum::extract::Request| {
+          req.extensions_mut().insert(None::<Arc<forge_live::InMemoryLiveBackend>>);
+          req
+        },
+      ));
+    }
 
     let response_cache_layer = config.cache.as_ref().and_then(|cache_cfg| {
       let layer = cache_http_layer::HttpResponseCacheLayer::from_config(cache_cfg);

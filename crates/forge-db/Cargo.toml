@@ -1,0 +1,21 @@
+[package]
+name = "forge-db"
+version = "0.1.0"
+edition = "2024"
+authors = ["Tom Wieland <tom.wieland@gmail.com>"]
+license = "MIT OR Apache-2.0"
+repository = "https://github.com/Industrial/forge"
+description = "Database connection and initialization for Forge framework"
+
+[dependencies]
+forge-config = { path = "../forge-config" }
+log = "0.4"
+sea-orm = { version = "1.1", features = [
+  "runtime-tokio-rustls",
+  "sqlx-sqlite",
+  "macros",
+] }
+sea-orm-tracing = "0.2"
+
+[lints.rust]
+unexpected_cfgs = { level = "warn", check-cfg = ['cfg(coverage)'] }

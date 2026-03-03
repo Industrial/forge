@@ -15,8 +15,21 @@ pub mod error;
 pub mod health;
 pub mod jobs;
 pub mod observability;
-pub mod rate_limit;
-pub mod security_headers;
+pub mod rate_limit {
+  //! Re-export from forge-rate-limit for backward compatibility.
+  pub use forge_rate_limit::{RequesterOrgKey, RequesterOrgKeyExtractor};
+}
+/// Live Query (real-time broadcast). Re-exported from [forge_live](forge_live).
+pub mod live {
+  pub use forge_live::{
+    broadcast_to_channel, broadcast_to_org, org_channel, Channel, ConnectionId, InMemoryLiveBackend,
+    LiveBackend, LiveEvent,
+  };
+}
+pub mod security_headers {
+  //! Re-export from forge-security for backward compatibility.
+  pub use forge_security::add_security_headers;
+}
 pub mod seed;
 pub mod token_auth;
 pub mod validation;
@@ -29,17 +42,14 @@ pub use cache::{AppCache, CacheConfig};
 pub use cache_http_layer::HttpResponseCacheLayer;
 pub use config::ForgeConfig;
 pub use cron::CronSchedule;
-pub use db::initialize_database;
+pub use forge_db::{initialize_database, DbConnection};
 pub use error::Error;
 pub use jobs::ScheduledTaskJob;
 pub use observability::{find_current_trace_id, trace_id_from_traceparent};
-pub use rate_limit::RequesterOrgKey;
+pub use forge_rate_limit::RequesterOrgKey;
 pub use seed::Seeder;
 pub use token_auth::{OptionalRequireAuth, RequireAuth, TokenAuthLayer, TokenLookupFn, TokenUser};
 pub use validation::{Valid, Validate};
-
-/// Database connection type: [sea_orm_tracing::TracedConnection] for OpenTelemetry spans on all DB operations (SQLite and others).
-pub use sea_orm_tracing::TracedConnection as DbConnection;
 
 // Re-exports for a unified API (Phase 3)
 pub use async_trait;

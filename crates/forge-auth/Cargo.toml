@@ -1,0 +1,25 @@
+[package]
+name = "forge-auth"
+version = "0.1.0"
+edition = "2024"
+authors = ["Tom Wieland <tom.wieland@gmail.com>"]
+license = "MIT OR Apache-2.0"
+repository = "https://github.com/Industrial/forge"
+description = "Authentication (password hashing, API token, session) for Forge framework"
+
+[dependencies]
+argon2 = "0.5"
+axum = "0.8"
+axum-login = "0.17"
+forge-authz = { path = "../forge-authz" }
+forge-core = { path = "../forge-core" }
+forge-db = { path = "../forge-db" }
+futures = "0.3"
+hex = "0.4"
+sha2 = "0.10"
+subtle = "2.5"
+tower = { version = "0.5", features = ["util"] }
+uuid = { version = "1.0", features = ["v4"] }
+
+[lints.rust]
+unexpected_cfgs = { level = "warn", check-cfg = ['cfg(coverage)'] }
