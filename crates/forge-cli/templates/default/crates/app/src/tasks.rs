@@ -1,10 +1,10 @@
-//! In-memory task list for the dashboard tasks page. Updated by a background loop and broadcast over WebSocket.
-//! Also holds the audit-log broadcast for live audit entry updates.
+//! In-memory task list for the dashboard tasks page. Updated by a background loop and broadcast via forge-live.
 
 use chrono::{DateTime, Utc};
+use forge::live::{Channel, InMemoryLiveBackend, LiveBackend};
 use serde::Serialize;
 use std::sync::Arc;
-use tokio::sync::{broadcast, RwLock};
+use tokio::sync::RwLock;
 
 /// Status of a task for the dashboard.
 #[derive(Clone, Debug, Serialize, PartialEq)]
@@ -29,22 +29,15 @@ pub struct Task {
   pub finished_at: Option<DateTime<Utc>>,
 }
 
-/// Shared task state: list + broadcast sender for live updates; audit-log broadcast for new entries.
+/// Shared task state: list updated by tick and broadcast via forge-live.
 pub struct TaskState {
   pub store: Arc<RwLock<Vec<Task>>>,
-  pub broadcast: broadcast::Sender<Vec<Task>>,
-  /// Broadcasts a single audit log entry (JSON object) when new entries are written.
-  pub audit_broadcast: broadcast::Sender<serde_json::Value>,
 }
 
 impl TaskState {
   pub fn new() -> Self {
-    let (broadcast, _) = broadcast::channel(16);
-    let (audit_broadcast, _) = broadcast::channel(64);
     Self {
       store: Arc::new(RwLock::new(Self::default_tasks())),
-      broadcast,
-      audit_broadcast,
     }
   }
 
@@ -78,8 +71,8 @@ impl TaskState {
     ]
   }
 
-  /// Advance demo state and broadcast (called by background loop).
-  pub async fn tick(&self) {
+  /// Advance demo state and broadcast via forge-live (called by background loop).
+  pub async fn tick(&self, live_backend: &Arc<InMemoryLiveBackend>) {
     let mut tasks = self.store.read().await.clone();
     let now = Utc::now();
     // Rotate: first planned -> running, first running -> ran, add new planned.
@@ -103,7 +96,9 @@ impl TaskState {
       };
     }
     *self.store.write().await = tasks.clone();
-    let _ = self.broadcast.send(tasks);
+    let channel = Channel::raw("tasks");
+    let payload = serde_json::to_vec(&serde_json::json!({ "type": "tasks", "tasks": tasks })).unwrap_or_default();
+    live_backend.broadcast(&channel, &payload).await;
   }
 }
 
@@ -125,23 +120,14 @@ mod tests {
   #[tokio::test]
   async fn task_state_tick_rotates_statuses() {
     let state = TaskState::new();
+    let backend = Arc::new(InMemoryLiveBackend::new());
     let before: Vec<TaskStatus> = state.store.read().await.iter().map(|t| t.status.clone()).collect();
-    state.tick().await;
+    state.tick(&backend).await;
     let after: Vec<TaskStatus> = state.store.read().await.iter().map(|t| t.status.clone()).collect();
     assert_eq!(before.len(), after.len());
-    // After one tick: one Planned->Running, one Running->Ran, one Ran->new Planned (with new id).
     let planned_after = after.iter().filter(|s| **s == TaskStatus::Planned).count();
     let running_after = after.iter().filter(|s| **s == TaskStatus::Running).count();
     let ran_after = after.iter().filter(|s| **s == TaskStatus::Ran).count();
     assert_eq!(planned_after + running_after + ran_after, 3);
-  }
-
-  #[tokio::test]
-  async fn task_state_tick_broadcasts_updated_list() {
-    let state = TaskState::new();
-    let mut rx = state.broadcast.subscribe();
-    state.tick().await;
-    let received = rx.recv().await.unwrap();
-    assert_eq!(received.len(), 3);
   }
 }

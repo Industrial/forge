@@ -7,10 +7,14 @@ use axum::{
   response::{IntoResponse, Response},
 };
 use chrono::NaiveDateTime;
+use forge::live::{Channel, LiveEvent, InMemoryLiveBackend};
 use forge::token_auth::RequireAuth;
+use forge::live::broadcast_to_channel;
+use forge::live::broadcast_to_org;
 use forge::{DbConnection, Error as ForgeError};
 use sea_orm::{ActiveModelTrait, ColumnTrait, EntityTrait, PaginatorTrait, QueryFilter, QueryOrder, QuerySelect, Set};
 use serde::Deserialize;
+use std::sync::Arc;
 use uuid::Uuid;
 
 use forge::auth::hash_password;
@@ -241,6 +245,7 @@ pub struct AddRolePermissionBody {
 pub async fn add_role_permission(
   RequireAuth(user): RequireAuth<Backend>,
   State(db): State<DbConnection>,
+  Extension(live_backend): Extension<Option<Arc<InMemoryLiveBackend>>>,
   Json(payload): Json<AddRolePermissionBody>,
 ) -> Result<impl IntoResponse, ForgeError> {
   if let Some(resp) = require_permission(&user, &db, PERMISSION_WRITE).await {
@@ -320,6 +325,9 @@ pub async fn add_role_permission(
     .exec(&db)
     .await
     .map_err(|e| ForgeError::Generic(e.to_string()))?;
+  if let (Some(ref backend), Some(org_id)) = (live_backend.as_ref(), org_id_opt) {
+    let _ = broadcast_to_org(backend, org_id, &LiveEvent::ResourceChanged { resource: "role_permissions".into(), id, action: Some("created".into()) }).await;
+  }
   Ok((StatusCode::CREATED, Json(serde_json::json!({ "ok": true }))).into_response())
 }
 
@@ -336,6 +344,7 @@ pub struct DeleteRolePermissionBody {
 pub async fn delete_role_permission(
   RequireAuth(user): RequireAuth<Backend>,
   State(db): State<DbConnection>,
+  Extension(live_backend): Extension<Option<Arc<InMemoryLiveBackend>>>,
   Json(payload): Json<DeleteRolePermissionBody>,
 ) -> Result<impl IntoResponse, ForgeError> {
   if let Some(resp) = require_permission(&user, &db, PERMISSION_WRITE).await {
@@ -388,6 +397,9 @@ pub async fn delete_role_permission(
       )
         .into_response(),
     );
+  }
+  if let (Some(ref backend), Some(org_id)) = (live_backend.as_ref(), org_id_opt) {
+    let _ = broadcast_to_org(backend, org_id, &LiveEvent::ResourceChanged { resource: "role_permissions".into(), id: Uuid::nil(), action: Some("deleted".into()) }).await;
   }
   Ok(Json(serde_json::json!({ "ok": true })).into_response())
 }
@@ -476,6 +488,7 @@ pub struct CreateRoleBody {
 pub async fn create_role(
   RequireAuth(user): RequireAuth<Backend>,
   State(db): State<DbConnection>,
+  Extension(live_backend): Extension<Option<Arc<InMemoryLiveBackend>>>,
   Json(payload): Json<CreateRoleBody>,
 ) -> Result<impl IntoResponse, ForgeError> {
   if let Some(resp) = require_permission(&user, &db, PERMISSION_ROLES_WRITE).await {
@@ -545,6 +558,9 @@ pub async fn create_role(
     ..Default::default()
   };
   org_role::Entity::insert(model).exec(&db).await.map_err(|e| ForgeError::Generic(e.to_string()))?;
+  if let Some(ref backend) = live_backend {
+    let _ = broadcast_to_org(backend, org_id, &LiveEvent::ResourceChanged { resource: "roles".into(), id, action: Some("created".into()) }).await;
+  }
   Ok(
     (
       StatusCode::CREATED,
@@ -572,6 +588,7 @@ pub struct UpdateRoleBody {
 pub async fn update_role(
   RequireAuth(user): RequireAuth<Backend>,
   State(db): State<DbConnection>,
+  Extension(live_backend): Extension<Option<Arc<InMemoryLiveBackend>>>,
   Json(payload): Json<UpdateRoleBody>,
 ) -> Result<impl IntoResponse, ForgeError> {
   if let Some(resp) = require_permission(&user, &db, PERMISSION_ROLES_WRITE).await {
@@ -621,6 +638,9 @@ pub async fn update_role(
   }
   am.updated_at = Set(chrono::Utc::now().naive_utc());
   am.update(&db).await.map_err(|e| ForgeError::Generic(e.to_string()))?;
+  if let Some(ref backend) = live_backend {
+    let _ = broadcast_to_org(backend, org_id, &LiveEvent::ResourceChanged { resource: "roles".into(), id: role_id, action: Some("updated".into()) }).await;
+  }
   Ok(Json(serde_json::json!({ "ok": true })).into_response())
 }
 
@@ -633,6 +653,7 @@ pub struct DeleteRoleBody {
 pub async fn delete_role(
   RequireAuth(user): RequireAuth<Backend>,
   State(db): State<DbConnection>,
+  Extension(live_backend): Extension<Option<Arc<InMemoryLiveBackend>>>,
   Json(payload): Json<DeleteRoleBody>,
 ) -> Result<impl IntoResponse, ForgeError> {
   if let Some(resp) = require_permission(&user, &db, PERMISSION_ROLES_WRITE).await {
@@ -670,6 +691,9 @@ pub async fn delete_role(
     .exec(&db)
     .await
     .map_err(|e| ForgeError::Generic(e.to_string()))?;
+  if let Some(ref backend) = live_backend {
+    let _ = broadcast_to_org(backend, role.org_id, &LiveEvent::ResourceChanged { resource: "roles".into(), id: payload.id, action: Some("deleted".into()) }).await;
+  }
   Ok(Json(serde_json::json!({ "ok": true })).into_response())
 }
 
@@ -695,6 +719,7 @@ fn slug_from_name(name: &str) -> String {
 pub async fn create_organization(
   RequireAuth(user): RequireAuth<Backend>,
   State(db): State<DbConnection>,
+  Extension(live_backend): Extension<Option<Arc<InMemoryLiveBackend>>>,
   Json(payload): Json<CreateOrganizationBody>,
 ) -> Result<impl IntoResponse, ForgeError> {
   if let Some(resp) = require_permission(&user, &db, PERMISSION_ORGS_WRITE).await {
@@ -747,6 +772,10 @@ pub async fn create_organization(
     org_role::Entity::insert(r).exec(&db).await.map_err(|e| ForgeError::Generic(e.to_string()))?;
   }
   db::seed_role_permissions_for_org(&db, id).await.map_err(|e| ForgeError::Generic(e.to_string()))?;
+  if let Some(ref backend) = live_backend {
+    let ch = Channel::raw("organizations");
+    let _ = broadcast_to_channel(backend, &ch, &LiveEvent::ResourceChanged { resource: "organizations".into(), id, action: Some("created".into()) }).await;
+  }
   Ok(
     (
       StatusCode::CREATED,
@@ -773,6 +802,7 @@ pub struct UpdateOrganizationBody {
 pub async fn update_organization(
   RequireAuth(user): RequireAuth<Backend>,
   State(db): State<DbConnection>,
+  Extension(live_backend): Extension<Option<Arc<InMemoryLiveBackend>>>,
   Json(payload): Json<UpdateOrganizationBody>,
 ) -> Result<impl IntoResponse, ForgeError> {
   if let Some(resp) = require_permission(&user, &db, PERMISSION_ORGS_WRITE).await {
@@ -798,6 +828,10 @@ pub async fn update_organization(
   }
   am.updated_at = Set(chrono::Utc::now().naive_utc());
   am.update(&db).await.map_err(|e| ForgeError::Generic(e.to_string()))?;
+  if let Some(ref backend) = live_backend {
+    let ch = Channel::raw("organizations");
+    let _ = broadcast_to_channel(backend, &ch, &LiveEvent::ResourceChanged { resource: "organizations".into(), id: payload.id, action: Some("updated".into()) }).await;
+  }
   let updated = organization::Entity::find_by_id(payload.id)
     .one(&db)
     .await
@@ -821,6 +855,7 @@ pub struct DeleteOrganizationBody {
 pub async fn delete_organization(
   RequireAuth(user): RequireAuth<Backend>,
   State(db): State<DbConnection>,
+  Extension(live_backend): Extension<Option<Arc<InMemoryLiveBackend>>>,
   Json(payload): Json<DeleteOrganizationBody>,
 ) -> Result<impl IntoResponse, ForgeError> {
   if let Some(resp) = require_permission(&user, &db, PERMISSION_ORGS_WRITE).await {
@@ -838,6 +873,10 @@ pub async fn delete_organization(
       )
         .into_response(),
     );
+  }
+  if let Some(ref backend) = live_backend {
+    let ch = Channel::raw("organizations");
+    let _ = broadcast_to_channel(backend, &ch, &LiveEvent::ResourceChanged { resource: "organizations".into(), id: payload.id, action: Some("deleted".into()) }).await;
   }
   Ok(Json(serde_json::json!({ "ok": true })).into_response())
 }
@@ -970,6 +1009,7 @@ pub struct CreateUserBody {
 pub async fn create_user(
   RequireAuth(user): RequireAuth<Backend>,
   State(db): State<DbConnection>,
+  Extension(live_backend): Extension<Option<Arc<InMemoryLiveBackend>>>,
   Json(payload): Json<CreateUserBody>,
 ) -> Result<impl IntoResponse, ForgeError> {
   if let Some(resp) = require_permission(&user, &db, PERMISSION_USERS_WRITE).await {
@@ -1114,6 +1154,9 @@ pub async fn create_user(
     .into_iter()
     .map(|r| r.name)
     .collect();
+  if let Some(ref backend) = live_backend {
+    let _ = broadcast_to_org(backend, org_id, &LiveEvent::UsersUpdated { user_id: Some(user_id), org_id: Some(org_id) }).await;
+  }
   Ok(
     (
       StatusCode::CREATED,
@@ -1141,6 +1184,7 @@ pub struct UpdateUserBody {
 pub async fn update_user(
   RequireAuth(user): RequireAuth<Backend>,
   State(db): State<DbConnection>,
+  Extension(live_backend): Extension<Option<Arc<InMemoryLiveBackend>>>,
   Json(payload): Json<UpdateUserBody>,
 ) -> Result<impl IntoResponse, ForgeError> {
   if let Some(resp) = require_permission(&user, &db, PERMISSION_USERS_WRITE).await {
@@ -1163,6 +1207,11 @@ pub async fn update_user(
   }
   am.updated_at = Set(chrono::Utc::now().naive_utc());
   am.update(&db).await.map_err(|e| ForgeError::Generic(e.to_string()))?;
+  if let Some(ref backend) = live_backend {
+    if let Some(org_id) = user.current_org_id {
+      let _ = broadcast_to_org(backend, org_id, &LiveEvent::UsersUpdated { user_id: Some(payload.id), org_id: Some(org_id) }).await;
+    }
+  }
   Ok(Json(serde_json::json!({ "ok": true })).into_response())
 }
 
@@ -1175,6 +1224,7 @@ pub struct DeleteUserBody {
 pub async fn delete_user(
   RequireAuth(user): RequireAuth<Backend>,
   State(db): State<DbConnection>,
+  Extension(live_backend): Extension<Option<Arc<InMemoryLiveBackend>>>,
   Json(payload): Json<DeleteUserBody>,
 ) -> Result<impl IntoResponse, ForgeError> {
   if let Some(resp) = require_permission(&user, &db, PERMISSION_USERS_WRITE).await {
@@ -1197,6 +1247,11 @@ pub async fn delete_user(
       )
         .into_response(),
     );
+  }
+  if let Some(ref backend) = live_backend {
+    if let Some(org_id) = user.current_org_id {
+      let _ = broadcast_to_org(backend, org_id, &LiveEvent::UsersUpdated { user_id: Some(payload.id), org_id: Some(org_id) }).await;
+    }
   }
   Ok(Json(serde_json::json!({ "ok": true })).into_response())
 }

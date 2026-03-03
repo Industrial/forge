@@ -108,6 +108,15 @@ impl From<&str> for Error {
   }
 }
 
+impl From<forge_core::error::Error> for Error {
+  fn from(err: forge_core::error::Error) -> Self {
+    match err {
+      forge_core::error::Error::Io(e) => Error::Io(e),
+      forge_core::error::Error::Generic(s) => Error::Generic(s),
+    }
+  }
+}
+
 #[cfg(test)]
 mod tests {
   use super::*;

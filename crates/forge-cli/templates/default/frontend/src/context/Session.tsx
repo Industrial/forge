@@ -6,7 +6,12 @@ import React, {
 	useState,
 } from "react";
 
-export type SessionUser = { id: string; email: string };
+export type SessionUser = {
+	id: string;
+	email: string;
+	/** Current organization context for dashboard; used for live WebSocket subscription. */
+	current_org_id: string | null;
+};
 
 export type Flash = { message?: string; error?: string };
 
@@ -43,8 +48,15 @@ async function fetchSession(): Promise<{
 	const res = await fetch("/api/auth/session", { credentials: "include" });
 	if (!res.ok) return { user: null, profiles: [], permissions: [], flash: null };
 	const data = await res.json();
+	const user = data.user
+		? {
+				id: data.user.id,
+				email: data.user.email,
+				current_org_id: data.user.current_org_id ?? null,
+			}
+		: null;
 	return {
-		user: data.user ?? null,
+		user,
 		profiles: Array.isArray(data.profiles) ? data.profiles : [],
 		permissions: Array.isArray(data.permissions) ? data.permissions : [],
 		flash:

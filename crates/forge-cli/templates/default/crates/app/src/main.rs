@@ -1,7 +1,7 @@
 use std::time::Duration;
 
 use axum::response::{Html, IntoResponse};
-use axum::routing::{delete, get, patch, post};
+use axum::routing::get;
 use db::auth::Backend;
 use forge::{App, CronSchedule};
 use tower_http::services::ServeDir;
@@ -12,6 +12,7 @@ mod tasks;
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
   forge::init_tracing();
+  let live_backend = std::sync::Arc::new(forge::live::InMemoryLiveBackend::new());
   let app = App::new()
     .with_migrations(db::Migrator)
     .with_seed(|db| Box::pin(db::run_seeds(db)))
@@ -21,7 +22,8 @@ async fn main() -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
       "heartbeat",
       CronSchedule::Interval(Duration::from_secs(60)),
       |_db| async move { Ok(()) },
-    );
+    )
+    .with_live_query_using(live_backend.clone());
 
   let app = if forge::config::effective_environment().eq_ignore_ascii_case("production") {
     app.with_rate_limit_per_ip(60).with_rate_limit_per_user(60)
@@ -86,11 +88,12 @@ async fn main() -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
   let task_state = std::sync::Arc::new(tasks::TaskState::new());
   {
     let task_state = task_state.clone();
+    let live_backend = live_backend.clone();
     tokio::spawn(async move {
       let mut interval = tokio::time::interval(std::time::Duration::from_secs(8));
       loop {
         interval.tick().await;
-        task_state.tick().await;
+        task_state.tick(&live_backend).await;
       }
     });
   }

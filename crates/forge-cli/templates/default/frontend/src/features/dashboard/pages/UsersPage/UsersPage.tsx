@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import Typography from "@mui/material/Typography";
 import Box from "@mui/material/Box";
 import Button from "@mui/material/Button";
@@ -23,7 +23,9 @@ import FormControl from "@mui/material/FormControl";
 import InputLabel from "@mui/material/InputLabel";
 import Select from "@mui/material/Select";
 import MenuItem from "@mui/material/MenuItem";
+import Chip from "@mui/material/Chip";
 import { useSession } from "../../../../context/Session";
+import { useLiveChannel } from "../../../../hooks/useLiveChannel";
 
 type Membership = {
 	org_id: string;
@@ -182,32 +184,14 @@ function membershipsSummary(memberships: Membership[]) {
 }
 
 export default function UsersPage() {
-	const { permissions } = useSession();
+	const { permissions, user } = useSession();
 	const canRead = permissions.includes(USERS_READ);
 	const canWrite = permissions.includes(USERS_WRITE);
-
-	const [users, setUsers] = useState<User[]>([]);
-	const [organizations, setOrganizations] = useState<Organization[]>([]);
-	const [loading, setLoading] = useState(true);
-	const [error, setError] = useState<string | null>(null);
-	const [addDialogOpen, setAddDialogOpen] = useState(false);
-	const [addEmail, setAddEmail] = useState("");
-	const [addPassword, setAddPassword] = useState("");
-	const [addOrgId, setAddOrgId] = useState("");
-	const [addRoleIds, setAddRoleIds] = useState<string[]>([]);
-	const [orgRoles, setOrgRoles] = useState<OrgRole[]>([]);
-	const [adding, setAdding] = useState(false);
-	const [filterEmail, setFilterEmail] = useState("");
-	const [filterOrgId, setFilterOrgId] = useState("");
-	const [filterRole, setFilterRole] = useState("");
-	const [filterActive, setFilterActive] = useState<"" | "yes" | "no">("");
-	const [filterAdmin, setFilterAdmin] = useState<"" | "yes" | "no">("");
-	const [editUser, setEditUser] = useState<User | null>(null);
-	const [editEmail, setEditEmail] = useState("");
-	const [editActive, setEditActive] = useState(true);
-	const [saving, setSaving] = useState(false);
-	const [deletingId, setDeletingId] = useState<string | null>(null);
-
+	const orgChannel = user?.current_org_id ? `org:${user.current_org_id}` : null;
+	const fetchUsersRef = useRef<() => void>(() => {});
+	const { connected: wsConnected } = useLiveChannel(orgChannel, (ev) => {
+		if (ev.type === "users_updated") fetchUsersRef.current?.();
+	});
 	const fetchUsers = useCallback(async () => {
 		if (!canRead) {
 			setLoading(false);
@@ -251,6 +235,29 @@ export default function UsersPage() {
 			setLoading(false);
 		}
 	}, [canRead]);
+	fetchUsersRef.current = fetchUsers;
+
+	const [users, setUsers] = useState<User[]>([]);
+	const [organizations, setOrganizations] = useState<Organization[]>([]);
+	const [loading, setLoading] = useState(true);
+	const [error, setError] = useState<string | null>(null);
+	const [addDialogOpen, setAddDialogOpen] = useState(false);
+	const [addEmail, setAddEmail] = useState("");
+	const [addPassword, setAddPassword] = useState("");
+	const [addOrgId, setAddOrgId] = useState("");
+	const [addRoleIds, setAddRoleIds] = useState<string[]>([]);
+	const [orgRoles, setOrgRoles] = useState<OrgRole[]>([]);
+	const [adding, setAdding] = useState(false);
+	const [filterEmail, setFilterEmail] = useState("");
+	const [filterOrgId, setFilterOrgId] = useState("");
+	const [filterRole, setFilterRole] = useState("");
+	const [filterActive, setFilterActive] = useState<"" | "yes" | "no">("");
+	const [filterAdmin, setFilterAdmin] = useState<"" | "yes" | "no">("");
+	const [editUser, setEditUser] = useState<User | null>(null);
+	const [editEmail, setEditEmail] = useState("");
+	const [editActive, setEditActive] = useState(true);
+	const [saving, setSaving] = useState(false);
+	const [deletingId, setDeletingId] = useState<string | null>(null);
 
 	const fetchOrgs = useCallback(async () => {
 		if (!canRead) return;
@@ -462,9 +469,12 @@ export default function UsersPage() {
 
 	return (
 		<>
-			<Typography variant="h4" component="h1" gutterBottom>
-				Users
-			</Typography>
+			<Box sx={{ display: "flex", alignItems: "center", gap: 1, mb: 0 }}>
+				<Typography variant="h4" component="h1" gutterBottom sx={{ mb: 0 }}>
+					Users
+				</Typography>
+				{wsConnected && <Chip label="Live" color="success" size="small" />}
+			</Box>
 			<Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
 				View and manage users. Write actions require <code>dashboard.users.write</code>.
 			</Typography>

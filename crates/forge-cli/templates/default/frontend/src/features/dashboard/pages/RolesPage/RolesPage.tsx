@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import Typography from "@mui/material/Typography";
 import Box from "@mui/material/Box";
 import Button from "@mui/material/Button";
@@ -16,7 +16,10 @@ import DeleteIcon from "@mui/icons-material/Delete";
 import EditIcon from "@mui/icons-material/Edit";
 import Alert from "@mui/material/Alert";
 import CircularProgress from "@mui/material/CircularProgress";
+import Chip from "@mui/material/Chip";
 import FormDialog from "../../../../components/FormDialog";
+import { useSession } from "../../../../context/Session";
+import { useLiveChannel } from "../../../../hooks/useLiveChannel";
 
 type Role = {
 	id: string;
@@ -28,6 +31,13 @@ type Role = {
 };
 
 export default function RolesPage() {
+	const { user } = useSession();
+	const orgChannel = user?.current_org_id ? `org:${user.current_org_id}` : null;
+	const fetchRolesRef = useRef<() => void>(() => {});
+	const { connected: wsConnected } = useLiveChannel(orgChannel, (ev) => {
+		if (ev.type === "resource_changed" && ev.resource === "roles") fetchRolesRef.current?.();
+	});
+
 	const [roles, setRoles] = useState<Role[]>([]);
 	const [loading, setLoading] = useState(true);
 	const [error, setError] = useState<string | null>(null);
@@ -64,6 +74,7 @@ export default function RolesPage() {
 			setLoading(false);
 		}
 	}, []);
+	fetchRolesRef.current = fetchRoles;
 
 	useEffect(() => {
 		fetchRoles();
@@ -175,9 +186,12 @@ export default function RolesPage() {
 
 	return (
 		<>
-			<Typography variant="h4" component="h1" gutterBottom>
-				Roles
-			</Typography>
+			<Box sx={{ display: "flex", alignItems: "center", gap: 1, mb: 0 }}>
+				<Typography variant="h4" component="h1" gutterBottom sx={{ mb: 0 }}>
+					Roles
+				</Typography>
+				{wsConnected && <Chip label="Live" color="success" size="small" />}
+			</Box>
 			<Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
 				Manage organization roles. Template roles (owner, admin, editor, viewer) are created when an org is created; you can add custom roles here.
 			</Typography>

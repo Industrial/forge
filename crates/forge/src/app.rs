@@ -157,6 +157,13 @@ impl App {
     self
   }
 
+  /// Enable Live Query using a shared backend (e.g. so the app and a tick loop can both use it).
+  /// Handlers receive [Extension]<Option<Arc<forge_live::InMemoryLiveBackend>>>.
+  pub fn with_live_query_using(mut self, backend: Arc<forge_live::InMemoryLiveBackend>) -> Self {
+    self.live_backend = Some(backend);
+    self
+  }
+
   /// Enable per-requester (per user, per organization) rate limiting.
   /// Only has effect when [`.with_auth`](Self::with_auth) is also used. Limits are applied
   /// per (organization_id, user_id) so individual users in an org can be throttled.

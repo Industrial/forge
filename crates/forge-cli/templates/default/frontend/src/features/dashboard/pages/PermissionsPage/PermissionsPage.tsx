@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import Typography from "@mui/material/Typography";
 import Box from "@mui/material/Box";
 import Button from "@mui/material/Button";
@@ -18,7 +18,10 @@ import IconButton from "@mui/material/IconButton";
 import DeleteIcon from "@mui/icons-material/Delete";
 import Alert from "@mui/material/Alert";
 import CircularProgress from "@mui/material/CircularProgress";
+import Chip from "@mui/material/Chip";
 import { useTablePaginationDefaults } from "@/hooks/useTablePaginationDefaults";
+import { useSession } from "@/context/Session";
+import { useLiveChannel } from "@/hooks/useLiveChannel";
 
 type Assignment = {
 	scope: string;
@@ -32,6 +35,13 @@ const ORG_ROLES = ["owner", "admin", "editor", "viewer"] as const;
 const GLOBAL_ROLES = ["platform_admin"] as const;
 
 export default function PermissionsPage() {
+	const { user } = useSession();
+	const orgChannel = user?.current_org_id ? `org:${user.current_org_id}` : null;
+	const fetchDataRef = useRef<() => void>(() => {});
+	const { connected: wsConnected } = useLiveChannel(orgChannel, (ev) => {
+		if (ev.type === "resource_changed" && ev.resource === "role_permissions") fetchDataRef.current?.();
+	});
+
 	const [assignments, setAssignments] = useState<Assignment[]>([]);
 	const [permissions, setPermissions] = useState<string[]>([]);
 	const [loading, setLoading] = useState(true);
@@ -78,6 +88,7 @@ export default function PermissionsPage() {
 			setLoading(false);
 		}
 	}, []);
+	fetchDataRef.current = fetchData;
 
 	useEffect(() => {
 		fetchData();
@@ -187,9 +198,12 @@ export default function PermissionsPage() {
 
 	return (
 		<>
-			<Typography variant="h4" component="h1" gutterBottom>
-				Permissions
-			</Typography>
+			<Box sx={{ display: "flex", alignItems: "center", gap: 1, mb: 0 }}>
+				<Typography variant="h4" component="h1" gutterBottom sx={{ mb: 0 }}>
+					Permissions
+				</Typography>
+				{wsConnected && <Chip label="Live" color="success" size="small" />}
+			</Box>
 			<Typography color="text.secondary" sx={{ mb: 2 }}>
 				View and manage role–permission assignments. List/view requires{" "}
 				<code>dashboard.permissions.read</code>; add/delete requires{" "}

@@ -11,6 +11,7 @@ use forge::auth::{hash_api_token, hash_password};
 use forge::authz::{Action, AuthzContext, record_authz_denied};
 use forge::token_auth::{OptionalRequireAuth, RequireAuth};
 use forge::validation::Valid;
+use forge::live::{Channel, InMemoryLiveBackend, LiveBackend};
 use forge::{DbConnection, Error as ForgeError};
 use sea_orm::{ActiveModelTrait, ColumnTrait, EntityTrait, QueryFilter, Set, TransactionTrait};
 use serde::Deserialize;
@@ -211,8 +212,8 @@ where
   }
 }
 
-fn broadcast_audit_entry(
-  task_state: &std::sync::Arc<crate::tasks::TaskState>,
+async fn broadcast_audit_entry(
+  live_backend: Option<&std::sync::Arc<InMemoryLiveBackend>>,
   event: &AuditEvent,
   result: &forge::audit::LogResult,
 ) {
@@ -229,13 +230,18 @@ fn broadcast_audit_entry(
     "reason": event.reason,
     "occurred_at": result.occurred_at.format("%Y-%m-%dT%H:%M:%S%.fZ").to_string(),
   });
-  let _ = task_state.audit_broadcast.send(entry);
+  if let Some(backend) = live_backend {
+    let payload =
+      serde_json::to_vec(&serde_json::json!({ "type": "audit_log", "entry": entry })).unwrap_or_default();
+    let channel = Channel::raw("audit-log");
+    backend.broadcast(&channel, &payload).await;
+  }
 }
 
 pub async fn login(
   mut auth_session: AuthSession<Backend>,
   State(db): State<DbConnection>,
-  Extension(task_state): Extension<std::sync::Arc<crate::tasks::TaskState>>,
+  Extension(live_backend): Extension<Option<std::sync::Arc<InMemoryLiveBackend>>>,
   JsonOrForm(payload): JsonOrForm<LoginRequest>,
 ) -> Result<impl IntoResponse, ForgeError> {
   let email = payload.email.clone();
@@ -271,7 +277,7 @@ pub async fn login(
       reason: Some("login".to_string()),
     };
     if let Ok(result) = forge::audit::log(&db, event.clone()).await {
-      broadcast_audit_entry(&task_state, &event, &result);
+      broadcast_audit_entry(live_backend.as_ref(), &event, &result).await;
     }
     Ok((StatusCode::OK, Json(serde_json::json!({ "ok": true }))).into_response())
   } else {
@@ -288,7 +294,7 @@ pub async fn login(
       reason: Some("failed_login".to_string()),
     };
     if let Ok(result) = forge::audit::log(&db, event.clone()).await {
-      broadcast_audit_entry(&task_state, &event, &result);
+      broadcast_audit_entry(live_backend.as_ref(), &event, &result).await;
     }
     Ok(
       (
@@ -303,7 +309,7 @@ pub async fn login(
 pub async fn logout(
   mut auth_session: AuthSession<Backend>,
   State(db): State<DbConnection>,
-  Extension(task_state): Extension<std::sync::Arc<crate::tasks::TaskState>>,
+  Extension(live_backend): Extension<Option<std::sync::Arc<InMemoryLiveBackend>>>,
 ) -> impl IntoResponse {
   tracing::debug!(target: "app::auth", "route: GET /api/auth/logout");
   let actor_id = auth_session.requester_id();
@@ -321,7 +327,7 @@ pub async fn logout(
     reason: Some("logout".to_string()),
   };
   if let Ok(result) = forge::audit::log(&db, event.clone()).await {
-    broadcast_audit_entry(&task_state, &event, &result);
+    broadcast_audit_entry(live_backend.as_ref(), &event, &result).await;
   }
   (StatusCode::OK, Json(serde_json::json!({ "ok": true }))).into_response()
 }
@@ -445,7 +451,11 @@ pub async fn session_json(
   let error: Option<String> = session.get(FLASH_ERROR).await.ok().flatten();
   session.remove::<String>(FLASH_MESSAGE).await.ok();
   session.remove::<String>(FLASH_ERROR).await.ok();
-  let user = maybe_user.as_ref().map(|u| serde_json::json!({ "id": u.id.to_string(), "email": u.email }));
+  let user = maybe_user.as_ref().map(|u| serde_json::json!({
+    "id": u.id.to_string(),
+    "email": u.email,
+    "current_org_id": u.current_org_id.map(|id| id.to_string()),
+  }));
   let permissions: Vec<String> = match &maybe_user {
     Some(u) => resolve_permissions(&db, u).await,
     None => vec![],

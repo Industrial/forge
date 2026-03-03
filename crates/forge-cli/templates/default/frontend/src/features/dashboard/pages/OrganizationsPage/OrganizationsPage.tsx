@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import Typography from "@mui/material/Typography";
 import Box from "@mui/material/Box";
 import Button from "@mui/material/Button";
@@ -16,10 +16,12 @@ import DeleteIcon from "@mui/icons-material/Delete";
 import EditIcon from "@mui/icons-material/Edit";
 import Alert from "@mui/material/Alert";
 import CircularProgress from "@mui/material/CircularProgress";
+import Chip from "@mui/material/Chip";
 import useTheme from "@mui/material/styles/useTheme";
 import FormDialog from "../../../../components/FormDialog";
 import useMediaQuery from "@mui/material/useMediaQuery";
 import { useSession } from "../../../../context/Session";
+import { useLiveChannel } from "../../../../hooks/useLiveChannel";
 
 type Organization = {
 	id: string;
@@ -87,6 +89,10 @@ export default function OrganizationsPage() {
 	const isMobile = useMediaQuery(theme.breakpoints.down("md"));
 	const { permissions } = useSession();
 	const canWrite = permissions.includes(ORG_WRITE);
+	const fetchDataRef = useRef<() => void>(() => {});
+	const { connected: wsConnected } = useLiveChannel("organizations", (ev) => {
+		if (ev.type === "resource_changed" && ev.resource === "organizations") fetchDataRef.current?.();
+	});
 
 	const [organizations, setOrganizations] = useState<Organization[]>([]);
 	const [loading, setLoading] = useState(true);
@@ -128,6 +134,7 @@ export default function OrganizationsPage() {
 			setLoading(false);
 		}
 	}, []);
+	fetchDataRef.current = fetchData;
 
 	useEffect(() => {
 		fetchData();
@@ -246,9 +253,12 @@ export default function OrganizationsPage() {
 
 	return (
 		<>
-			<Typography variant="h4" component="h1" gutterBottom>
-				Organizations
-			</Typography>
+			<Box sx={{ display: "flex", alignItems: "center", gap: 1, mb: 0 }}>
+				<Typography variant="h4" component="h1" gutterBottom sx={{ mb: 0 }}>
+					Organizations
+				</Typography>
+				{wsConnected && <Chip label="Live" color="success" size="small" />}
+			</Box>
 			<Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
 				View and manage organizations. Write actions require{" "}
 				<code>dashboard.organizations.write</code>.

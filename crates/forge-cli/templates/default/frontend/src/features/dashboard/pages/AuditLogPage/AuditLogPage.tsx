@@ -17,6 +17,7 @@ import Paper from "@mui/material/Paper";
 import Alert from "@mui/material/Alert";
 import CircularProgress from "@mui/material/CircularProgress";
 import TablePagination from "@mui/material/TablePagination";
+import Chip from "@mui/material/Chip";
 import { getWsUrl } from "@/utils/ws";
 import { useTablePaginationDefaults } from "@/hooks/useTablePaginationDefaults";
 
@@ -52,6 +53,7 @@ export default function AuditLogPage() {
 	const [eventKind, setEventKind] = useState("");
 	const [action, setAction] = useState("");
 	const [reason, setReason] = useState("");
+	const [wsConnected, setWsConnected] = useState(false);
 
 	const fetchData = useCallback(async () => {
 		setError(null);
@@ -109,8 +111,11 @@ export default function AuditLogPage() {
 	useEffect(() => {
 		const ws = new WebSocket(getWsUrl());
 		ws.onopen = () => {
+			setWsConnected(true);
 			ws.send(JSON.stringify({ type: "subscribe", channel: "audit-log" }));
 		};
+		ws.onclose = () => setWsConnected(false);
+		ws.onerror = () => setWsConnected(false);
 		ws.onmessage = (event) => {
 			try {
 				const msg = JSON.parse(event.data);
@@ -159,9 +164,12 @@ export default function AuditLogPage() {
 
 	return (
 		<>
-			<Typography variant="h4" component="h1" gutterBottom>
-				Audit log
-			</Typography>
+			<Box sx={{ display: "flex", alignItems: "center", gap: 1, mb: 0 }}>
+				<Typography variant="h4" component="h1" gutterBottom sx={{ mb: 0 }}>
+					Audit log
+				</Typography>
+				{wsConnected && <Chip label="Live" color="success" size="small" />}
+			</Box>
 			<Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
 				Read-only list of audit events. Use filters to narrow results.
 			</Typography>
