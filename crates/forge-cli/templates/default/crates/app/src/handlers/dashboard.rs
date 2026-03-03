@@ -21,7 +21,8 @@ use forge::auth::hash_password;
 use db::auth::Backend;
 use db::models::{audit_log, membership, org_role, organization, role_permission, user, user_org_role};
 
-use crate::handlers::auth::{CurrentProfile, has_global_scope, require_profile, resolve_permissions, DASHBOARD_PERMISSIONS};
+use crate::handlers::auth::{CurrentProfile, has_global_scope, require_profile, resolve_permissions};
+use crate::permissions::DASHBOARD_PERMISSIONS;
 use tower_sessions::Session;
 
 const PERMISSION_READ: &str = "dashboard.permissions.read";
@@ -35,7 +36,19 @@ const PERMISSION_ROLES_READ: &str = "dashboard.roles.read";
 const PERMISSION_ROLES_WRITE: &str = "dashboard.roles.write";
 
 pub(crate) fn has_permission(permissions: &[String], key: &str) -> bool {
-  permissions.iter().any(|p| p == key)
+  if permissions.iter().any(|p| p == key) {
+    return true;
+  }
+  if key.ends_with(".read") && permissions.iter().any(|p| p == "all.read") {
+    return true;
+  }
+  if key.ends_with(".write") && permissions.iter().any(|p| p == "all.write") {
+    return true;
+  }
+  if key == "dashboard" && (permissions.iter().any(|p| p == "all.read") || permissions.iter().any(|p| p == "all.write")) {
+    return true;
+  }
+  false
 }
 
 /// Returns Some(403 response) if the current user does not have the given permission.

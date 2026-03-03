@@ -63,7 +63,11 @@ async fn set_profile_then_dashboard_users_200() {
     .unwrap();
   let json: app::serde_json::Value = app::serde_json::from_slice(&profiles_body).unwrap();
   let profiles = json["profiles"].as_array().unwrap();
-  let org_id = profiles[0]["org_id"].as_str().unwrap();
+  let default_profile = profiles
+    .iter()
+    .find(|p| p["org_name"].as_str() == Some("Default"))
+    .expect("multi has Default org profile");
+  let org_id = default_profile["org_id"].as_str().unwrap();
   let body_set = format!(r#"{{"org_id":"{}"}}"#, org_id);
   let (status_set, _) = app::test_request(
     &router,

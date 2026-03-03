@@ -11,7 +11,6 @@ import { useSession } from "./Session";
 
 /** Keys used to dispatch live updates (maps message type/resource to listener key). */
 export type LiveUpdateKey =
-	| "tasks"
 	| "audit-log"
 	| "users"
 	| "roles"
@@ -31,7 +30,6 @@ const LiveWsContext = createContext<LiveWsContextValue | null>(null);
 function messageKeys(data: unknown): LiveUpdateKey[] {
 	if (!data || typeof data !== "object" || !("type" in data)) return [];
 	const t = (data as { type: string }).type;
-	if (t === "tasks") return ["tasks"];
 	if (t === "audit_log") return ["audit-log"];
 	if (t === "users_updated") return ["users"];
 	if (t === "resource_changed") {
@@ -52,7 +50,7 @@ export function useLiveWs(): LiveWsContextValue {
 
 /**
  * Subscribe to live updates for a given key. Callback receives the parsed message
- * (e.g. { type: "tasks", tasks: [...] } or LiveEvent). Use to refetch or update state.
+ * (e.g. LiveEvent or resource_changed). Use to refetch or update state.
  */
 export function useLiveUpdates(
 	key: LiveUpdateKey,

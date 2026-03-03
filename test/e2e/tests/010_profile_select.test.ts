@@ -116,6 +116,79 @@ test.describe("e2e profile select and session profile", () => {
 		await expect(page.getByText("Other")).not.toBeVisible();
 	});
 
+	test("multi@email.com: three profiles (Personal, Default, Other) and nav per profile", async ({
+		page,
+	}) => {
+		// 1. Log in
+		await page.goto("/login");
+		await page
+			.getByTestId("login-email")
+			.locator("input")
+			.fill("multi@email.com");
+		await page
+			.getByTestId("login-password")
+			.locator("input")
+			.fill(SEED_PASSWORD);
+		await page.getByTestId("login-submit").click();
+
+		// 2. Verify profile select page
+		await expect(page).toHaveURL(/\/select-profile/);
+		await expect(
+			page.getByRole("heading", { name: "Select profile" }),
+		).toBeVisible();
+
+		// 3. Verify three profiles: Personal, Default, Other
+		await expect(page.getByTestId("profile-Personal-viewer")).toBeVisible();
+		await expect(page.getByTestId("profile-Default-viewer")).toBeVisible();
+		await expect(page.getByTestId("profile-Other-editor")).toBeVisible();
+
+		// 4. Pick Personal
+		await page.getByTestId("profile-Personal-viewer").click();
+		await expect(page).toHaveURL(/\/dashboard/);
+
+		// 5. Personal: only Dashboard link visible
+		await expect(page.getByRole("link", { name: "Dashboard" })).toBeVisible();
+		// 5.1 Other dashboard links not shown
+		await expect(page.getByRole("link", { name: "Organizations" })).not.toBeVisible();
+		await expect(page.getByRole("link", { name: "Users" })).not.toBeVisible();
+		await expect(page.getByRole("link", { name: "Roles" })).not.toBeVisible();
+		await expect(page.getByRole("link", { name: "Permissions" })).not.toBeVisible();
+		await expect(page.getByRole("link", { name: "Tasks" })).not.toBeVisible();
+		await expect(page.getByRole("link", { name: "Audit log" })).not.toBeVisible();
+
+		// 6. Open user dropdown in navbar
+		await page.getByRole("button", { name: "User menu" }).click();
+
+		// 7. Select Default organization profile
+		await page.getByRole("menuitem", { name: /Viewer · Default/ }).click();
+
+		// 8. Default: Dashboard, Users, Roles, Permissions, Tasks, Audit log
+		await expect(page.getByRole("link", { name: "Dashboard" })).toBeVisible();
+		await expect(page.getByRole("link", { name: "Users" })).toBeVisible();
+		await expect(page.getByRole("link", { name: "Roles" })).toBeVisible();
+		await expect(page.getByRole("link", { name: "Permissions" })).toBeVisible();
+		await expect(page.getByRole("link", { name: "Tasks" })).toBeVisible();
+		await expect(page.getByRole("link", { name: "Audit log" })).toBeVisible();
+		// 8.1 Organizations not shown (viewer has no orgs permission)
+		await expect(page.getByRole("link", { name: "Organizations" })).not.toBeVisible();
+
+		// 9. Open user dropdown again
+		await page.getByRole("button", { name: "User menu" }).click();
+
+		// 10. Select Other organization profile
+		await page.getByRole("menuitem", { name: /Editor · Other/ }).click();
+
+		// 11. Other: Dashboard, Users, Roles, Permissions, Tasks (editor has no audit.read)
+		await expect(page.getByRole("link", { name: "Dashboard" })).toBeVisible();
+		await expect(page.getByRole("link", { name: "Users" })).toBeVisible();
+		await expect(page.getByRole("link", { name: "Roles" })).toBeVisible();
+		await expect(page.getByRole("link", { name: "Permissions" })).toBeVisible();
+		await expect(page.getByRole("link", { name: "Tasks" })).toBeVisible();
+		// 11.1 Audit log and Organizations not shown
+		await expect(page.getByRole("link", { name: "Audit log" })).not.toBeVisible();
+		await expect(page.getByRole("link", { name: "Organizations" })).not.toBeVisible();
+	});
+
 	test("switch profile in navbar updates dashboard scope (users list)", async ({
 		page,
 	}) => {

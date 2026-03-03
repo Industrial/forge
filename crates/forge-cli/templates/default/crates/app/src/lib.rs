@@ -15,6 +15,7 @@ use forge::{App, CronSchedule};
 use tempfile::TempDir;
 
 pub mod handlers;
+pub mod permissions;
 pub mod tasks;
 
 /// Build the Forge [App] with all template routes. Requires CWD to be a directory that contains
@@ -50,36 +51,62 @@ pub fn make_app(live_backend: Arc<forge::live::InMemoryLiveBackend>) -> App {
     .route("/api/auth/session", handlers::auth::session_json)
     .post_route("/api/auth/tokens", handlers::auth::create_token)
     .route("/api/auth/admin", handlers::auth::admin_only)
-    .route("/api/dashboard/permissions", axum::routing::get(handlers::dashboard::list_permissions))
+    // Unprotected REST API (no auth)
+    .route("/api/permissions", axum::routing::get(handlers::rest::list_permissions))
     .route_methods(
-      "/api/dashboard/role-permissions",
-      axum::routing::get(handlers::dashboard::list_role_permissions)
-        .post(handlers::dashboard::add_role_permission)
-        .delete(handlers::dashboard::delete_role_permission),
+      "/api/users",
+      axum::routing::get(handlers::rest::list_users).post(handlers::rest::create_user),
     )
-    .route("/api/dashboard/tasks", axum::routing::get(handlers::dashboard::list_tasks))
-    .route("/api/dashboard/audit-log", axum::routing::get(handlers::dashboard::list_audit_log))
+    .route("/api/users/me", axum::routing::get(handlers::rest::users_me))
     .route_methods(
-      "/api/dashboard/organizations",
-      axum::routing::get(handlers::dashboard::list_organizations)
-        .post(handlers::dashboard::create_organization)
-        .patch(handlers::dashboard::update_organization)
-        .delete(handlers::dashboard::delete_organization),
+      "/api/users/:id",
+      axum::routing::get(handlers::rest::get_user)
+        .patch(handlers::rest::update_user)
+        .delete(handlers::rest::delete_user),
     )
+    .route("/api/users/:id/organizations", axum::routing::get(handlers::rest::get_user_organizations))
     .route_methods(
-      "/api/dashboard/users",
-      axum::routing::get(handlers::dashboard::list_users)
-        .post(handlers::dashboard::create_user)
-        .patch(handlers::dashboard::update_user)
-        .delete(handlers::dashboard::delete_user),
+      "/api/organizations",
+      axum::routing::get(handlers::rest::list_organizations).post(handlers::rest::create_organization),
     )
     .route_methods(
-      "/api/dashboard/roles",
-      axum::routing::get(handlers::dashboard::list_roles)
-        .post(handlers::dashboard::create_role)
-        .patch(handlers::dashboard::update_role)
-        .delete(handlers::dashboard::delete_role),
+      "/api/organizations/:id",
+      axum::routing::get(handlers::rest::get_organization)
+        .patch(handlers::rest::update_organization)
+        .delete(handlers::rest::delete_organization),
     )
+    .route_methods(
+      "/api/organizations/:id/users",
+      axum::routing::get(handlers::rest::list_org_users).post(handlers::rest::add_org_user),
+    )
+    .route(
+      "/api/organizations/:id/users/:user_id/roles",
+      axum::routing::post(handlers::rest::add_org_user_roles),
+    )
+    .route_methods(
+      "/api/organizations/:id/users/:user_id",
+      axum::routing::get(handlers::rest::get_org_user)
+        .patch(handlers::rest::update_org_user)
+        .delete(handlers::rest::delete_org_user),
+    )
+    .route_methods(
+      "/api/organizations/:id/roles",
+      axum::routing::get(handlers::rest::list_org_roles).post(handlers::rest::create_org_role),
+    )
+    .route_methods(
+      "/api/organizations/:id/roles/:role_id/permissions",
+      axum::routing::get(handlers::rest::list_org_role_permissions)
+        .post(handlers::rest::add_org_role_permission)
+        .delete(handlers::rest::delete_org_role_permission),
+    )
+    .route_methods(
+      "/api/organizations/:id/roles/:role_id",
+      axum::routing::get(handlers::rest::get_org_role)
+        .patch(handlers::rest::update_org_role)
+        .delete(handlers::rest::delete_org_role),
+    )
+    .route("/api/audit-log", axum::routing::get(handlers::rest::list_audit_log))
+    .route("/api/audit-log/:id", axum::routing::get(handlers::rest::get_audit_log))
 }
 
 /// Guard that restores the previous working directory when dropped. Keep this alive for the

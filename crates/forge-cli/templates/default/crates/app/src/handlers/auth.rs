@@ -23,20 +23,7 @@ use validator::Validate;
 use db::auth::Backend;
 use db::models::{api_token, membership, org_role, organization, role_permission, user, user_global_role, user_org_role};
 
-/// Code-defined dashboard permission keys. Used for resolution and for listing in APIs.
-/// Resources have .read (view/list) and .write (create/update/delete) where applicable.
-pub const DASHBOARD_PERMISSIONS: &[&str] = &[
-  "dashboard",
-  "dashboard.organizations.read",
-  "dashboard.organizations.write",
-  "dashboard.users.read",
-  "dashboard.users.write",
-  "dashboard.roles.read",
-  "dashboard.roles.write",
-  "dashboard.permissions.read",
-  "dashboard.permissions.write",
-  "dashboard.audit.read",
-];
+pub use crate::permissions::DASHBOARD_PERMISSIONS;
 
 /// Resolves the list of permission keys for the current user from org-scoped and global-scope role_permission.
 /// Uses session profile when provided; otherwise only global-scope permissions are included.

@@ -20,7 +20,6 @@ import OrganizationsPage from "./features/dashboard/pages/OrganizationsPage/Orga
 import UsersPage from "./features/dashboard/pages/UsersPage/UsersPage";
 import RolesPage from "./features/dashboard/pages/RolesPage/RolesPage";
 import PermissionsPage from "./features/dashboard/pages/PermissionsPage/PermissionsPage";
-import TasksPage from "./features/dashboard/pages/TasksPage/TasksPage";
 import AuditLogPage from "./features/dashboard/pages/AuditLogPage/AuditLogPage";
 import ProfilePage from "./features/profile/pages/ProfilePage/ProfilePage";
 import WebsocketsDemoPage from "./features/websockets-demo/pages/WebsocketsDemoPage/WebsocketsDemoPage";
@@ -172,14 +171,6 @@ function App() {
 									]}
 								>
 									<PermissionsPage />
-								</DashboardPermissionGuard>
-							}
-						/>
-						<Route
-							path="tasks"
-							element={
-								<DashboardPermissionGuard permission="dashboard">
-									<TasksPage />
 								</DashboardPermissionGuard>
 							}
 						/>

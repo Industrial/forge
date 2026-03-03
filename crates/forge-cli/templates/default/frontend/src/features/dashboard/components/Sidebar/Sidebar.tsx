@@ -12,7 +12,6 @@ import Business from "@mui/icons-material/Business";
 import People from "@mui/icons-material/People";
 import Badge from "@mui/icons-material/Badge";
 import Lock from "@mui/icons-material/Lock";
-import Assignment from "@mui/icons-material/Assignment";
 import History from "@mui/icons-material/History";
 import { useSession } from "../../../../context/Session";
 
@@ -52,13 +51,6 @@ const NAV_ITEMS = [
 		end: false,
 		icon: Lock,
 		permissions: ["dashboard.permissions.read", "dashboard.permissions.write"],
-	},
-	{
-		to: "/dashboard/tasks",
-		label: "Tasks",
-		end: false,
-		icon: Assignment,
-		permissions: ["dashboard"],
 	},
 	{
 		to: "/dashboard/audit-log",

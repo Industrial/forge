@@ -30,18 +30,11 @@ impl MigratorTrait for Migrator {
 }
 
 pub async fn run_seeds(db: DbConnection) -> Result<(), Box<dyn std::error::Error>> {
-  seeds::s20220101_000001_seed_users::seed(&db).await?;
-  seeds::s20220101_000002_seed_role_permissions::seed(&db).await?;
-  seeds::s20220101_000003_seed_user_global_roles::seed(&db).await?;
+  seeds::s20220101_000001_seed_admin::seed(&db).await?;
+  seeds::s20220101_000002_seed_default_users::seed(&db).await?;
+  seeds::s20220101_000003_seed_coolorg_users::seed(&db).await?;
+  seeds::s20220101_000004_seed_multi_org_user::seed(&db).await?;
   Ok(())
-}
-
-/// Seeds role_permission for the four template roles of an org. Use after creating an org and its org_roles.
-pub async fn seed_role_permissions_for_org<C: sea_orm::ConnectionTrait>(
-  db: &C,
-  org_id: uuid::Uuid,
-) -> Result<(), Box<dyn std::error::Error>> {
-  seeds::s20220101_000002_seed_role_permissions::seed_role_permissions_for_org(db, org_id).await
 }
 
 /// Look up user id by raw API token (Bearer). Returns None if token invalid or expired.
