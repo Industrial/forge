@@ -71,6 +71,8 @@ export type SidebarProps = {
 	disableBorder?: boolean;
 	/** When true, sidebar fills container width (e.g. inside mobile drawer). */
 	fullWidth?: boolean;
+	/** @deprecated Legacy API; layout still passes for outlet context. Prefer Effect HttpClient. */
+	api?: (url: string, options?: RequestInit) => Promise<Response>;
 };
 
 export default function Sidebar({

@@ -15,7 +15,7 @@ export type DashboardLayoutProps = {
 };
 
 export default function DashboardLayout({
-	children,
+	children: _children,
 	colorScheme,
 	onToggleTheme,
 }: DashboardLayoutProps) {

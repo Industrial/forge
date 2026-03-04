@@ -36,7 +36,9 @@ import {
 	type UserAddFormValuesStrict,
 	type UserEditFormValues,
 } from "../../../../schemas/userFormSchemas";
-import { fetchUsersEffect, type User } from "../../../../effects/users";
+import { useOutletContext } from "react-router-dom";
+import { useApi } from "../../../../utils/api";
+import { fetchUsersEffectWithLegacyApi, type User } from "../../../../effects/users";
 
 type Organization = {
 	id: string;
@@ -86,7 +88,7 @@ export default function UsersPage() {
 		}
 		setError(null);
 		try {
-			const list = await runPromise(fetchUsersEffect(api));
+			const list = await runPromise(fetchUsersEffectWithLegacyApi(api));
 			setUsers(list);
 		} catch (e) {
 			setError(e instanceof Error ? e.message : "Failed to load users.");

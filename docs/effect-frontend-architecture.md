@@ -11,7 +11,7 @@ This document describes the architecture for the default Forge frontend: **Effec
 - **Code location:** Feature-specific code (effects, layer, pages, components) lives in feature directories. Global code (shared services, app bootstrap) lives above the feature directories.
 - **Running Effects:** Prefer react-effect hooks; use `Runtime.runPromise(runtime)(effect)` from `useEffectRuntime()` only when the hooks don’t fit.
 - **runEffect.runPromise:** Do not use for Effects with requirements (`R !== never`). Use the runtime from the provider (via hooks) so the app Layer is available.
-- **HTTP:** Use Effect’s built-in HTTP client (`@effect/platform`, e.g. `HttpClient` / `FetchHttpClient`) for all backend communication. ApiClient wraps or uses this so we get consistent typing, error handling, and testability via Layers.
+- **HTTP:** Use Effect’s HTTP client (`@effect/platform`: `HttpClient` / `FetchHttpClient`) directly for all backend communication. There is no ApiClient service. A single layer (`httpClientWithAuthLayer`) provides `HttpClient` with base URL and auth headers (token, organizationId, roleId) via `mapRequest`; the app uses `AppRuntimeProvider` at root to supply this layer.
 - **WebSocket:** Wrap the WebSocket in a **Service** (LiveWs). The service owns the connection and exposes incoming messages as an Effect **Stream** built from a **Queue** (`Stream.fromQueue(queue)`): the WS handler offers each message to the Queue; consumers get a `Stream<Message>` and use Stream operations in a Scope.
 
 ---
@@ -20,7 +20,7 @@ This document describes the architecture for the default Forge frontend: **Effec
 
 **react-effect** (`frontend/src/lib/react-effect`) is the **only** place where React and Effect meet.
 
-- **EffectRuntimeProvider** wraps the app (or a subtree) and holds a `Runtime<R>`. That runtime is built once with the application’s **Layer** (e.g. ApiClient, AuthStore). All Effect runs triggered by the UI use this runtime, so they automatically have access to `R`.
+- **EffectRuntimeProvider** wraps the app (or a subtree) and holds a `Runtime<R>`. That runtime is built once with the application’s **Layer** (e.g. HttpClient with auth, AuthStore). All Effect runs triggered by the UI use this runtime, so they automatically have access to `R`.
 - **Hooks** (`useRunEffect`, `useEffectState`, `useTransitionEffect`, `useActionStateEffect`, `useOptimisticEffect`, `useEffectReducer`) call `useEffectRuntime()` to get that runtime and run Effects with it. They never call `Effect.runPromise` or `Layer` directly; they submit an `Effect<A, E, R>` and the runtime executes it with the provided Layer.
 - **React components** do not import `Effect`, `Layer`, or `Runtime` for app logic. They use the react-effect hooks and, when they need to run an Effect, they pass an Effect value (often from a function that returns `Effect<A, E, R>`). So the “divide” is: **Effect world owns types and programs; React world owns rendering and event handlers that invoke those programs via the hooks.**
 
@@ -40,8 +40,8 @@ Consequences:
 
 | What | Where | Reason |
 |------|--------|--------|
-| **Global services (Tags)** | Above features, e.g. `src/services/ApiClient.ts`, `AuthStore.ts`, `LiveWs.ts` | Shared by multiple features; one Tag per file; no `R` in the interface (no requirement leakage). |
-| **Global Live/Mock** | Above features, e.g. `src/services/ApiClientLive.ts`, `AuthStoreLive.ts`, `*Mock.ts` | `Layer.effect` or `Layer.succeed`; used by feature Layers or composed at root. |
+| **Global services (Tags)** | Above features, e.g. `src/services/AuthStore.ts`, `LiveWs.ts`; use `HttpClient` from `@effect/platform` where HTTP is needed | Shared by multiple features; one Tag per file; no `R` in the interface (no requirement leakage). |
+| **Global Live/Mock** | Above features, e.g. `httpClientWithAuthLayer`, `AuthStoreLive.ts`, `*Mock.ts` | `Layer.effect` or `Layer.succeed`; used by feature Layers or composed at root. |
 | **Feature Layer** | Inside feature, e.g. `src/features/auth/layer.ts`, `src/features/users/layer.ts` | One layer per feature. Each feature’s Layer provides the services that feature needs; it may depend on global services. |
 | **Runtime composition** | Above features, e.g. `src/app/runtime.ts` or root `main.tsx` / `App.tsx` | Merge or compose all feature Layers (and global Layers) once; build `Runtime.defaultRuntime.pipe(Runtime.provide(composedLayer))` and pass to `EffectRuntimeProvider`. |
 | **Effect programs** | Inside feature, e.g. `src/features/auth/effects.ts`, `src/features/users/effects.ts` | Pure functions returning `Effect<A, E, R>`. Feature-specific programs live in that feature’s directory; they `yield*` services and do not use React. |
@@ -87,7 +87,7 @@ Today, auth lives in React Context (`context/Auth.tsx`): token, user, profiles, 
 
 **Target:**
 
-- **Effect land:** An **AuthStore** service (Tag) with e.g. `getToken`, `setToken`, `getCurrentUser`, `getState`, `fetchMe`, `logout`, `setScope`. State (token, user, profiles, permissions) lives inside the Live implementation (e.g. in a Ref). Methods return `Effect<..., AuthError, never>` (no requirement leakage). `fetchMeEffect`, `loginEffect`, `logoutEffect` are Effect programs that use AuthStore (and optionally ApiClient). They are pure `Effect<A, E, R>`. Auth-specific Layer lives in the auth feature (e.g. `src/features/auth/layer.ts`).
+- **Effect land:** An **AuthStore** service (Tag) with e.g. `getToken`, `setToken`, `getCurrentUser`, `getState`, `fetchMe`, `logout`, `setScope`. State (token, user, profiles, permissions) lives inside the Live implementation (e.g. in a Ref). Methods return `Effect<..., AuthError, never>` (no requirement leakage). `fetchMeEffect`, `loginEffect`, `logoutEffect` are Effect programs that use AuthStore (and optionally HttpClient). They are pure `Effect<A, E, R>`. Auth-specific Layer lives in the auth feature (e.g. `src/features/auth/layer.ts`).
 - **React land:** No AuthProvider that holds token/user in React state. Instead:
   - A **useAuth()** hook that components use to read “current user, token, profiles, permissions”. Implement it in a **simple way**: run an Effect “get current auth state” (e.g. `getAuthStateEffect` or `AuthStore.getState()`) and store the result in React state using the existing react-effect helpers (e.g. `useEffectState`, or a small custom hook that runs the Effect and setState). Re-run that Effect on mount and after every login, logout, or setScope (e.g. by calling a “refresh” from the hook or by re-running when a dependency changes). **No streams or subscription machinery** for now.
   - For “run login” or “run logout”, components use existing hooks: e.g. `useActionStateEffect(loginEffect, idle())` or `useTransitionEffect()` and `startTransition(() => loginEffect)`.
@@ -96,12 +96,12 @@ So: **auth state and behavior live in Effect (AuthStore + programs); React only 
 
 ---
 
-### 2.5 API client and data fetching
+### 2.5 HTTP and data fetching
 
-- **Effect land:** **ApiClient** service (Tag) with `get`, `post`, etc., returning `Effect<Response, ApiError, never>`. **ApiClientLive** is implemented using Effect’s HTTP client from `@effect/platform` (e.g. `HttpClient` / `FetchHttpClient`), and depends on AuthStore (or a minimal “token provider”) to add headers. All “fetch users”, “fetch organizations”, etc. are Effect programs that `yield* ApiClient` and return `Effect<A, E, ApiClient | ...>`.
-- **React land:** Pages that need “list of users” use e.g. `useEffectState(null, onError)` and `setState(fetchUsersEffect)` on mount, or `useActionStateEffect(() => fetchUsersEffect(), idle())`, or a small custom hook that wraps one of these. So the **decision** “we need users” and “show loading/error” is in React; the **implementation** is in Effect.
+- **Effect land:** Use **HttpClient** from `@effect/platform` directly. There is no ApiClient service. A layer (`httpClientWithAuthLayer`) provides `HttpClient` with base URL and auth headers (token, organizationId, roleId) applied via `mapRequest`; it composes `FetchHttpClient.layer`. Effect programs that need HTTP depend on `HttpClient.HttpClient` and use `client.execute(HttpClientRequest.get(...))` (or equivalent). All “fetch users”, “fetch organizations”, etc. are Effect programs that `yield* HttpClient.HttpClient` and return `Effect<A, E, HttpClient.HttpClient | ...>`.
+- **React land:** At root, **AppRuntimeProvider** builds the runtime with `httpClientWithAuthLayer({ baseUrl, token, organizationId, roleId })` so all effects see a configured HttpClient. Pages that need “list of users” use e.g. `useEffectState(null, onError)` and `setState(fetchUsersEffect)` on mount, or `useActionStateEffect(() => fetchUsersEffect(), idle())`. The only “API” the UI sees is “run this Effect” (e.g. `fetchUsersEffect`), which carries the dependency on HttpClient via `R`.
 
-**Remove:** Legacy `useApi()` that returns an imperative `api(url)` and any React Context that only existed to pass that down. The only “API” the UI sees is “run this Effect” (e.g. `fetchUsersEffect`), which already carries the dependency on ApiClient via `R`.
+**Remove:** Legacy `useApi()` that returns an imperative `api(url)` and any React Context that only existed to pass that down.
 
 ---
 
@@ -128,7 +128,7 @@ So: **auth state and behavior live in Effect (AuthStore + programs); React only 
 ## 3. Changes we will make (summary)
 
 1. **Introduce global services and per-feature Layers**  
-   Add global services (e.g. ApiClient, AuthStore, optionally LiveWs) as Tags with Live/Mock above features (`src/services/`). Each feature that needs services defines its own Layer in its directory (e.g. `src/features/auth/layer.ts`, `src/features/users/layer.ts`). Compose all Layers in one place above features to build the runtime.
+   Add global services (e.g. AuthStore, optionally LiveWs) and use **HttpClient** from `@effect/platform` where HTTP is needed; provide it via `httpClientWithAuthLayer` (base URL + auth headers) at root. Each feature that needs services defines its own Layer in its directory (e.g. `src/features/auth/layer.ts`, `src/features/users/layer.ts`). Compose all Layers in one place above features to build the runtime.
 
 2. **Bootstrap runtime at root**  
    Compose global and feature Layers; build the runtime from that composition and wrap the app with `EffectRuntimeProvider` so all hooks use that runtime.
@@ -137,7 +137,7 @@ So: **auth state and behavior live in Effect (AuthStore + programs); React only 
    Implement AuthStore (state in a Ref or similar), `fetchMeEffect`, `loginEffect`, `logoutEffect`, `setScopeEffect`. Provide **useAuth()** that runs a “get state” Effect and stores the result in React state using react-effect helpers; re-run on mount and after login/logout/setScope. No streams. Remove the old AuthProvider’s internal state and use AuthStore as source of truth.
 
 4. **Move API usage into Effect**  
-   Implement ApiClient and ApiClientLive using Effect’s HTTP client (`@effect/platform`); rewrite `fetchUsersEffect` and all other API calls as Effects depending on ApiClient. Replace `useApi()` usage in the UI with “run this Effect” via react-effect hooks. Remove `useApi()` and any context that only passed it.
+   Use **HttpClient** from `@effect/platform` directly; provide it at root via `httpClientWithAuthLayer` (base URL + auth). Rewrite `fetchUsersEffect` and all other API calls as Effects depending on `HttpClient.HttpClient`. Replace `useApi()` usage in the UI with “run this Effect” via react-effect hooks. Remove `useApi()` and any context that only passed it.
 
 5. **WebSocket / live updates**  
    Implement LiveWs as a Service that owns the WebSocket connection and exposes a message stream via **Stream.fromQueue**: LiveWsLive uses a Queue, the WS handler offers each message to the Queue, and the service exposes `Stream.fromQueue(queue)` (or equivalent) so consumers get an Effect `Stream<Message>`. Add LiveWsMock for tests.
@@ -157,11 +157,11 @@ So: **auth state and behavior live in Effect (AuthStore + programs); React only 
 
 ### 4.1 Auth state in Effect, useAuth() via helpers
 
-Auth state lives in Effect (AuthStore) so it’s the single source of truth and ApiClient (and other services) can depend on it. useAuth() runs a “get state” Effect and stores the result in React state using react-effect helpers; we re-run on mount and after login/logout/setScope. We keep this simple: no streams or subscription machinery.
+Auth state lives in Effect (AuthStore) so it’s the single source of truth and the HttpClient-with-auth layer (and other services) can use it at runtime construction. useAuth() runs a “get state” Effect and stores the result in React state using react-effect helpers; we re-run on mount and after login/logout/setScope. We keep this simple: no streams or subscription machinery.
 
 ### 4.2 One layer per feature, one Runtime at root
 
-Each feature defines its own Layer(s) in its directory. Global services (e.g. ApiClient, AuthStore) live above features with their Layers. At root we compose all Layers and build a single Runtime. So: one Runtime for the app, but Layer definitions are owned per feature (and global where shared).
+Each feature defines its own Layer(s) in its directory. Global services (e.g. HttpClient via httpClientWithAuthLayer, AuthStore) live above features with their Layers. At root we compose all Layers and build a single Runtime. So: one Runtime for the app, but Layer definitions are owned per feature (and global where shared).
 
 ### 4.3 Feature code in feature dirs, global above
 
@@ -186,3 +186,9 @@ Do not use `runEffect.runPromise` for any Effect that has requirements; it uses 
 | **React land** | Components, routes, UI state, useAuth() and similar “read from Effect” hooks | Prefer hooks; no direct Effect.runPromise or Layer for app logic. |
 
 **react-effect** is the divide: Effect.ts owns implementation and state (including auth); React owns rendering and user events; the hooks are the only bridge. State is kept simple (no streams); one layer per feature; feature code in feature dirs, global code above.
+
+---
+
+## 6. Beads (bd) tasks
+
+Work is split into small, dependency-ordered tasks under epic **forge-yofk** for parallel execution with `bd swarm`. Run `bd ready` to see tasks with no blockers; run `bd swarm status forge-r0oq` (or the current swarm ID) to see waves and parallelism. Tasks follow the plan in §3 (HttpClient with auth layer, Tags → Live/Mock → feature layers → runtime → effects → useAuth → migrate UI → remove useApi).

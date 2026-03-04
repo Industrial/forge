@@ -7,21 +7,17 @@
 		"ci:pre-commit": "bin/pre-commit"
 	},
 	"dependencies": {
-		"@inertiajs/react": "^1.0.0",
-		"@react-spectrum/s2": "^0.8.0",
+		"@effect/platform": "^0.75.0",
 		"react": "^18.2.0",
 		"react-dom": "^18.2.0",
-		"react-router-dom": "^7.13.1",
-		"task-master-ai": "^0.37.0"
+		"react-router-dom": "^7.13.1"
 	},
 	"devDependencies": {
 		"@types/bun": "latest",
 		"@types/react": "^18.2.0",
 		"@types/react-dom": "^18.2.0",
 		"@vitejs/plugin-react": "^4.2.0",
-		"lightningcss": "^1.28.0",
 		"typescript": "^5.0.0",
-		"unplugin-parcel-macros": "^0.1.1",
 		"vite": "^5.0.0"
 	},
 	"peerDependencies": {
