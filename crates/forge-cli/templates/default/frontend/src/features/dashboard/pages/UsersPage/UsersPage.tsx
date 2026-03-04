@@ -72,15 +72,12 @@ function membershipsSummary(memberships: User["memberships"]) {
 export default function UsersPage() {
 	const { permissions } = useAuth();
 	const { api } = useOutletContext<{ api: ReturnType<typeof useApi> }>();
-	const { api } = useOutletContext<{ api: ReturnType<typeof useApi> }>();
-	const { api } = useOutletContext<{ api: ReturnType<typeof useApi> }>();
 	const canRead = permissions.includes(USERS_READ);
 	const canWrite = permissions.includes(USERS_WRITE);
 	const [liveRefreshTrigger, setLiveRefreshTrigger] = useState(0);
 	const { connected: wsConnected } = useLiveUpdates("users", () => {
 		setLiveRefreshTrigger((n) => n + 1);
 	});
-	const { api } = useOutletContext<{ api: ReturnType<typeof useApi> }>();
 	const fetchUsers = useCallback(async () => {
 		if (!canRead) {
 			setLoading(false);

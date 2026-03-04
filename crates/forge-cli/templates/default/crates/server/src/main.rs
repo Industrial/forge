@@ -18,13 +18,14 @@ async fn main() -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
       })
     });
 
-  let app = if forge_config::effective_environment().eq_ignore_ascii_case("production") {
+  let env = forge_config::effective_environment_from_config(app.config());
+  let app = if env.eq_ignore_ascii_case("production") {
     app.with_rate_limit_per_ip(60).with_rate_limit_per_user(60)
   } else {
     app
   };
 
-  let is_production = forge_config::effective_environment().eq_ignore_ascii_case("production");
+  let is_production = env.eq_ignore_ascii_case("production");
   let host = app.config().server.host.clone();
   let port = app.config().server.port;
 
@@ -59,7 +60,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
     if dist.join("index.html").exists() {
       router = router
         .nest_service("/assets", ServeDir::new("frontend/dist/assets"))
-        .fallback(axum::routing::get(serve_spa_or_404));
+        .fallback(get(serve_spa_or_404));
     }
   }
 

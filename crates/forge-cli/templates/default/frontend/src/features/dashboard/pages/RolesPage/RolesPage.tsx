@@ -39,8 +39,6 @@ type Organization = { id: string; name: string; slug: string };
 
 export default function RolesPage() {
 	const { api } = useOutletContext<{ api: ReturnType<typeof useApi> }>();
-	const { api } = useOutletContext<{ api: ReturnType<typeof useApi> }>();
-	const { api } = useOutletContext<{ api: ReturnType<typeof useApi> }>();
 	const [liveRefreshTrigger, setLiveRefreshTrigger] = useState(0);
 	const { connected: wsConnected } = useLiveUpdates("roles", () => {
 		setLiveRefreshTrigger((n) => n + 1);

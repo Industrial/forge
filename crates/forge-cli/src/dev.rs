@@ -131,6 +131,7 @@ mod tests {
     ForgeConfig {
       app: AppConfig {
         name: "test".to_string(),
+        environment: None,
       },
       server: ServerConfig {
         host: "127.0.0.1".to_string(),

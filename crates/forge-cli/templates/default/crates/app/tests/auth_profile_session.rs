@@ -6,13 +6,24 @@ use axum::http::StatusCode;
 #[tokio::test]
 async fn get_users_with_token_200() {
   let client = app::test_client().await.expect("test_client");
-  let (token, _org_id, _role_id) =
+  let (token, org_id, role_id) =
     app::auth_with_profile(&client, "multi@email.com", app::SEED_PASSWORD)
       .await
       .expect("auth with profile");
-  let (status, body) = app::test_request(&client, "GET", "/api/users", Some(&token), None, None)
-    .await
-    .unwrap();
+  let scope = [
+    ("X-Organization-Id", org_id.as_str()),
+    ("X-Role-Id", role_id.as_str()),
+  ];
+  let (status, body) = app::test_request(
+    &client,
+    "GET",
+    "/api/users",
+    Some(&token),
+    None,
+    Some(&scope),
+  )
+  .await
+  .unwrap();
   assert_eq!(status, StatusCode::OK);
   let json: app::serde_json::Value = app::serde_json::from_slice(&body).unwrap();
   assert!(
@@ -94,7 +105,7 @@ async fn get_org_users_coolorg_returns_coolorg_users() {
 }
 
 #[tokio::test]
-async fn register_then_login_then_get_users_200() {
+async fn register_then_login_then_get_users_403_without_scope() {
   let client = app::test_client().await.expect("test_client");
   let email = format!("profiletest_{}@example.com", uuid::Uuid::new_v4());
   let (status_reg, _) = app::test_request(
@@ -114,8 +125,9 @@ async fn register_then_login_then_get_users_200() {
   let (token, _org_id, _role_id) = app::auth_with_profile(&client, &email, "password123")
     .await
     .expect("auth with profile after register");
+  // New user has no global scope; GET /api/users without scope headers returns 403.
   let (status, _) = app::test_request(&client, "GET", "/api/users", Some(&token), None, None)
     .await
     .unwrap();
-  assert_eq!(status, StatusCode::OK);
+  assert_eq!(status, StatusCode::FORBIDDEN);
 }

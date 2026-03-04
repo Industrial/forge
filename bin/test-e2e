@@ -2,7 +2,8 @@
 set -euo pipefail
 
 E2E_API_PORT=30999
-E2E_FRONTEND_PORT=5173
+# Use a distinct port so e2e does not clash with a running Vite dev server (default 5173).
+E2E_FRONTEND_PORT=35173
 # Use localhost so Vite (which binds to localhost) and curl agree; tests use same URL.
 E2E_BASE_URL="http://localhost:${E2E_FRONTEND_PORT}"
 PREBUILT=".tmp/e2e_prebuilt"

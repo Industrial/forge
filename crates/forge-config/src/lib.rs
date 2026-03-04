@@ -29,6 +29,9 @@ pub struct FrontendConfig {
 #[derive(Debug, Clone, Deserialize)]
 pub struct AppConfig {
   pub name: String,
+  /// Environment (e.g. "development", "production"). When set in config, used for rate limiting etc.
+  #[serde(default)]
+  pub environment: Option<String>,
 }
 
 #[derive(Debug, Clone, Deserialize)]
@@ -48,9 +51,28 @@ pub struct DatabaseConfig {
   pub auto_seed: bool,
 }
 
-/// Effective environment (e.g. `FORGE_ENVIRONMENT`); defaults to `"development"`.
+/// Effective environment: env `FORGE_ENVIRONMENT` overrides; else config `app.environment`; else `"development"`.
 pub fn effective_environment() -> String {
-  std::env::var("FORGE_ENVIRONMENT").unwrap_or_else(|_| "development".to_string())
+  std::env::var("FORGE_ENVIRONMENT")
+    .ok()
+    .filter(|s| !s.is_empty())
+    .unwrap_or_else(|| "development".to_string())
+}
+
+/// Effective environment from loaded config (e.g. for rate limiting). Prefers config, then env, then "development".
+pub fn effective_environment_from_config(config: &ForgeConfig) -> String {
+  config
+    .app
+    .environment
+    .as_deref()
+    .filter(|s| !s.is_empty())
+    .map(String::from)
+    .or_else(|| {
+      std::env::var("FORGE_ENVIRONMENT")
+        .ok()
+        .filter(|s| !s.is_empty())
+    })
+    .unwrap_or_else(|| "development".to_string())
 }
 
 /// Load configuration from a given directory (looks for `config/app.toml`, `config/db.toml`, optional `config/cache.toml`).

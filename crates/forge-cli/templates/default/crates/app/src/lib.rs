@@ -11,7 +11,6 @@ use std::sync::Arc;
 #[cfg(all(test, not(feature = "test-utils")))]
 static BUILD_ROUTER_FOR_TEST_LOCK: std::sync::Mutex<()> = std::sync::Mutex::new(());
 
-use axum::Router;
 use forge_app::App;
 use tempfile::TempDir;
 
@@ -187,7 +186,7 @@ pub enum TestClient {
   },
   /// In-process router (e.g. `cargo test` without E2E_API_URL).
   InProcess {
-    router: Router,
+    router: axum::Router,
     _guard: std::sync::Arc<std::sync::Mutex<Option<TestEnvGuard>>>,
   },
 }
@@ -219,7 +218,7 @@ pub async fn test_client() -> Result<TestClient, Box<dyn std::error::Error + Sen
 /// When using `test-utils`, use E2E_API_URL and the HTTP client instead.
 #[cfg(all(test, not(feature = "test-utils")))]
 pub async fn build_router_for_test()
--> Result<(Router, TestEnvGuard), Box<dyn std::error::Error + Send + Sync>> {
+-> Result<(axum::Router, TestEnvGuard), Box<dyn std::error::Error + Send + Sync>> {
   let temp = TempDir::new()?;
   let original_cwd = std::env::current_dir()?;
   let db_name = format!("testdb_{}", uuid::Uuid::new_v4());

@@ -25,11 +25,11 @@ rm -rf .tmp/integration_prebuilt
 
 # Build the generated project (clean target to avoid stale dep-info from prior runs)
 echo "> test-integration > cargo build (integration_prebuilt)"
-rm -rf "$ROOT/target/integration_prebuilt"
+rm -rf "$ROOT/target/integration_prebuilt" 2>/dev/null || true
+mkdir -p "$ROOT/target/integration_prebuilt"
 (cd "$ROOT/$PREBUILT" && CARGO_TARGET_DIR="$ROOT/target/integration_prebuilt" cargo build)
 
-# Single config and DB for the run
-export FORGE_ENVIRONMENT=production
+# Single config and DB for the run (use development so rate limiting is off and tests don't hit 429)
 echo "> test-integration > writing config (API port $INTEGRATION_API_PORT)"
 cat > "$PREBUILT/config/app.toml" <<EOF
 [app]
@@ -68,7 +68,7 @@ cleanup() {
 trap cleanup EXIT
 
 echo "> test-integration > starting API server (port $INTEGRATION_API_PORT)"
-(cd "$PREBUILT" && CARGO_TARGET_DIR="$ROOT/target/integration_prebuilt" cargo run --quiet) &
+(cd "$PREBUILT" && CARGO_TARGET_DIR="$ROOT/target/integration_prebuilt" FORGE_ENVIRONMENT=development cargo run --quiet) &
 API_PID=$!
 
 echo "> test-integration > waiting for API /healthz"
