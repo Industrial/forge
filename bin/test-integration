@@ -87,5 +87,5 @@ export E2E_API_URL="$API_URL"
 export E2E_BASE_URL="$API_URL"
 
 echo "> test-integration > running integration tests (prebuilt app)"
-(cd "$ROOT/$PREBUILT" && CARGO_TARGET_DIR="$ROOT/target/integration_prebuilt" RUSTFLAGS='-D warnings' cargo test -- --test-threads=1)
+(cd "$ROOT/$PREBUILT" && CARGO_TARGET_DIR="$ROOT/target/integration_prebuilt" RUSTFLAGS='-D warnings' cargo test -p app --features app/test-utils -- --test-threads=1)
 echo "> test-integration > done"

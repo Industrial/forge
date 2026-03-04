@@ -1,18 +1,13 @@
-//! Integration test: health endpoints (forge layer).
-
-use axum::body::Body;
-use axum::http::{Request, StatusCode};
-use tower::util::ServiceExt;
+//! Integration test: health endpoints (forge layer). Uses prebuilt server when E2E_API_URL is set.
 
 #[tokio::test]
 async fn get_healthz_livez_readyz_return_200() {
-  let (router, _guard) = app::build_router_for_test()
-    .await
-    .expect("build_router_for_test");
+  let client = app::test_client().await.expect("test_client");
 
   for path in ["/healthz", "/livez", "/readyz"] {
-    let req = Request::builder().uri(path).body(Body::empty()).unwrap();
-    let res = router.clone().oneshot(req).await.unwrap();
-    assert_eq!(res.status(), StatusCode::OK, "GET {} should return 200", path);
+    let (status, _) = app::test_request(&client, "GET", path, None, None, None)
+      .await
+      .unwrap();
+    assert_eq!(status, axum::http::StatusCode::OK, "GET {} should return 200", path);
   }
 }

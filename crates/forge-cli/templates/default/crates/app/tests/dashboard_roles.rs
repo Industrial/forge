@@ -4,10 +4,8 @@ use axum::http::StatusCode;
 
 #[tokio::test]
 async fn get_roles_anon_401() {
-  let (router, _guard) = app::build_router_for_test()
-    .await
-    .expect("build_router_for_test");
-  let (status, _) = app::test_request(&router, "GET", "/api/dashboard/roles", None, None, None)
+  let client = app::test_client().await.expect("test_client");
+  let (status, _) = app::test_request(&client, "GET", "/api/dashboard/roles", None, None, None)
     .await
     .unwrap();
   assert_eq!(status, StatusCode::UNAUTHORIZED);
@@ -19,14 +17,12 @@ fn scope_headers<'a>(org_id: &'a str, role_id: &'a str) -> [(&'static str, &'a s
 
 #[tokio::test]
 async fn get_roles_viewer_200() {
-  let (router, _guard) = app::build_router_for_test()
-    .await
-    .expect("build_router_for_test");
-  let (token, org_id, role_id) = app::auth_with_profile(&router, "viewer@default.org", app::SEED_PASSWORD)
+  let client = app::test_client().await.expect("test_client");
+  let (token, org_id, role_id) = app::auth_with_profile(&client, "viewer@default.org", app::SEED_PASSWORD)
     .await
     .expect("login");
   let scope = scope_headers(org_id.as_str(), role_id.as_str());
-  let (status, body) = app::test_request(&router, "GET", "/api/dashboard/roles", Some(&token), None, Some(&scope))
+  let (status, body) = app::test_request(&client, "GET", "/api/dashboard/roles", Some(&token), None, Some(&scope))
     .await
     .unwrap();
   assert_eq!(status, StatusCode::OK);
@@ -36,11 +32,9 @@ async fn get_roles_viewer_200() {
 
 #[tokio::test]
 async fn post_roles_anon_401() {
-  let (router, _guard) = app::build_router_for_test()
-    .await
-    .expect("build_router_for_test");
+  let client = app::test_client().await.expect("test_client");
   let body = r#"{"name":"custom","display_name":"Custom"}"#;
-  let (status, _) = app::test_request(&router, "POST", "/api/dashboard/roles", None, Some(body), None)
+  let (status, _) = app::test_request(&client, "POST", "/api/dashboard/roles", None, Some(body), None)
     .await
     .unwrap();
   assert_eq!(status, StatusCode::UNAUTHORIZED);
@@ -48,16 +42,14 @@ async fn post_roles_anon_401() {
 
 #[tokio::test]
 async fn post_roles_viewer_403() {
-  let (router, _guard) = app::build_router_for_test()
-    .await
-    .expect("build_router_for_test");
-  let (token, org_id, role_id) = app::auth_with_profile(&router, "viewer@default.org", app::SEED_PASSWORD)
+  let client = app::test_client().await.expect("test_client");
+  let (token, org_id, role_id) = app::auth_with_profile(&client, "viewer@default.org", app::SEED_PASSWORD)
     .await
     .expect("login");
   let scope = scope_headers(org_id.as_str(), role_id.as_str());
   let body = r#"{"name":"custom","display_name":"Custom"}"#;
   let (status, _) = app::test_request(
-    &router,
+    &client,
     "POST",
     "/api/dashboard/roles",
     Some(&token),
@@ -71,16 +63,14 @@ async fn post_roles_viewer_403() {
 
 #[tokio::test]
 async fn post_roles_editor_201() {
-  let (router, _guard) = app::build_router_for_test()
-    .await
-    .expect("build_router_for_test");
-  let (token, org_id, role_id) = app::auth_with_profile(&router, "editor@default.org", app::SEED_PASSWORD)
+  let client = app::test_client().await.expect("test_client");
+  let (token, org_id, role_id) = app::auth_with_profile(&client, "editor@default.org", app::SEED_PASSWORD)
     .await
     .expect("login");
   let scope = scope_headers(org_id.as_str(), role_id.as_str());
   let body = r#"{"name":"testrole123","display_name":"Test Role"}"#;
   let (status, _) = app::test_request(
-    &router,
+    &client,
     "POST",
     "/api/dashboard/roles",
     Some(&token),
@@ -94,14 +84,12 @@ async fn post_roles_editor_201() {
 
 #[tokio::test]
 async fn patch_roles_viewer_403() {
-  let (router, _guard) = app::build_router_for_test()
-    .await
-    .expect("build_router_for_test");
-  let (token, org_id, role_id) = app::auth_with_profile(&router, "viewer@default.org", app::SEED_PASSWORD)
+  let client = app::test_client().await.expect("test_client");
+  let (token, org_id, role_id) = app::auth_with_profile(&client, "viewer@default.org", app::SEED_PASSWORD)
     .await
     .expect("login");
   let scope = scope_headers(org_id.as_str(), role_id.as_str());
-  let (_, body) = app::test_request(&router, "GET", "/api/dashboard/roles", Some(&token), None, Some(&scope))
+  let (_, body) = app::test_request(&client, "GET", "/api/dashboard/roles", Some(&token), None, Some(&scope))
     .await
     .unwrap();
   let json: app::serde_json::Value = app::serde_json::from_slice(&body).unwrap();
@@ -109,7 +97,7 @@ async fn patch_roles_viewer_403() {
   let role_id = roles.first().and_then(|r| r["id"].as_str()).unwrap_or("00000000-0000-0000-0000-000000000000");
   let patch_body = format!(r#"{{"id":"{}","display_name":"Updated"}}"#, role_id);
   let (status, _) = app::test_request(
-    &router,
+    &client,
     "PATCH",
     "/api/dashboard/roles",
     Some(&token),
@@ -123,14 +111,12 @@ async fn patch_roles_viewer_403() {
 
 #[tokio::test]
 async fn patch_roles_editor_200() {
-  let (router, _guard) = app::build_router_for_test()
-    .await
-    .expect("build_router_for_test");
-  let (token, org_id, role_id) = app::auth_with_profile(&router, "editor@default.org", app::SEED_PASSWORD)
+  let client = app::test_client().await.expect("test_client");
+  let (token, org_id, role_id) = app::auth_with_profile(&client, "editor@default.org", app::SEED_PASSWORD)
     .await
     .expect("login");
   let scope = scope_headers(org_id.as_str(), role_id.as_str());
-  let (_, body) = app::test_request(&router, "GET", "/api/dashboard/roles", Some(&token), None, Some(&scope))
+  let (_, body) = app::test_request(&client, "GET", "/api/dashboard/roles", Some(&token), None, Some(&scope))
     .await
     .unwrap();
   let json: app::serde_json::Value = app::serde_json::from_slice(&body).unwrap();
@@ -138,7 +124,7 @@ async fn patch_roles_editor_200() {
   let role_id = roles.first().and_then(|r| r["id"].as_str()).unwrap();
   let patch_body = format!(r#"{{"id":"{}","display_name":"Updated Display"}}"#, role_id);
   let (status, _) = app::test_request(
-    &router,
+    &client,
     "PATCH",
     "/api/dashboard/roles",
     Some(&token),
@@ -152,16 +138,14 @@ async fn patch_roles_editor_200() {
 
 #[tokio::test]
 async fn delete_roles_viewer_403() {
-  let (router, _guard) = app::build_router_for_test()
-    .await
-    .expect("build_router_for_test");
-  let (token, org_id, role_id) = app::auth_with_profile(&router, "viewer@default.org", app::SEED_PASSWORD)
+  let client = app::test_client().await.expect("test_client");
+  let (token, org_id, role_id) = app::auth_with_profile(&client, "viewer@default.org", app::SEED_PASSWORD)
     .await
     .expect("login");
   let scope = scope_headers(org_id.as_str(), role_id.as_str());
   let body = r#"{"id":"00000000-0000-0000-0000-000000000000"}"#;
   let (status, _) = app::test_request(
-    &router,
+    &client,
     "DELETE",
     "/api/dashboard/roles",
     Some(&token),

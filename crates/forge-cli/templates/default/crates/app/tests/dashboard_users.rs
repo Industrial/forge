@@ -12,10 +12,8 @@ fn scope_headers<'a>(org_id: &'a str, role_id: &'a str) -> [(&'static str, &'a s
 
 #[tokio::test]
 async fn get_dashboard_users_anonymous_401() {
-  let (router, _guard) = app::build_router_for_test()
-    .await
-    .expect("build_router_for_test");
-  let (status, _) = app::test_request(&router, "GET", "/api/dashboard/users", None, None, None)
+  let client = app::test_client().await.expect("test_client");
+  let (status, _) = app::test_request(&client, "GET", "/api/dashboard/users", None, None, None)
     .await
     .unwrap();
   assert_eq!(status, StatusCode::UNAUTHORIZED);
@@ -23,14 +21,12 @@ async fn get_dashboard_users_anonymous_401() {
 
 #[tokio::test]
 async fn get_dashboard_users_as_viewer_default_200() {
-  let (router, _guard) = app::build_router_for_test()
-    .await
-    .expect("build_router_for_test");
-  let (token, org_id, role_id) = app::auth_with_profile(&router, "viewer@default.org", app::SEED_PASSWORD)
+  let client = app::test_client().await.expect("test_client");
+  let (token, org_id, role_id) = app::auth_with_profile(&client, "viewer@default.org", app::SEED_PASSWORD)
     .await
     .expect("login");
   let scope = scope_headers(org_id.as_str(), role_id.as_str());
-  let (status, _) = app::test_request(&router, "GET", "/api/dashboard/users", Some(&token), None, Some(&scope))
+  let (status, _) = app::test_request(&client, "GET", "/api/dashboard/users", Some(&token), None, Some(&scope))
     .await
     .unwrap();
   assert_eq!(status, StatusCode::OK);
@@ -39,14 +35,12 @@ async fn get_dashboard_users_as_viewer_default_200() {
 /// Org-scoped user (viewer@default.org) sees only Default org users; no memberships for "Other" org.
 #[tokio::test]
 async fn get_dashboard_users_viewer_default_only_sees_default_org() {
-  let (router, _guard) = app::build_router_for_test()
-    .await
-    .expect("build_router_for_test");
-  let (token, org_id, role_id) = app::auth_with_profile(&router, "viewer@default.org", app::SEED_PASSWORD)
+  let client = app::test_client().await.expect("test_client");
+  let (token, org_id, role_id) = app::auth_with_profile(&client, "viewer@default.org", app::SEED_PASSWORD)
     .await
     .expect("login");
   let scope = scope_headers(org_id.as_str(), role_id.as_str());
-  let (status, body) = app::test_request(&router, "GET", "/api/dashboard/users", Some(&token), None, Some(&scope))
+  let (status, body) = app::test_request(&client, "GET", "/api/dashboard/users", Some(&token), None, Some(&scope))
     .await
     .unwrap();
   assert_eq!(status, StatusCode::OK);
@@ -66,10 +60,8 @@ async fn get_dashboard_users_viewer_default_only_sees_default_org() {
 
 #[tokio::test]
 async fn post_dashboard_users_viewer_403() {
-  let (router, _guard) = app::build_router_for_test()
-    .await
-    .expect("build_router_for_test");
-  let (token, org_id, role_id) = app::auth_with_profile(&router, "viewer@default.org", app::SEED_PASSWORD)
+  let client = app::test_client().await.expect("test_client");
+  let (token, org_id, role_id) = app::auth_with_profile(&client, "viewer@default.org", app::SEED_PASSWORD)
     .await
     .expect("login");
   let scope = scope_headers(org_id.as_str(), role_id.as_str());
@@ -78,7 +70,7 @@ async fn post_dashboard_users_viewer_403() {
     org_id
   );
   let (status2, _) = app::test_request(
-    &router,
+    &client,
     "POST",
     "/api/dashboard/users",
     Some(&token),
@@ -92,14 +84,12 @@ async fn post_dashboard_users_viewer_403() {
 
 #[tokio::test]
 async fn post_dashboard_users_editor_201() {
-  let (router, _guard) = app::build_router_for_test()
-    .await
-    .expect("build_router_for_test");
-  let (token, org_id, role_id) = app::auth_with_profile(&router, "editor@default.org", app::SEED_PASSWORD)
+  let client = app::test_client().await.expect("test_client");
+  let (token, org_id, role_id) = app::auth_with_profile(&client, "editor@default.org", app::SEED_PASSWORD)
     .await
     .expect("login");
   let scope = scope_headers(org_id.as_str(), role_id.as_str());
-  let (_, profiles_body) = app::test_request(&router, "GET", "/api/auth/profiles", Some(&token), None, None)
+  let (_, profiles_body) = app::test_request(&client, "GET", "/api/auth/profiles", Some(&token), None, None)
     .await
     .unwrap();
   let profiles: app::serde_json::Value = app::serde_json::from_slice(&profiles_body).unwrap();
@@ -117,7 +107,7 @@ async fn post_dashboard_users_editor_201() {
     unique, org_id, role_id
   );
   let (status, _) = app::test_request(
-    &router,
+    &client,
     "POST",
     "/api/dashboard/users",
     Some(&token),
@@ -131,14 +121,12 @@ async fn post_dashboard_users_editor_201() {
 
 #[tokio::test]
 async fn patch_dashboard_users_viewer_403() {
-  let (router, _guard) = app::build_router_for_test()
-    .await
-    .expect("build_router_for_test");
-  let (token, org_id, role_id) = app::auth_with_profile(&router, "viewer@default.org", app::SEED_PASSWORD)
+  let client = app::test_client().await.expect("test_client");
+  let (token, org_id, role_id) = app::auth_with_profile(&client, "viewer@default.org", app::SEED_PASSWORD)
     .await
     .expect("login");
   let scope = scope_headers(org_id.as_str(), role_id.as_str());
-  let (_, body) = app::test_request(&router, "GET", "/api/dashboard/users", Some(&token), None, Some(&scope))
+  let (_, body) = app::test_request(&client, "GET", "/api/dashboard/users", Some(&token), None, Some(&scope))
     .await
     .unwrap();
   let json: app::serde_json::Value = app::serde_json::from_slice(&body).unwrap();
@@ -149,7 +137,7 @@ async fn patch_dashboard_users_viewer_403() {
     .unwrap_or("00000000-0000-0000-0000-000000000000");
   let patch_body = format!(r#"{{"id":"{}","is_active":true}}"#, user_id);
   let (status, _) = app::test_request(
-    &router,
+    &client,
     "PATCH",
     "/api/dashboard/users",
     Some(&token),
@@ -163,14 +151,12 @@ async fn patch_dashboard_users_viewer_403() {
 
 #[tokio::test]
 async fn patch_dashboard_users_editor_200() {
-  let (router, _guard) = app::build_router_for_test()
-    .await
-    .expect("build_router_for_test");
-  let (token, org_id, role_id) = app::auth_with_profile(&router, "editor@default.org", app::SEED_PASSWORD)
+  let client = app::test_client().await.expect("test_client");
+  let (token, org_id, role_id) = app::auth_with_profile(&client, "editor@default.org", app::SEED_PASSWORD)
     .await
     .expect("login");
   let scope = scope_headers(org_id.as_str(), role_id.as_str());
-  let (_, body) = app::test_request(&router, "GET", "/api/dashboard/users", Some(&token), None, Some(&scope))
+  let (_, body) = app::test_request(&client, "GET", "/api/dashboard/users", Some(&token), None, Some(&scope))
     .await
     .unwrap();
   let json: app::serde_json::Value = app::serde_json::from_slice(&body).unwrap();
@@ -181,7 +167,7 @@ async fn patch_dashboard_users_editor_200() {
     .expect("at least one user");
   let patch_body = format!(r#"{{"id":"{}","is_active":true}}"#, user_id);
   let (status, _) = app::test_request(
-    &router,
+    &client,
     "PATCH",
     "/api/dashboard/users",
     Some(&token),
@@ -195,14 +181,12 @@ async fn patch_dashboard_users_editor_200() {
 
 #[tokio::test]
 async fn delete_dashboard_users_viewer_403() {
-  let (router, _guard) = app::build_router_for_test()
-    .await
-    .expect("build_router_for_test");
-  let (token, org_id, role_id) = app::auth_with_profile(&router, "viewer@default.org", app::SEED_PASSWORD)
+  let client = app::test_client().await.expect("test_client");
+  let (token, org_id, role_id) = app::auth_with_profile(&client, "viewer@default.org", app::SEED_PASSWORD)
     .await
     .expect("login");
   let scope = scope_headers(org_id.as_str(), role_id.as_str());
-  let (_, body) = app::test_request(&router, "GET", "/api/dashboard/users", Some(&token), None, Some(&scope))
+  let (_, body) = app::test_request(&client, "GET", "/api/dashboard/users", Some(&token), None, Some(&scope))
     .await
     .unwrap();
   let json: app::serde_json::Value = app::serde_json::from_slice(&body).unwrap();
@@ -213,7 +197,7 @@ async fn delete_dashboard_users_viewer_403() {
     .unwrap_or("00000000-0000-0000-0000-000000000000");
   let del_body = format!(r#"{{"id":"{}"}}"#, user_id);
   let (status, _) = app::test_request(
-    &router,
+    &client,
     "DELETE",
     "/api/dashboard/users",
     Some(&token),
@@ -227,14 +211,12 @@ async fn delete_dashboard_users_viewer_403() {
 
 #[tokio::test]
 async fn get_users_viewer_default_only_default_org_in_memberships() {
-  let (router, _guard) = app::build_router_for_test()
-    .await
-    .expect("build_router_for_test");
-  let (token, org_id, role_id) = app::auth_with_profile(&router, "viewer@default.org", app::SEED_PASSWORD)
+  let client = app::test_client().await.expect("test_client");
+  let (token, org_id, role_id) = app::auth_with_profile(&client, "viewer@default.org", app::SEED_PASSWORD)
     .await
     .expect("login");
   let scope = scope_headers(org_id.as_str(), role_id.as_str());
-  let (status, body) = app::test_request(&router, "GET", "/api/dashboard/users", Some(&token), None, Some(&scope))
+  let (status, body) = app::test_request(&client, "GET", "/api/dashboard/users", Some(&token), None, Some(&scope))
     .await
     .unwrap();
   assert_eq!(status, StatusCode::OK);
@@ -251,14 +233,12 @@ async fn get_users_viewer_default_only_default_org_in_memberships() {
 
 #[tokio::test]
 async fn get_users_viewer_other_only_other_org() {
-  let (router, _guard) = app::build_router_for_test()
-    .await
-    .expect("build_router_for_test");
-  let (token, org_id, role_id) = app::auth_with_profile(&router, "viewer@other.org", app::SEED_PASSWORD)
+  let client = app::test_client().await.expect("test_client");
+  let (token, org_id, role_id) = app::auth_with_profile(&client, "viewer@other.org", app::SEED_PASSWORD)
     .await
     .expect("login");
   let scope = scope_headers(org_id.as_str(), role_id.as_str());
-  let (status, body) = app::test_request(&router, "GET", "/api/dashboard/users", Some(&token), None, Some(&scope))
+  let (status, body) = app::test_request(&client, "GET", "/api/dashboard/users", Some(&token), None, Some(&scope))
     .await
     .unwrap();
   assert_eq!(status, StatusCode::OK);
@@ -277,14 +257,12 @@ async fn get_users_viewer_other_only_other_org() {
 /// returns users from all orgs, including the "Other" organization.
 #[tokio::test]
 async fn get_dashboard_users_admin_sees_all_orgs_including_other() {
-  let (router, _guard) = app::build_router_for_test()
-    .await
-    .expect("build_router_for_test");
-  let (token, org_id, role_id) = app::auth_with_profile(&router, "admin@admin.com", app::SEED_PASSWORD)
+  let client = app::test_client().await.expect("test_client");
+  let (token, org_id, role_id) = app::auth_with_profile(&client, "admin@admin.com", app::SEED_PASSWORD)
     .await
     .expect("login");
   let scope = scope_headers(org_id.as_str(), role_id.as_str());
-  let (status, body) = app::test_request(&router, "GET", "/api/dashboard/users", Some(&token), None, Some(&scope))
+  let (status, body) = app::test_request(&client, "GET", "/api/dashboard/users", Some(&token), None, Some(&scope))
     .await
     .unwrap();
   assert_eq!(status, StatusCode::OK);
@@ -305,16 +283,14 @@ async fn get_dashboard_users_admin_sees_all_orgs_including_other() {
 
 #[tokio::test]
 async fn post_users_org_id_other_as_viewer_default_403() {
-  let (router, _guard) = app::build_router_for_test()
-    .await
-    .expect("build_router_for_test");
-  let (token, org_id, role_id) = app::auth_with_profile(&router, "viewer@default.org", app::SEED_PASSWORD)
+  let client = app::test_client().await.expect("test_client");
+  let (token, org_id, role_id) = app::auth_with_profile(&client, "viewer@default.org", app::SEED_PASSWORD)
     .await
     .expect("login");
   let scope = scope_headers(org_id.as_str(), role_id.as_str());
   let body_post = r#"{"email":"x@example.com","password":"password123","org_id":"00000000-0000-0000-0000-000000000001","role_ids":[]}"#;
   let (status, _) = app::test_request(
-    &router,
+    &client,
     "POST",
     "/api/dashboard/users",
     Some(&token),

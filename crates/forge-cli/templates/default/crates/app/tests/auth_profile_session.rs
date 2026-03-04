@@ -5,14 +5,12 @@ use axum::http::StatusCode;
 
 #[tokio::test]
 async fn dashboard_users_without_scope_headers_403() {
-  let (router, _guard) = app::build_router_for_test()
-    .await
-    .expect("build_router_for_test");
-  let (token, _org_id, _role_id) = app::auth_with_profile(&router, "multi@email.com", app::SEED_PASSWORD)
+  let client = app::test_client().await.expect("test_client");
+  let (token, _org_id, _role_id) = app::auth_with_profile(&client, "multi@email.com", app::SEED_PASSWORD)
     .await
     .expect("auth with profile");
   // Token but no X-Organization-Id / X-Role-Id → profile_required
-  let (status, body) = app::test_request(&router, "GET", "/api/dashboard/users", Some(&token), None, None)
+  let (status, body) = app::test_request(&client, "GET", "/api/dashboard/users", Some(&token), None, None)
     .await
     .unwrap();
   assert_eq!(status, StatusCode::FORBIDDEN);
@@ -22,10 +20,8 @@ async fn dashboard_users_without_scope_headers_403() {
 
 #[tokio::test]
 async fn dashboard_users_with_scope_headers_200() {
-  let (router, _guard) = app::build_router_for_test()
-    .await
-    .expect("build_router_for_test");
-  let (token, org_id, role_id) = app::auth_with_profile(&router, "multi@email.com", app::SEED_PASSWORD)
+  let client = app::test_client().await.expect("test_client");
+  let (token, org_id, role_id) = app::auth_with_profile(&client, "multi@email.com", app::SEED_PASSWORD)
     .await
     .expect("auth with profile");
   let scope = [
@@ -33,7 +29,7 @@ async fn dashboard_users_with_scope_headers_200() {
     ("X-Role-Id", role_id.as_str()),
   ];
   let (status, _) = app::test_request(
-    &router,
+    &client,
     "GET",
     "/api/dashboard/users",
     Some(&token),
@@ -47,13 +43,11 @@ async fn dashboard_users_with_scope_headers_200() {
 
 #[tokio::test]
 async fn dashboard_users_with_other_org_scope_returns_other_org_users() {
-  let (router, _guard) = app::build_router_for_test()
-    .await
-    .expect("build_router_for_test");
-  let (token, _first_org_id, _first_role_id) = app::auth_with_profile(&router, "multi@email.com", app::SEED_PASSWORD)
+  let client = app::test_client().await.expect("test_client");
+  let (token, _first_org_id, _first_role_id) = app::auth_with_profile(&client, "multi@email.com", app::SEED_PASSWORD)
     .await
     .expect("auth with profile");
-  let (_, profiles_body) = app::test_request(&router, "GET", "/api/auth/profiles", Some(&token), None, None)
+  let (_, profiles_body) = app::test_request(&client, "GET", "/api/auth/profiles", Some(&token), None, None)
     .await
     .unwrap();
   let json: app::serde_json::Value = app::serde_json::from_slice(&profiles_body).unwrap();
@@ -69,7 +63,7 @@ async fn dashboard_users_with_other_org_scope_returns_other_org_users() {
     ("X-Role-Id", role_id),
   ];
   let (status_users, body_users) = app::test_request(
-    &router,
+    &client,
     "GET",
     "/api/dashboard/users",
     Some(&token),
@@ -97,12 +91,10 @@ async fn dashboard_users_with_other_org_scope_returns_other_org_users() {
 
 #[tokio::test]
 async fn register_then_login_with_scope_headers_200() {
-  let (router, _guard) = app::build_router_for_test()
-    .await
-    .expect("build_router_for_test");
+  let client = app::test_client().await.expect("test_client");
   let email = format!("profiletest_{}@example.com", uuid::Uuid::new_v4());
   let (status_reg, _) = app::test_request(
-    &router,
+    &client,
     "POST",
     "/api/auth/register",
     None,
@@ -112,7 +104,7 @@ async fn register_then_login_with_scope_headers_200() {
   .await
   .unwrap();
   assert_eq!(status_reg, StatusCode::CREATED);
-  let (token, org_id, role_id) = app::auth_with_profile(&router, &email, "password123")
+  let (token, org_id, role_id) = app::auth_with_profile(&client, &email, "password123")
     .await
     .expect("auth with profile after register");
   let scope = [
@@ -120,7 +112,7 @@ async fn register_then_login_with_scope_headers_200() {
     ("X-Role-Id", role_id.as_str()),
   ];
   let (status, _) = app::test_request(
-    &router,
+    &client,
     "GET",
     "/api/dashboard/users",
     Some(&token),

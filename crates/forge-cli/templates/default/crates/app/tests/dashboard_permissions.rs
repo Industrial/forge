@@ -4,10 +4,8 @@ use axum::http::StatusCode;
 
 #[tokio::test]
 async fn get_permissions_anon_401() {
-  let (router, _guard) = app::build_router_for_test()
-    .await
-    .expect("build_router_for_test");
-  let (status, _) = app::test_request(&router, "GET", "/api/dashboard/permissions", None, None, None)
+  let client = app::test_client().await.expect("test_client");
+  let (status, _) = app::test_request(&client, "GET", "/api/dashboard/permissions", None, None, None)
     .await
     .unwrap();
   assert_eq!(status, StatusCode::UNAUTHORIZED);
@@ -19,15 +17,13 @@ fn scope_headers<'a>(org_id: &'a str, role_id: &'a str) -> [(&'static str, &'a s
 
 #[tokio::test]
 async fn get_permissions_viewer_default_200() {
-  let (router, _guard) = app::build_router_for_test()
-    .await
-    .expect("build_router_for_test");
-  let (token, org_id, role_id) = app::auth_with_profile(&router, "viewer@default.org", app::SEED_PASSWORD)
+  let client = app::test_client().await.expect("test_client");
+  let (token, org_id, role_id) = app::auth_with_profile(&client, "viewer@default.org", app::SEED_PASSWORD)
     .await
     .expect("login");
   let scope = scope_headers(org_id.as_str(), role_id.as_str());
   let (status, _) =
-    app::test_request(&router, "GET", "/api/dashboard/permissions", Some(&token), None, Some(&scope))
+    app::test_request(&client, "GET", "/api/dashboard/permissions", Some(&token), None, Some(&scope))
       .await
       .unwrap();
   assert_eq!(status, StatusCode::OK);
@@ -35,15 +31,13 @@ async fn get_permissions_viewer_default_200() {
 
 #[tokio::test]
 async fn get_permissions_editor_default_200() {
-  let (router, _guard) = app::build_router_for_test()
-    .await
-    .expect("build_router_for_test");
-  let (token, org_id, role_id) = app::auth_with_profile(&router, "editor@default.org", app::SEED_PASSWORD)
+  let client = app::test_client().await.expect("test_client");
+  let (token, org_id, role_id) = app::auth_with_profile(&client, "editor@default.org", app::SEED_PASSWORD)
     .await
     .expect("login");
   let scope = scope_headers(org_id.as_str(), role_id.as_str());
   let (status, _) =
-    app::test_request(&router, "GET", "/api/dashboard/permissions", Some(&token), None, Some(&scope))
+    app::test_request(&client, "GET", "/api/dashboard/permissions", Some(&token), None, Some(&scope))
       .await
       .unwrap();
   assert_eq!(status, StatusCode::OK);
@@ -51,15 +45,13 @@ async fn get_permissions_editor_default_200() {
 
 #[tokio::test]
 async fn get_permissions_admin_default_200() {
-  let (router, _guard) = app::build_router_for_test()
-    .await
-    .expect("build_router_for_test");
-  let (token, org_id, role_id) = app::auth_with_profile(&router, "orgadmin@default.org", app::SEED_PASSWORD)
+  let client = app::test_client().await.expect("test_client");
+  let (token, org_id, role_id) = app::auth_with_profile(&client, "orgadmin@default.org", app::SEED_PASSWORD)
     .await
     .expect("login");
   let scope = scope_headers(org_id.as_str(), role_id.as_str());
   let (status, _) =
-    app::test_request(&router, "GET", "/api/dashboard/permissions", Some(&token), None, Some(&scope))
+    app::test_request(&client, "GET", "/api/dashboard/permissions", Some(&token), None, Some(&scope))
       .await
       .unwrap();
   assert_eq!(status, StatusCode::OK);
@@ -67,15 +59,13 @@ async fn get_permissions_admin_default_200() {
 
 #[tokio::test]
 async fn get_permissions_owner_default_200() {
-  let (router, _guard) = app::build_router_for_test()
-    .await
-    .expect("build_router_for_test");
-  let (token, org_id, role_id) = app::auth_with_profile(&router, "owner@default.org", app::SEED_PASSWORD)
+  let client = app::test_client().await.expect("test_client");
+  let (token, org_id, role_id) = app::auth_with_profile(&client, "owner@default.org", app::SEED_PASSWORD)
     .await
     .expect("login");
   let scope = scope_headers(org_id.as_str(), role_id.as_str());
   let (status, _) =
-    app::test_request(&router, "GET", "/api/dashboard/permissions", Some(&token), None, Some(&scope))
+    app::test_request(&client, "GET", "/api/dashboard/permissions", Some(&token), None, Some(&scope))
       .await
       .unwrap();
   assert_eq!(status, StatusCode::OK);
@@ -83,15 +73,13 @@ async fn get_permissions_owner_default_200() {
 
 #[tokio::test]
 async fn get_permissions_global_admin_200() {
-  let (router, _guard) = app::build_router_for_test()
-    .await
-    .expect("build_router_for_test");
-  let (token, org_id, role_id) = app::auth_with_profile(&router, "admin@admin.com", app::SEED_PASSWORD)
+  let client = app::test_client().await.expect("test_client");
+  let (token, org_id, role_id) = app::auth_with_profile(&client, "admin@admin.com", app::SEED_PASSWORD)
     .await
     .expect("login");
   let scope = scope_headers(org_id.as_str(), role_id.as_str());
   let (status, _) =
-    app::test_request(&router, "GET", "/api/dashboard/permissions", Some(&token), None, Some(&scope))
+    app::test_request(&client, "GET", "/api/dashboard/permissions", Some(&token), None, Some(&scope))
       .await
       .unwrap();
   assert_eq!(status, StatusCode::OK);

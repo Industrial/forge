@@ -392,7 +392,7 @@ impl App {
 
     let mut cron_tasks = self.cron_tasks;
     if let Some(live_backend) = self.live_backend {
-      router = router.layer(axum::Extension(live_backend));
+      router = router.layer(axum::Extension(Some(live_backend)));
       cron_tasks.push((
         "forge-live-sweep".to_string(),
         CronSchedule::Interval(std::time::Duration::from_secs(60)),

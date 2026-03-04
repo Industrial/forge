@@ -3,6 +3,11 @@ name = "app"
 version = "0.1.0"
 edition = "2024"
 
+[features]
+# Enable when running integration tests (e.g. cargo test -p app --features test-utils).
+# Exposes test_client() and HTTP path; reqwest is optional. In-process path uses dev-deps (migrations).
+test-utils = ["reqwest"]
+
 [dependencies]
 accept-language = "3.1"
 async-trait = "0.1"
@@ -42,6 +47,10 @@ validator = { version = "0.20", features = ["derive"] }
 tempfile = "3.14"
 tower = "0.5"
 
+# Only when feature "test-utils" is enabled (HTTP path in test_client()).
+reqwest = { version = "0.12", default-features = false, features = ["json"], optional = true }
+
 [dev-dependencies]
 migrations = { path = "../migrations" }
+sea-orm-migration = "1.1"
 

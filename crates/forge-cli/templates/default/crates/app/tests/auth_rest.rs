@@ -3,18 +3,16 @@
 
 use axum::http::StatusCode;
 
-async fn token_for(router: &axum::Router, email: &str) -> String {
-  app::login_as_seed_user(router, email, app::SEED_PASSWORD)
+async fn token_for(client: &app::TestClient, email: &str) -> String {
+  app::login_as_seed_user(client, email, app::SEED_PASSWORD)
     .await
     .expect("login")
 }
 
 #[tokio::test]
 async fn get_logout_anon_200() {
-  let (router, _guard) = app::build_router_for_test()
-    .await
-    .expect("build_router_for_test");
-  let (status, _) = app::test_request(&router, "GET", "/api/auth/logout", None, None, None)
+  let client = app::test_client().await.expect("test_client");
+  let (status, _) = app::test_request(&client, "GET", "/api/auth/logout", None, None, None)
     .await
     .unwrap();
   assert_eq!(status, StatusCode::OK);
@@ -22,11 +20,9 @@ async fn get_logout_anon_200() {
 
 #[tokio::test]
 async fn get_logout_auth_200() {
-  let (router, _guard) = app::build_router_for_test()
-    .await
-    .expect("build_router_for_test");
-  let token = token_for(&router, "viewer@default.org").await;
-  let (status, _) = app::test_request(&router, "GET", "/api/auth/logout", Some(&token), None, None)
+  let client = app::test_client().await.expect("test_client");
+  let token = token_for(&client, "viewer@default.org").await;
+  let (status, _) = app::test_request(&client, "GET", "/api/auth/logout", Some(&token), None, None)
     .await
     .unwrap();
   assert_eq!(status, StatusCode::OK);
@@ -34,10 +30,8 @@ async fn get_logout_auth_200() {
 
 #[tokio::test]
 async fn get_me_anon_401() {
-  let (router, _guard) = app::build_router_for_test()
-    .await
-    .expect("build_router_for_test");
-  let (status, _) = app::test_request(&router, "GET", "/api/auth/me", None, None, None)
+  let client = app::test_client().await.expect("test_client");
+  let (status, _) = app::test_request(&client, "GET", "/api/auth/me", None, None, None)
     .await
     .unwrap();
   assert_eq!(status, StatusCode::UNAUTHORIZED);
@@ -45,11 +39,9 @@ async fn get_me_anon_401() {
 
 #[tokio::test]
 async fn get_me_auth_200() {
-  let (router, _guard) = app::build_router_for_test()
-    .await
-    .expect("build_router_for_test");
-  let token = token_for(&router, "viewer@default.org").await;
-  let (status, _) = app::test_request(&router, "GET", "/api/auth/me", Some(&token), None, None)
+  let client = app::test_client().await.expect("test_client");
+  let token = token_for(&client, "viewer@default.org").await;
+  let (status, _) = app::test_request(&client, "GET", "/api/auth/me", Some(&token), None, None)
     .await
     .unwrap();
   assert_eq!(status, StatusCode::OK);
@@ -57,10 +49,8 @@ async fn get_me_auth_200() {
 
 #[tokio::test]
 async fn get_profiles_anon_401() {
-  let (router, _guard) = app::build_router_for_test()
-    .await
-    .expect("build_router_for_test");
-  let (status, _) = app::test_request(&router, "GET", "/api/auth/profiles", None, None, None)
+  let client = app::test_client().await.expect("test_client");
+  let (status, _) = app::test_request(&client, "GET", "/api/auth/profiles", None, None, None)
     .await
     .unwrap();
   assert_eq!(status, StatusCode::UNAUTHORIZED);
@@ -68,11 +58,9 @@ async fn get_profiles_anon_401() {
 
 #[tokio::test]
 async fn get_profiles_auth_200() {
-  let (router, _guard) = app::build_router_for_test()
-    .await
-    .expect("build_router_for_test");
-  let token = token_for(&router, "viewer@default.org").await;
-  let (status, body) = app::test_request(&router, "GET", "/api/auth/profiles", Some(&token), None, None)
+  let client = app::test_client().await.expect("test_client");
+  let token = token_for(&client, "viewer@default.org").await;
+  let (status, body) = app::test_request(&client, "GET", "/api/auth/profiles", Some(&token), None, None)
     .await
     .unwrap();
   assert_eq!(status, StatusCode::OK);
@@ -82,10 +70,8 @@ async fn get_profiles_auth_200() {
 
 #[tokio::test]
 async fn post_tokens_anon_401() {
-  let (router, _guard) = app::build_router_for_test()
-    .await
-    .expect("build_router_for_test");
-  let (status, _) = app::test_request(&router, "POST", "/api/auth/tokens", None, Some("{}"), None)
+  let client = app::test_client().await.expect("test_client");
+  let (status, _) = app::test_request(&client, "POST", "/api/auth/tokens", None, Some("{}"), None)
     .await
     .unwrap();
   assert_eq!(status, StatusCode::UNAUTHORIZED);
@@ -93,12 +79,10 @@ async fn post_tokens_anon_401() {
 
 #[tokio::test]
 async fn post_tokens_auth_200() {
-  let (router, _guard) = app::build_router_for_test()
-    .await
-    .expect("build_router_for_test");
-  let token = token_for(&router, "viewer@default.org").await;
+  let client = app::test_client().await.expect("test_client");
+  let token = token_for(&client, "viewer@default.org").await;
   let (status, _) = app::test_request(
-    &router,
+    &client,
     "POST",
     "/api/auth/tokens",
     Some(&token),
@@ -112,10 +96,8 @@ async fn post_tokens_auth_200() {
 
 #[tokio::test]
 async fn get_admin_anon_401() {
-  let (router, _guard) = app::build_router_for_test()
-    .await
-    .expect("build_router_for_test");
-  let (status, _) = app::test_request(&router, "GET", "/api/auth/admin", None, None, None)
+  let client = app::test_client().await.expect("test_client");
+  let (status, _) = app::test_request(&client, "GET", "/api/auth/admin", None, None, None)
     .await
     .unwrap();
   assert_eq!(status, StatusCode::UNAUTHORIZED);
@@ -123,11 +105,9 @@ async fn get_admin_anon_401() {
 
 #[tokio::test]
 async fn get_admin_non_admin_403() {
-  let (router, _guard) = app::build_router_for_test()
-    .await
-    .expect("build_router_for_test");
-  let token = token_for(&router, "viewer@default.org").await;
-  let (status, _) = app::test_request(&router, "GET", "/api/auth/admin", Some(&token), None, None)
+  let client = app::test_client().await.expect("test_client");
+  let token = token_for(&client, "viewer@default.org").await;
+  let (status, _) = app::test_request(&client, "GET", "/api/auth/admin", Some(&token), None, None)
     .await
     .unwrap();
   assert_eq!(status, StatusCode::FORBIDDEN);
@@ -135,11 +115,9 @@ async fn get_admin_non_admin_403() {
 
 #[tokio::test]
 async fn get_admin_global_admin_200() {
-  let (router, _guard) = app::build_router_for_test()
-    .await
-    .expect("build_router_for_test");
-  let token = token_for(&router, "admin@admin.com").await;
-  let (status, _) = app::test_request(&router, "GET", "/api/auth/admin", Some(&token), None, None)
+  let client = app::test_client().await.expect("test_client");
+  let token = token_for(&client, "admin@admin.com").await;
+  let (status, _) = app::test_request(&client, "GET", "/api/auth/admin", Some(&token), None, None)
     .await
     .unwrap();
   assert_eq!(status, StatusCode::OK);
