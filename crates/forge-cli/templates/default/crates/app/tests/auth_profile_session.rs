@@ -1,4 +1,4 @@
-//! Integration tests: dashboard requires X-Organization-Id and X-Role-Name (scope headers).
+//! Integration tests: dashboard requires X-Organization-Id and X-Role-Id (scope headers).
 //! Without scope → 403 profile_required; with scope → 200. Scenarios expressed via headers, not session/set-profile.
 
 use axum::http::StatusCode;
@@ -8,10 +8,10 @@ async fn dashboard_users_without_scope_headers_403() {
   let (router, _guard) = app::build_router_for_test()
     .await
     .expect("build_router_for_test");
-  let (token, _org_id, _role_name) = app::auth_with_profile(&router, "multi@email.com", app::SEED_PASSWORD)
+  let (token, _org_id, _role_id) = app::auth_with_profile(&router, "multi@email.com", app::SEED_PASSWORD)
     .await
     .expect("auth with profile");
-  // Token but no X-Organization-Id / X-Role-Name → profile_required
+  // Token but no X-Organization-Id / X-Role-Id → profile_required
   let (status, body) = app::test_request(&router, "GET", "/api/dashboard/users", Some(&token), None, None)
     .await
     .unwrap();
@@ -25,12 +25,12 @@ async fn dashboard_users_with_scope_headers_200() {
   let (router, _guard) = app::build_router_for_test()
     .await
     .expect("build_router_for_test");
-  let (token, org_id, role_name) = app::auth_with_profile(&router, "multi@email.com", app::SEED_PASSWORD)
+  let (token, org_id, role_id) = app::auth_with_profile(&router, "multi@email.com", app::SEED_PASSWORD)
     .await
     .expect("auth with profile");
   let scope = [
     ("X-Organization-Id", org_id.as_str()),
-    ("X-Role-Name", role_name.as_str()),
+    ("X-Role-Id", role_id.as_str()),
   ];
   let (status, _) = app::test_request(
     &router,
@@ -50,7 +50,7 @@ async fn dashboard_users_with_other_org_scope_returns_other_org_users() {
   let (router, _guard) = app::build_router_for_test()
     .await
     .expect("build_router_for_test");
-  let (token, _first_org_id, _first_role) = app::auth_with_profile(&router, "multi@email.com", app::SEED_PASSWORD)
+  let (token, _first_org_id, _first_role_id) = app::auth_with_profile(&router, "multi@email.com", app::SEED_PASSWORD)
     .await
     .expect("auth with profile");
   let (_, profiles_body) = app::test_request(&router, "GET", "/api/auth/profiles", Some(&token), None, None)
@@ -63,10 +63,10 @@ async fn dashboard_users_with_other_org_scope_returns_other_org_users() {
     .find(|p| p["org_name"].as_str() == Some("Other"))
     .expect("multi has Other org profile");
   let org_id = other_profile["org_id"].as_str().unwrap();
-  let role_name = other_profile["role"].as_str().unwrap();
+  let role_id = other_profile["role_id"].as_str().unwrap();
   let scope = [
     ("X-Organization-Id", org_id),
-    ("X-Role-Name", role_name),
+    ("X-Role-Id", role_id),
   ];
   let (status_users, body_users) = app::test_request(
     &router,
@@ -112,12 +112,12 @@ async fn register_then_login_with_scope_headers_200() {
   .await
   .unwrap();
   assert_eq!(status_reg, StatusCode::CREATED);
-  let (token, org_id, role_name) = app::auth_with_profile(&router, &email, "password123")
+  let (token, org_id, role_id) = app::auth_with_profile(&router, &email, "password123")
     .await
     .expect("auth with profile after register");
   let scope = [
     ("X-Organization-Id", org_id.as_str()),
-    ("X-Role-Name", role_name.as_str()),
+    ("X-Role-Id", role_id.as_str()),
   ];
   let (status, _) = app::test_request(
     &router,

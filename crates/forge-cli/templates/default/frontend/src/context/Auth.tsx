@@ -30,6 +30,8 @@ export type AuthState = {
 	setToken: (token: string | null) => void;
 	currentOrgId: string | null;
 	setCurrentOrgId: (orgId: string | null) => void;
+	currentRoleId: string | null;
+	setCurrentRoleId: (roleId: string | null) => void;
 	currentRoleName: string | null;
 	setCurrentRoleName: (roleName: string | null) => void;
 	/** When true, redirect to /select-profile before dashboard. */
@@ -37,14 +39,14 @@ export type AuthState = {
 	loading: boolean;
 	fetchMe: () => Promise<void>;
 	logout: () => Promise<void>;
-	setCurrentScope: (orgId: string, roleName: string) => Promise<void>;
+	setCurrentScope: (orgId: string, roleId: string, roleName: string) => Promise<void>;
 };
 
 const AuthContext = createContext<AuthState | null>(null);
 
 export function useAuth(): AuthState {
-	const ctx = useContext(SessionContext);
-	if (!ctx) throw new Error("useSession must be used within SessionProvider");
+	const ctx = useContext(AuthContext);
+	if (!ctx) throw new Error("useAuth must be used within AuthProvider");
 	return ctx;
 }
 
@@ -94,6 +96,9 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 	const [currentOrgId, setCurrentOrgId] = useState<string | null>(
 		localStorage.getItem("currentOrgId"),
 	);
+	const [currentRoleId, setCurrentRoleId] = useState<string | null>(
+		localStorage.getItem("currentRoleId"),
+	);
 	const [currentRoleName, setCurrentRoleName] = useState<string | null>(
 		localStorage.getItem("currentRoleName"),
 	);
@@ -121,7 +126,16 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 		}
 	}, [currentOrgId]);
 
-	// Store currentRoleName in local storage
+	// Store currentRoleId in local storage (used for X-Role-Id header)
+	useEffect(() => {
+		if (currentRoleId) {
+			localStorage.setItem("currentRoleId", currentRoleId);
+		} else {
+			localStorage.removeItem("currentRoleId");
+		}
+	}, [currentRoleId]);
+
+	// Store currentRoleName in local storage (display only)
 	useEffect(() => {
 		if (currentRoleName) {
 			localStorage.setItem("currentRoleName", currentRoleName);
@@ -157,6 +171,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 		// TODO: Call API to revoke token
 		setToken(null);
 		setCurrentOrgId(null);
+		setCurrentRoleId(null);
 		setCurrentRoleName(null);
 		setUser(null);
 		setProfiles([]);
@@ -165,8 +180,9 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 		setNeedsProfileSelect(false);
 	}, []);
 
-	const setCurrentScope = useCallback(async (orgId: string, roleName: string) => {
+	const setCurrentScope = useCallback(async (orgId: string, roleId: string, roleName: string) => {
 		setCurrentOrgId(orgId);
+		setCurrentRoleId(roleId);
 		setCurrentRoleName(roleName);
 		// TODO: Potentially re-fetch permissions based on new scope
 	}, []);
@@ -186,6 +202,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 				setToken,
 				currentOrgId,
 				setCurrentOrgId,
+				currentRoleId,
+				setCurrentRoleId,
 				currentRoleName,
 				setCurrentRoleName,
 				needs_profile_select,

@@ -13,8 +13,8 @@ async fn get_organizations_anon_401() {
   assert_eq!(status, StatusCode::UNAUTHORIZED);
 }
 
-fn scope_headers(org_id: &str, role_name: &str) -> [(&'static str, &str); 2] {
-  [("X-Organization-Id", org_id), ("X-Role-Name", role_name)]
+fn scope_headers(org_id: &str, role_id: &str) -> [(&'static str, &str); 2] {
+  [("X-Organization-Id", org_id), ("X-Role-Id", role_id)]
 }
 
 #[tokio::test]
@@ -22,10 +22,10 @@ async fn get_organizations_viewer_403() {
   let (router, _guard) = app::build_router_for_test()
     .await
     .expect("build_router_for_test");
-  let (token, org_id, role_name) = app::auth_with_profile(&router, "viewer@default.org", app::SEED_PASSWORD)
+  let (token, org_id, role_id) = app::auth_with_profile(&router, "viewer@default.org", app::SEED_PASSWORD)
     .await
     .expect("login");
-  let scope = scope_headers(org_id.as_str(), role_name.as_str());
+  let scope = scope_headers(org_id.as_str(), role_id.as_str());
   let (status, _) = app::test_request(
     &router,
     "GET",
@@ -44,10 +44,10 @@ async fn get_organizations_global_admin_200() {
   let (router, _guard) = app::build_router_for_test()
     .await
     .expect("build_router_for_test");
-  let (token, org_id, role_name) = app::auth_with_profile(&router, "admin@admin.com", app::SEED_PASSWORD)
+  let (token, org_id, role_id) = app::auth_with_profile(&router, "admin@admin.com", app::SEED_PASSWORD)
     .await
     .expect("login");
-  let scope = scope_headers(org_id.as_str(), role_name.as_str());
+  let scope = scope_headers(org_id.as_str(), role_id.as_str());
   let (status, body) = app::test_request(
     &router,
     "GET",
@@ -69,10 +69,10 @@ async fn post_organizations_viewer_403() {
   let (router, _guard) = app::build_router_for_test()
     .await
     .expect("build_router_for_test");
-  let (token, org_id, role_name) = app::auth_with_profile(&router, "viewer@default.org", app::SEED_PASSWORD)
+  let (token, org_id, role_id) = app::auth_with_profile(&router, "viewer@default.org", app::SEED_PASSWORD)
     .await
     .expect("login");
-  let scope = scope_headers(org_id.as_str(), role_name.as_str());
+  let scope = scope_headers(org_id.as_str(), role_id.as_str());
   let body = r#"{"name":"New Org","slug":"new-org"}"#;
   let (status, _) = app::test_request(
     &router,
@@ -92,10 +92,10 @@ async fn post_organizations_global_admin_201() {
   let (router, _guard) = app::build_router_for_test()
     .await
     .expect("build_router_for_test");
-  let (token, org_id, role_name) = app::auth_with_profile(&router, "admin@admin.com", app::SEED_PASSWORD)
+  let (token, org_id, role_id) = app::auth_with_profile(&router, "admin@admin.com", app::SEED_PASSWORD)
     .await
     .expect("login");
-  let scope = scope_headers(org_id.as_str(), role_name.as_str());
+  let scope = scope_headers(org_id.as_str(), role_id.as_str());
   let body = r#"{"name":"Test Org","slug":"test-org-12345"}"#;
   let (status, _) = app::test_request(
     &router,

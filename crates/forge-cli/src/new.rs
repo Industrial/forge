@@ -124,16 +124,46 @@ fn copy_template_dir(
         let replaced = text
           .replace("{{PROJECT_NAME}}", project_name)
           .replace("{{FORGE_PATH}}", forge_path)
-          .replace("../../../../../forge-app", &format!("{}/crates/forge-app", forge_path))
-          .replace("../../../../../forge-auth", &format!("{}/crates/forge-auth", forge_path))
-          .replace("../../../../../forge-audit", &format!("{}/crates/forge-audit", forge_path))
-          .replace("../../../../../forge-cache", &format!("{}/crates/forge-cache", forge_path))
-          .replace("../../../../../forge-config", &format!("{}/crates/forge-config", forge_path))
-          .replace("../../../../../forge-core", &format!("{}/crates/forge-core", forge_path))
-          .replace("../../../../../forge-cron", &format!("{}/crates/forge-cron", forge_path))
-          .replace("../../../../../forge-db", &format!("{}/crates/forge-db", forge_path))
-          .replace("../../../../../forge-live", &format!("{}/crates/forge-live", forge_path))
-          .replace("../../../../../forge-observability", &format!("{}/crates/forge-observability", forge_path));
+          .replace(
+            "../../../../../forge-app",
+            &format!("{}/crates/forge-app", forge_path),
+          )
+          .replace(
+            "../../../../../forge-auth",
+            &format!("{}/crates/forge-auth", forge_path),
+          )
+          .replace(
+            "../../../../../forge-audit",
+            &format!("{}/crates/forge-audit", forge_path),
+          )
+          .replace(
+            "../../../../../forge-cache",
+            &format!("{}/crates/forge-cache", forge_path),
+          )
+          .replace(
+            "../../../../../forge-config",
+            &format!("{}/crates/forge-config", forge_path),
+          )
+          .replace(
+            "../../../../../forge-core",
+            &format!("{}/crates/forge-core", forge_path),
+          )
+          .replace(
+            "../../../../../forge-cron",
+            &format!("{}/crates/forge-cron", forge_path),
+          )
+          .replace(
+            "../../../../../forge-db",
+            &format!("{}/crates/forge-db", forge_path),
+          )
+          .replace(
+            "../../../../../forge-live",
+            &format!("{}/crates/forge-live", forge_path),
+          )
+          .replace(
+            "../../../../../forge-observability",
+            &format!("{}/crates/forge-observability", forge_path),
+          );
         fs::write(&dest_path, replaced)?;
       }
     }

@@ -8,12 +8,9 @@ pub mod authz;
 pub mod password;
 pub mod token_auth;
 
-pub use authz::{
-  Action, AuthzContext, AuthzError, ForgePolicy, ForgeScoped, RequestScope, Role,
-  TokenUserGuardExt, guard_user,
-};
-pub use axum_login::{AuthnBackend as Backend, AuthUser};
+pub use authz::{Action, AuthzContext, AuthzError, ForgePolicy, ForgeScoped, RequestScope};
+pub use axum_login::{AuthUser, AuthnBackend as Backend};
 pub use token_auth::{
-  OptionalRequireAuth, RequireAuth, TokenLookupFn, TokenUser,
-  hash_api_token, hash_password, verify_api_token, verify_password,
+  OptionalRequireAuth, RequireAuth, TokenLookupFn, TokenUser, hash_api_token, hash_password,
+  verify_api_token, verify_password,
 };

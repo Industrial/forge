@@ -3,13 +3,13 @@
 use std::sync::Arc;
 
 use axum::{Router, handler::Handler};
+use forge_auth::token_auth::{TokenAuthLayer, TokenLookupFn};
 use forge_cache::HttpResponseCacheLayer;
 use forge_config::ForgeConfig;
 use forge_cron::{CronRunner, CronSchedule, CronTaskBox};
-use forge_db::{initialize_database, wrap_traced, DbConnection};
+use forge_db::{DbConnection, initialize_database, wrap_traced};
 use forge_health::{healthz, livez, readyz};
 use forge_observability::{env_filter, init_otel, otel_layer};
-use forge_auth::token_auth::{TokenAuthLayer, TokenLookupFn};
 use forge_rate_limit::RequesterOrgKeyExtractor;
 use futures::future::BoxFuture;
 use governor::middleware::NoOpMiddleware;
@@ -228,8 +228,10 @@ impl App {
       move |router, db_conn, rate_limit_per_user, token_lookup| {
         Box::pin(async move {
           if db_conn.get_database_backend() != DbBackend::Sqlite {
-            warn!("Authentication currently only
-            supported with Sqlite. Skipping auth setup.");
+            warn!(
+              "Authentication currently only
+            supported with Sqlite. Skipping auth setup."
+            );
             return router;
           }
 
@@ -241,24 +243,27 @@ impl App {
             router
           };
 
-          let router = if let Some(rpm) = rate_limit_per_user {
-            let mut builder = GovernorConfigBuilder::default()
-              .key_extractor(RequesterOrgKeyExtractor::<B>::new());
+          if let Some(rpm) = rate_limit_per_user {
+            let mut builder =
+              GovernorConfigBuilder::default().key_extractor(RequesterOrgKeyExtractor::<B>::new());
             builder.per_second(1).burst_size(rpm.max(1));
             let conf = builder.finish().expect("GovernorConfig per-user");
             router.layer(GovernorLayer::new(Arc::new(conf)))
           } else {
             router
-          };
-          router
+          }
         })
-      }),
-    );
+      },
+    ));
     self
   }
 
   /// Enables token (Bearer) authentication for the application.
-  pub fn with_token_auth_only<B, F>(mut self, backend_factory: F, token_lookup: TokenLookupFn) -> Self
+  pub fn with_token_auth_only<B, F>(
+    mut self,
+    backend_factory: F,
+    token_lookup: TokenLookupFn,
+  ) -> Self
   where
     B: axum_login::AuthnBackend + Send + Sync + Clone + 'static,
     B::User: forge_auth::AuthzContext<RequesterId = uuid::Uuid, SubjectId = uuid::Uuid>
@@ -306,10 +311,12 @@ impl App {
     Option<(DbConnection, CronRunner)>,
     Option<HttpResponseCacheLayer>,
   ) {
-    let db_raw = initialize_database(&self.config.database).await.unwrap_or_else(|e| {
-      eprintln!("Error initializing database: {}", e);
-      std::process::exit(1);
-    });
+    let db_raw = initialize_database(&self.config.database)
+      .await
+      .unwrap_or_else(|e| {
+        eprintln!("Error initializing database: {}", e);
+        std::process::exit(1);
+      });
 
     if let Some(migrator) = self.migrator {
       info!("Running migrations...");
@@ -338,7 +345,7 @@ impl App {
     {
       router = router
         .layer(OtelAxumLayer::default())
-        .layer(OtelInResponseLayer::default());
+        .layer(OtelInResponseLayer);
     }
 
     // IP-based rate limiting (Governor)
@@ -378,14 +385,13 @@ impl App {
     let cron_runner = if cron_tasks.is_empty() {
       None
     } else {
-      Some(
-        (db_conn.clone(),
+      Some((
+        db_conn.clone(),
         CronRunner {
           tasks: cron_tasks,
           job_pool_url: self.config.database.url.clone(),
         },
-      )
-    )
+      ))
     };
 
     (router, db_conn, cron_runner, response_cache_layer)

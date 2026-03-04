@@ -191,47 +191,35 @@ pub async fn anonymize_actor(
   Ok(result.rows_affected())
 }
 
-// --- Authz guard + audit integration (uses forge_auth types) ---
+// --- Authz audit (permission checks are app-defined; we only record decisions) ---
 
-use async_trait::async_trait;
-use forge_auth::token_auth::TokenUser;
-use forge_auth::{guard_user, AuthzContext, AuthzError, RequestScope, Role, TokenUserGuardExt};
+use forge_auth::{AuthzContext, RequestScope};
 
-/// Guard by role and record the decision in the audit log. Use when the handler has the user from token.
-pub async fn guard_and_audit_user<U: AuthzContext<RequesterId = Uuid, SubjectId = Uuid> + Send>(
-  user: &U,
+/// Record an authz allowed event after a successful permission check (e.g. after require_permission).
+pub async fn record_authz_allowed<U: AuthzContext<RequesterId = Uuid, SubjectId = Uuid>>(
   db: &impl ConnectionTrait,
+  user: &U,
   action: Action,
-  role: Role,
   resource_type: &str,
   resource_id: Option<Uuid>,
   request_scope: &Option<RequestScope>,
-) -> Result<(), AuthzError> {
-  let result = guard_user(user, action, role, request_scope);
-  let outcome = if result.is_ok() {
-    Outcome::Allowed
-  } else {
-    Outcome::Denied
-  };
-
-  let organization_id_for_audit = request_scope
+) {
+  let organization_id = request_scope
     .as_ref()
-    .map(|scope| scope.organization_id)
+    .map(|s| s.organization_id)
     .or_else(|| user.organization_id());
-
   let event = AuditEvent {
     event_kind: EventKind::Authz,
-    actor_id: user.requester_id().into(),
-    subject_id: Some(user.subject_id().into()),
-    organization_id: organization_id_for_audit,
+    actor_id: user.requester_id(),
+    subject_id: Some(user.subject_id()),
+    organization_id,
     action,
     resource_type: resource_type.to_string(),
     resource_id,
-    outcome,
+    outcome: Outcome::Allowed,
     reason: None,
   };
   let _ = log(db, event).await;
-  result
 }
 
 /// Record an authz denied event for unauthenticated or unauthorized access (e.g. before returning 401).
@@ -254,63 +242,6 @@ pub async fn record_authz_denied(
     reason: None,
   };
   let _ = log(db, event).await;
-}
-
-/// Extension trait for [TokenUser] that adds [guard_and_audit]: guard by role and write to audit log.
-#[async_trait]
-pub trait TokenUserGuardAuditExt<U> {
-  /// Guard and record the decision in the audit log (authz event, allowed/denied).
-  async fn guard_and_audit(
-    &self,
-    db: &(impl ConnectionTrait + Send),
-    action: Action,
-    role: Role,
-    resource_type: &str,
-    resource_id: Option<Uuid>,
-    request_scope: &Option<RequestScope>,
-  ) -> Result<(), AuthzError>;
-}
-
-#[async_trait]
-impl<U> TokenUserGuardAuditExt<U> for TokenUser<U>
-where
-  U: AuthzContext<RequesterId = Uuid, SubjectId = Uuid> + Send + Sync,
-{
-  async fn guard_and_audit(
-    &self,
-    db: &(impl ConnectionTrait + Send),
-    action: Action,
-    role: Role,
-    resource_type: &str,
-    resource_id: Option<Uuid>,
-    request_scope: &Option<RequestScope>,
-  ) -> Result<(), AuthzError> {
-    let result = self.guard(action, role);
-    let outcome = if result.is_ok() {
-      Outcome::Allowed
-    } else {
-      Outcome::Denied
-    };
-
-    let organization_id_for_audit = request_scope
-      .as_ref()
-      .map(|scope| scope.organization_id)
-      .or_else(|| self.organization_id());
-
-    let event = AuditEvent {
-      event_kind: EventKind::Authz,
-      actor_id: self.requester_id().into(),
-      subject_id: Some(self.subject_id().into()),
-      organization_id: organization_id_for_audit,
-      action,
-      resource_type: resource_type.to_string(),
-      resource_id,
-      outcome,
-      reason: None,
-    };
-    let _ = log(db, event).await;
-    result
-  }
 }
 
 #[cfg(test)]
@@ -601,12 +532,11 @@ mod tests {
     assert_eq!(n, 1);
   }
 
-  // --- Authz guard + audit tests (moved from forge authz) ---
+  // --- Authz audit tests ---
 
-  use forge_auth::{AuthzContext, AuthzError, Role};
+  use forge_auth::AuthzContext;
 
   struct MockAuthzUser {
-    role: Option<Role>,
     org_id: Option<Uuid>,
   }
 
@@ -623,77 +553,15 @@ mod tests {
     fn organization_id(&self) -> Option<Uuid> {
       self.org_id
     }
-    fn role(&self) -> Option<Role> {
-      self.role.clone()
-    }
   }
 
   #[tokio::test]
-  async fn guard_and_audit_user_allowed_when_role_matches() {
+  async fn record_authz_allowed_writes_audit_event() {
     let db = in_memory_db().await;
     let user = MockAuthzUser {
-      role: Some(Role::Viewer),
       org_id: Some(Uuid::new_v4()),
     };
-    let res =
-      guard_and_audit_user(&user, &db, Action::Read, Role::Viewer, "doc", None, &None).await;
-    assert!(res.is_ok());
-  }
-
-  #[tokio::test]
-  async fn guard_and_audit_user_denied_when_no_role() {
-    let db = in_memory_db().await;
-    let user = MockAuthzUser {
-      role: None,
-      org_id: None,
-    };
-    let res =
-      guard_and_audit_user(&user, &db, Action::Read, Role::Viewer, "doc", None, &None).await;
-    assert!(res.is_err());
-    assert!(matches!(res.unwrap_err(), AuthzError::Forbidden));
-  }
-
-  #[tokio::test]
-  async fn guard_and_audit_user_owner_satisfies_any_role() {
-    let db = in_memory_db().await;
-    let user = MockAuthzUser {
-      role: Some(Role::Owner),
-      org_id: None,
-    };
-    let res =
-      guard_and_audit_user(&user, &db, Action::Manage, Role::Admin, "org", None, &None).await;
-    assert!(res.is_ok());
-  }
-
-  #[tokio::test]
-  async fn guard_and_audit_user_admin_satisfies_editor_and_viewer() {
-    let db = in_memory_db().await;
-    let user = MockAuthzUser {
-      role: Some(Role::Admin),
-      org_id: None,
-    };
-    assert!(
-      guard_and_audit_user(&user, &db, Action::Read, Role::Viewer, "x", None, &None)
-        .await
-        .is_ok()
-    );
-    assert!(
-      guard_and_audit_user(&user, &db, Action::Update, Role::Editor, "x", None, &None)
-        .await
-        .is_ok()
-    );
-  }
-
-  #[tokio::test]
-  async fn guard_and_audit_user_editor_satisfies_viewer() {
-    let db = in_memory_db().await;
-    let user = MockAuthzUser {
-      role: Some(Role::Editor),
-      org_id: None,
-    };
-    let res =
-      guard_and_audit_user(&user, &db, Action::Read, Role::Viewer, "x", None, &None).await;
-    assert!(res.is_ok());
+    record_authz_allowed(&db, &user, Action::Read, "doc", None, &None).await;
   }
 
   #[tokio::test]

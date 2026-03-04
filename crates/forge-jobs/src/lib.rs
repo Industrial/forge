@@ -16,8 +16,10 @@ pub struct ScheduledTaskJob {
 
 /// Type-erased task: takes DB, returns a future. Used by the worker to run jobs by name.
 pub type TaskFn = Box<
-  dyn Fn(DbConnection)
-    -> Pin<Box<dyn Future<Output = Result<(), Box<dyn std::error::Error + Send + Sync>>> + Send>>
+  dyn Fn(
+      DbConnection,
+    )
+      -> Pin<Box<dyn Future<Output = Result<(), Box<dyn std::error::Error + Send + Sync>>> + Send>>
     + Send
     + Sync,
 >;
@@ -31,8 +33,11 @@ fn normalize_job_pool_url(url: &str) -> &str {
 }
 
 /// Storage handle for the job queue (Apalis SqliteStorage with default codec and fetcher).
-pub type JobQueueStorage =
-  SqliteStorage<ScheduledTaskJob, apalis_codec::json::JsonCodec<Vec<u8>>, apalis_sqlite::fetcher::SqliteFetcher>;
+pub type JobQueueStorage = SqliteStorage<
+  ScheduledTaskJob,
+  apalis_codec::json::JsonCodec<Vec<u8>>,
+  apalis_sqlite::fetcher::SqliteFetcher,
+>;
 
 /// Sets up the job queue storage. Returns a cloneable storage: use one clone for pushing jobs,
 /// pass another to [run_worker].

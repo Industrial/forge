@@ -2,6 +2,4 @@
 
 pub mod app;
 
-pub use app::{
-  App, AuthInstallerFn, MigratorFn, SeedFn, init_tracing, shutdown_signal_future,
-};
+pub use app::{App, AuthInstallerFn, MigratorFn, SeedFn, init_tracing, shutdown_signal_future};

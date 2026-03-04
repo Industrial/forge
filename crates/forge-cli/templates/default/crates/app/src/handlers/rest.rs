@@ -1,123 +1,21 @@
 //! REST API: org-scoped routes use [ScopeFromHeaders] (X-Organization-Id, X-Role-Id); others require Bearer where applicable.
 
-use axum::extract::{FromRef, FromRequestParts, Path, State};
-use axum::http::request::Parts;
+use axum::extract::{Path, State};
 use axum::http::StatusCode;
 use axum::response::IntoResponse;
 use axum::Extension;
 use axum::Json;
 use chrono::NaiveDateTime;
 use forge_auth::token_auth::hash_password;
-use forge_auth::{RequestScope, Role};
-use forge_auth::token_auth::TokenUser;
 use forge_db::DbConnection;
 use crate::Error as ForgeError;
 use sea_orm::{ActiveModelTrait, ColumnTrait, EntityTrait, PaginatorTrait, QueryFilter, QueryOrder, QuerySelect, Set};
 use serde::Deserialize;
 use uuid::Uuid;
 
+use crate::handlers::auth::ScopeFromHeaders;
 use crate::permissions::DASHBOARD_PERMISSIONS;
 use db::models::{audit_log, membership, org_role, organization, role_permission, user, user_org_role};
-
-/// Header names for scope (Bearer plan: scope always from headers).
-pub const HEADER_ORGANIZATION_ID: &str = "x-organization-id";
-pub const HEADER_ROLE_ID: &str = "x-role-id";
-
-/// Maps org_role name to forge_auth::Role.
-fn role_name_to_authz(name: &str) -> Role {
-  match name.to_lowercase().as_str() {
-    "owner" => Role::Owner,
-    "admin" => Role::Admin,
-    "editor" => Role::Editor,
-    "viewer" => Role::Viewer,
-    _ => Role::Custom(name.to_string()),
-  }
-}
-
-/// Extractor that reads X-Organization-Id and X-Role-Id headers,
-/// validates org/role and that the authenticated user has that role in that org,
-/// and inserts a `RequestScope` into request extensions.
-#[derive(Debug, Clone)]
-pub struct ScopeFromHeaders(pub RequestScope);
-
-#[async_trait::async_trait]
-impl<S> FromRequestParts<S> for ScopeFromHeaders
-where
-  S: Send + Sync,
-  DbConnection: FromRef<S>,
-{
-  type Rejection = ForgeError;
-
-  async fn from_request_parts(parts: &mut Parts, state: &S) -> Result<Self, Self::Rejection> {
-    let db = DbConnection::from_ref(state);
-
-    let user_id = parts
-      .extensions
-      .get::<TokenUser<user::Model>>()
-      .map(|tu| tu.user.id())
-      .ok_or_else(|| ForgeError::Auth(StatusCode::UNAUTHORIZED, "Authentication required".to_string()))?;
-
-    let org_id_str = parts
-      .headers
-      .get(HEADER_ORGANIZATION_ID)
-      .and_then(|v| v.to_str().ok());
-    let role_id_str = parts
-      .headers
-      .get(HEADER_ROLE_ID)
-      .and_then(|v| v.to_str().ok());
-
-    let org_id = org_id_str
-      .and_then(|s| Uuid::parse_str(s).ok())
-      .ok_or_else(|| ForgeError::Auth(StatusCode::BAD_REQUEST, "Missing or invalid X-Organization-Id header".to_string()))?;
-
-    let role_id = role_id_str
-      .and_then(|s| Uuid::parse_str(s).ok())
-      .ok_or_else(|| ForgeError::Auth(StatusCode::BAD_REQUEST, "Missing or invalid X-Role-Id header".to_string()))?;
-
-    organization::Entity::find_by_id(org_id)
-      .one(&db)
-      .await
-      .map_err(|e| ForgeError::Generic(e.to_string()))?
-      .ok_or_else(|| ForgeError::Auth(StatusCode::NOT_FOUND, "Organization not found".to_string()))?;
-
-    let role_row = org_role::Entity::find_by_id(role_id)
-      .one(&db)
-      .await
-      .map_err(|e| ForgeError::Generic(e.to_string()))?
-      .ok_or_else(|| ForgeError::Auth(StatusCode::NOT_FOUND, "Role not found".to_string()))?;
-
-    if role_row.org_id != org_id {
-      return Err(ForgeError::Auth(
-        StatusCode::BAD_REQUEST,
-        "X-Role-Id does not belong to X-Organization-Id".to_string(),
-      ));
-    }
-
-    let has_membership = user_org_role::Entity::find()
-      .filter(user_org_role::Column::UserId.eq(user_id))
-      .filter(user_org_role::Column::OrgId.eq(org_id))
-      .filter(user_org_role::Column::RoleId.eq(role_id))
-      .one(&db)
-      .await
-      .map_err(|e| ForgeError::Generic(e.to_string()))?;
-
-    if has_membership.is_none() {
-      return Err(ForgeError::Auth(
-        StatusCode::FORBIDDEN,
-        "You do not have this role in this organization".to_string(),
-      ));
-    }
-
-    let role = role_name_to_authz(role_row.name.as_str());
-    let request_scope = RequestScope {
-      organization_id: org_id,
-      role,
-    };
-
-    parts.extensions.insert(request_scope.clone());
-    Ok(Self(request_scope))
-  }
-}
 
 // ---- Permissions (code-defined keys) ----
 /// GET /api/permissions — list known permission keys (code-defined). Read-only; no auth or scope required.

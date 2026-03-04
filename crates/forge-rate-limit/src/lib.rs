@@ -175,9 +175,8 @@ mod tests {
   #[test]
   fn requester_org_key_extractor_with_token_user_and_scope() {
     use axum::http::Extensions;
-    use forge_auth::token_auth::TokenUser;
     use forge_auth::RequestScope;
-    use forge_auth::Role;
+    use forge_auth::token_auth::TokenUser;
 
     static H: [u8; 0] = [];
     #[derive(Clone, Debug)]
@@ -234,7 +233,8 @@ mod tests {
     });
     req.extensions_mut().insert(RequestScope {
       organization_id: org_id,
-      role: Role::Viewer,
+      role_id: uuid::Uuid::new_v4(),
+      role_name: "viewer".to_string(),
     });
     let key = RequesterOrgKeyExtractor::<Be>::new().extract(&req).unwrap();
     assert_eq!(key.organization_id, Some(org_id), "org from RequestScope");
@@ -302,7 +302,6 @@ mod tests {
     use async_trait::async_trait;
     use axum::http::Request;
     use axum_login::{AuthnBackend, UserId};
-    use forge_auth::Role;
 
     static AUTH_HASH: [u8; 0] = [];
     #[derive(Clone, Debug)]
@@ -340,7 +339,10 @@ mod tests {
       type User = TestUser;
       type Credentials = ();
       type Error = std::convert::Infallible;
-      async fn authenticate(&self, _: Self::Credentials) -> Result<Option<Self::User>, Self::Error> {
+      async fn authenticate(
+        &self,
+        _: Self::Credentials,
+      ) -> Result<Option<Self::User>, Self::Error> {
         Ok(None)
       }
       async fn get_user(&self, _: &UserId<Self>) -> Result<Option<Self::User>, Self::Error> {
@@ -361,9 +363,12 @@ mod tests {
     req.extensions_mut().insert(token_user);
     req.extensions_mut().insert(RequestScope {
       organization_id: org_id,
-      role: Role::Admin,
+      role_id: uuid::Uuid::new_v4(),
+      role_name: "admin".to_string(),
     });
-    let key = RequesterOrgKeyExtractor::<TestBackend>::new().extract(&req).unwrap();
+    let key = RequesterOrgKeyExtractor::<TestBackend>::new()
+      .extract(&req)
+      .unwrap();
     assert_eq!(key.organization_id, Some(org_id));
     assert_eq!(key.user_id, user_id);
   }

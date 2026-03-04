@@ -4,12 +4,12 @@
 use apalis_core::backend::TaskSink;
 use chrono::Utc;
 use forge_db::DbConnection;
-use forge_jobs::{run_worker, setup_queue, ScheduledTaskJob, TaskFn};
+use forge_jobs::{ScheduledTaskJob, TaskFn, run_worker, setup_queue};
 use std::collections::HashMap;
 use std::future::Future;
 use std::pin::Pin;
 use std::sync::Arc;
-use tokio::time::{sleep_until, Instant};
+use tokio::time::{Instant, sleep_until};
 use tracing::{error, info};
 
 /// Schedule for a cron task.

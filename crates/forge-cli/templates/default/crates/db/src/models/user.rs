@@ -1,4 +1,4 @@
-use forge_auth::{AuthzContext, Role};
+use forge_auth::AuthzContext;
 use sea_orm::entity::prelude::*;
 use serde::{Deserialize, Serialize};
 
@@ -42,15 +42,6 @@ impl AuthzContext for Model {
   }
   fn organization_id(&self) -> Option<Uuid> {
     self.current_org_id
-  }
-  fn role(&self) -> Option<Role> {
-    self.current_role.as_deref().and_then(|s| match s {
-      "owner" => Some(Role::Owner),
-      "admin" => Some(Role::Admin),
-      "editor" => Some(Role::Editor),
-      "viewer" => Some(Role::Viewer),
-      _ => None,
-    })
   }
 }
 

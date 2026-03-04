@@ -1,6 +1,6 @@
 //! WebSocket handler: forge-live connection and subscriptions. Authenticated
 //! connections receive server-derived channel subscriptions (see docs/021).
-//! Scope (org/role) comes from X-Organization-Id and X-Role-Name headers.
+//! Scope (org/role) comes from X-Organization-Id and X-Role-Id headers.
 
 use axum::{
   extract::ws::{Message, WebSocket, WebSocketUpgrade},
@@ -31,9 +31,9 @@ pub async fn handler(
   let Some(backend) = live_backend else {
     return (StatusCode::SERVICE_UNAVAILABLE, "Live Query not enabled").into_response();
   };
-  let profile = get_scope_from_headers_map(req.headers(), &user, &db).await;
-  let permissions = resolve_permissions(&db, &user, profile.as_ref()).await;
-  let current_org_id = profile.as_ref().map(|p| p.org_id);
+  let scope = get_scope_from_headers_map(req.headers(), &user, &db).await;
+  let permissions = resolve_permissions(&db, &user, scope.as_ref()).await;
+  let current_org_id = scope.as_ref().map(|s| s.organization_id);
   let channels = channels_from_permissions(&permissions, current_org_id);
   let backend = backend.clone();
   let task_state = task_state.clone();

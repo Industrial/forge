@@ -13,8 +13,8 @@ async fn get_roles_anon_401() {
   assert_eq!(status, StatusCode::UNAUTHORIZED);
 }
 
-fn scope_headers(org_id: &str, role_name: &str) -> [(&'static str, &str); 2] {
-  [("X-Organization-Id", org_id), ("X-Role-Name", role_name)]
+fn scope_headers(org_id: &str, role_id: &str) -> [(&'static str, &str); 2] {
+  [("X-Organization-Id", org_id), ("X-Role-Id", role_id)]
 }
 
 #[tokio::test]
@@ -22,10 +22,10 @@ async fn get_roles_viewer_200() {
   let (router, _guard) = app::build_router_for_test()
     .await
     .expect("build_router_for_test");
-  let (token, org_id, role_name) = app::auth_with_profile(&router, "viewer@default.org", app::SEED_PASSWORD)
+  let (token, org_id, role_id) = app::auth_with_profile(&router, "viewer@default.org", app::SEED_PASSWORD)
     .await
     .expect("login");
-  let scope = scope_headers(org_id.as_str(), role_name.as_str());
+  let scope = scope_headers(org_id.as_str(), role_id.as_str());
   let (status, body) = app::test_request(&router, "GET", "/api/dashboard/roles", Some(&token), None, Some(&scope))
     .await
     .unwrap();
@@ -51,10 +51,10 @@ async fn post_roles_viewer_403() {
   let (router, _guard) = app::build_router_for_test()
     .await
     .expect("build_router_for_test");
-  let (token, org_id, role_name) = app::auth_with_profile(&router, "viewer@default.org", app::SEED_PASSWORD)
+  let (token, org_id, role_id) = app::auth_with_profile(&router, "viewer@default.org", app::SEED_PASSWORD)
     .await
     .expect("login");
-  let scope = scope_headers(org_id.as_str(), role_name.as_str());
+  let scope = scope_headers(org_id.as_str(), role_id.as_str());
   let body = r#"{"name":"custom","display_name":"Custom"}"#;
   let (status, _) = app::test_request(
     &router,
@@ -74,10 +74,10 @@ async fn post_roles_editor_201() {
   let (router, _guard) = app::build_router_for_test()
     .await
     .expect("build_router_for_test");
-  let (token, org_id, role_name) = app::auth_with_profile(&router, "editor@default.org", app::SEED_PASSWORD)
+  let (token, org_id, role_id) = app::auth_with_profile(&router, "editor@default.org", app::SEED_PASSWORD)
     .await
     .expect("login");
-  let scope = scope_headers(org_id.as_str(), role_name.as_str());
+  let scope = scope_headers(org_id.as_str(), role_id.as_str());
   let body = r#"{"name":"testrole123","display_name":"Test Role"}"#;
   let (status, _) = app::test_request(
     &router,
@@ -97,10 +97,10 @@ async fn patch_roles_viewer_403() {
   let (router, _guard) = app::build_router_for_test()
     .await
     .expect("build_router_for_test");
-  let (token, org_id, role_name) = app::auth_with_profile(&router, "viewer@default.org", app::SEED_PASSWORD)
+  let (token, org_id, role_id) = app::auth_with_profile(&router, "viewer@default.org", app::SEED_PASSWORD)
     .await
     .expect("login");
-  let scope = scope_headers(org_id.as_str(), role_name.as_str());
+  let scope = scope_headers(org_id.as_str(), role_id.as_str());
   let (_, body) = app::test_request(&router, "GET", "/api/dashboard/roles", Some(&token), None, Some(&scope))
     .await
     .unwrap();
@@ -126,10 +126,10 @@ async fn patch_roles_editor_200() {
   let (router, _guard) = app::build_router_for_test()
     .await
     .expect("build_router_for_test");
-  let (token, org_id, role_name) = app::auth_with_profile(&router, "editor@default.org", app::SEED_PASSWORD)
+  let (token, org_id, role_id) = app::auth_with_profile(&router, "editor@default.org", app::SEED_PASSWORD)
     .await
     .expect("login");
-  let scope = scope_headers(org_id.as_str(), role_name.as_str());
+  let scope = scope_headers(org_id.as_str(), role_id.as_str());
   let (_, body) = app::test_request(&router, "GET", "/api/dashboard/roles", Some(&token), None, Some(&scope))
     .await
     .unwrap();
@@ -155,10 +155,10 @@ async fn delete_roles_viewer_403() {
   let (router, _guard) = app::build_router_for_test()
     .await
     .expect("build_router_for_test");
-  let (token, org_id, role_name) = app::auth_with_profile(&router, "viewer@default.org", app::SEED_PASSWORD)
+  let (token, org_id, role_id) = app::auth_with_profile(&router, "viewer@default.org", app::SEED_PASSWORD)
     .await
     .expect("login");
-  let scope = scope_headers(org_id.as_str(), role_name.as_str());
+  let scope = scope_headers(org_id.as_str(), role_id.as_str());
   let body = r#"{"id":"00000000-0000-0000-0000-000000000000"}"#;
   let (status, _) = app::test_request(
     &router,

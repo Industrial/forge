@@ -315,7 +315,8 @@ mod tests {
       // lib.rs: Forge app building (explicit imports, cron, route_methods for dashboard)
       let lib_content = fs::read_to_string(project_path.join("crates/app/src/lib.rs")).unwrap();
       assert!(
-        (lib_content.contains("use forge_app::") || lib_content.contains("use forge::")) && lib_content.contains("App"),
+        (lib_content.contains("use forge_app::") || lib_content.contains("use forge::"))
+          && lib_content.contains("App"),
         "generated app should use explicit forge imports"
       );
       assert!(

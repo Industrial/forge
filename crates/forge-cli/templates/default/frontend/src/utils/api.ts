@@ -1,7 +1,7 @@
 import { useAuth } from "../context/Auth";
 
 export function useApi() {
-  const { token, currentOrgId, currentRoleName } = useAuth();
+  const { token, currentOrgId, currentRoleId } = useAuth();
 
   const api = async (url: string, options?: RequestInit) => {
     const headers = new Headers(options?.headers);
@@ -11,8 +11,8 @@ export function useApi() {
     if (currentOrgId) {
       headers.set("X-Organization-Id", currentOrgId);
     }
-    if (currentRoleName) {
-      headers.set("X-Role-Id", currentRoleName);
+    if (currentRoleId) {
+      headers.set("X-Role-Id", currentRoleId);
     }
 
     const res = await fetch(url, { ...options, headers });

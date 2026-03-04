@@ -11,9 +11,9 @@ use axum::http::StatusCode;
 use axum::http::header::AUTHORIZATION;
 use axum::http::request::Parts;
 
-use axum_login::{AuthnBackend, AuthUser};
+use axum_login::{AuthUser, AuthnBackend};
 
-use crate::authz::{AuthzContext, RequestScope, Role};
+use crate::authz::{AuthzContext, RequestScope};
 
 /// Re-export password/API token helpers so existing `forge_auth::token_auth::*` imports keep working.
 pub use crate::password::{hash_api_token, hash_password, verify_api_token, verify_password};
@@ -49,22 +49,15 @@ where
   }
 
   fn organization_id(&self) -> Option<Uuid> {
-    self.extensions
+    self
+      .extensions
       .get::<RequestScope>()
       .map(|scope| scope.organization_id)
       .or_else(|| self.user.organization_id())
   }
-
-  fn role(&self) -> Option<Role> {
-    self.extensions
-      .get::<RequestScope>()
-      .map(|scope| scope.role.clone())
-      .or_else(|| self.user.role())
-  }
 }
 
-impl<U>
-  AuthUser for TokenUser<U>
+impl<U> AuthUser for TokenUser<U>
 where
   U: AuthUser<Id = Uuid> + Send + Sync + 'static,
 {
@@ -77,7 +70,6 @@ where
     self.user.session_auth_hash()
   }
 }
-
 
 /// Tower layer: if `Authorization: Bearer <token>` is present, looks up user and inserts TokenUser.
 #[derive(Clone)]
@@ -170,7 +162,10 @@ where
         && let Some(user_id) = lookup(db.clone(), token).await
         && let Ok(Some(user)) = backend.get_user(&user_id).await
       {
-        req.extensions_mut().insert(TokenUser { user, extensions: req_extensions });
+        req.extensions_mut().insert(TokenUser {
+          user,
+          extensions: req_extensions,
+        });
       }
       inner.call(req).await
     })
@@ -187,8 +182,8 @@ pub(crate) fn extract_bearer(value: Option<&axum::http::HeaderValue>) -> Option<
 #[derive(Clone, Debug)]
 pub struct RequireAuth<B, U>(pub U, std::marker::PhantomData<B>)
 where
-    B: AuthnBackend<User = U>,
-    U: AuthUser;
+  B: AuthnBackend<User = U>,
+  U: AuthUser;
 
 impl<B, U, S> FromRequestParts<S> for RequireAuth<B, U>
 where
@@ -200,7 +195,10 @@ where
 
   async fn from_request_parts(parts: &mut Parts, _state: &S) -> Result<Self, Self::Rejection> {
     if let Some(token_user) = parts.extensions.get::<TokenUser<U>>() {
-      return Ok(RequireAuth(token_user.user.clone(), std::marker::PhantomData));
+      return Ok(RequireAuth(
+        token_user.user.clone(),
+        std::marker::PhantomData,
+      ));
     }
     Err((StatusCode::UNAUTHORIZED, "Authentication required"))
   }
@@ -210,8 +208,8 @@ where
 #[derive(Clone, Debug)]
 pub struct OptionalRequireAuth<B, U>(pub Option<U>, std::marker::PhantomData<B>)
 where
-    B: AuthnBackend<User = U>,
-    U: AuthUser;
+  B: AuthnBackend<User = U>,
+  U: AuthUser;
 
 impl<B, U, S> FromRequestParts<S> for OptionalRequireAuth<B, U>
 where
@@ -223,7 +221,10 @@ where
 
   async fn from_request_parts(parts: &mut Parts, _state: &S) -> Result<Self, Self::Rejection> {
     if let Some(token_user) = parts.extensions.get::<TokenUser<U>>() {
-      return Ok(OptionalRequireAuth(Some(token_user.user.clone()), std::marker::PhantomData));
+      return Ok(OptionalRequireAuth(
+        Some(token_user.user.clone()),
+        std::marker::PhantomData,
+      ));
     }
     Ok(OptionalRequireAuth(None, std::marker::PhantomData))
   }
@@ -232,25 +233,25 @@ where
 #[cfg(test)]
 mod tests {
   use super::extract_bearer;
+  use axum::http::Extensions;
   use axum::http::HeaderValue;
   use axum_login::AuthUser; // Added AuthUser import for the test
-  use uuid::Uuid;
-  use axum::http::Extensions; // Added Extensions import for the test
+  use uuid::Uuid; // Added Extensions import for the test
 
   // A mock user for testing purposes
   #[derive(Clone, Debug)]
-  struct MockUser { 
-    id: Uuid, 
-    session_auth_hash_val: Vec<u8> 
+  struct MockUser {
+    id: Uuid,
+    session_auth_hash_val: Vec<u8>,
   }
 
   impl AuthUser for MockUser {
     type Id = Uuid;
     fn id(&self) -> Self::Id {
-        self.id
+      self.id
     }
     fn session_auth_hash(&self) -> &[u8] {
-        &self.session_auth_hash_val
+      &self.session_auth_hash_val
     }
   }
 
@@ -289,8 +290,14 @@ mod tests {
   #[test]
   fn token_user_debug_and_clone() {
     let user_id = Uuid::new_v4();
-    let mock_user = MockUser { id: user_id, session_auth_hash_val: vec![1, 2, 3] };
-    let u = super::TokenUser { user: mock_user.clone(), extensions: Extensions::new() };
+    let mock_user = MockUser {
+      id: user_id,
+      session_auth_hash_val: vec![1, 2, 3],
+    };
+    let u = super::TokenUser {
+      user: mock_user.clone(),
+      extensions: Extensions::new(),
+    };
     let _ = format!("{:?}", u);
     let u2 = u.clone();
     assert_eq!(u2.user.id(), user_id);

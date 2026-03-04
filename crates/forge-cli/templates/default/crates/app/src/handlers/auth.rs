@@ -1,3 +1,4 @@
+use async_trait::async_trait;
 use axum::{
   Form, Json,
   extract::{Extension, FromRequest, FromRequestParts, Request, State},
@@ -9,7 +10,7 @@ use chrono::Utc;
 use forge_audit::{log, AuditEvent, EventKind, LogResult, Outcome};
 use forge_audit::record_authz_denied;
 use forge_auth::token_auth::{hash_api_token, hash_password, OptionalRequireAuth, RequireAuth, TokenUser};
-use forge_auth::Action;
+use forge_auth::{Action, RequestScope};
 use forge_core::Valid;
 use forge_db::DbConnection;
 use forge_live::{Channel, InMemoryLiveBackend, LiveBackend};
@@ -26,8 +27,8 @@ use db::models::{api_token, membership, org_role, organization, role_permission,
 pub use crate::permissions::DASHBOARD_PERMISSIONS;
 
 /// Resolves the list of permission keys for the current user from org-scoped and global-scope role_permission.
-/// Uses header profile (X-Organization-Id, X-Role-Name) when provided; otherwise only global-scope permissions are included.
-pub async fn resolve_permissions(db: &DbConnection, user: &user::Model, profile: Option<&CurrentProfile>) -> Vec<String> {
+/// Uses scope (X-Organization-Id, X-Role-Id) when provided; otherwise only global-scope permissions are included.
+pub async fn resolve_permissions(db: &DbConnection, user: &user::Model, scope: Option<&RequestScope>) -> Vec<String> {
   let mut keys = std::collections::HashSet::<String>::new();
 
   // Global-scope: user_global_role -> role_permission with scope=global and org_id=null.
@@ -54,12 +55,12 @@ pub async fn resolve_permissions(db: &DbConnection, user: &user::Model, profile:
     }
   }
 
-  // Org-scoped: session profile (org + role) from role_permission.
-  if let Some(p) = profile {
+  // Org-scoped: request scope (org + role) from role_permission.
+  if let Some(s) = scope {
     let rows = role_permission::Entity::find()
       .filter(role_permission::Column::Scope.eq("org"))
-      .filter(role_permission::Column::OrgId.eq(p.org_id))
-      .filter(role_permission::Column::RoleName.eq(&p.role_name))
+      .filter(role_permission::Column::OrgId.eq(s.organization_id))
+      .filter(role_permission::Column::RoleName.eq(&s.role_name))
       .all(db)
       .await
       .ok()
@@ -128,89 +129,88 @@ pub fn channels_from_permissions(
   out
 }
 
-/// Active profile for the current request: org and role from headers (X-Organization-Id, X-Role-Name).
-#[derive(Clone, Debug)]
-pub struct CurrentProfile {
-  pub org_id: Uuid,
-  pub role_name: String,
+/// Header names for scope (X-Organization-Id, X-Role-Id).
+pub const HEADER_ORGANIZATION_ID: &str = "x-organization-id";
+pub const HEADER_ROLE_ID: &str = "x-role-id";
+
+/// Builds [RequestScope] from headers (X-Organization-Id, X-Role-Id). Validates org, role, and user membership.
+pub async fn try_scope_from_headers(
+  headers: &axum::http::HeaderMap,
+  db: &DbConnection,
+  user_id: Uuid,
+) -> Result<RequestScope, ForgeError> {
+  let org_id_str = headers
+    .get(HEADER_ORGANIZATION_ID)
+    .and_then(|v| v.to_str().ok())
+    .ok_or_else(|| ForgeError::Auth(StatusCode::BAD_REQUEST, "Missing or invalid X-Organization-Id header".to_string()))?;
+  let org_id = Uuid::parse_str(org_id_str)
+    .map_err(|_| ForgeError::Auth(StatusCode::BAD_REQUEST, "Invalid X-Organization-Id".to_string()))?;
+  let role_id_str = headers
+    .get(HEADER_ROLE_ID)
+    .and_then(|v| v.to_str().ok())
+    .ok_or_else(|| ForgeError::Auth(StatusCode::BAD_REQUEST, "Missing or invalid X-Role-Id header".to_string()))?;
+  let role_id = Uuid::parse_str(role_id_str)
+    .map_err(|_| ForgeError::Auth(StatusCode::BAD_REQUEST, "Invalid X-Role-Id".to_string()))?;
+
+  organization::Entity::find_by_id(org_id)
+    .one(db)
+    .await
+    .map_err(|e| ForgeError::Generic(e.to_string()))?
+    .ok_or_else(|| ForgeError::Auth(StatusCode::NOT_FOUND, "Organization not found".to_string()))?;
+
+  let role_row = org_role::Entity::find_by_id(role_id)
+    .one(db)
+    .await
+    .map_err(|e| ForgeError::Generic(e.to_string()))?
+    .ok_or_else(|| ForgeError::Auth(StatusCode::NOT_FOUND, "Role not found".to_string()))?;
+
+  if role_row.org_id != org_id {
+    return Err(ForgeError::Auth(
+      StatusCode::BAD_REQUEST,
+      "X-Role-Id does not belong to X-Organization-Id".to_string(),
+    ));
+  }
+
+  let has = user_org_role::Entity::find()
+    .filter(user_org_role::Column::UserId.eq(user_id))
+    .filter(user_org_role::Column::OrgId.eq(org_id))
+    .filter(user_org_role::Column::RoleId.eq(role_id))
+    .one(db)
+    .await
+    .map_err(|e| ForgeError::Generic(e.to_string()))?;
+
+  if has.is_none() {
+    return Err(ForgeError::Auth(
+      StatusCode::FORBIDDEN,
+      "You do not have this role in this organization".to_string(),
+    ));
+  }
+
+  Ok(RequestScope {
+    organization_id: org_id,
+    role_id,
+    role_name: role_row.name.clone(),
+  })
 }
 
-/// Extractor: requires Bearer auth and X-Organization-Id + X-Role-Name headers; validates user has that role in org.
+/// Extractor: requires Bearer auth and X-Organization-Id + X-Role-Id headers; validates user has that role in org.
 #[derive(Clone, Debug)]
-pub struct RequireScope(pub CurrentProfile);
+pub struct ScopeFromHeaders(pub RequestScope);
 
-impl FromRequestParts<DbConnection> for RequireScope {
-  type Rejection = (StatusCode, Json<serde_json::Value>);
+#[async_trait]
+impl FromRequestParts<DbConnection> for ScopeFromHeaders {
+  type Rejection = ForgeError;
 
   async fn from_request_parts(parts: &mut Parts, state: &DbConnection) -> Result<Self, Self::Rejection> {
     let db = state;
-    let token_user = parts
+    let user_id = parts
       .extensions
       .get::<TokenUser<user::Model>>()
-      .ok_or((
-        StatusCode::UNAUTHORIZED,
-        Json(serde_json::json!({ "code": "auth_required", "error": "Authentication required" })),
-      ))?
-      .user
-      .clone();
-    let org_id_str = parts
-      .headers
-      .get("x-organization-id")
-      .and_then(|v| v.to_str().ok())
-      .ok_or((
-        StatusCode::FORBIDDEN,
-        Json(serde_json::json!({ "code": "profile_required", "error": "Please select a profile (X-Organization-Id required)" })),
-      ))?;
-    let org_id = Uuid::parse_str(org_id_str).map_err(|_| {
-      (
-        StatusCode::BAD_REQUEST,
-        Json(serde_json::json!({ "error": "Invalid X-Organization-Id" })),
-      )
-    })?;
-    let role_name = parts
-      .headers
-      .get("x-role-name")
-      .and_then(|v| v.to_str().ok())
-      .map(|s| s.to_string())
-      .ok_or((
-        StatusCode::FORBIDDEN,
-        Json(serde_json::json!({ "code": "profile_required", "error": "Please select a profile (X-Role-Name required)" })),
-      ))?;
-    let uor = user_org_role::Entity::find()
-      .filter(user_org_role::Column::UserId.eq(token_user.id))
-      .filter(user_org_role::Column::OrgId.eq(org_id))
-      .one(&db)
-      .await
-      .map_err(|_| {
-        (
-          StatusCode::INTERNAL_SERVER_ERROR,
-          Json(serde_json::json!({ "error": "Database error" })),
-        )
-      })?
-      .ok_or((
-        StatusCode::FORBIDDEN,
-        Json(serde_json::json!({ "code": "profile_required", "error": "You do not have access to this organization" })),
-      ))?;
-    let role_row = org_role::Entity::find_by_id(uor.role_id)
-      .one(&db)
-      .await
-      .map_err(|_| {
-        (
-          StatusCode::INTERNAL_SERVER_ERROR,
-          Json(serde_json::json!({ "error": "Database error" })),
-        )
-      })?
-      .ok_or((
-        StatusCode::FORBIDDEN,
-        Json(serde_json::json!({ "error": "Role not found" })),
-      ))?;
-    if role_row.name != role_name {
-      return Err((
-        StatusCode::FORBIDDEN,
-        Json(serde_json::json!({ "code": "profile_required", "error": "Invalid role for this organization" })),
-      ));
-    }
-    Ok(RequireScope(CurrentProfile { org_id, role_name }))
+      .map(|tu| tu.user.id())
+      .ok_or_else(|| ForgeError::Auth(StatusCode::UNAUTHORIZED, "Authentication required".to_string()))?;
+    let scope = try_scope_from_headers(&parts.headers, db, user_id).await?;
+    parts.extensions.insert(scope.clone());
+    Ok(ScopeFromHeaders(scope))
   }
 }
 
@@ -219,7 +219,7 @@ pub async fn get_scope_from_headers(
   parts: &Parts,
   user: &user::Model,
   db: &DbConnection,
-) -> Option<CurrentProfile> {
+) -> Option<RequestScope> {
   get_scope_from_headers_map(&parts.headers, user, db).await
 }
 
@@ -228,26 +228,8 @@ pub async fn get_scope_from_headers_map(
   headers: &axum::http::HeaderMap,
   user: &user::Model,
   db: &DbConnection,
-) -> Option<CurrentProfile> {
-  let org_id_str = headers.get("x-organization-id")?.to_str().ok()?;
-  let org_id = Uuid::parse_str(org_id_str).ok()?;
-  let role_name = headers.get("x-role-name")?.to_str().ok()?.to_string();
-  let uor = user_org_role::Entity::find()
-    .filter(user_org_role::Column::UserId.eq(user.id))
-    .filter(user_org_role::Column::OrgId.eq(org_id))
-    .one(db)
-    .await
-    .ok()
-    .flatten()?;
-  let role_row = org_role::Entity::find_by_id(uor.role_id)
-    .one(db)
-    .await
-    .ok()
-    .flatten()?;
-  if role_row.name != role_name {
-    return None;
-  }
-  Some(CurrentProfile { org_id, role_name })
+) -> Option<RequestScope> {
+  try_scope_from_headers(headers, db, user.id).await.ok()
 }
 
 #[derive(Deserialize, Validate)]
@@ -537,6 +519,60 @@ pub async fn login(
   }
 }
 
+/// GET /api/auth/me — current user, profiles, permissions (from optional scope headers), and needs_profile_select.
+/// Frontend uses this on load; if the request includes X-Organization-Id and X-Role-Id, permissions are org-scoped.
+pub async fn get_me(
+  RequireAuth(user): RequireAuth<Backend>,
+  State(db): State<DbConnection>,
+  Request(req): Request,
+) -> Result<impl IntoResponse, ForgeError> {
+  let scope = get_scope_from_headers_map(req.headers(), &user, &db).await;
+  let permissions = resolve_permissions(&db, &user, scope.as_ref()).await;
+  let uors = user_org_role::Entity::find()
+    .filter(user_org_role::Column::UserId.eq(user.id))
+    .all(&db)
+    .await?;
+  let profiles: Vec<serde_json::Value> = if uors.is_empty() {
+    vec![]
+  } else {
+    let role_ids: Vec<Uuid> = uors.iter().map(|u| u.role_id).collect();
+    let roles = org_role::Entity::find()
+      .filter(org_role::Column::Id.is_in(role_ids))
+      .all(&db)
+      .await?;
+    let org_ids: Vec<Uuid> = uors.iter().map(|u| u.org_id).collect::<std::collections::HashSet<_>>().into_iter().collect();
+    let orgs = organization::Entity::find()
+      .filter(organization::Column::Id.is_in(org_ids))
+      .all(&db)
+      .await?;
+    let org_map: std::collections::HashMap<Uuid, organization::Model> =
+      orgs.into_iter().map(|o| (o.id, o)).collect();
+    let role_map: std::collections::HashMap<Uuid, org_role::Model> =
+      roles.into_iter().map(|r| (r.id, r)).collect();
+    uors
+      .into_iter()
+      .filter_map(|u| {
+        let r = role_map.get(&u.role_id)?;
+        let o = org_map.get(&u.org_id)?;
+        Some(serde_json::json!({
+          "org_id": u.org_id.to_string(),
+          "org_name": o.name,
+          "role_id": u.role_id.to_string(),
+          "role": r.name,
+        }))
+      })
+      .collect()
+  };
+  let needs_profile_select = profiles.len() != 1;
+  Ok(Json(serde_json::json!({
+    "user": { "id": user.id.to_string(), "email": user.email },
+    "profiles": profiles,
+    "permissions": permissions,
+    "flash": serde_json::Value::Null,
+    "needs_profile_select": needs_profile_select,
+  })))
+}
+
 /// Client should discard the token; no server-side session to clear.
 pub async fn logout() -> impl IntoResponse {
   tracing::debug!(target: "app::auth", "route: GET /api/auth/logout");
@@ -705,13 +741,16 @@ mod tests {
   }
 
   #[test]
-  fn current_profile_holds_org_id_and_role_name() {
+  fn request_scope_holds_org_id_role_id_and_role_name() {
     let org_id = Uuid::new_v4();
-    let profile = CurrentProfile {
-      org_id,
+    let role_id = Uuid::new_v4();
+    let scope = RequestScope {
+      organization_id: org_id,
+      role_id,
       role_name: "viewer".to_string(),
     };
-    assert_eq!(profile.org_id, org_id);
-    assert_eq!(profile.role_name, "viewer");
+    assert_eq!(scope.organization_id, org_id);
+    assert_eq!(scope.role_id, role_id);
+    assert_eq!(scope.role_name, "viewer");
   }
 }

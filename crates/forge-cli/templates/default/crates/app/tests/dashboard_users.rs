@@ -1,12 +1,12 @@
 //! Integration tests: GET/POST/PATCH/DELETE /api/dashboard/users (authz and scope).
-//! Dashboard routes require Bearer token plus X-Organization-Id and X-Role-Name.
+//! Dashboard routes require Bearer token plus X-Organization-Id and X-Role-Id.
 
 use axum::http::StatusCode;
 
-fn scope_headers(org_id: &str, role_name: &str) -> [(&'static str, &str); 2] {
+fn scope_headers(org_id: &str, role_id: &str) -> [(&'static str, &str); 2] {
   [
     ("X-Organization-Id", org_id),
-    ("X-Role-Name", role_name),
+    ("X-Role-Id", role_id),
   ]
 }
 
@@ -26,10 +26,10 @@ async fn get_dashboard_users_as_viewer_default_200() {
   let (router, _guard) = app::build_router_for_test()
     .await
     .expect("build_router_for_test");
-  let (token, org_id, role_name) = app::auth_with_profile(&router, "viewer@default.org", app::SEED_PASSWORD)
+  let (token, org_id, role_id) = app::auth_with_profile(&router, "viewer@default.org", app::SEED_PASSWORD)
     .await
     .expect("login");
-  let scope = scope_headers(org_id.as_str(), role_name.as_str());
+  let scope = scope_headers(org_id.as_str(), role_id.as_str());
   let (status, _) = app::test_request(&router, "GET", "/api/dashboard/users", Some(&token), None, Some(&scope))
     .await
     .unwrap();
@@ -42,10 +42,10 @@ async fn get_dashboard_users_viewer_default_only_sees_default_org() {
   let (router, _guard) = app::build_router_for_test()
     .await
     .expect("build_router_for_test");
-  let (token, org_id, role_name) = app::auth_with_profile(&router, "viewer@default.org", app::SEED_PASSWORD)
+  let (token, org_id, role_id) = app::auth_with_profile(&router, "viewer@default.org", app::SEED_PASSWORD)
     .await
     .expect("login");
-  let scope = scope_headers(org_id.as_str(), role_name.as_str());
+  let scope = scope_headers(org_id.as_str(), role_id.as_str());
   let (status, body) = app::test_request(&router, "GET", "/api/dashboard/users", Some(&token), None, Some(&scope))
     .await
     .unwrap();
@@ -69,10 +69,10 @@ async fn post_dashboard_users_viewer_403() {
   let (router, _guard) = app::build_router_for_test()
     .await
     .expect("build_router_for_test");
-  let (token, org_id, role_name) = app::auth_with_profile(&router, "viewer@default.org", app::SEED_PASSWORD)
+  let (token, org_id, role_id) = app::auth_with_profile(&router, "viewer@default.org", app::SEED_PASSWORD)
     .await
     .expect("login");
-  let scope = scope_headers(org_id.as_str(), role_name.as_str());
+  let scope = scope_headers(org_id.as_str(), role_id.as_str());
   let body_post = format!(
     r#"{{"email":"new@example.com","password":"password123","org_id":"{}","role_ids":[]}}"#,
     org_id
@@ -95,10 +95,10 @@ async fn post_dashboard_users_editor_201() {
   let (router, _guard) = app::build_router_for_test()
     .await
     .expect("build_router_for_test");
-  let (token, org_id, role_name) = app::auth_with_profile(&router, "editor@default.org", app::SEED_PASSWORD)
+  let (token, org_id, role_id) = app::auth_with_profile(&router, "editor@default.org", app::SEED_PASSWORD)
     .await
     .expect("login");
-  let scope = scope_headers(org_id.as_str(), role_name.as_str());
+  let scope = scope_headers(org_id.as_str(), role_id.as_str());
   let (_, profiles_body) = app::test_request(&router, "GET", "/api/auth/profiles", Some(&token), None, None)
     .await
     .unwrap();
@@ -134,10 +134,10 @@ async fn patch_dashboard_users_viewer_403() {
   let (router, _guard) = app::build_router_for_test()
     .await
     .expect("build_router_for_test");
-  let (token, org_id, role_name) = app::auth_with_profile(&router, "viewer@default.org", app::SEED_PASSWORD)
+  let (token, org_id, role_id) = app::auth_with_profile(&router, "viewer@default.org", app::SEED_PASSWORD)
     .await
     .expect("login");
-  let scope = scope_headers(org_id.as_str(), role_name.as_str());
+  let scope = scope_headers(org_id.as_str(), role_id.as_str());
   let (_, body) = app::test_request(&router, "GET", "/api/dashboard/users", Some(&token), None, Some(&scope))
     .await
     .unwrap();
@@ -166,10 +166,10 @@ async fn patch_dashboard_users_editor_200() {
   let (router, _guard) = app::build_router_for_test()
     .await
     .expect("build_router_for_test");
-  let (token, org_id, role_name) = app::auth_with_profile(&router, "editor@default.org", app::SEED_PASSWORD)
+  let (token, org_id, role_id) = app::auth_with_profile(&router, "editor@default.org", app::SEED_PASSWORD)
     .await
     .expect("login");
-  let scope = scope_headers(org_id.as_str(), role_name.as_str());
+  let scope = scope_headers(org_id.as_str(), role_id.as_str());
   let (_, body) = app::test_request(&router, "GET", "/api/dashboard/users", Some(&token), None, Some(&scope))
     .await
     .unwrap();
@@ -198,10 +198,10 @@ async fn delete_dashboard_users_viewer_403() {
   let (router, _guard) = app::build_router_for_test()
     .await
     .expect("build_router_for_test");
-  let (token, org_id, role_name) = app::auth_with_profile(&router, "viewer@default.org", app::SEED_PASSWORD)
+  let (token, org_id, role_id) = app::auth_with_profile(&router, "viewer@default.org", app::SEED_PASSWORD)
     .await
     .expect("login");
-  let scope = scope_headers(org_id.as_str(), role_name.as_str());
+  let scope = scope_headers(org_id.as_str(), role_id.as_str());
   let (_, body) = app::test_request(&router, "GET", "/api/dashboard/users", Some(&token), None, Some(&scope))
     .await
     .unwrap();
@@ -230,10 +230,10 @@ async fn get_users_viewer_default_only_default_org_in_memberships() {
   let (router, _guard) = app::build_router_for_test()
     .await
     .expect("build_router_for_test");
-  let (token, org_id, role_name) = app::auth_with_profile(&router, "viewer@default.org", app::SEED_PASSWORD)
+  let (token, org_id, role_id) = app::auth_with_profile(&router, "viewer@default.org", app::SEED_PASSWORD)
     .await
     .expect("login");
-  let scope = scope_headers(org_id.as_str(), role_name.as_str());
+  let scope = scope_headers(org_id.as_str(), role_id.as_str());
   let (status, body) = app::test_request(&router, "GET", "/api/dashboard/users", Some(&token), None, Some(&scope))
     .await
     .unwrap();
@@ -254,10 +254,10 @@ async fn get_users_viewer_other_only_other_org() {
   let (router, _guard) = app::build_router_for_test()
     .await
     .expect("build_router_for_test");
-  let (token, org_id, role_name) = app::auth_with_profile(&router, "viewer@other.org", app::SEED_PASSWORD)
+  let (token, org_id, role_id) = app::auth_with_profile(&router, "viewer@other.org", app::SEED_PASSWORD)
     .await
     .expect("login");
-  let scope = scope_headers(org_id.as_str(), role_name.as_str());
+  let scope = scope_headers(org_id.as_str(), role_id.as_str());
   let (status, body) = app::test_request(&router, "GET", "/api/dashboard/users", Some(&token), None, Some(&scope))
     .await
     .unwrap();
@@ -280,10 +280,10 @@ async fn get_dashboard_users_admin_sees_all_orgs_including_other() {
   let (router, _guard) = app::build_router_for_test()
     .await
     .expect("build_router_for_test");
-  let (token, org_id, role_name) = app::auth_with_profile(&router, "admin@admin.com", app::SEED_PASSWORD)
+  let (token, org_id, role_id) = app::auth_with_profile(&router, "admin@admin.com", app::SEED_PASSWORD)
     .await
     .expect("login");
-  let scope = scope_headers(org_id.as_str(), role_name.as_str());
+  let scope = scope_headers(org_id.as_str(), role_id.as_str());
   let (status, body) = app::test_request(&router, "GET", "/api/dashboard/users", Some(&token), None, Some(&scope))
     .await
     .unwrap();
@@ -308,10 +308,10 @@ async fn post_users_org_id_other_as_viewer_default_403() {
   let (router, _guard) = app::build_router_for_test()
     .await
     .expect("build_router_for_test");
-  let (token, org_id, role_name) = app::auth_with_profile(&router, "viewer@default.org", app::SEED_PASSWORD)
+  let (token, org_id, role_id) = app::auth_with_profile(&router, "viewer@default.org", app::SEED_PASSWORD)
     .await
     .expect("login");
-  let scope = scope_headers(org_id.as_str(), role_name.as_str());
+  let scope = scope_headers(org_id.as_str(), role_id.as_str());
   let body_post = r#"{"email":"x@example.com","password":"password123","org_id":"00000000-0000-0000-0000-000000000001","role_ids":[]}"#;
   let (status, _) = app::test_request(
     &router,

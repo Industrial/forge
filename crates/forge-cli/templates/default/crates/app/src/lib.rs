@@ -177,7 +177,8 @@ pub async fn build_router_for_test(
 
   let task_state = Arc::new(tasks::TaskState::new());
   let api_router = router
-    .with_state(db_conn)
+    .with_state(db_conn.clone())
+    .layer(axum::extract::Extension(db_conn))
     .layer(axum::extract::Extension(task_state));
 
   let router = if let Some(cache_layer) = response_cache {
@@ -223,7 +224,7 @@ pub async fn login_as_seed_user(
 }
 
 /// Test helper: run one request and return status and body. Used by integration tests.
-/// Pass optional `extra_headers` for scope (e.g. `[("X-Organization-Id", org_id), ("X-Role-Name", role_name)]`) when calling dashboard APIs.
+/// Pass optional `extra_headers` for scope (e.g. `[("X-Organization-Id", org_id), ("X-Role-Id", role_id)]`) when calling dashboard APIs.
 pub async fn test_request(
   router: &axum::Router,
   method: &str,
@@ -258,7 +259,7 @@ pub async fn test_request(
   Ok((status, bytes.to_vec()))
 }
 
-/// Log in and return (token, org_id, role_name) from the first profile. Use for dashboard tests that need scope headers.
+/// Log in and return (token, org_id, role_id) from the first profile. Use for dashboard tests that need scope headers (X-Organization-Id, X-Role-Id).
 pub async fn auth_with_profile(
   router: &axum::Router,
   email: &str,
@@ -274,6 +275,6 @@ pub async fn auth_with_profile(
   let profiles = json["profiles"].as_array().ok_or("profiles array missing")?;
   let first = profiles.first().ok_or("no profiles")?;
   let org_id = first["org_id"].as_str().ok_or("org_id missing")?;
-  let role_name = first["role"].as_str().ok_or("role missing")?;
-  Ok((token, org_id.to_string(), role_name.to_string()))
+  let role_id = first["role_id"].as_str().ok_or("role_id missing")?;
+  Ok((token, org_id.to_string(), role_id.to_string()))
 }
