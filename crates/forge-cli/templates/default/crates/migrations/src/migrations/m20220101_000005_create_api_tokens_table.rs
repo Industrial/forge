@@ -17,7 +17,7 @@ pub struct Migration;
 
 impl MigrationName for Migration {
   fn name(&self) -> &str {
-    "m20220101_000006_create_api_tokens_table"
+    "m20220101_000005_create_api_tokens_table"
   }
 }
 

@@ -14,16 +14,16 @@ impl MigratorTrait for Migrator {
   fn migrations() -> Vec<Box<dyn MigrationTrait>> {
     vec![
       Box::new(migrations::m20220101_000001_create_user_table::Migration),
-      Box::new(migrations::m20220101_000003_create_organizations_table::Migration),
-      Box::new(migrations::m20220101_000004_create_memberships_table::Migration),
-      Box::new(migrations::m20220101_000005_create_audit_log_table::Migration),
-      Box::new(migrations::m20220101_000006_create_api_tokens_table::Migration),
-      Box::new(migrations::m20220101_000007_create_role_permission_table::Migration),
-      Box::new(migrations::m20220101_000008_add_org_id_to_role_permission::Migration),
-      Box::new(migrations::m20220101_000009_create_org_role_table::Migration),
-      Box::new(migrations::m20220101_000010_create_user_org_role_table::Migration),
-      Box::new(migrations::m20220101_000011_org_roles_and_user_org_role_data::Migration),
-      Box::new(migrations::m20220101_000012_create_user_global_role_table::Migration),
+      Box::new(migrations::m20220101_000002_create_organizations_table::Migration),
+      Box::new(migrations::m20220101_000003_create_memberships_table::Migration),
+      Box::new(migrations::m20220101_000004_create_audit_log_table::Migration),
+      Box::new(migrations::m20220101_000005_create_api_tokens_table::Migration),
+      Box::new(migrations::m20220101_000006_create_role_permission_table::Migration),
+      Box::new(migrations::m20220101_000007_add_org_id_to_role_permission::Migration),
+      Box::new(migrations::m20220101_000008_create_org_role_table::Migration),
+      Box::new(migrations::m20220101_000009_create_user_org_role_table::Migration),
+      Box::new(migrations::m20220101_000010_org_roles_and_user_org_role_data::Migration),
+      Box::new(migrations::m20220101_000011_create_user_global_role_table::Migration),
     ]
   }
 }

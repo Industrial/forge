@@ -14,7 +14,7 @@ pub struct Migration;
 
 impl MigrationName for Migration {
   fn name(&self) -> &str {
-    "m20220101_000008_add_org_id_to_role_permission"
+    "m20220101_000007_add_org_id_to_role_permission"
   }
 }
 
