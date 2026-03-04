@@ -12,7 +12,7 @@ Empower the agent to approach problems from **reverse or opposite perspectives**
 This skill prompts:
 1. **Worst‑case enumeration** (“What would be the worst choice?”)
 2. **Failure cause analysis**
-3. **Reformulation toward robust alternatives”**
+3. **Reformulation toward robust alternatives**
 
 ## Input
 - Proposed solution or goal

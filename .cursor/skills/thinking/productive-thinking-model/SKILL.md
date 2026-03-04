@@ -15,7 +15,7 @@ This skill enables an agent to move through a structured pipeline:
 3. **Frame catalytic questions**
 4. **Generate answers**
 5. **Select and refine solutions**
-6. **Align resources for execution”**
+6. **Align resources for execution**
 
 ## Input
 - Problem context
