@@ -17,7 +17,7 @@ async fn post_login_then_get_profile_200() {
 }
 
 #[tokio::test]
-async fn get_profile_without_cookie_401() {
+async fn get_profile_without_token_401() {
   let client = app::test_client().await.expect("test_client");
 
   let (status, _) = app::test_request(&client, "GET", "/api/auth/me", None, None, None)

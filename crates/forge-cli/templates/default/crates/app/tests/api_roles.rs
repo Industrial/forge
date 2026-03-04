@@ -1,22 +1,31 @@
-//! Dashboard: GET/POST/PATCH/DELETE /api/dashboard/roles — 401 anon; GET 200 any auth with read; POST/PATCH/DELETE 403 viewer, 200 editor+.
+//! GET/POST /api/organizations/{id}/roles and GET/PATCH/DELETE .../roles/{role_id}. Bearer + scope headers.
 
 use axum::http::StatusCode;
-
-#[tokio::test]
-async fn get_roles_anon_401() {
-  let client = app::test_client().await.expect("test_client");
-  let (status, _) = app::test_request(&client, "GET", "/api/dashboard/roles", None, None, None)
-    .await
-    .unwrap();
-  assert_eq!(status, StatusCode::UNAUTHORIZED);
-}
 
 fn scope_headers<'a>(org_id: &'a str, role_id: &'a str) -> [(&'static str, &'a str); 2] {
   [("X-Organization-Id", org_id), ("X-Role-Id", role_id)]
 }
 
+const NIL_UUID: &str = "00000000-0000-0000-0000-000000000000";
+
 #[tokio::test]
-async fn get_roles_viewer_200() {
+async fn get_org_roles_anon_401() {
+  let client = app::test_client().await.expect("test_client");
+  let (status, _) = app::test_request(
+    &client,
+    "GET",
+    &format!("/api/organizations/{}/roles", NIL_UUID),
+    None,
+    None,
+    None,
+  )
+  .await
+  .unwrap();
+  assert_eq!(status, StatusCode::UNAUTHORIZED);
+}
+
+#[tokio::test]
+async fn get_org_roles_viewer_200() {
   let client = app::test_client().await.expect("test_client");
   let (token, org_id, role_id) =
     app::auth_with_profile(&client, "viewer@default.org", app::SEED_PASSWORD)
@@ -26,7 +35,7 @@ async fn get_roles_viewer_200() {
   let (status, body) = app::test_request(
     &client,
     "GET",
-    "/api/dashboard/roles",
+    &format!("/api/organizations/{}/roles", org_id),
     Some(&token),
     None,
     Some(&scope),
@@ -39,13 +48,17 @@ async fn get_roles_viewer_200() {
 }
 
 #[tokio::test]
-async fn post_roles_anon_401() {
+async fn post_org_roles_anon_401() {
   let client = app::test_client().await.expect("test_client");
+  let (_, org_id, _) =
+    app::auth_with_profile(&client, "viewer@default.org", app::SEED_PASSWORD)
+      .await
+      .expect("login");
   let body = r#"{"name":"custom","display_name":"Custom"}"#;
   let (status, _) = app::test_request(
     &client,
     "POST",
-    "/api/dashboard/roles",
+    &format!("/api/organizations/{}/roles", org_id),
     None,
     Some(body),
     None,
@@ -56,7 +69,7 @@ async fn post_roles_anon_401() {
 }
 
 #[tokio::test]
-async fn post_roles_viewer_403() {
+async fn post_org_roles_viewer_403() {
   let client = app::test_client().await.expect("test_client");
   let (token, org_id, role_id) =
     app::auth_with_profile(&client, "viewer@default.org", app::SEED_PASSWORD)
@@ -67,7 +80,7 @@ async fn post_roles_viewer_403() {
   let (status, _) = app::test_request(
     &client,
     "POST",
-    "/api/dashboard/roles",
+    &format!("/api/organizations/{}/roles", org_id),
     Some(&token),
     Some(body),
     Some(&scope),
@@ -78,20 +91,24 @@ async fn post_roles_viewer_403() {
 }
 
 #[tokio::test]
-async fn post_roles_editor_201() {
+async fn post_org_roles_editor_201() {
   let client = app::test_client().await.expect("test_client");
   let (token, org_id, role_id) =
     app::auth_with_profile(&client, "editor@default.org", app::SEED_PASSWORD)
       .await
       .expect("login");
   let scope = scope_headers(org_id.as_str(), role_id.as_str());
-  let body = r#"{"name":"testrole123","display_name":"Test Role"}"#;
+  let unique = std::time::SystemTime::now()
+    .duration_since(std::time::UNIX_EPOCH)
+    .unwrap()
+    .as_millis();
+  let body = format!(r#"{{"name":"testrole{}","display_name":"Test Role"}}"#, unique);
   let (status, _) = app::test_request(
     &client,
     "POST",
-    "/api/dashboard/roles",
+    &format!("/api/organizations/{}/roles", org_id),
     Some(&token),
-    Some(body),
+    Some(&body),
     Some(&scope),
   )
   .await
@@ -100,7 +117,7 @@ async fn post_roles_editor_201() {
 }
 
 #[tokio::test]
-async fn patch_roles_viewer_403() {
+async fn patch_org_roles_viewer_403() {
   let client = app::test_client().await.expect("test_client");
   let (token, org_id, role_id) =
     app::auth_with_profile(&client, "viewer@default.org", app::SEED_PASSWORD)
@@ -110,7 +127,7 @@ async fn patch_roles_viewer_403() {
   let (_, body) = app::test_request(
     &client,
     "GET",
-    "/api/dashboard/roles",
+    &format!("/api/organizations/{}/roles", org_id),
     Some(&token),
     None,
     Some(&scope),
@@ -119,17 +136,17 @@ async fn patch_roles_viewer_403() {
   .unwrap();
   let json: app::serde_json::Value = app::serde_json::from_slice(&body).unwrap();
   let roles = json["roles"].as_array().unwrap();
-  let role_id = roles
+  let rid = roles
     .first()
     .and_then(|r| r["id"].as_str())
     .unwrap_or("00000000-0000-0000-0000-000000000000");
-  let patch_body = format!(r#"{{"id":"{}","display_name":"Updated"}}"#, role_id);
+  let patch_body = r#"{"display_name":"Updated"}"#;
   let (status, _) = app::test_request(
     &client,
     "PATCH",
-    "/api/dashboard/roles",
+    &format!("/api/organizations/{}/roles/{}", org_id, rid),
     Some(&token),
-    Some(&patch_body),
+    Some(patch_body),
     Some(&scope),
   )
   .await
@@ -138,7 +155,7 @@ async fn patch_roles_viewer_403() {
 }
 
 #[tokio::test]
-async fn patch_roles_editor_200() {
+async fn patch_org_roles_editor_200() {
   let client = app::test_client().await.expect("test_client");
   let (token, org_id, role_id) =
     app::auth_with_profile(&client, "editor@default.org", app::SEED_PASSWORD)
@@ -148,7 +165,7 @@ async fn patch_roles_editor_200() {
   let (_, body) = app::test_request(
     &client,
     "GET",
-    "/api/dashboard/roles",
+    &format!("/api/organizations/{}/roles", org_id),
     Some(&token),
     None,
     Some(&scope),
@@ -157,14 +174,14 @@ async fn patch_roles_editor_200() {
   .unwrap();
   let json: app::serde_json::Value = app::serde_json::from_slice(&body).unwrap();
   let roles = json["roles"].as_array().unwrap();
-  let role_id = roles.first().and_then(|r| r["id"].as_str()).unwrap();
-  let patch_body = format!(r#"{{"id":"{}","display_name":"Updated Display"}}"#, role_id);
+  let rid = roles.first().and_then(|r| r["id"].as_str()).expect("at least one role");
+  let patch_body = r#"{"display_name":"Updated Display"}"#;
   let (status, _) = app::test_request(
     &client,
     "PATCH",
-    "/api/dashboard/roles",
+    &format!("/api/organizations/{}/roles/{}", org_id, rid),
     Some(&token),
-    Some(&patch_body),
+    Some(patch_body),
     Some(&scope),
   )
   .await
@@ -173,20 +190,20 @@ async fn patch_roles_editor_200() {
 }
 
 #[tokio::test]
-async fn delete_roles_viewer_403() {
+async fn delete_org_roles_viewer_403() {
   let client = app::test_client().await.expect("test_client");
   let (token, org_id, role_id) =
     app::auth_with_profile(&client, "viewer@default.org", app::SEED_PASSWORD)
       .await
       .expect("login");
   let scope = scope_headers(org_id.as_str(), role_id.as_str());
-  let body = r#"{"id":"00000000-0000-0000-0000-000000000000"}"#;
+  let rid = "00000000-0000-0000-0000-000000000000";
   let (status, _) = app::test_request(
     &client,
     "DELETE",
-    "/api/dashboard/roles",
+    &format!("/api/organizations/{}/roles/{}", org_id, rid),
     Some(&token),
-    Some(body),
+    None,
     Some(&scope),
   )
   .await

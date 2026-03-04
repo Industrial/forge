@@ -48,6 +48,22 @@ async fn get_me_auth_200() {
 }
 
 #[tokio::test]
+async fn get_me_invalid_token_401() {
+  let client = app::test_client().await.expect("test_client");
+  let (status, _) = app::test_request(
+    &client,
+    "GET",
+    "/api/auth/me",
+    Some("invalid-or-expired-token"),
+    None,
+    None,
+  )
+  .await
+  .unwrap();
+  assert_eq!(status, StatusCode::UNAUTHORIZED);
+}
+
+#[tokio::test]
 async fn get_profiles_anon_401() {
   let client = app::test_client().await.expect("test_client");
   let (status, _) = app::test_request(&client, "GET", "/api/auth/profiles", None, None, None)

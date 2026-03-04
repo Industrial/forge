@@ -1,128 +1,29 @@
-//! Dashboard: GET /api/dashboard/permissions — 401 anon, 200 any auth.
+//! GET /api/permissions — code-defined permission keys. Unprotected; 200 anon or auth.
 
 use axum::http::StatusCode;
 
 #[tokio::test]
-async fn get_permissions_anon_401() {
+async fn get_permissions_anon_200() {
   let client = app::test_client().await.expect("test_client");
-  let (status, _) = app::test_request(
-    &client,
-    "GET",
-    "/api/dashboard/permissions",
-    None,
-    None,
-    None,
-  )
-  .await
-  .unwrap();
-  assert_eq!(status, StatusCode::UNAUTHORIZED);
-}
-
-fn scope_headers<'a>(org_id: &'a str, role_id: &'a str) -> [(&'static str, &'a str); 2] {
-  [("X-Organization-Id", org_id), ("X-Role-Id", role_id)]
+  let (status, body) = app::test_request(&client, "GET", "/api/permissions", None, None, None)
+    .await
+    .unwrap();
+  assert_eq!(status, StatusCode::OK);
+  let json: app::serde_json::Value = app::serde_json::from_slice(&body).unwrap();
+  assert!(json.get("permissions").and_then(|p| p.as_array()).is_some());
 }
 
 #[tokio::test]
-async fn get_permissions_viewer_default_200() {
+async fn get_permissions_auth_200() {
   let client = app::test_client().await.expect("test_client");
-  let (token, org_id, role_id) =
+  let (token, _org_id, _role_id) =
     app::auth_with_profile(&client, "viewer@default.org", app::SEED_PASSWORD)
       .await
       .expect("login");
-  let scope = scope_headers(org_id.as_str(), role_id.as_str());
-  let (status, _) = app::test_request(
-    &client,
-    "GET",
-    "/api/dashboard/permissions",
-    Some(&token),
-    None,
-    Some(&scope),
-  )
-  .await
-  .unwrap();
+  let (status, body) = app::test_request(&client, "GET", "/api/permissions", Some(&token), None, None)
+    .await
+    .unwrap();
   assert_eq!(status, StatusCode::OK);
-}
-
-#[tokio::test]
-async fn get_permissions_editor_default_200() {
-  let client = app::test_client().await.expect("test_client");
-  let (token, org_id, role_id) =
-    app::auth_with_profile(&client, "editor@default.org", app::SEED_PASSWORD)
-      .await
-      .expect("login");
-  let scope = scope_headers(org_id.as_str(), role_id.as_str());
-  let (status, _) = app::test_request(
-    &client,
-    "GET",
-    "/api/dashboard/permissions",
-    Some(&token),
-    None,
-    Some(&scope),
-  )
-  .await
-  .unwrap();
-  assert_eq!(status, StatusCode::OK);
-}
-
-#[tokio::test]
-async fn get_permissions_admin_default_200() {
-  let client = app::test_client().await.expect("test_client");
-  let (token, org_id, role_id) =
-    app::auth_with_profile(&client, "orgadmin@default.org", app::SEED_PASSWORD)
-      .await
-      .expect("login");
-  let scope = scope_headers(org_id.as_str(), role_id.as_str());
-  let (status, _) = app::test_request(
-    &client,
-    "GET",
-    "/api/dashboard/permissions",
-    Some(&token),
-    None,
-    Some(&scope),
-  )
-  .await
-  .unwrap();
-  assert_eq!(status, StatusCode::OK);
-}
-
-#[tokio::test]
-async fn get_permissions_owner_default_200() {
-  let client = app::test_client().await.expect("test_client");
-  let (token, org_id, role_id) =
-    app::auth_with_profile(&client, "owner@default.org", app::SEED_PASSWORD)
-      .await
-      .expect("login");
-  let scope = scope_headers(org_id.as_str(), role_id.as_str());
-  let (status, _) = app::test_request(
-    &client,
-    "GET",
-    "/api/dashboard/permissions",
-    Some(&token),
-    None,
-    Some(&scope),
-  )
-  .await
-  .unwrap();
-  assert_eq!(status, StatusCode::OK);
-}
-
-#[tokio::test]
-async fn get_permissions_global_admin_200() {
-  let client = app::test_client().await.expect("test_client");
-  let (token, org_id, role_id) =
-    app::auth_with_profile(&client, "admin@admin.com", app::SEED_PASSWORD)
-      .await
-      .expect("login");
-  let scope = scope_headers(org_id.as_str(), role_id.as_str());
-  let (status, _) = app::test_request(
-    &client,
-    "GET",
-    "/api/dashboard/permissions",
-    Some(&token),
-    None,
-    Some(&scope),
-  )
-  .await
-  .unwrap();
-  assert_eq!(status, StatusCode::OK);
+  let json: app::serde_json::Value = app::serde_json::from_slice(&body).unwrap();
+  assert!(json.get("permissions").and_then(|p| p.as_array()).is_some());
 }
