@@ -1,89 +1,81 @@
-# 🔥 Forge
+# Forge
 
 [![CI](https://github.com/Industrial/forge/actions/workflows/ci.yml/badge.svg)](https://github.com/Industrial/forge/actions/workflows/ci.yml)
 [![crates.io](https://img.shields.io/crates/v/forge.svg)](https://crates.io/crates/forge)
 [![docs.rs](https://img.shields.io/docsrs/forge)](https://docs.rs/forge)
 [![License: CC BY-SA 4.0](https://img.shields.io/badge/License-CC%20BY--SA%204.0-green.svg)](https://creativecommons.org/licenses/by-sa/4.0/)
 
-**A full-stack web framework for Rust** — batteries-included, convention over configuration, and built for getting from zero to shipped without the boilerplate. Think Django or Rails, but with Rust’s speed, safety, and async-first stack.
+A full-stack web framework for Rust: convention over configuration, batteries-included, one CLI from zero to shipped. The story is simple: **Rails or Django ergonomics, with Rust’s performance and type safety, and no Node/npm in the critical path.**
 
-## Why Forge?
+## How it compares
 
-You want to build a real web app in Rust — auth, database, background jobs, API tokens, real-time — without wiring every piece yourself. Forge gives you:
+**Next.js** gives you a single language (JS/TS) and a huge ecosystem, but you still choose auth, DB, jobs, and real-time piece by piece. The “full-stack” is often a thin API layer over serverless or a separate backend. Forge is the opposite: one stack, one process, one config story—auth, DB, jobs, WebSockets, and live updates are built in and wired by convention.
 
-- **One CLI to rule them all** — `forge new myapp`, `forge dev` / `forge serve`, migrations, and generators
-- **Convention over configuration** — sensible layout (`config/`, migrations, routes) so you spend time on features, not setup
-- **Auth and authorization** — sessions, login, roles, and API token auth out of the box
-- **Database that just works** — SeaORM + SQLite by default, config in `config/db.toml`
-- **Background jobs** — Apalis-based workers with SQLite storage
-- **Real-time** — WebSockets support
-- **Rust all the way** — Axum, Tokio, Tower; no JS build step required unless you add a frontend
+**Rails and Django** are the spiritual model: sensible defaults, generators, migrations, and “it just works” for CRUD and dashboards. Forge aims for that feel in Rust. You don’t get Ruby or Python’s dynamism or their maturity of gems/packages; you get a single, coherent stack, strong typing, and no GIL—so the trade is clarity and performance for a smaller plugin ecosystem and a younger project.
 
-## 🌱 Status: early and growing
+**Other Rust web stacks** (raw Axum, Actix, etc.) are powerful but leave you to assemble auth, sessions, rate limiting, background jobs, and real-time yourself. Forge sits on top of Axum and Tokio and gives you those layers out of the box, so you spend time on product logic instead of glue.
 
-Forge is a **new project**. We’re building in the open and are upfront about it: not every edge is polished yet, and the API may evolve. If you like the direction and want to shape it, this is the right time to jump in — issues, docs, and code are all welcome.
+Honest gaps: Forge is **early**. Not every edge is polished; the API may still evolve. If you want a stable, “boring” framework, Rails or Django are safer today. If you want one coherent Rust backend with real-time and live data sync, and you’re okay helping shape it, Forge is built for that.
 
-## 🚀 Quick start
+## What you get
 
-Rust doesn’t have an `npx`/`bunx`-style “run without installing.” You can either install the CLI once (recommended) or run it from a clone without installing.
+- **One CLI**: `forge new myapp`, `forge dev` / `forge serve`, migrations, generators. Strict project layout (`config/`, migrations, routes) so the tooling knows where everything lives.
+- **Config as single source of truth**: No CLI flags for port or env—everything comes from `config/app.toml` (and related files). Figment-based layering for env-specific overrides.
+- **Database**: SeaORM + SQLite by default. Connection and pool config in `config/db.toml`. Migrations and seeds are first-class; `forge new` generates the schema you need for users, orgs, and memberships.
+- **Auth and authorization**: Sessions and login; password hashing (Argon2id); API tokens (stored as hashes). Authorization is “shallow gate + deep scope”: handler-level guards (`Action`, `Role`) and DB-level scoping so tenant data is isolated and wrong-tenant reads look like 404 (Ghost Mode). Roles are per-organization, not global.
+- **Audit logging**: First-class events and outcomes so you can record who did what, when.
+- **Health and observability**: Health/live/ready endpoints; optional OpenTelemetry and tracing so you can plug into existing observability stacks.
+- **Rate limiting**: Governor-based, keyed by requester/org so you can throttle per user or per tenant.
+- **Validation**: Shared validation types and helpers so request and domain rules stay consistent.
+- **Background jobs**: Apalis-based task queue with SQLite storage by default—no Redis required. Define tasks, dispatch from handlers, run workers in-process or as a separate process. Recurring work is “scheduled tasks” enqueued on a timer.
+- **API token auth**: Bearer tokens for programmatic access; tokens are hashed and checked against the DB. Scope (org, role) can come from headers or token metadata.
+- **Security**: Security headers (CSP, HSTS, etc.) applied by default so responses are hardened out of the box.
+- **Real-time**: WebSockets and SSE via Axum. Raw `ws` and `sse` for custom endpoints. On top of that, a **Live Query** system: clients subscribe to scoped channels (e.g. per-org, per-resource-type); the server derives subscriptions from the session and permissions, so the client doesn’t send a channel list. When data changes, handlers call a broadcast API and every subscribed connection gets the update. Single process uses in-memory pub/sub; multi-instance can use a swappable backend (e.g. Redis) so all instances see the same events. Result: UIs stay in sync without polling or hand-rolled WebSocket routing.
+- **Caching**: Application cache (key-value get/set/delete) and optional HTTP response cache (middleware). Backed by Moka in-process; manual invalidation so you control when entries are busted.
+- **i18n**: Hooks for internationalization so you can drive locale and translations from config and request context.
+- **Frontend**: Straight-up Vite SPA (React, Vue, or Svelte). `forge dev` runs the backend and Vite dev server with HMR; production builds the frontend and serves static assets.
+- **Deploy**: Documented path with Shuttle (Rust hosting, no Dockerfile) and Turso (hosted SQLite-compatible DB). One service runs HTTP + in-process worker; local dev uses file SQLite, production uses Turso via config/env.
 
-### Option 1: Install the CLI (recommended)
+Rust all the way on the backend: Axum, Tokio, Tower. The default template includes a Vite SPA; no JS build step if you stick to API-only.
+
+## Status: early and growing
+
+Forge is a **new project**. We’re building in the open: not every edge is polished, and the API may evolve. If you like the direction and want to shape it, this is the right time—issues, docs, and code are welcome.
+
+## Quick start
+
+Rust doesn’t have an “npx”-style run-without-install. You can install the CLI once (recommended) or generate an app from a clone.
+
+**Option 1: Install the CLI (recommended)**
 
 ```bash
-# One-time install (binary name is `forge`)
 cargo install --git https://github.com/Industrial/forge forge-cli --bin forge
 
-# Create a new app
 forge new myapp
 cd myapp
 
-# Development: start backend + Vite (open http://localhost:3000)
 forge dev
 ```
 
-For production (build frontend and serve static assets): `forge serve`.
+Then open http://localhost:3000. For production: build frontend and run `forge serve`.
 
-*When we publish the CLI to crates.io, you’ll be able to run `cargo install forge-cli` instead.*
+*When the CLI is on crates.io, `cargo install forge-cli` will suffice.*
 
-### Option 2: Create an app without installing the CLI
-
-From a clone of this repo you can generate an app without a global install. You’ll need the CLI (Option 1) to run `forge dev` or `forge serve` from the app directory.
+**Option 2: Create an app without installing the CLI**
 
 ```bash
 git clone https://github.com/Industrial/forge.git
 cd forge
 cargo run -p forge-cli -- new myapp
-# myapp is created in the current directory; move it elsewhere if you like
 cd myapp
-forge dev   # development; requires forge on PATH (install once with Option 1)
+forge dev   # requires forge on PATH; install once with Option 1
 ```
 
-Then open [http://localhost:3000](http://localhost:3000). See [docs/001_cli.md](docs/001_cli.md) and the rest of the [docs/](docs/) folder for details.
+## Documentation (in-repo)
 
-## 📚 Documentation
+Details live in the `docs/` folder: CLI and project layout, config, database and SeaORM, migrations, authentication, authorization, audit logging, health and observability, rate limiting, validation, background jobs, API token auth, security, WebSockets and real-time, i18n, caching, and deploy (Shuttle + Turso). Live Query design (channels, permissions, broadcast, swappable backend) is in the multi-crate and live-channels docs.
 
-| Topic | Doc |
-|-------|-----|
-| CLI & project layout | [001_cli](docs/001_cli.md) |
-| Config | [002_config](docs/002_config.md) |
-| Database & SeaORM | [003_database](docs/003_database.md) |
-| Migrations | [004_migrations](docs/004_migrations.md) |
-| Authentication | [005_authentication](docs/005_authentication.md) |
-| Authorization | [006_authorization](docs/006_authorization.md) |
-| Audit logging | [007_audit_logging](docs/007_audit_logging.md) |
-| Health & observability | [008_health](docs/008_health.md), [017_health_observability](docs/017_health_observability.md) |
-| Rate limiting | [009_rate_limiting](docs/009_rate_limiting.md) |
-| Validation | [010_validation](docs/010_validation.md) |
-| Background jobs | [011_background_jobs](docs/011_background_jobs.md) |
-| API token auth | [012_api_token_auth](docs/012_api_token_auth.md) |
-| Security | [013_security_additions](docs/013_security_additions.md) |
-| WebSockets | [014_real_time_websockets](docs/014_real_time_websockets.md) |
-| i18n | [015_i18n](docs/015_i18n.md) |
-| Caching | [016_caching](docs/016_caching.md) |
-| Inertia (SPA-style) | [018_inertia_rendering](docs/018_inertia_rendering.md) |
-| Deploy (Shuttle + Turso) | [019_deploy](docs/019_deploy.md) |
-
-## 🤝 Contributing
+## Contributing
 
 We’re **open source** and **community-first**. Contributions are welcome: code, docs, issues, and ideas. Check open issues, comment on design discussions, or open a PR. Be respectful and constructive; we’ll do the same.
 
@@ -93,7 +85,7 @@ We’re **open source** and **community-first**. Contributions are welcome: code
 
 By contributing, you agree that your contributions will be licensed under the same license as the project (see [License](#license)).
 
-## 👏 Contributors
+## Contributors
 
 Thanks to everyone who has contributed to Forge:
 
@@ -103,15 +95,15 @@ Thanks to everyone who has contributed to Forge:
 
 [![Star History Chart](https://api.star-history.com/svg?repos=Industrial/forge&type=Date)](https://star-history.com/#Industrial/forge)
 
-## 🔧 Development
+## Development
 
 - **Rust**: 2024 edition, format with `cargo fmt`, lint with `cargo clippy`.
 - **Nix / devenv**: Use `devenv shell` for the intended environment; run commands inside it (e.g. `devenv shell -- cargo test`).
 - **Quality**: Tests (including e2e), `cargo-deny` for audits, and CI on every push.
 
-See the repo root and [.cursor/rules](.cursor/rules) for formatting, testing, and workflow details.
+See the repo root and `.cursor/rules` for formatting, testing, and workflow details.
 
-## ⚖️ License
+## License
 
 This project is licensed under the **Creative Commons Attribution-ShareAlike 4.0 International (CC BY-SA 4.0)**. You may share and adapt the material for any purpose, including commercially, as long as you give appropriate credit and distribute your contributions under the same license. See [LICENSE](LICENSE) and [Creative Commons BY-SA 4.0](https://creativecommons.org/licenses/by-sa/4.0/) for the full text.
 
