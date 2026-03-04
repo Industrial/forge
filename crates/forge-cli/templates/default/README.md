@@ -22,7 +22,7 @@ Builds the frontend (`bun run build`), then runs the backend serving static asse
 
 - `forge dev` — development: backend + Vite dev server; open http://localhost:3000
 - `forge serve` — production: build frontend, then run backend serving static files
-- `cargo run -p app` — backend only (port 4000). Login and register return a Bearer token in the response; the frontend stores it and sends `Authorization: Bearer <token>` on API requests. No cookies are used for auth.
+- `cargo run -p server` — backend only (port 4000). Login and register return a Bearer token in the response; the frontend stores it and sends `Authorization: Bearer <token>` on API requests. No cookies are used for auth.
 - `bun run dev` (in `frontend/`) — Vite only (port 3000); ensure backend is running for API/pages
 
 ## Seed users

@@ -8,7 +8,7 @@ use sea_orm::{ColumnTrait, EntityTrait, QueryFilter, Set};
 use tracing::info;
 use uuid::Uuid;
 
-use crate::models::{membership, org_role, organization, role_permission, user, user_org_role};
+use db::models::{membership, org_role, organization, role_permission, user, user_org_role};
 
 const SEED_PASSWORD: &str = "password";
 const ADMIN_ORG_NAME: &str = "Admin";
@@ -19,7 +19,7 @@ const ADMIN_EMAIL: &str = "admin@admin.com";
 /// Permissions unique to the Admin org role: full read and write.
 const ADMIN_PERMISSIONS: &[&str] = &["all.read", "all.write"];
 
-pub async fn seed(db: &DbConnection) -> Result<(), Box<dyn std::error::Error>> {
+pub async fn seed(db: &DbConnection) -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
   let admin_org_id = ensure_admin_org(db).await?;
   let admin_role_id = ensure_admin_role(db, admin_org_id).await?;
   ensure_admin_role_permissions(db, admin_org_id).await?;
@@ -27,7 +27,7 @@ pub async fn seed(db: &DbConnection) -> Result<(), Box<dyn std::error::Error>> {
   Ok(())
 }
 
-async fn ensure_admin_org(db: &DbConnection) -> Result<Uuid, Box<dyn std::error::Error>> {
+async fn ensure_admin_org(db: &DbConnection) -> Result<Uuid, Box<dyn std::error::Error + Send + Sync>> {
   let existing = organization::Entity::find()
     .filter(organization::Column::Slug.eq(ADMIN_ORG_SLUG))
     .one(db)
@@ -53,7 +53,7 @@ async fn ensure_admin_org(db: &DbConnection) -> Result<Uuid, Box<dyn std::error:
   }
 }
 
-async fn ensure_admin_role(db: &DbConnection, org_id: Uuid) -> Result<Uuid, Box<dyn std::error::Error>> {
+async fn ensure_admin_role(db: &DbConnection, org_id: Uuid) -> Result<Uuid, Box<dyn std::error::Error + Send + Sync>> {
   let existing = org_role::Entity::find()
     .filter(org_role::Column::OrgId.eq(org_id))
     .filter(org_role::Column::Name.eq(ADMIN_ROLE_NAME))
@@ -81,7 +81,7 @@ async fn ensure_admin_role(db: &DbConnection, org_id: Uuid) -> Result<Uuid, Box<
   }
 }
 
-async fn ensure_admin_role_permissions(db: &DbConnection, org_id: Uuid) -> Result<(), Box<dyn std::error::Error>> {
+async fn ensure_admin_role_permissions(db: &DbConnection, org_id: Uuid) -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
   for &key in ADMIN_PERMISSIONS {
     let exists = role_permission::Entity::find()
       .filter(role_permission::Column::Scope.eq("org"))
@@ -111,7 +111,7 @@ async fn ensure_admin_user(
   db: &DbConnection,
   org_id: Uuid,
   role_id: Uuid,
-) -> Result<(), Box<dyn std::error::Error>> {
+) -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
   let existing = user::Entity::find()
     .filter(user::Column::Email.eq(ADMIN_EMAIL))
     .one(db)

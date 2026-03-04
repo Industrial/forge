@@ -28,12 +28,15 @@ pub fn run(config: &ForgeConfig) -> Result<(), Box<dyn std::error::Error>> {
   if !cargo_toml.contains("[workspace]") {
     return Err("Not a Forge workspace. Ensure your Cargo.toml has a [workspace] section.".into());
   }
-  if !std::path::Path::new("crates/app/src/main.rs").exists() {
+  let server_bin = if std::path::Path::new("crates/server/src/main.rs").exists() {
+    "server"
+  } else if std::path::Path::new("crates/app/src/main.rs").exists() {
+    "app"
+  } else {
     return Err(
-      "crates/app/src/main.rs not found. Ensure your project has an app crate with a main.rs."
-        .into(),
+      "No server binary found. Expect crates/server/src/main.rs or crates/app/src/main.rs.".into(),
     );
-  }
+  };
 
   let port = config.server.port;
   let host = config.server.host.clone();
@@ -58,11 +61,11 @@ pub fn run(config: &ForgeConfig) -> Result<(), Box<dyn std::error::Error>> {
     }
   }
 
-  eprintln!("Starting HTTP server (cargo run -p app)…");
+  eprintln!("Starting HTTP server (cargo run -p {})…", server_bin);
   let mut cargo_child = Command::new("cargo")
     .arg("run")
     .arg("--package")
-    .arg("app")
+    .arg(server_bin)
     .env("FORGE_ENVIRONMENT", "development")
     .env("PORT", port.to_string())
     .env("HOST", &host)

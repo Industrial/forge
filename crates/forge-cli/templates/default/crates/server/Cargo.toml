@@ -1,0 +1,19 @@
+[package]
+name = "server"
+version = "0.1.0"
+edition = "2024"
+
+[[bin]]
+name = "server"
+path = "src/main.rs"
+
+[dependencies]
+app = { path = "../app" }
+migrations = { path = "../migrations" }
+axum = { version = "0.8" }
+forge-config = { path = "../../../../../forge-config" }
+forge-app = { path = "../../../../../forge-app" }
+forge-live = { path = "../../../../../forge-live" }
+tower-http = { version = "0.6", features = ["fs"] }
+tokio = { version = "1", features = ["full"] }
+tracing = "0.1"

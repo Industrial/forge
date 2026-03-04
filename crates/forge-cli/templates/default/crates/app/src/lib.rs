@@ -23,8 +23,6 @@ pub use error::Error;
 /// `config/app.toml` and `config/db.toml` (e.g. project root or a temp dir from [build_router_for_test]).
 pub fn make_app(live_backend: Arc<forge_live::InMemoryLiveBackend>) -> App {
   let app = App::new()
-    .with_migrations(db::Migrator)
-    .with_seed(|db| Box::pin(db::run_seeds(db)))
     .with_token_auth_only(
       |db| db::auth::Backend::new(db),
       Arc::new(move |db, raw_token| Box::pin(db::token_lookup(db, raw_token))),
@@ -168,6 +166,16 @@ pub async fn build_router_for_test(
   forge_app::init_tracing();
   let live_backend = Arc::new(forge_live::InMemoryLiveBackend::new());
   let app = make_app(live_backend.clone());
+  #[cfg(test)]
+  let app = app
+    .with_migrations(migrations::Migrator)
+    .with_seed(|db| {
+      Box::pin(async move {
+        migrations::run_seeds(db)
+          .await
+          .map_err(|e| -> Box<dyn std::error::Error> { e.to_string().into() })
+      })
+    });
 
   let (router, db_conn, _cron_runner, response_cache) = app.into_router_before_state().await;
 

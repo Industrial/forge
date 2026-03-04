@@ -1,7 +1,7 @@
 use sea_orm::*;
 use sea_orm_migration::prelude::*;
 
-use crate::models::{org_role, organization, user_org_role};
+use db::models::{org_role, organization, user_org_role};
 
 const TEMPLATE_ROLES: &[&str] = &["owner", "admin", "editor", "viewer"];
 

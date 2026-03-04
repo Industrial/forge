@@ -36,6 +36,278 @@ fn slug_from_name(name: &str) -> String {
     .join("-")
 }
 
+// ---- Internal impls: same logic as handlers, callable from seeds (no HTTP) ----
+pub async fn create_organization_impl(db: &DbConnection, payload: &CreateOrganizationBody) -> Result<Uuid, ForgeError> {
+  let name = payload.name.trim();
+  if name.is_empty() {
+    return Err(ForgeError::Generic("name is required".into()));
+  }
+  let slug = payload
+    .slug
+    .as_deref()
+    .map(|s| s.trim())
+    .filter(|s| !s.is_empty())
+    .map(String::from)
+    .unwrap_or_else(|| slug_from_name(name));
+  let now = chrono::Utc::now().naive_utc();
+  let id = Uuid::new_v4();
+  organization::Entity::insert(organization::ActiveModel {
+    id: Set(id),
+    name: Set(name.to_string()),
+    slug: Set(slug),
+    created_at: Set(now),
+    updated_at: Set(now),
+    ..Default::default()
+  })
+  .exec(db)
+  .await
+  .map_err(|e| ForgeError::Generic(e.to_string()))?;
+  Ok(id)
+}
+
+pub async fn create_org_role_impl(
+  db: &DbConnection,
+  org_id: Uuid,
+  payload: &CreateOrgRoleBody,
+) -> Result<Uuid, ForgeError> {
+  let name = payload.name.trim();
+  if name.is_empty() {
+    return Err(ForgeError::Generic("name is required".into()));
+  }
+  if org_role::Entity::find()
+    .filter(org_role::Column::OrgId.eq(org_id))
+    .filter(org_role::Column::Name.eq(name))
+    .one(db)
+    .await
+    .map_err(|e| ForgeError::Generic(e.to_string()))?
+    .is_some()
+  {
+    return Err(ForgeError::Generic("Role name exists".into()));
+  }
+  let now = chrono::Utc::now().naive_utc();
+  let id = Uuid::new_v4();
+  let display_name = payload
+    .display_name
+    .as_ref()
+    .map(|s| s.trim())
+    .filter(|s| !s.is_empty())
+    .map(String::from);
+  org_role::Entity::insert(org_role::ActiveModel {
+    id: Set(id),
+    org_id: Set(org_id),
+    name: Set(name.to_string()),
+    display_name: Set(display_name),
+    created_at: Set(now),
+    updated_at: Set(now),
+    ..Default::default()
+  })
+  .exec(db)
+  .await
+  .map_err(|e| ForgeError::Generic(e.to_string()))?;
+  Ok(id)
+}
+
+/// Returns (role_id, role_name) for the org. Used by seeds to resolve role ids.
+pub async fn list_org_roles_impl(
+  db: &DbConnection,
+  org_id: Uuid,
+) -> Result<std::collections::HashMap<String, Uuid>, ForgeError> {
+  let rows = org_role::Entity::find()
+    .filter(org_role::Column::OrgId.eq(org_id))
+    .order_by_asc(org_role::Column::Name)
+    .all(db)
+    .await
+    .map_err(|e| ForgeError::Generic(e.to_string()))?;
+  let mut map = std::collections::HashMap::new();
+  for r in rows {
+    map.insert(r.name.clone(), r.id);
+  }
+  Ok(map)
+}
+
+pub async fn add_org_user_impl(
+  db: &DbConnection,
+  org_id: Uuid,
+  payload: &AddOrgUserBody,
+) -> Result<(Uuid, bool), ForgeError> {
+  let (user_id, created) = match (payload.user_id, payload.email.as_deref(), payload.password.as_deref()) {
+    (Some(uid), _, _) => {
+      let u = user::Entity::find_by_id(uid)
+        .one(db)
+        .await
+        .map_err(|e| ForgeError::Generic(e.to_string()))?;
+      if u.is_none() {
+        return Err(ForgeError::Generic("User not found".into()));
+      }
+      if membership::Entity::find()
+        .filter(membership::Column::UserId.eq(uid))
+        .filter(membership::Column::OrgId.eq(org_id))
+        .one(db)
+        .await
+        .map_err(|e| ForgeError::Generic(e.to_string()))?
+        .is_some()
+      {
+        return Err(ForgeError::Generic("User already in organization".into()));
+      }
+      (uid, false)
+    }
+    (None, Some(email), Some(password)) if email.trim().contains('@') && password.len() >= 8 => {
+      let email = email.trim();
+      if user::Entity::find()
+        .filter(user::Column::Email.eq(email))
+        .one(db)
+        .await
+        .map_err(|e| ForgeError::Generic(e.to_string()))?
+        .is_some()
+      {
+        return Err(ForgeError::Generic("Email already in use".into()));
+      }
+      let now = chrono::Utc::now().naive_utc();
+      let user_id = Uuid::new_v4();
+      let hash = hash_password(password).map_err(|e| ForgeError::Generic(e.to_string()))?;
+      user::Entity::insert(user::ActiveModel {
+        id: Set(user_id),
+        email: Set(email.to_string()),
+        password_hash: Set(hash),
+        is_active: Set(true),
+        is_admin: Set(false),
+        current_org_id: Set(Some(org_id)),
+        current_role: Set(None),
+        created_at: Set(now),
+        updated_at: Set(now),
+        ..Default::default()
+      })
+      .exec(db)
+      .await
+      .map_err(|e| ForgeError::Generic(e.to_string()))?;
+      membership::Entity::insert(membership::ActiveModel {
+        id: Set(Uuid::new_v4()),
+        user_id: Set(user_id),
+        org_id: Set(org_id),
+        created_at: Set(now),
+        updated_at: Set(now),
+        ..Default::default()
+      })
+      .exec(db)
+      .await
+      .map_err(|e| ForgeError::Generic(e.to_string()))?;
+      (user_id, true)
+    }
+    _ => return Err(ForgeError::Generic("Provide user_id or email+password".into())),
+  };
+  if membership::Entity::find()
+    .filter(membership::Column::UserId.eq(user_id))
+    .filter(membership::Column::OrgId.eq(org_id))
+    .one(db)
+    .await
+    .map_err(|e| ForgeError::Generic(e.to_string()))?
+    .is_none()
+  {
+    let now = chrono::Utc::now().naive_utc();
+    membership::Entity::insert(membership::ActiveModel {
+      id: Set(Uuid::new_v4()),
+      user_id: Set(user_id),
+      org_id: Set(org_id),
+      created_at: Set(now),
+      updated_at: Set(now),
+      ..Default::default()
+    })
+    .exec(db)
+    .await
+    .map_err(|e| ForgeError::Generic(e.to_string()))?;
+  }
+  Ok((user_id, created))
+}
+
+pub async fn add_org_user_roles_impl(
+  db: &DbConnection,
+  org_id: Uuid,
+  user_id: Uuid,
+  role_ids: &[Uuid],
+) -> Result<(), ForgeError> {
+  if role_ids.is_empty() {
+    return Ok(());
+  }
+  for rid in role_ids {
+    let r = org_role::Entity::find_by_id(*rid)
+      .one(db)
+      .await
+      .map_err(|e| ForgeError::Generic(e.to_string()))?;
+    if r.map(|r| r.org_id != org_id).unwrap_or(true) {
+      return Err(ForgeError::Generic("role must belong to organization".into()));
+    }
+  }
+  let now = chrono::Utc::now().naive_utc();
+  for rid in role_ids {
+    let exists = user_org_role::Entity::find()
+      .filter(user_org_role::Column::UserId.eq(user_id))
+      .filter(user_org_role::Column::OrgId.eq(org_id))
+      .filter(user_org_role::Column::RoleId.eq(*rid))
+      .one(db)
+      .await
+      .map_err(|e| ForgeError::Generic(e.to_string()))?;
+    if exists.is_none() {
+      user_org_role::Entity::insert(user_org_role::ActiveModel {
+        id: Set(Uuid::new_v4()),
+        user_id: Set(user_id),
+        org_id: Set(org_id),
+        role_id: Set(*rid),
+        created_at: Set(now),
+        updated_at: Set(now),
+        ..Default::default()
+      })
+      .exec(db)
+      .await
+      .map_err(|e| ForgeError::Generic(e.to_string()))?;
+    }
+  }
+  Ok(())
+}
+
+pub async fn add_org_role_permission_impl(
+  db: &DbConnection,
+  org_id: Uuid,
+  role_id: Uuid,
+  permission_key: &str,
+) -> Result<(), ForgeError> {
+  let r = org_role::Entity::find_by_id(role_id)
+    .one(db)
+    .await
+    .map_err(|e| ForgeError::Generic(e.to_string()))?;
+  let Some(r) = r else {
+    return Err(ForgeError::Generic("Role not found".into()));
+  };
+  if r.org_id != org_id {
+    return Err(ForgeError::Generic("Role not in organization".into()));
+  }
+  let key = permission_key.trim();
+  if !DASHBOARD_PERMISSIONS.contains(&key) {
+    return Err(ForgeError::Generic("invalid permission_key".into()));
+  }
+  let exists = role_permission::Entity::find()
+    .filter(role_permission::Column::Scope.eq("org"))
+    .filter(role_permission::Column::OrgId.eq(org_id))
+    .filter(role_permission::Column::RoleName.eq(&r.name))
+    .filter(role_permission::Column::PermissionKey.eq(key))
+    .one(db)
+    .await
+    .map_err(|e| ForgeError::Generic(e.to_string()))?;
+  if exists.is_none() {
+    role_permission::Entity::insert(role_permission::ActiveModel {
+      id: Set(Uuid::new_v4()),
+      scope: Set("org".to_string()),
+      role_name: Set(r.name.clone()),
+      permission_key: Set(key.to_string()),
+      org_id: Set(Some(org_id)),
+      ..Default::default()
+    })
+    .exec(db)
+    .await
+    .map_err(|e| ForgeError::Generic(e.to_string()))?;
+  }
+  Ok(())
+}
+
 // ---- Users ----
 pub async fn list_users(State(db): State<DbConnection>) -> Result<impl IntoResponse, ForgeError> {
   let users = user::Entity::find().all(&db).await.map_err(|e| ForgeError::Generic(e.to_string()))?;

@@ -14,7 +14,7 @@ async fn get_role_permissions_anon_401() {
   assert_eq!(status, StatusCode::UNAUTHORIZED);
 }
 
-fn scope_headers(org_id: &str, role_id: &str) -> [(&'static str, &str); 2] {
+fn scope_headers<'a>(org_id: &'a str, role_id: &'a str) -> [(&'static str, &'a str); 2] {
   [("X-Organization-Id", org_id), ("X-Role-Id", role_id)]
 }
 

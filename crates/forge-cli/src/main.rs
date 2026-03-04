@@ -294,7 +294,8 @@ mod tests {
       assert!(project_path.exists());
       assert!(project_path.join("Cargo.toml").exists());
       assert!(project_path.join("crates/app").exists());
-      assert!(project_path.join("crates/app/src/main.rs").exists());
+      assert!(project_path.join("crates/server/src/main.rs").exists());
+      assert!(project_path.join("crates/migrations").exists());
       assert!(project_path.join("crates/db/src/lib.rs").exists());
       assert!(project_path.join(".gitignore").exists());
       assert!(project_path.join("config/app.toml").exists());
@@ -304,6 +305,8 @@ mod tests {
       assert!(cargo_content.contains("[workspace]"));
       assert!(cargo_content.contains("crates/app"));
       assert!(cargo_content.contains("crates/db"));
+      assert!(cargo_content.contains("crates/migrations"));
+      assert!(cargo_content.contains("crates/server"));
       let app_cargo = fs::read_to_string(project_path.join("crates/app/Cargo.toml")).unwrap();
       assert!(app_cargo.contains("name = \"app\""));
       assert!(
@@ -324,7 +327,17 @@ mod tests {
         "generated app should use explicit imports"
       );
       assert!(lib_content.contains("App::new()"));
-      assert!(lib_content.contains(".with_migrations(db::Migrator)"));
+      let server_main_path = project_path.join("crates/server/src/main.rs");
+      assert!(
+        server_main_path.exists(),
+        "template should include server crate at {}",
+        server_main_path.display()
+      );
+      let server_main = fs::read_to_string(&server_main_path).unwrap();
+      assert!(
+        server_main.contains(".with_migrations(migrations::Migrator)"),
+        "generated server should use migrations::Migrator"
+      );
       assert!(lib_content.contains(".post_route"));
       assert!(lib_content.contains(".route(\"/api/auth/admin\""));
       assert!(
@@ -335,15 +348,14 @@ mod tests {
         "generated app should use route_methods for dashboard/org users"
       );
 
-      // main.rs: entrypoint and router setup
-      let main_content = fs::read_to_string(project_path.join("crates/app/src/main.rs")).unwrap();
+      // server main.rs: entrypoint and router setup
       assert!(
-        !main_content.contains("forge::prelude"),
-        "generated main should use explicit imports (no prelude)"
+        !server_main.contains("forge::prelude"),
+        "generated server main should use explicit imports (no prelude)"
       );
       assert!(
-        main_content.contains(".serve()") || main_content.contains("into_router_before_state"),
-        "generated main should call .serve() or into_router_before_state"
+        server_main.contains(".serve()") || server_main.contains("into_router_before_state"),
+        "generated server main should call .serve() or into_router_before_state"
       );
 
       // .gitignore content

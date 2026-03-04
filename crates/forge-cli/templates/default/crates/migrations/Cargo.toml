@@ -1,13 +1,12 @@
 [package]
-name = "db"
+name = "migrations"
 version = "0.1.0"
 edition = "2024"
 
 [dependencies]
-# In-repo paths for `forge dev` from templates/default; replaced by `forge new`
-axum-login = "0.17"
+app = { path = "../app" }
+db = { path = "../db" }
 forge-auth = { path = "../../../../../forge-auth" }
-forge-core = { path = "../../../../../forge-core" }
 forge-db = { path = "../../../../../forge-db" }
 sea-orm = { version = "1.1", default-features = false, features = [
   "runtime-tokio-rustls",
@@ -16,13 +15,8 @@ sea-orm = { version = "1.1", default-features = false, features = [
   "with-uuid",
   "with-chrono",
 ] }
-serde = { version = "1.0", features = ["derive"] }
-serde_json = "1.0"
+sea-orm-migration = "1.1"
 uuid = { version = "1.0", features = ["v4", "serde"] }
 chrono = { version = "0.4", features = ["serde"] }
 async-trait = "0.1"
 tracing = "0.1"
-sea-orm-tracing = "0.2"
-tokio = { version = "1", features = ["rt", "macros"] }
-
-[dev-dependencies]
