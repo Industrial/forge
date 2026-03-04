@@ -13,7 +13,6 @@ use forge_observability::{env_filter, init_otel, otel_layer};
 use forge_rate_limit::RequesterOrgKeyExtractor;
 use futures::future::BoxFuture;
 use governor::middleware::NoOpMiddleware;
-use sea_orm::{ConnectionTrait, DbBackend};
 use sea_orm_migration::MigratorTrait;
 use tokio::signal;
 use tower::ServiceBuilder;
@@ -227,14 +226,6 @@ impl App {
     self.auth_installer = Some(Box::new(
       move |router, db_conn, rate_limit_per_user, token_lookup| {
         Box::pin(async move {
-          if db_conn.get_database_backend() != DbBackend::Sqlite {
-            warn!(
-              "Authentication currently only
-            supported with Sqlite. Skipping auth setup."
-            );
-            return router;
-          }
-
           let auth_backend = backend_factory(db_conn.clone());
 
           let router = if let Some(lookup) = token_lookup {

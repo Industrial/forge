@@ -64,18 +64,18 @@ async fn get_api_users_viewer_scope_only_sees_default_org() {
     for m in u["memberships"].as_array().map(|v| v.as_slice()).unwrap_or(empty) {
       let org_name = m["org_name"].as_str().unwrap_or("");
       assert!(
-        !org_name.eq_ignore_ascii_case("Other"),
-        "viewer with Default org scope must not see Other org in memberships"
+        !org_name.eq_ignore_ascii_case("CoolOrg"),
+        "viewer with Default org scope must not see CoolOrg in memberships"
       );
     }
   }
 }
 
 #[tokio::test]
-async fn get_api_users_viewer_other_only_other_org() {
+async fn get_api_users_viewer_coolorg_only_coolorg_org() {
   let client = app::test_client().await.expect("test_client");
   let (token, org_id, role_id) =
-    app::auth_with_profile(&client, "viewer@other.org", app::SEED_PASSWORD)
+    app::auth_with_profile(&client, "viewer@coolorg.org", app::SEED_PASSWORD)
       .await
       .expect("login");
   let scope = scope_headers(org_id.as_str(), role_id.as_str());
@@ -88,10 +88,10 @@ async fn get_api_users_viewer_other_only_other_org() {
   let empty: &[app::serde_json::Value] = &[];
   for u in users {
     let memberships = u["memberships"].as_array().map(|v| v.as_slice()).unwrap_or(empty);
-    let has_other = memberships
+    let has_coolorg = memberships
       .iter()
-      .any(|m| m["org_name"].as_str().map(|s| s == "Other").unwrap_or(false));
-    assert!(has_other, "viewer@other.org with Other scope: each returned user should have at least one membership in Other org");
+      .any(|m| m["org_name"].as_str().map(|s| s == "CoolOrg").unwrap_or(false));
+    assert!(has_coolorg, "viewer@coolorg.org with CoolOrg scope: each returned user should have at least one membership in CoolOrg");
   }
 }
 
@@ -109,15 +109,15 @@ async fn get_api_users_admin_global_200() {
   let json: app::serde_json::Value = app::serde_json::from_slice(&body).unwrap();
   let users = json["users"].as_array().expect("response has users array");
   let empty: &[app::serde_json::Value] = &[];
-  let has_other = users.iter().any(|u| {
+  let has_coolorg = users.iter().any(|u| {
     u["memberships"]
       .as_array()
       .map(|v| v.as_slice())
       .unwrap_or(empty)
       .iter()
-      .any(|m| m["org_name"].as_str().map(|s| s.eq_ignore_ascii_case("Other")).unwrap_or(false))
+      .any(|m| m["org_name"].as_str().map(|s| s.eq_ignore_ascii_case("CoolOrg")).unwrap_or(false))
   });
-  assert!(has_other, "admin GET /api/users (global) must return users that include at least one with Other org (seed data)");
+  assert!(has_coolorg, "admin GET /api/users (global) must return users that include at least one with CoolOrg (seed data)");
 }
 
 #[tokio::test]

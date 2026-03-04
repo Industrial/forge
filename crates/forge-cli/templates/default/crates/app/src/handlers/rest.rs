@@ -369,14 +369,19 @@ pub async fn list_users(
   State(db): State<DbConnection>,
   request: Request,
 ) -> Result<impl IntoResponse, ForgeError> {
+  tracing::info!(user_id = %auth.0.id, "list_users: entered");
   let scope_opt = get_scope_from_headers_map(request.headers(), &auth.0, &db).await;
+  tracing::info!(has_scope = scope_opt.is_some(), "list_users: after get_scope_from_headers_map");
   if let Some(scope) = &scope_opt {
     if let Some(resp) =
       require_org_permission_or_global(&db, &auth.0, scope, "dashboard.users.read").await
     {
+      tracing::info!("list_users: returning require_org_permission_or_global rejection");
       return Ok(resp);
     }
+    tracing::info!("list_users: scope present, permission ok");
   } else if !has_global_scope(&db, &auth.0, "dashboard.users.read").await {
+    tracing::info!("list_users: no scope and no global scope, returning 403");
     return Ok(
       (
         StatusCode::FORBIDDEN,
@@ -384,23 +389,30 @@ pub async fn list_users(
       )
         .into_response(),
     );
+  } else {
+    tracing::info!("list_users: no scope but has global scope");
   }
+  tracing::info!("list_users: before user_find_scoped");
   let users = user_find_scoped(&db, scope_opt.as_ref())
     .await
     .map_err(|e| ForgeError::Generic(e.to_string()))?
     .all(&db)
     .await
     .map_err(|e| ForgeError::Generic(e.to_string()))?;
+  tracing::info!(count = users.len(), "list_users: after user_find_scoped");
   if users.is_empty() {
+    tracing::info!("list_users: users empty, returning empty list");
     return Ok(Json(serde_json::json!({ "users": [] })).into_response());
   }
   let user_ids: Vec<Uuid> = users.iter().map(|u| u.id).collect();
+  tracing::info!(user_count = user_ids.len(), "list_users: before uors query");
   let all_uors = user_org_role::Entity::find()
     .with_scope(scope_opt.as_ref())
     .filter(user_org_role::Column::UserId.is_in(user_ids))
     .all(&db)
     .await
     .map_err(|e| ForgeError::Generic(e.to_string()))?;
+  tracing::info!(uor_count = all_uors.len(), "list_users: after uors");
   let role_ids: Vec<Uuid> = all_uors
     .iter()
     .map(|x| x.role_id)
@@ -431,6 +443,7 @@ pub async fn list_users(
       .await
       .map_err(|e| ForgeError::Generic(e.to_string()))?
   };
+  tracing::info!("list_users: before building list");
   let role_map: std::collections::HashMap<Uuid, org_role::Model> =
     roles.into_iter().map(|r| (r.id, r)).collect();
   let org_map: std::collections::HashMap<Uuid, organization::Model> =
@@ -462,6 +475,7 @@ pub async fn list_users(
       })
     })
     .collect();
+  tracing::info!(list_len = list.len(), "list_users: returning 200 with users");
   Ok(Json(serde_json::json!({ "users": list })).into_response())
 }
 

@@ -31,7 +31,8 @@ pub fn make_app(live_backend: Arc<forge_live::InMemoryLiveBackend>) -> App {
       |db| db::auth::Backend::new(db),
       Arc::new(move |db, raw_token| Box::pin(db::token_lookup(db, raw_token))),
     )
-    .with_live_query_using(live_backend);
+    .with_live_query_using(live_backend)
+    .with_health_routes();
 
   app
     .route("/api/cache-demo", handlers::cache_demo::handler)
@@ -364,7 +365,7 @@ async fn test_request_impl(
       } else {
         builder.body(Body::empty())?
       };
-      let res = router.clone().oneshot(req).await?;
+      let res: axum::response::Response = router.clone().oneshot(req).await?;
       let status = res.status();
       let bytes = axum::body::to_bytes(res.into_body(), usize::MAX).await?;
       Ok((status, bytes.to_vec()))

@@ -71,7 +71,7 @@ in {
     # Enable SQL statement logging (forge db layer). SQL appears when FORGE_SQL_DEBUG=1 and sqlx=debug below.
     FORGE_SQL_DEBUG = "1";
     # Show SQL queries (sqlx) and app/forge at debug. Omit sqlx=debug to disable SQL logging.
-    RUST_LOG = "info,forge=debug,app=debug,sqlx=info";
+    RUST_LOG = "info,forge=debug,app=trace,sqlx=info";
   };
 
   # Development packages

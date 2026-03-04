@@ -59,7 +59,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
     if dist.join("index.html").exists() {
       router = router
         .nest_service("/assets", ServeDir::new("frontend/dist/assets"))
-        .fallback(get(serve_spa_index));
+        .fallback(axum::routing::get(serve_spa_or_404));
     }
   }
 
@@ -79,8 +79,15 @@ async fn main() -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
   Ok(())
 }
 
-/// Serves frontend/dist/index.html for SPA fallback (production only).
-async fn serve_spa_index() -> impl axum::response::IntoResponse {
+/// Fallback: serve SPA for non-API paths only. /api/* must not get SPA (200) so API routes can return 401/403.
+async fn serve_spa_or_404(req: axum::extract::Request) -> impl axum::response::IntoResponse {
+  if req.uri().path().starts_with("/api") {
+    return (
+      axum::http::StatusCode::NOT_FOUND,
+      "Not Found",
+    )
+      .into_response();
+  }
   match tokio::fs::read("frontend/dist/index.html").await {
     Ok(html) => Html(html).into_response(),
     Err(_) => (
