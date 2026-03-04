@@ -206,7 +206,7 @@ impl FromRequestParts<DbConnection> for ScopeFromHeaders {
     let user_id = parts
       .extensions
       .get::<TokenUser<user::Model>>()
-      .map(|tu| tu.user.id())
+      .map(|tu| tu.user.id)
       .ok_or_else(|| ForgeError::Auth(StatusCode::UNAUTHORIZED, "Authentication required".to_string()))?;
     let scope = try_scope_from_headers(&parts.headers, db, user_id).await?;
     parts.extensions.insert(scope.clone());
@@ -522,12 +522,13 @@ pub async fn login(
 /// GET /api/auth/me — current user, profiles, permissions (from optional scope headers), and needs_profile_select.
 /// Frontend uses this on load; if the request includes X-Organization-Id and X-Role-Id, permissions are org-scoped.
 pub async fn get_me(
-  RequireAuth(user): RequireAuth<Backend>,
+  auth: RequireAuth<Backend>,
   State(db): State<DbConnection>,
-  Request(req): Request,
+  req: Request,
 ) -> Result<impl IntoResponse, ForgeError> {
-  let scope = get_scope_from_headers_map(req.headers(), &user, &db).await;
-  let permissions = resolve_permissions(&db, &user, scope.as_ref()).await;
+  let user = &auth.0;
+  let scope = get_scope_from_headers_map(req.headers(), user, &db).await;
+  let permissions = resolve_permissions(&db, user, scope.as_ref()).await;
   let uors = user_org_role::Entity::find()
     .filter(user_org_role::Column::UserId.eq(user.id))
     .all(&db)
@@ -581,9 +582,10 @@ pub async fn logout() -> impl IntoResponse {
 
 /// List of profiles (org + role) the current user can switch to. One entry per (org, role).
 pub async fn profiles_list(
-  RequireAuth(user): RequireAuth<Backend>,
+  auth: RequireAuth<Backend>,
   State(db): State<DbConnection>,
 ) -> Result<impl IntoResponse, ForgeError> {
+  let user = &auth.0;
   let uors = user_org_role::Entity::find()
     .filter(user_org_role::Column::UserId.eq(user.id))
     .all(&db)
@@ -627,10 +629,11 @@ pub struct CreateTokenRequest {
 }
 
 pub async fn create_token(
-  RequireAuth(user): RequireAuth<Backend>,
+  auth: RequireAuth<Backend>,
   State(db): State<DbConnection>,
   Valid(Json(payload)): Valid<Json<CreateTokenRequest>>,
 ) -> Result<impl IntoResponse, ForgeError> {
+  let user = &auth.0;
   tracing::debug!(target: "app::auth", "route: POST /api/auth/tokens user_id={}", user.id);
   let secret = format!("forge_{}", Uuid::new_v4().to_string().replace('-', ""));
   let token_hash = hash_api_token(&secret);
@@ -652,14 +655,15 @@ pub async fn create_token(
 
 /// Global admin only: only users with is_admin can access. Audits the decision.
 pub async fn admin_only(
-  OptionalRequireAuth(maybe_user): OptionalRequireAuth<Backend>,
+  opt_auth: OptionalRequireAuth<Backend>,
   State(db): State<DbConnection>,
 ) -> Result<impl IntoResponse, ForgeError> {
+  let maybe_user = opt_auth.0;
   tracing::debug!(target: "app::auth", "route: GET /api/auth/admin authenticated={}", maybe_user.is_some());
   let user = match maybe_user {
     Some(u) => u,
     None => {
-      record_authz_denied(&db, Action::Manage, "admin", None).await;
+      record_authz_denied(&db, Action::Manage, "admin", None, None).await;
       return Ok(
         (
           StatusCode::UNAUTHORIZED,

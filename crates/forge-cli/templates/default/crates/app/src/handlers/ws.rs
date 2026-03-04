@@ -22,17 +22,18 @@ use db::auth::Backend;
 pub async fn handler(
   ws: WebSocketUpgrade,
   Request(req): Request,
-  RequireAuth(user): RequireAuth<Backend>,
+  auth: RequireAuth<Backend>,
   State(db): State<DbConnection>,
   Extension(live_backend): Extension<Option<Arc<InMemoryLiveBackend>>>,
   Extension(task_state): Extension<Arc<TaskState>>,
 ) -> Response {
+  let user = &auth.0;
   tracing::debug!(target: "app::handlers", "route: GET /ws (upgrade)");
   let Some(backend) = live_backend else {
     return (StatusCode::SERVICE_UNAVAILABLE, "Live Query not enabled").into_response();
   };
-  let scope = get_scope_from_headers_map(req.headers(), &user, &db).await;
-  let permissions = resolve_permissions(&db, &user, scope.as_ref()).await;
+  let scope = get_scope_from_headers_map(req.headers(), user, &db).await;
+  let permissions = resolve_permissions(&db, user, scope.as_ref()).await;
   let current_org_id = scope.as_ref().map(|s| s.organization_id);
   let channels = channels_from_permissions(&permissions, current_org_id);
   let backend = backend.clone();

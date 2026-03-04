@@ -5,6 +5,7 @@ edition = "2024"
 
 [dependencies]
 accept-language = "3.1"
+async-trait = "0.1"
 axum = { version = "0.8", features = ["ws"] }
 axum-login = "0.17"
 chrono = { version = "0.4", features = ["serde"] }

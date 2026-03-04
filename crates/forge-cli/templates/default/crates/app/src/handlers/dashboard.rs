@@ -73,9 +73,10 @@ async fn require_permission(
 /// GET /api/dashboard/permissions — list known permission keys (code-defined). Requires dashboard.permissions.read.
 pub async fn list_permissions(
   ScopeFromHeaders(scope): ScopeFromHeaders,
-  RequireAuth(user): RequireAuth<Backend>,
+  auth: RequireAuth<Backend>,
   State(db): State<DbConnection>,
 ) -> Result<impl IntoResponse, ForgeError> {
+  let user = &auth.0;
   if let Some(resp) = require_permission(&user, &db, PERMISSION_READ, Some(&scope)).await {
     return Ok(resp);
   }
@@ -86,9 +87,10 @@ pub async fn list_permissions(
 /// GET /api/dashboard/role-permissions — list role–permission assignments. Requires dashboard.permissions.read. Global scope: all; else current org only.
 pub async fn list_role_permissions(
   ScopeFromHeaders(scope): ScopeFromHeaders,
-  RequireAuth(user): RequireAuth<Backend>,
+  auth: RequireAuth<Backend>,
   State(db): State<DbConnection>,
 ) -> Result<impl IntoResponse, ForgeError> {
+  let user = &auth.0;
   if let Some(resp) = require_permission(&user, &db, PERMISSION_READ, Some(&scope)).await {
     return Ok(resp);
   }
@@ -120,10 +122,11 @@ pub async fn list_role_permissions(
 /// GET /api/dashboard/tasks — list tasks (ran, running, planned). Requires dashboard. Live updates via WebSocket channel "tasks".
 pub async fn list_tasks(
   ScopeFromHeaders(scope): ScopeFromHeaders,
-  RequireAuth(user): RequireAuth<Backend>,
+  auth: RequireAuth<Backend>,
   State(db): State<DbConnection>,
   Extension(task_state): Extension<std::sync::Arc<crate::tasks::TaskState>>,
 ) -> Result<impl IntoResponse, ForgeError> {
+  let user = &auth.0;
   if let Some(resp) = require_permission(&user, &db, "dashboard", Some(&scope)).await {
     return Ok(resp);
   }
@@ -155,10 +158,11 @@ pub(crate) fn default_limit() -> u64 {
 /// GET /api/dashboard/audit-log — list audit log entries. Requires dashboard.audit.read. Non-admin: only current org. Supports filters and pagination.
 pub async fn list_audit_log(
   ScopeFromHeaders(scope): ScopeFromHeaders,
-  RequireAuth(user): RequireAuth<Backend>,
+  auth: RequireAuth<Backend>,
   State(db): State<DbConnection>,
   Query(q): Query<ListAuditLogQuery>,
 ) -> Result<impl IntoResponse, ForgeError> {
+  let user = &auth.0;
   if let Some(resp) = require_permission(&user, &db, PERMISSION_AUDIT_READ, Some(&scope)).await {
     return Ok(resp);
   }
@@ -168,7 +172,7 @@ pub async fn list_audit_log(
   let mut query = audit_log::Entity::find();
   let global_audit = has_global_scope(&db, &user, PERMISSION_AUDIT_READ).await;
   if !global_audit {
-    query = query.filter(audit_log::Column::OrganizationId.eq(profile.org_id));
+    query = query.filter(audit_log::Column::OrganizationId.eq(scope.organization_id));
   }
   if let Some(ref from) = q.from {
     if let Ok(naive) = NaiveDateTime::parse_from_str(from, "%Y-%m-%dT%H:%M:%S%.fZ") {
@@ -252,13 +256,14 @@ pub struct AddRolePermissionBody {
 
 /// POST /api/dashboard/role-permissions — add one role–permission assignment. Requires dashboard.permissions.write. Admin: any scope/org; else only scope=org and session profile org.
 pub async fn add_role_permission(
-  ScopeFromHeaders(scope): ScopeFromHeaders,
-  RequireAuth(user): RequireAuth<Backend>,
+  ScopeFromHeaders(req_scope): ScopeFromHeaders,
+  auth: RequireAuth<Backend>,
   State(db): State<DbConnection>,
   Extension(live_backend): Extension<Option<Arc<InMemoryLiveBackend>>>,
   Json(payload): Json<AddRolePermissionBody>,
 ) -> Result<impl IntoResponse, ForgeError> {
-  if let Some(resp) = require_permission(&user, &db, PERMISSION_WRITE, Some(&scope)).await {
+  let user = &auth.0;
+  if let Some(resp) = require_permission(&user, &db, PERMISSION_WRITE, Some(&req_scope)).await {
     return Ok(resp);
   }
   let scope = payload.scope.trim();
@@ -310,7 +315,7 @@ pub async fn add_role_permission(
           .into_response(),
       );
     }
-    Some(profile.org_id)
+    Some(req_scope.organization_id)
   };
   let id = Uuid::new_v4();
   let mut model = role_permission::ActiveModel {
@@ -350,13 +355,14 @@ pub struct DeleteRolePermissionBody {
 
 /// DELETE /api/dashboard/role-permissions — remove one role–permission assignment. Requires dashboard.permissions.write. Admin: any; else only scope=org and session profile org.
 pub async fn delete_role_permission(
-  ScopeFromHeaders(scope): ScopeFromHeaders,
-  RequireAuth(user): RequireAuth<Backend>,
+  ScopeFromHeaders(req_scope): ScopeFromHeaders,
+  auth: RequireAuth<Backend>,
   State(db): State<DbConnection>,
   Extension(live_backend): Extension<Option<Arc<InMemoryLiveBackend>>>,
   Json(payload): Json<DeleteRolePermissionBody>,
 ) -> Result<impl IntoResponse, ForgeError> {
-  if let Some(resp) = require_permission(&user, &db, PERMISSION_WRITE, Some(&scope)).await {
+  let user = &auth.0;
+  if let Some(resp) = require_permission(&user, &db, PERMISSION_WRITE, Some(&req_scope)).await {
     return Ok(resp);
   }
   let scope = payload.scope.trim();
@@ -388,7 +394,7 @@ pub async fn delete_role_permission(
           .into_response(),
       );
     }
-    Some(profile.org_id)
+    Some(req_scope.organization_id)
   };
   let mut q = role_permission::Entity::delete_many()
     .filter(role_permission::Column::Scope.eq(scope))
@@ -417,9 +423,10 @@ pub async fn delete_role_permission(
 /// GET /api/dashboard/organizations — list all organizations. Requires dashboard.organizations.read (global).
 pub async fn list_organizations(
   ScopeFromHeaders(scope): ScopeFromHeaders,
-  RequireAuth(user): RequireAuth<Backend>,
+  auth: RequireAuth<Backend>,
   State(db): State<DbConnection>,
 ) -> Result<impl IntoResponse, ForgeError> {
+  let user = &auth.0;
   if let Some(resp) = require_permission(&user, &db, PERMISSION_ORGS_READ, Some(&scope)).await {
     return Ok(resp);
   }
@@ -452,10 +459,11 @@ pub struct ListRolesQuery {
 /// GET /api/dashboard/roles — list org roles. Global scope: all orgs; else current org only. Requires dashboard.roles.read.
 pub async fn list_roles(
   ScopeFromHeaders(scope): ScopeFromHeaders,
-  RequireAuth(user): RequireAuth<Backend>,
+  auth: RequireAuth<Backend>,
   State(db): State<DbConnection>,
   Query(_q): Query<ListRolesQuery>,
 ) -> Result<impl IntoResponse, ForgeError> {
+  let user = &auth.0;
   if let Some(resp) = require_permission(&user, &db, PERMISSION_ROLES_READ, Some(&scope)).await {
     return Ok(resp);
   }
@@ -500,18 +508,19 @@ pub struct CreateRoleBody {
 /// POST /api/dashboard/roles — create org role. Requires dashboard.roles.write. Global scope: any org_id; else session profile org only.
 pub async fn create_role(
   ScopeFromHeaders(scope): ScopeFromHeaders,
-  RequireAuth(user): RequireAuth<Backend>,
+  auth: RequireAuth<Backend>,
   State(db): State<DbConnection>,
   Extension(live_backend): Extension<Option<Arc<InMemoryLiveBackend>>>,
   Json(payload): Json<CreateRoleBody>,
 ) -> Result<impl IntoResponse, ForgeError> {
+  let user = &auth.0;
   if let Some(resp) = require_permission(&user, &db, PERMISSION_ROLES_WRITE, Some(&scope)).await {
     return Ok(resp);
   }
   let org_id = if has_global_scope(&db, &user, PERMISSION_ROLES_WRITE).await {
-    payload.org_id.or(Some(profile.org_id)).ok_or_else(|| ForgeError::Generic("org_id required".into()))?
+    payload.org_id.or(Some(scope.organization_id)).ok_or_else(|| ForgeError::Generic("org_id required".into()))?
   } else {
-    if payload.org_id.map(|pid| pid != profile.org_id).unwrap_or(false) {
+    if payload.org_id.map(|pid| pid != scope.organization_id).unwrap_or(false) {
       return Ok(
         (
           StatusCode::FORBIDDEN,
@@ -520,7 +529,7 @@ pub async fn create_role(
           .into_response(),
       );
     }
-    profile.org_id
+    scope.organization_id
   };
   let name = payload.name.trim();
   if name.is_empty() {
@@ -589,11 +598,12 @@ pub struct UpdateRoleBody {
 /// PATCH /api/dashboard/roles — update org role. Requires dashboard.roles.write.
 pub async fn update_role(
   ScopeFromHeaders(scope): ScopeFromHeaders,
-  RequireAuth(user): RequireAuth<Backend>,
+  auth: RequireAuth<Backend>,
   State(db): State<DbConnection>,
   Extension(live_backend): Extension<Option<Arc<InMemoryLiveBackend>>>,
   Json(payload): Json<UpdateRoleBody>,
 ) -> Result<impl IntoResponse, ForgeError> {
+  let user = &auth.0;
   if let Some(resp) = require_permission(&user, &db, PERMISSION_ROLES_WRITE, Some(&scope)).await {
     return Ok(resp);
   }
@@ -602,7 +612,7 @@ pub async fn update_role(
     .await
     .map_err(|e| ForgeError::Generic(e.to_string()))?
     .ok_or_else(|| ForgeError::Generic("Role not found".into()))?;
-  let can_write_org = has_global_scope(&db, &user, PERMISSION_ROLES_WRITE).await || profile.org_id == role.org_id;
+  let can_write_org = has_global_scope(&db, &user, PERMISSION_ROLES_WRITE).await || scope.organization_id == role.org_id;
   if !can_write_org {
     return Ok(
       (
@@ -656,11 +666,12 @@ pub struct DeleteRoleBody {
 /// DELETE /api/dashboard/roles — delete org role. Requires dashboard.roles.write. Fails if any user has this role.
 pub async fn delete_role(
   ScopeFromHeaders(scope): ScopeFromHeaders,
-  RequireAuth(user): RequireAuth<Backend>,
+  auth: RequireAuth<Backend>,
   State(db): State<DbConnection>,
   Extension(live_backend): Extension<Option<Arc<InMemoryLiveBackend>>>,
   Json(payload): Json<DeleteRoleBody>,
 ) -> Result<impl IntoResponse, ForgeError> {
+  let user = &auth.0;
   if let Some(resp) = require_permission(&user, &db, PERMISSION_ROLES_WRITE, Some(&scope)).await {
     return Ok(resp);
   }
@@ -669,7 +680,7 @@ pub async fn delete_role(
     .await
     .map_err(|e| ForgeError::Generic(e.to_string()))?
     .ok_or_else(|| ForgeError::Generic("Role not found".into()))?;
-  let can_write_org = has_global_scope(&db, &user, PERMISSION_ROLES_WRITE).await || profile.org_id == role.org_id;
+  let can_write_org = has_global_scope(&db, &user, PERMISSION_ROLES_WRITE).await || scope.organization_id == role.org_id;
   if !can_write_org {
     return Ok(
       (
@@ -724,11 +735,12 @@ fn slug_from_name(name: &str) -> String {
 /// POST /api/dashboard/organizations — create organization. Requires dashboard.organizations.write.
 pub async fn create_organization(
   ScopeFromHeaders(scope): ScopeFromHeaders,
-  RequireAuth(user): RequireAuth<Backend>,
+  auth: RequireAuth<Backend>,
   State(db): State<DbConnection>,
   Extension(live_backend): Extension<Option<Arc<InMemoryLiveBackend>>>,
   Json(payload): Json<CreateOrganizationBody>,
 ) -> Result<impl IntoResponse, ForgeError> {
+  let user = &auth.0;
   if let Some(resp) = require_permission(&user, &db, PERMISSION_ORGS_WRITE, Some(&scope)).await {
     return Ok(resp);
   }
@@ -808,11 +820,12 @@ pub struct UpdateOrganizationBody {
 /// PATCH /api/dashboard/organizations — update organization. Requires dashboard.organizations.write.
 pub async fn update_organization(
   ScopeFromHeaders(scope): ScopeFromHeaders,
-  RequireAuth(user): RequireAuth<Backend>,
+  auth: RequireAuth<Backend>,
   State(db): State<DbConnection>,
   Extension(live_backend): Extension<Option<Arc<InMemoryLiveBackend>>>,
   Json(payload): Json<UpdateOrganizationBody>,
 ) -> Result<impl IntoResponse, ForgeError> {
+  let user = &auth.0;
   if let Some(resp) = require_permission(&user, &db, PERMISSION_ORGS_WRITE, Some(&scope)).await {
     return Ok(resp);
   }
@@ -862,11 +875,12 @@ pub struct DeleteOrganizationBody {
 /// DELETE /api/dashboard/organizations — delete organization. Requires dashboard.organizations.write.
 pub async fn delete_organization(
   ScopeFromHeaders(scope): ScopeFromHeaders,
-  RequireAuth(user): RequireAuth<Backend>,
+  auth: RequireAuth<Backend>,
   State(db): State<DbConnection>,
   Extension(live_backend): Extension<Option<Arc<InMemoryLiveBackend>>>,
   Json(payload): Json<DeleteOrganizationBody>,
 ) -> Result<impl IntoResponse, ForgeError> {
+  let user = &auth.0;
   if let Some(resp) = require_permission(&user, &db, PERMISSION_ORGS_WRITE, Some(&scope)).await {
     return Ok(resp);
   }
@@ -893,9 +907,10 @@ pub async fn delete_organization(
 /// GET /api/dashboard/users — list users. Requires dashboard.users.read. Global scope: all orgs; else session profile org only.
 pub async fn list_users(
   ScopeFromHeaders(scope): ScopeFromHeaders,
-  RequireAuth(user): RequireAuth<Backend>,
+  auth: RequireAuth<Backend>,
   State(db): State<DbConnection>,
 ) -> Result<impl IntoResponse, ForgeError> {
+  let user = &auth.0;
   if let Some(resp) = require_permission(&user, &db, PERMISSION_USERS_READ, Some(&scope)).await {
     return Ok(resp);
   }
@@ -1012,11 +1027,12 @@ pub struct CreateUserBody {
 /// POST /api/dashboard/users — create user and add to org with given roles. Requires dashboard.users.write. Non-admin: org_id must match session profile org.
 pub async fn create_user(
   ScopeFromHeaders(scope): ScopeFromHeaders,
-  RequireAuth(user): RequireAuth<Backend>,
+  auth: RequireAuth<Backend>,
   State(db): State<DbConnection>,
   Extension(live_backend): Extension<Option<Arc<InMemoryLiveBackend>>>,
   Json(payload): Json<CreateUserBody>,
 ) -> Result<impl IntoResponse, ForgeError> {
+  let user = &auth.0;
   if let Some(resp) = require_permission(&user, &db, PERMISSION_USERS_WRITE, Some(&scope)).await {
     return Ok(resp);
   }
@@ -1042,7 +1058,7 @@ pub async fn create_user(
   let org_id = if has_global_scope(&db, &user, PERMISSION_USERS_WRITE).await {
     payload.org_id
   } else {
-    if profile.org_id != payload.org_id {
+    if scope.organization_id != payload.org_id {
       return Ok(
         (
           StatusCode::FORBIDDEN,
@@ -1186,11 +1202,12 @@ pub struct UpdateUserBody {
 /// PATCH /api/dashboard/users — update user (email, is_active). Requires dashboard.users.write.
 pub async fn update_user(
   ScopeFromHeaders(scope): ScopeFromHeaders,
-  RequireAuth(user): RequireAuth<Backend>,
+  auth: RequireAuth<Backend>,
   State(db): State<DbConnection>,
   Extension(live_backend): Extension<Option<Arc<InMemoryLiveBackend>>>,
   Json(payload): Json<UpdateUserBody>,
 ) -> Result<impl IntoResponse, ForgeError> {
+  let user = &auth.0;
   if let Some(resp) = require_permission(&user, &db, PERMISSION_USERS_WRITE, Some(&scope)).await {
     return Ok(resp);
   }
@@ -1212,7 +1229,7 @@ pub async fn update_user(
   am.updated_at = Set(chrono::Utc::now().naive_utc());
   am.update(&db).await.map_err(|e| ForgeError::Generic(e.to_string()))?;
   if let Some(ref backend) = live_backend {
-    let _ = broadcast_to_channel(backend, &Channel::org_resource(profile.org_id, "users"), &LiveEvent::UsersUpdated { user_id: Some(payload.id), org_id: Some(profile.org_id) }).await;
+    let _ = broadcast_to_channel(backend, &Channel::org_resource(scope.organization_id, "users"), &LiveEvent::UsersUpdated { user_id: Some(payload.id), org_id: Some(scope.organization_id) }).await;
   }
   Ok(Json(serde_json::json!({ "ok": true })).into_response())
 }
@@ -1225,11 +1242,12 @@ pub struct DeleteUserBody {
 /// DELETE /api/dashboard/users — delete user and their memberships. Requires dashboard.users.write.
 pub async fn delete_user(
   ScopeFromHeaders(scope): ScopeFromHeaders,
-  RequireAuth(user): RequireAuth<Backend>,
+  auth: RequireAuth<Backend>,
   State(db): State<DbConnection>,
   Extension(live_backend): Extension<Option<Arc<InMemoryLiveBackend>>>,
   Json(payload): Json<DeleteUserBody>,
 ) -> Result<impl IntoResponse, ForgeError> {
+  let user = &auth.0;
   if let Some(resp) = require_permission(&user, &db, PERMISSION_USERS_WRITE, Some(&scope)).await {
     return Ok(resp);
   }
@@ -1252,7 +1270,7 @@ pub async fn delete_user(
     );
   }
   if let Some(ref backend) = live_backend {
-    let _ = broadcast_to_channel(backend, &Channel::org_resource(profile.org_id, "users"), &LiveEvent::UsersUpdated { user_id: Some(payload.id), org_id: Some(profile.org_id) }).await;
+    let _ = broadcast_to_channel(backend, &Channel::org_resource(scope.organization_id, "users"), &LiveEvent::UsersUpdated { user_id: Some(payload.id), org_id: Some(scope.organization_id) }).await;
   }
   Ok(Json(serde_json::json!({ "ok": true })).into_response())
 }
