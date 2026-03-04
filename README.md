@@ -108,3 +108,68 @@ See the repo root and `.cursor/rules` for formatting, testing, and workflow deta
 This project is licensed under the **Creative Commons Attribution-ShareAlike 4.0 International (CC BY-SA 4.0)**. You may share and adapt the material for any purpose, including commercially, as long as you give appropriate credit and distribute your contributions under the same license. See [LICENSE](LICENSE) and [Creative Commons BY-SA 4.0](https://creativecommons.org/licenses/by-sa/4.0/) for the full text.
 
 The Rust crates in this repository also offer dual licensing under **MIT OR Apache-2.0** where noted in their `Cargo.toml`; for maximum permissibility in dependency use, you may use the code under those terms when applicable.
+
+## To Do
+
+### Tier 1 — Immediate DX Multipliers (Highest Impact)
+
+1. **Zero-Friction Install (Binary Releases + One-Liner)**  
+   Publish versioned binaries for macOS/Linux/Windows and support:
+   ```bash
+   curl -fsSL https://forge.sh/install | sh
+   ```
+   `cargo install --git` adds friction. A first impression should feel like Rails or Bun — instant.  
+   **Impact:** Removes Rust toolchain friction from evaluators.
+
+2. **“Golden Path” 5-Minute Tutorial**  
+   A guided, opinionated walkthrough that:
+   - Creates app
+   - Adds model
+   - Adds background job
+   - Adds live update
+   - Deploys  
+   Make it impossible to get lost.  
+   **Impact:** Reduces abandonment during evaluation.
+
+3. **Interactive `forge doctor`**  
+   Diagnostics command for:
+   - Rust version
+   - DB connectivity
+   - Config validation
+   - Missing migrations
+   - Port conflicts
+   - Env sanity  
+   **Impact:** Converts frustration into actionable fixes.
+
+4. **`forge check` (Static Project Validator)**  
+   Pre-runtime validation:
+   - Routes registered?
+   - Guards mismatched?
+   - Missing policies?
+   - Unused migrations?
+   - Broken live channels?  
+   Like `cargo check`, but Forge-aware.
+
+5. **Error Pages That Teach**  
+   Instead of a bare 500, show e.g.:
+   - *Missing org scope.* You called `require_role(Admin)` but no org context exists.
+   - Include: what happened, why, a fix example, and a link to the docs section.  
+   This is what made Ruby on Rails beloved.
+
+### Tier 2 — Friction Killers
+
+6. **First-Class Type-Safe Forms**  
+   Generate: DTO, validation, handler, and frontend form scaffold.  
+   Form handling is 40% of CRUD friction.
+
+7. **Declarative Policy DSL**  
+   Instead of writing Rust guards manually:
+   ```rust
+   policy! {
+       Post {
+           read: Member,
+           write: Admin,
+       }
+   }
+   ```
+   Generate guards + DB scoping automatically.
