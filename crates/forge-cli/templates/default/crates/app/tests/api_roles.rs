@@ -50,10 +50,9 @@ async fn get_org_roles_viewer_200() {
 #[tokio::test]
 async fn post_org_roles_anon_401() {
   let client = app::test_client().await.expect("test_client");
-  let (_, org_id, _) =
-    app::auth_with_profile(&client, "viewer@default.org", app::SEED_PASSWORD)
-      .await
-      .expect("login");
+  let (_, org_id, _) = app::auth_with_profile(&client, "viewer@default.org", app::SEED_PASSWORD)
+    .await
+    .expect("login");
   let body = r#"{"name":"custom","display_name":"Custom"}"#;
   let (status, _) = app::test_request(
     &client,
@@ -102,7 +101,10 @@ async fn post_org_roles_editor_201() {
     .duration_since(std::time::UNIX_EPOCH)
     .unwrap()
     .as_millis();
-  let body = format!(r#"{{"name":"testrole{}","display_name":"Test Role"}}"#, unique);
+  let body = format!(
+    r#"{{"name":"testrole{}","display_name":"Test Role"}}"#,
+    unique
+  );
   let (status, _) = app::test_request(
     &client,
     "POST",
@@ -174,7 +176,10 @@ async fn patch_org_roles_editor_200() {
   .unwrap();
   let json: app::serde_json::Value = app::serde_json::from_slice(&body).unwrap();
   let roles = json["roles"].as_array().unwrap();
-  let rid = roles.first().and_then(|r| r["id"].as_str()).expect("at least one role");
+  let rid = roles
+    .first()
+    .and_then(|r| r["id"].as_str())
+    .expect("at least one role");
   let patch_body = r#"{"display_name":"Updated Display"}"#;
   let (status, _) = app::test_request(
     &client,

@@ -37,9 +37,16 @@ async fn get_api_users_viewer_with_scope_200() {
       .await
       .expect("login");
   let scope = scope_headers(org_id.as_str(), role_id.as_str());
-  let (status, body) = app::test_request(&client, "GET", "/api/users", Some(&token), None, Some(&scope))
-    .await
-    .unwrap();
+  let (status, body) = app::test_request(
+    &client,
+    "GET",
+    "/api/users",
+    Some(&token),
+    None,
+    Some(&scope),
+  )
+  .await
+  .unwrap();
   assert_eq!(status, StatusCode::OK);
   let json: app::serde_json::Value = app::serde_json::from_slice(&body).unwrap();
   assert!(json.get("users").and_then(|u| u.as_array()).is_some());
@@ -53,15 +60,26 @@ async fn get_api_users_viewer_scope_only_sees_default_org() {
       .await
       .expect("login");
   let scope = scope_headers(org_id.as_str(), role_id.as_str());
-  let (status, body) = app::test_request(&client, "GET", "/api/users", Some(&token), None, Some(&scope))
-    .await
-    .unwrap();
+  let (status, body) = app::test_request(
+    &client,
+    "GET",
+    "/api/users",
+    Some(&token),
+    None,
+    Some(&scope),
+  )
+  .await
+  .unwrap();
   assert_eq!(status, StatusCode::OK);
   let json: app::serde_json::Value = app::serde_json::from_slice(&body).unwrap();
   let users = json["users"].as_array().unwrap();
   let empty: &[app::serde_json::Value] = &[];
   for u in users {
-    for m in u["memberships"].as_array().map(|v| v.as_slice()).unwrap_or(empty) {
+    for m in u["memberships"]
+      .as_array()
+      .map(|v| v.as_slice())
+      .unwrap_or(empty)
+    {
       let org_name = m["org_name"].as_str().unwrap_or("");
       assert!(
         !org_name.eq_ignore_ascii_case("CoolOrg"),
@@ -79,19 +97,35 @@ async fn get_api_users_viewer_coolorg_only_coolorg_org() {
       .await
       .expect("login");
   let scope = scope_headers(org_id.as_str(), role_id.as_str());
-  let (status, body) = app::test_request(&client, "GET", "/api/users", Some(&token), None, Some(&scope))
-    .await
-    .unwrap();
+  let (status, body) = app::test_request(
+    &client,
+    "GET",
+    "/api/users",
+    Some(&token),
+    None,
+    Some(&scope),
+  )
+  .await
+  .unwrap();
   assert_eq!(status, StatusCode::OK);
   let json: app::serde_json::Value = app::serde_json::from_slice(&body).unwrap();
   let users = json["users"].as_array().unwrap();
   let empty: &[app::serde_json::Value] = &[];
   for u in users {
-    let memberships = u["memberships"].as_array().map(|v| v.as_slice()).unwrap_or(empty);
-    let has_coolorg = memberships
-      .iter()
-      .any(|m| m["org_name"].as_str().map(|s| s == "CoolOrg").unwrap_or(false));
-    assert!(has_coolorg, "viewer@coolorg.org with CoolOrg scope: each returned user should have at least one membership in CoolOrg");
+    let memberships = u["memberships"]
+      .as_array()
+      .map(|v| v.as_slice())
+      .unwrap_or(empty);
+    let has_coolorg = memberships.iter().any(|m| {
+      m["org_name"]
+        .as_str()
+        .map(|s| s == "CoolOrg")
+        .unwrap_or(false)
+    });
+    assert!(
+      has_coolorg,
+      "viewer@coolorg.org with CoolOrg scope: each returned user should have at least one membership in CoolOrg"
+    );
   }
 }
 
@@ -115,9 +149,17 @@ async fn get_api_users_admin_global_200() {
       .map(|v| v.as_slice())
       .unwrap_or(empty)
       .iter()
-      .any(|m| m["org_name"].as_str().map(|s| s.eq_ignore_ascii_case("CoolOrg")).unwrap_or(false))
+      .any(|m| {
+        m["org_name"]
+          .as_str()
+          .map(|s| s.eq_ignore_ascii_case("CoolOrg"))
+          .unwrap_or(false)
+      })
   });
-  assert!(has_coolorg, "admin GET /api/users (global) must return users that include at least one with CoolOrg (seed data)");
+  assert!(
+    has_coolorg,
+    "admin GET /api/users (global) must return users that include at least one with CoolOrg (seed data)"
+  );
 }
 
 #[tokio::test]
@@ -128,9 +170,7 @@ async fn post_api_org_users_viewer_403() {
       .await
       .expect("login");
   let scope = scope_headers(org_id.as_str(), role_id.as_str());
-  let body = format!(
-    r#"{{"email":"new@example.com","password":"password123"}}"#
-  );
+  let body = format!(r#"{{"email":"new@example.com","password":"password123"}}"#);
   let (status, _) = app::test_request(
     &client,
     "POST",
@@ -236,6 +276,9 @@ async fn get_org_users_with_scope_200() {
   let users_json: app::serde_json::Value = app::serde_json::from_slice(&body).unwrap();
   let users = users_json["users"].as_array().expect("users array");
   for u in users {
-    assert!(u.get("roles").and_then(|r| r.as_array()).is_some(), "each user has roles");
+    assert!(
+      u.get("roles").and_then(|r| r.as_array()).is_some(),
+      "each user has roles"
+    );
   }
 }

@@ -14,7 +14,10 @@ async fn get_org_role_permissions_anon_401() {
   let (status, _) = app::test_request(
     &client,
     "GET",
-    &format!("/api/organizations/{}/roles/{}/permissions", NIL_UUID, NIL_UUID),
+    &format!(
+      "/api/organizations/{}/roles/{}/permissions",
+      NIL_UUID, NIL_UUID
+    ),
     None,
     None,
     None,
@@ -64,7 +67,10 @@ async fn post_org_role_permissions_anon_401() {
   let (status, _) = app::test_request(
     &client,
     "POST",
-    &format!("/api/organizations/{}/roles/{}/permissions", NIL_UUID, NIL_UUID),
+    &format!(
+      "/api/organizations/{}/roles/{}/permissions",
+      NIL_UUID, NIL_UUID
+    ),
     None,
     Some(r#"{"permission_key":"dashboard.users.read"}"#),
     None,
@@ -93,7 +99,12 @@ async fn post_org_role_permissions_viewer_403() {
   .await
   .unwrap();
   let json: app::serde_json::Value = app::serde_json::from_slice(&body).unwrap();
-  let rid = json["roles"].as_array().unwrap().first().and_then(|r| r["id"].as_str()).unwrap();
+  let rid = json["roles"]
+    .as_array()
+    .unwrap()
+    .first()
+    .and_then(|r| r["id"].as_str())
+    .unwrap();
   let (status, _) = app::test_request(
     &client,
     "POST",
@@ -126,7 +137,12 @@ async fn post_org_role_permissions_editor_201_or_422() {
   .await
   .unwrap();
   let json: app::serde_json::Value = app::serde_json::from_slice(&body).unwrap();
-  let rid = json["roles"].as_array().unwrap().first().and_then(|r| r["id"].as_str()).unwrap();
+  let rid = json["roles"]
+    .as_array()
+    .unwrap()
+    .first()
+    .and_then(|r| r["id"].as_str())
+    .unwrap();
   let (status, _) = app::test_request(
     &client,
     "POST",
@@ -164,7 +180,12 @@ async fn delete_org_role_permissions_viewer_403() {
   .await
   .unwrap();
   let json: app::serde_json::Value = app::serde_json::from_slice(&body).unwrap();
-  let rid = json["roles"].as_array().unwrap().first().and_then(|r| r["id"].as_str()).unwrap();
+  let rid = json["roles"]
+    .as_array()
+    .unwrap()
+    .first()
+    .and_then(|r| r["id"].as_str())
+    .unwrap();
   let (status, _) = app::test_request(
     &client,
     "DELETE",
@@ -197,7 +218,12 @@ async fn delete_org_role_permissions_editor_200_or_404() {
   .await
   .unwrap();
   let json: app::serde_json::Value = app::serde_json::from_slice(&body).unwrap();
-  let rid = json["roles"].as_array().unwrap().first().and_then(|r| r["id"].as_str()).unwrap();
+  let rid = json["roles"]
+    .as_array()
+    .unwrap()
+    .first()
+    .and_then(|r| r["id"].as_str())
+    .unwrap();
   let (status, _) = app::test_request(
     &client,
     "DELETE",

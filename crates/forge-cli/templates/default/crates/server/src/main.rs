@@ -83,11 +83,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
 /// Fallback: serve SPA for non-API paths only. /api/* must not get SPA (200) so API routes can return 401/403.
 async fn serve_spa_or_404(req: axum::extract::Request) -> impl axum::response::IntoResponse {
   if req.uri().path().starts_with("/api") {
-    return (
-      axum::http::StatusCode::NOT_FOUND,
-      "Not Found",
-    )
-      .into_response();
+    return (axum::http::StatusCode::NOT_FOUND, "Not Found").into_response();
   }
   match tokio::fs::read("frontend/dist/index.html").await {
     Ok(html) => Html(html).into_response(),

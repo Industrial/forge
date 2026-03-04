@@ -371,7 +371,10 @@ pub async fn list_users(
 ) -> Result<impl IntoResponse, ForgeError> {
   tracing::info!(user_id = %auth.0.id, "list_users: entered");
   let scope_opt = get_scope_from_headers_map(request.headers(), &auth.0, &db).await;
-  tracing::info!(has_scope = scope_opt.is_some(), "list_users: after get_scope_from_headers_map");
+  tracing::info!(
+    has_scope = scope_opt.is_some(),
+    "list_users: after get_scope_from_headers_map"
+  );
   if let Some(scope) = &scope_opt {
     if let Some(resp) =
       require_org_permission_or_global(&db, &auth.0, scope, "dashboard.users.read").await
@@ -475,7 +478,10 @@ pub async fn list_users(
       })
     })
     .collect();
-  tracing::info!(list_len = list.len(), "list_users: returning 200 with users");
+  tracing::info!(
+    list_len = list.len(),
+    "list_users: returning 200 with users"
+  );
   Ok(Json(serde_json::json!({ "users": list })).into_response())
 }
 
