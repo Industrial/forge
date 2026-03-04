@@ -1,14 +1,25 @@
 /**
  * Authentication feature layer.
  *
- * Provides {@link AuthenticationStore} for the authentication feature. Requires
- * {@link HttpClient} to be supplied by the app (e.g. at runtime composition).
- * Compose with an HttpClient layer at the root to get a complete auth stack.
+ * Provides everything the authentication feature requires: {@link HttpClient}
+ * (with auth) and {@link AuthenticationStore}. Call with config at app root
+ * to build the layer; the feature provides what it needs.
  */
+import { Layer } from "effect";
+import {
+	httpClientWithAuthLayer,
+	type HttpClientWithAuthConfig,
+} from "../../lib/httpClientWithAuth";
 import { AuthenticationStoreLive } from "../../services/AuthenticationStoreLive";
 
 /**
- * Layer that provides AuthenticationStore for the authentication feature.
- * Depends on HttpClient (supply it when composing at app root).
+ * Builds the authentication feature layer: HttpClient (with auth) + AuthenticationStore.
+ * Supply config when composing at app root (e.g. baseUrl and token/org/role).
  */
-export const AuthenticationFeatureLayer = AuthenticationStoreLive;
+export const AuthenticationFeatureLayer = (config: HttpClientWithAuthConfig) => {
+	const httpLayer = httpClientWithAuthLayer(config);
+	return Layer.merge(
+		httpLayer,
+		AuthenticationStoreLive.pipe(Layer.provide(httpLayer)),
+	);
+};
