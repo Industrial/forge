@@ -37,7 +37,8 @@ export type AuthState = {
 	/** When true, redirect to /select-profile before dashboard. */
 	needs_profile_select: boolean;
 	loading: boolean;
-	fetchMe: () => Promise<void>;
+	/** Re-fetch user/profiles/permissions. Pass a token (e.g. from login) to set it and then fetch. */
+	fetchMe: (tokenOverride?: string | null) => Promise<void>;
 	logout: () => Promise<void>;
 	setCurrentScope: (
 		orgId: string,
@@ -150,33 +151,47 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 		}
 	}, [currentRoleName]);
 
-	const fetchMeCb = useCallback(async () => {
-		setLoading(true);
-		if (!token) {
-			setUser(null);
-			setProfiles([]);
-			setPermissions([]);
-			setFlash(null);
-			setNeedsProfileSelect(false);
+	const fetchMeCb = useCallback(
+		async (tokenOverride?: string | null) => {
+			setLoading(true);
+			const effectiveToken =
+				tokenOverride !== undefined && tokenOverride !== null
+					? tokenOverride
+					: token;
+			if (!effectiveToken) {
+				setUser(null);
+				setProfiles([]);
+				setPermissions([]);
+				setFlash(null);
+				setNeedsProfileSelect(false);
+				setLoading(false);
+				return;
+			}
+
+			const {
+				user: u,
+				profiles: p,
+				permissions: perm,
+				flash: f,
+				needs_profile_select: need,
+			} = await fetchMe(effectiveToken);
+
+			if (
+				tokenOverride !== undefined &&
+				tokenOverride !== null &&
+				tokenOverride !== token
+			) {
+				setToken(tokenOverride);
+			}
+			setUser(u);
+			setProfiles(p);
+			setPermissions(perm);
+			setFlash(f);
+			setNeedsProfileSelect(need);
 			setLoading(false);
-			return;
-		}
-
-		const {
-			user: u,
-			profiles: p,
-			permissions: perm,
-			flash: f,
-			needs_profile_select: need,
-		} = await fetchMe(token);
-
-		setUser(u);
-		setProfiles(p);
-		setPermissions(perm);
-		setFlash(f);
-		setNeedsProfileSelect(need);
-		setLoading(false);
-	}, [token]);
+		},
+		[token],
+	);
 
 	const logout = useCallback(async () => {
 		// TODO: Call API to revoke token

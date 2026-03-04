@@ -45,8 +45,8 @@ export default function LoginPage() {
 				body: JSON.stringify({ email: data.email, password: data.password }),
 			});
 			const resData = await res.json().catch(() => ({}));
-			if (res.ok) {
-				await refresh();
+			if (res.ok && typeof resData.token === "string") {
+				await refresh(resData.token);
 				if (resData.needs_profile_select === true) {
 					navigate("/select-profile", { replace: true });
 				} else {

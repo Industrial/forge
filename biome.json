@@ -1,0 +1,72 @@
+{
+  "$schema": "https://biomejs.dev/schemas/2.3.13/schema.json",
+  "files": {
+    "ignoreUnknown": false,
+    "includes": [
+      "**",
+      "!**/*.cjs",
+      "!**/*.html",
+      "!**/*.js",
+      "!**/*.jsx",
+      "!**/*.mjs"
+    ]
+  },
+  "formatter": {
+    "enabled": true,
+    "indentStyle": "space"
+  },
+  "assist": {
+    "actions": {
+      "source": {
+        "organizeImports": "off"
+      }
+    }
+  },
+  "javascript": {
+    "formatter": {
+      "quoteStyle": "single",
+      "semicolons": "asNeeded"
+    },
+    "parser": {
+      "unsafeParameterDecoratorsEnabled": true
+    }
+  },
+  "linter": {
+    "enabled": true,
+    "rules": {
+      "security": {
+      },
+      "complexity": {
+        "noExcessiveNestedTestSuites": "off",
+        "noForEach": "off",
+        "noStaticOnlyClass": "off"
+      },
+      "recommended": true,
+      "correctness": {
+        "useExhaustiveDependencies": "warn",
+        "useHookAtTopLevel": "warn",
+        "useUniqueElementIds": "off",
+        "useYield": "off"
+      },
+      "style": {
+        "noNonNullAssertion": "error",
+        "noParameterAssign": "off",
+        "useNodejsImportProtocol": "off",
+        "useBlockStatements": "error"
+      },
+      "suspicious": {
+        "noArrayIndexKey": "off",
+        "noExplicitAny": "error",
+        "noImplicitAnyLet": "error",
+        "useIterableCallbackReturn": "off",
+        "noUnknownAtRules": "off"
+      }
+    }
+  },
+  "overrides": [],
+  "vcs": {
+    "clientKind": "git",
+    "enabled": true,
+    "useIgnoreFile": true
+  }
+}
