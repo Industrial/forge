@@ -330,8 +330,10 @@ mod tests {
       assert!(lib_content.contains(".post_route"));
       assert!(lib_content.contains(".route(\"/api/auth/admin\""));
       assert!(
-        lib_content.contains(".route_methods(") && lib_content.contains("/api/dashboard/users"),
-        "generated app should use route_methods for dashboard users"
+        lib_content.contains(".route_methods(")
+          && (lib_content.contains("/api/dashboard/users")
+            || lib_content.contains("/api/organizations/:id/users")),
+        "generated app should use route_methods for dashboard/org users"
       );
 
       // main.rs: entrypoint and router setup

@@ -297,8 +297,13 @@ impl App {
   }
 
   /// Mounts a `Router` at the given path for any HTTP method.
+  /// When path is `"/"` or `""`, routes are merged (axum 0.8 does not allow nesting at root).
   pub fn nest(mut self, path: &str, router: Router<DbConnection>) -> Self {
-    self.router = self.router.nest(path, router);
+    if path.is_empty() || path == "/" {
+      self.router = self.router.merge(router);
+    } else {
+      self.router = self.router.nest(path, router);
+    }
     self
   }
 
@@ -692,7 +697,7 @@ auto_seed = false
       std::env::set_current_dir(temp_dir.path()).unwrap();
       setup_test_config(temp_dir.path(), "health_test");
 
-      let app = App::new();
+      let app = App::new().with_health_routes();
       let (router, _) = app.into_router().await;
       let listener = tokio::net::TcpListener::bind("127.0.0.1:0").await.unwrap();
       let port = listener.local_addr().unwrap().port();
