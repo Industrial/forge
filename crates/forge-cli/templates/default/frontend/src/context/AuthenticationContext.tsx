@@ -1,0 +1,182 @@
+import React, {
+	createContext,
+	useCallback,
+	useContext,
+	useMemo,
+} from "react";
+import { Effect, Runtime } from "effect";
+import type { AuthUser, Flash, Profile } from "../domain";
+import { AuthError } from "../domain";
+import { AuthenticationStore } from "../services/AuthenticationStore";
+import { useAuth as useAuthEffect } from "../hooks/useAuth";
+import { useEffectRuntime } from "../lib/react-effect";
+
+/**
+ * Context value: snapshot data + loading + imperative methods.
+ * Data shape matches AuthStateSnapshot from domain; methods and loading are context-specific.
+ */
+export type AuthenticationState = {
+	user: AuthUser | null;
+	profiles: Profile[];
+	permissions: string[];
+	flash: Flash | null;
+	token: string | null;
+	setToken: (token: string | null) => void;
+	currentOrgId: string | null;
+	setCurrentOrgId: (orgId: string | null) => void;
+	currentRoleId: string | null;
+	setCurrentRoleId: (roleId: string | null) => void;
+	currentRoleName: string | null;
+	setCurrentRoleName: (roleName: string | null) => void;
+	/** When true, redirect to /select-profile before dashboard. */
+	needs_profile_select: boolean;
+	loading: boolean;
+	/** Re-fetch user/profiles/permissions. Pass a token (e.g. from login) to set it and then fetch. */
+	fetchMe: (tokenOverride?: string | null) => Promise<void>;
+	logout: () => Promise<void>;
+	setCurrentScope: (
+		orgId: string,
+		roleId: string,
+		roleName: string,
+	) => Promise<void>;
+};
+
+const AuthenticationContext = createContext<AuthenticationState | null>(null);
+
+export function useAuthentication(): AuthenticationState {
+	const ctx = useContext(AuthenticationContext);
+	if (!ctx) {
+		throw new Error(
+			"useAuthentication must be used within AuthenticationProvider",
+		);
+	}
+	return ctx;
+}
+
+const fetchMeEffect = (tokenOverride?: string | null) =>
+	Effect.gen(function* () {
+		const store = yield* AuthenticationStore;
+		yield* store.fetchMe(tokenOverride);
+	});
+
+const logoutEffect = Effect.gen(function* () {
+	const store = yield* AuthenticationStore;
+	yield* store.logout();
+});
+
+const setScopeEffect = (orgId: string, roleId: string, roleName: string) =>
+	Effect.gen(function* () {
+		const store = yield* AuthenticationStore;
+		yield* store.setScope(orgId, roleId, roleName);
+	});
+
+const setTokenEffect = (token: string | null) =>
+	Effect.gen(function* () {
+		const store = yield* AuthenticationStore;
+		yield* store.setToken(token);
+	});
+
+/**
+ * Authentication provider backed by AuthenticationStore (Effect). Must be used
+ * inside AuthRuntimeProvider so the runtime has AuthenticationStore.
+ */
+export function AuthenticationProvider({
+	children,
+}: {
+	children: React.ReactNode;
+}) {
+	const { state, refresh, isPending } = useAuthEffect();
+	const { runtime } = useEffectRuntime();
+
+	const runThenRefresh = useCallback(
+		(effect: Effect.Effect<void, AuthError, never>) => {
+			return Runtime.runPromise(runtime)(effect).then(refresh);
+		},
+		[runtime, refresh],
+	);
+
+	const fetchMe = useCallback(
+		async (tokenOverride?: string | null) => {
+			await runThenRefresh(
+				fetchMeEffect(tokenOverride) as Effect.Effect<void, AuthError, never>,
+			);
+		},
+		[runThenRefresh],
+	);
+
+	const logout = useCallback(async () => {
+		await runThenRefresh(
+			logoutEffect as Effect.Effect<void, AuthError, never>,
+		);
+	}, [runThenRefresh]);
+
+	const setCurrentScope = useCallback(
+		async (orgId: string, roleId: string, roleName: string) => {
+			await runThenRefresh(
+				setScopeEffect(orgId, roleId, roleName) as Effect.Effect<
+					void,
+					AuthError,
+					never
+				>,
+			);
+		},
+		[runThenRefresh],
+	);
+
+	const setToken = useCallback(
+		async (token: string | null) => {
+			await runThenRefresh(
+				setTokenEffect(token) as Effect.Effect<void, AuthError, never>,
+			);
+		},
+		[runThenRefresh],
+	);
+
+	const value = useMemo<AuthenticationState>(() => ({
+		user: state?.user ?? null,
+		profiles: state?.profiles != null ? [...state.profiles] : [],
+		permissions: state?.permissions != null ? [...state.permissions] : [],
+		flash: state?.flash ?? null,
+		token: state?.token ?? null,
+		setToken,
+		currentOrgId: state?.currentOrgId ?? null,
+		setCurrentOrgId: (orgId) =>
+			setCurrentScope(
+				orgId ?? "",
+				state?.currentRoleId ?? "",
+				state?.currentRoleName ?? "",
+			),
+		currentRoleId: state?.currentRoleId ?? null,
+		setCurrentRoleId: (roleId) =>
+			setCurrentScope(
+				state?.currentOrgId ?? "",
+				roleId ?? "",
+				state?.currentRoleName ?? "",
+			),
+		currentRoleName: state?.currentRoleName ?? null,
+		setCurrentRoleName: (roleName) =>
+			setCurrentScope(
+				state?.currentOrgId ?? "",
+				state?.currentRoleId ?? "",
+				roleName ?? "",
+			),
+		needs_profile_select: state?.needs_profile_select ?? false,
+		loading: isPending,
+		fetchMe,
+		logout,
+		setCurrentScope,
+	}), [
+		state,
+		isPending,
+		setToken,
+		fetchMe,
+		logout,
+		setCurrentScope,
+	]);
+
+	return (
+		<AuthenticationContext.Provider value={value}>
+			{children}
+		</AuthenticationContext.Provider>
+	);
+}

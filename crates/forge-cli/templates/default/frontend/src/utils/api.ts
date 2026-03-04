@@ -1,7 +1,7 @@
-import { useAuth } from "../context/Auth";
+import { useAuthentication } from "../context/AuthenticationContext";
 
 export function useApi() {
-	const { token, currentOrgId, currentRoleId } = useAuth();
+	const { token, currentOrgId, currentRoleId } = useAuthentication();
 
 	const api = async (url: string, options?: RequestInit) => {
 		const headers = new Headers(options?.headers);

@@ -26,7 +26,7 @@ import Select from "@mui/material/Select";
 import MenuItem from "@mui/material/MenuItem";
 import Chip from "@mui/material/Chip";
 import { useLiveUpdates } from "../../../../context/LiveWs";
-import { useAuth } from "../../../../context/Auth";
+import { useAuthentication } from "../../../../context/AuthenticationContext";
 import { Schema } from "effect";
 import { runPromise } from "../../../../lib/runEffect";
 import { effectSchemaResolver } from "../../../../lib/effectSchemaResolver";
@@ -72,7 +72,7 @@ function membershipsSummary(memberships: User["memberships"]) {
 }
 
 export default function UsersPage() {
-	const { permissions } = useAuth();
+	const { permissions } = useAuthentication();
 	const { api } = useOutletContext<{ api: ReturnType<typeof useApi> }>();
 	const canRead = permissions.includes(USERS_READ);
 	const canWrite = permissions.includes(USERS_WRITE);

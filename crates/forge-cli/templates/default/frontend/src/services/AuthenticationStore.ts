@@ -1,5 +1,5 @@
 /**
- * AuthenticationStore service and auth-related data types.
+ * AuthenticationStore service.
  *
  * Provides the Effect service interface for authentication state: token, user,
  * profiles, permissions, and current org/role scope. All methods return
@@ -10,79 +10,16 @@
  * @see AuthenticationStoreMock – test double
  */
 
-import { Context, Data, Effect } from "effect";
+import { Context, Effect } from "effect";
+import {
+	AuthError,
+	AuthStateSnapshot,
+	AuthUser,
+	Flash,
+	Profile,
+} from "../domain";
 
-/**
- * User identity returned from `/api/auth/me`.
- *
- * @remarks
- * Tagged Data class for structural equality. The token is the session bearer
- * token used for API and WebSocket auth.
- */
-export class AuthUser extends Data.TaggedClass("AuthUser")<{
-	readonly id: string;
-	readonly email: string;
-	readonly token: string;
-}> {}
-
-/**
- * Flash message from the auth API (e.g. success or error after login).
- *
- * @remarks
- * Optional `message` (success) or `error` (failure). Used to display one-off
- * feedback in the auth UI.
- */
-export class Flash extends Data.TaggedClass("Flash")<{
-	readonly message?: string;
-	readonly error?: string;
-}> {}
-
-/**
- * Profile: one org + role pair the user can switch to.
- *
- * @remarks
- * Used for profile-select and as the current scope. `role_id` is optional
- * for backwards compatibility; `role` is the role name (e.g. "owner", "viewer").
- */
-export class Profile extends Data.TaggedClass("Profile")<{
-	readonly org_id: string;
-	readonly org_name: string;
-	readonly role_id?: string;
-	readonly role: string;
-}> {}
-
-/**
- * Read-only snapshot of auth state for consumers (e.g. React useAuth hook).
- *
- * @remarks
- * No setters; all mutations go through AuthenticationStore methods. Use
- * `getState()` to read the current snapshot. When `needs_profile_select` is
- * true, the app should redirect to profile-select before the dashboard.
- */
-export class AuthStateSnapshot extends Data.TaggedClass("AuthStateSnapshot")<{
-	readonly user: AuthUser | null;
-	readonly profiles: readonly Profile[];
-	readonly permissions: readonly string[];
-	readonly flash: Flash | null;
-	readonly token: string | null;
-	readonly currentOrgId: string | null;
-	readonly currentRoleId: string | null;
-	readonly currentRoleName: string | null;
-	/** When true, redirect to /select-profile before dashboard. */
-	readonly needs_profile_select: boolean;
-}> {}
-
-/**
- * Error produced by AuthenticationStore operations.
- *
- * @remarks
- * Tagged Data error for pattern matching. Typically used when fetchMe fails
- * (e.g. network or invalid token) or when a method is used in an invalid state.
- */
-export class AuthError extends Data.TaggedError("AuthError")<{
-	readonly message: string;
-	readonly cause?: unknown;
-}> {}
+export { AuthError, AuthStateSnapshot, AuthUser, Flash, Profile };
 
 /**
  * AuthenticationStore service interface.

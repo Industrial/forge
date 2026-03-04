@@ -1,12 +1,15 @@
 /**
- * Session context: re-exports Auth as SessionProvider / useSession for compatibility.
+ * Session context: re-exports Authentication as SessionProvider / useSession for compatibility.
  */
-import { AuthProvider, useAuth } from "./Auth";
+import {
+	AuthenticationProvider,
+	useAuthentication,
+} from "./AuthenticationContext";
 
-export const SessionProvider = AuthProvider;
+export const SessionProvider = AuthenticationProvider;
 
 export function useSession() {
-	const auth = useAuth();
+	const auth = useAuthentication();
 	return {
 		...auth,
 		refresh: auth.fetchMe,
