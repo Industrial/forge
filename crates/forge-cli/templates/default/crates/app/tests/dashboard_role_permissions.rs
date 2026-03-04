@@ -5,10 +5,16 @@ use axum::http::StatusCode;
 #[tokio::test]
 async fn get_role_permissions_anon_401() {
   let client = app::test_client().await.expect("test_client");
-  let (status, _) =
-    app::test_request(&client, "GET", "/api/dashboard/role-permissions", None, None, None)
-      .await
-      .unwrap();
+  let (status, _) = app::test_request(
+    &client,
+    "GET",
+    "/api/dashboard/role-permissions",
+    None,
+    None,
+    None,
+  )
+  .await
+  .unwrap();
   assert_eq!(status, StatusCode::UNAUTHORIZED);
 }
 
@@ -19,9 +25,10 @@ fn scope_headers<'a>(org_id: &'a str, role_id: &'a str) -> [(&'static str, &'a s
 #[tokio::test]
 async fn get_role_permissions_viewer_200() {
   let client = app::test_client().await.expect("test_client");
-  let (token, org_id, role_id) = app::auth_with_profile(&client, "viewer@default.org", app::SEED_PASSWORD)
-    .await
-    .expect("login");
+  let (token, org_id, role_id) =
+    app::auth_with_profile(&client, "viewer@default.org", app::SEED_PASSWORD)
+      .await
+      .expect("login");
   let scope = scope_headers(org_id.as_str(), role_id.as_str());
   let (status, _) = app::test_request(
     &client,
@@ -55,9 +62,10 @@ async fn post_role_permissions_anon_401() {
 #[tokio::test]
 async fn post_role_permissions_viewer_403() {
   let client = app::test_client().await.expect("test_client");
-  let (token, org_id, role_id) = app::auth_with_profile(&client, "viewer@default.org", app::SEED_PASSWORD)
-    .await
-    .expect("login");
+  let (token, org_id, role_id) =
+    app::auth_with_profile(&client, "viewer@default.org", app::SEED_PASSWORD)
+      .await
+      .expect("login");
   let scope = scope_headers(org_id.as_str(), role_id.as_str());
   let body = r#"{"scope":"org","role_name":"viewer","permission_key":"dashboard.users.read"}"#;
   let (status, _) = app::test_request(
@@ -76,9 +84,10 @@ async fn post_role_permissions_viewer_403() {
 #[tokio::test]
 async fn post_role_permissions_editor_201_or_422() {
   let client = app::test_client().await.expect("test_client");
-  let (token, org_id, role_id) = app::auth_with_profile(&client, "editor@default.org", app::SEED_PASSWORD)
-    .await
-    .expect("login");
+  let (token, org_id, role_id) =
+    app::auth_with_profile(&client, "editor@default.org", app::SEED_PASSWORD)
+      .await
+      .expect("login");
   let scope = scope_headers(org_id.as_str(), role_id.as_str());
   let body = r#"{"scope":"org","role_name":"viewer","permission_key":"dashboard.users.read"}"#;
   let (status, _) = app::test_request(
@@ -105,9 +114,10 @@ async fn post_role_permissions_editor_201_or_422() {
 #[tokio::test]
 async fn delete_role_permissions_viewer_403() {
   let client = app::test_client().await.expect("test_client");
-  let (token, org_id, role_id) = app::auth_with_profile(&client, "viewer@default.org", app::SEED_PASSWORD)
-    .await
-    .expect("login");
+  let (token, org_id, role_id) =
+    app::auth_with_profile(&client, "viewer@default.org", app::SEED_PASSWORD)
+      .await
+      .expect("login");
   let scope = scope_headers(org_id.as_str(), role_id.as_str());
   let body = r#"{"scope":"org","role_name":"viewer","permission_key":"dashboard"}"#;
   let (status, _) = app::test_request(
@@ -126,9 +136,10 @@ async fn delete_role_permissions_viewer_403() {
 #[tokio::test]
 async fn delete_role_permissions_editor_200_or_404() {
   let client = app::test_client().await.expect("test_client");
-  let (token, org_id, role_id) = app::auth_with_profile(&client, "editor@default.org", app::SEED_PASSWORD)
-    .await
-    .expect("login");
+  let (token, org_id, role_id) =
+    app::auth_with_profile(&client, "editor@default.org", app::SEED_PASSWORD)
+      .await
+      .expect("login");
   let scope = scope_headers(org_id.as_str(), role_id.as_str());
   let body = r#"{"scope":"org","role_name":"viewer","permission_key":"dashboard"}"#;
   let (status, _) = app::test_request(

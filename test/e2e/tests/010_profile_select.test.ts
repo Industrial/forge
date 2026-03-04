@@ -93,9 +93,7 @@ test.describe("e2e profile select and session profile", () => {
 		await expect(page).toHaveURL(/\/select-profile/, { timeout: 10_000 });
 	});
 
-	test("viewer sees only Default org users on Users page", async ({
-		page,
-	}) => {
+	test("viewer sees only Default org users on Users page", async ({ page }) => {
 		await page.goto("/login");
 		await page
 			.getByTestId("login-email")
@@ -109,9 +107,7 @@ test.describe("e2e profile select and session profile", () => {
 		await expect(page).toHaveURL(/\/dashboard/);
 		await page.getByRole("link", { name: "Users" }).click();
 		await expect(page).toHaveURL(/\/dashboard\/users/);
-		await expect(
-			page.getByRole("heading", { name: "Users" }),
-		).toBeVisible();
+		await expect(page.getByRole("heading", { name: "Users" })).toBeVisible();
 		// Org-scoped viewer must not see "Other" organization in the users table
 		await expect(page.getByText("Other")).not.toBeVisible();
 	});
@@ -149,12 +145,18 @@ test.describe("e2e profile select and session profile", () => {
 		// 5. Personal: only Dashboard link visible
 		await expect(page.getByRole("link", { name: "Dashboard" })).toBeVisible();
 		// 5.1 Other dashboard links not shown
-		await expect(page.getByRole("link", { name: "Organizations" })).not.toBeVisible();
+		await expect(
+			page.getByRole("link", { name: "Organizations" }),
+		).not.toBeVisible();
 		await expect(page.getByRole("link", { name: "Users" })).not.toBeVisible();
 		await expect(page.getByRole("link", { name: "Roles" })).not.toBeVisible();
-		await expect(page.getByRole("link", { name: "Permissions" })).not.toBeVisible();
+		await expect(
+			page.getByRole("link", { name: "Permissions" }),
+		).not.toBeVisible();
 		await expect(page.getByRole("link", { name: "Tasks" })).not.toBeVisible();
-		await expect(page.getByRole("link", { name: "Audit log" })).not.toBeVisible();
+		await expect(
+			page.getByRole("link", { name: "Audit log" }),
+		).not.toBeVisible();
 
 		// 6. Open user dropdown in navbar
 		await page.getByRole("button", { name: "User menu" }).click();
@@ -170,7 +172,9 @@ test.describe("e2e profile select and session profile", () => {
 		await expect(page.getByRole("link", { name: "Tasks" })).toBeVisible();
 		await expect(page.getByRole("link", { name: "Audit log" })).toBeVisible();
 		// 8.1 Organizations not shown (viewer has no orgs permission)
-		await expect(page.getByRole("link", { name: "Organizations" })).not.toBeVisible();
+		await expect(
+			page.getByRole("link", { name: "Organizations" }),
+		).not.toBeVisible();
 
 		// 9. Open user dropdown again
 		await page.getByRole("button", { name: "User menu" }).click();
@@ -185,8 +189,12 @@ test.describe("e2e profile select and session profile", () => {
 		await expect(page.getByRole("link", { name: "Permissions" })).toBeVisible();
 		await expect(page.getByRole("link", { name: "Tasks" })).toBeVisible();
 		// 11.1 Audit log and Organizations not shown
-		await expect(page.getByRole("link", { name: "Audit log" })).not.toBeVisible();
-		await expect(page.getByRole("link", { name: "Organizations" })).not.toBeVisible();
+		await expect(
+			page.getByRole("link", { name: "Audit log" }),
+		).not.toBeVisible();
+		await expect(
+			page.getByRole("link", { name: "Organizations" }),
+		).not.toBeVisible();
 	});
 
 	test("switch profile in navbar updates dashboard scope (users list)", async ({

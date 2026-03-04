@@ -3,8 +3,8 @@
 use forge_db::DbConnection;
 
 use app::handlers::rest::{
-  add_org_user_impl, add_org_user_roles_impl, create_organization_impl, create_org_role_impl,
-  list_org_roles_impl, AddOrgUserBody, CreateOrganizationBody, CreateOrgRoleBody,
+  AddOrgUserBody, CreateOrgRoleBody, CreateOrganizationBody, add_org_user_impl,
+  add_org_user_roles_impl, create_org_role_impl, create_organization_impl, list_org_roles_impl,
 };
 
 const SEED_PASSWORD: &str = "password";
@@ -35,7 +35,9 @@ pub async fn seed(db: &DbConnection) -> Result<(), Box<dyn std::error::Error + S
 
   crate::seed_role_permissions_for_org(db, org_id).await?;
 
-  let role_ids = list_org_roles_impl(db, org_id).await.map_err(|e| e.to_string())?;
+  let role_ids = list_org_roles_impl(db, org_id)
+    .await
+    .map_err(|e| e.to_string())?;
 
   let users = [
     ("owner@coolorg.org", "owner"),
@@ -55,7 +57,9 @@ pub async fn seed(db: &DbConnection) -> Result<(), Box<dyn std::error::Error + S
     )
     .await
     .map_err(|e| e.to_string())?;
-    let role_id = role_ids.get(role_name).ok_or_else(|| format!("role not found: {}", role_name))?;
+    let role_id = role_ids
+      .get(role_name)
+      .ok_or_else(|| format!("role not found: {}", role_name))?;
     add_org_user_roles_impl(db, org_id, user_id, &[*role_id])
       .await
       .map_err(|e| e.to_string())?;

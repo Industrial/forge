@@ -8,7 +8,10 @@ type DashboardPermissionGuardProps = {
 	children: React.ReactNode;
 };
 
-function hasAny(userPermissions: string[], required: string | string[]): boolean {
+function hasAny(
+	userPermissions: string[],
+	required: string | string[],
+): boolean {
 	const list = Array.isArray(required) ? required : [required];
 	return list.some((p) => userPermissions.includes(p));
 }

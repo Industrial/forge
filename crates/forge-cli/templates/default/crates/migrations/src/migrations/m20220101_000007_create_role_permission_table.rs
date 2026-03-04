@@ -33,7 +33,11 @@ impl MigrationTrait for Migration {
           )
           .col(ColumnDef::new(RolePermission::Scope).string().not_null())
           .col(ColumnDef::new(RolePermission::RoleName).string().not_null())
-          .col(ColumnDef::new(RolePermission::PermissionKey).string().not_null())
+          .col(
+            ColumnDef::new(RolePermission::PermissionKey)
+              .string()
+              .not_null(),
+          )
           .to_owned(),
       )
       .await?;

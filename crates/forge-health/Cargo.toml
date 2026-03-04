@@ -10,7 +10,11 @@ description = "Health check endpoints for Forge framework"
 [dependencies]
 axum = "0.8"
 forge-db = { path = "../forge-db" }
-sea-orm = { version = "1.1", default-features = false, features = ["sqlx-sqlite", "with-uuid", "with-chrono"] }
+sea-orm = { version = "1.1", default-features = false, features = [
+  "sqlx-sqlite",
+  "with-uuid",
+  "with-chrono",
+] }
 
 [dev-dependencies]
 forge-config = { path = "../forge-config" }

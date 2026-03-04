@@ -38,9 +38,7 @@ export function assertProjectLayout(): void {
 		fs.existsSync(libRsPath) &&
 		fs.readFileSync(libRsPath, "utf-8").includes("App::new()");
 	if (!hasAppNewInMain && !hasAppNewInLib) {
-		throw new Error(
-			"main.rs or crates/app/src/lib.rs should use App::new()",
-		);
+		throw new Error("main.rs or crates/app/src/lib.rs should use App::new()");
 	}
 	if (
 		!mainRs.includes(".serve()") &&

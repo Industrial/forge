@@ -30,7 +30,9 @@ export const userAddFormSchema = Schema.Struct({
 export type UserAddFormValues = Schema.Schema.Type<typeof userAddFormSchema>;
 
 const roleIdsNonEmpty = roleIdsSchema.pipe(
-	Schema.filter((arr) => arr.length >= 1, { message: () => "Select at least one role" }),
+	Schema.filter((arr) => arr.length >= 1, {
+		message: () => "Select at least one role",
+	}),
 );
 
 export const userAddFormSchemaStrict = Schema.Struct({
@@ -40,7 +42,9 @@ export const userAddFormSchemaStrict = Schema.Struct({
 	roleIds: roleIdsNonEmpty,
 });
 
-export type UserAddFormValuesStrict = Schema.Schema.Type<typeof userAddFormSchemaStrict>;
+export type UserAddFormValuesStrict = Schema.Schema.Type<
+	typeof userAddFormSchemaStrict
+>;
 
 export const userEditFormSchema = Schema.Struct({
 	email: Schema.NonEmptyTrimmedString,

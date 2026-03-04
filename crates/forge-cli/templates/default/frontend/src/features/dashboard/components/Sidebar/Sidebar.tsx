@@ -29,7 +29,10 @@ const NAV_ITEMS = [
 		label: "Organizations",
 		end: false,
 		icon: Business,
-		permissions: ["dashboard.organizations.read", "dashboard.organizations.write"],
+		permissions: [
+			"dashboard.organizations.read",
+			"dashboard.organizations.write",
+		],
 	},
 	{
 		to: "/dashboard/users",
@@ -70,8 +73,14 @@ export type SidebarProps = {
 	fullWidth?: boolean;
 };
 
-export default function Sidebar({ expanded, onToggle, hideToggle = false, disableBorder = false, fullWidth = false }: SidebarProps) {
-	const width = fullWidth ? "100%" : (expanded ? 240 : 72);
+export default function Sidebar({
+	expanded,
+	onToggle,
+	hideToggle = false,
+	disableBorder = false,
+	fullWidth = false,
+}: SidebarProps) {
+	const width = fullWidth ? "100%" : expanded ? 240 : 72;
 	const { permissions } = useSession();
 	const navItems = NAV_ITEMS.filter((item) =>
 		item.permissions.some((p) => permissions.includes(p)),

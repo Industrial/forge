@@ -1,17 +1,20 @@
 //! Dashboard API: role–permission CRUD and audit log list. List/view require `dashboard.permissions.read`; add/delete require `dashboard.permissions.write`. Audit log is read-only, gated by `dashboard.audit.read`.
 
+use crate::Error as ForgeError;
 use axum::{
   Json,
-  extract::{Query, State, Extension},
+  extract::{Extension, Query, State},
   http::StatusCode,
   response::{IntoResponse, Response},
 };
 use chrono::NaiveDateTime;
 use forge_auth::token_auth::RequireAuth;
 use forge_db::DbConnection;
-use forge_live::{broadcast_to_channel, Channel, LiveEvent, InMemoryLiveBackend};
-use crate::Error as ForgeError;
-use sea_orm::{ActiveModelTrait, ColumnTrait, EntityTrait, PaginatorTrait, QueryFilter, QueryOrder, QuerySelect, Set};
+use forge_live::{Channel, InMemoryLiveBackend, LiveEvent, broadcast_to_channel};
+use sea_orm::{
+  ActiveModelTrait, ColumnTrait, EntityTrait, PaginatorTrait, QueryFilter, QueryOrder, QuerySelect,
+  Set,
+};
 use serde::Deserialize;
 use std::sync::Arc;
 use uuid::Uuid;
@@ -19,10 +22,13 @@ use uuid::Uuid;
 use forge_auth::token_auth::hash_password;
 
 use db::auth::Backend;
-use db::models::{audit_log, membership, org_role, organization, role_permission, user, user_org_role};
+use db::models::{
+  audit_log, membership, org_role, organization, role_permission, user, user_org_role,
+};
 
-use crate::handlers::auth::{has_global_scope, resolve_permissions, ScopeFromHeaders};
+use crate::handlers::auth::{ScopeFromHeaders, has_global_scope, resolve_permissions};
 use crate::permissions::DASHBOARD_PERMISSIONS;
+use crate::scoped_query::{WithScope, user_find_scoped};
 
 const PERMISSION_READ: &str = "dashboard.permissions.read";
 const PERMISSION_WRITE: &str = "dashboard.permissions.write";
@@ -44,7 +50,9 @@ pub(crate) fn has_permission(permissions: &[String], key: &str) -> bool {
   if key.ends_with(".write") && permissions.iter().any(|p| p == "all.write") {
     return true;
   }
-  if key == "dashboard" && (permissions.iter().any(|p| p == "all.read") || permissions.iter().any(|p| p == "all.write")) {
+  if key == "dashboard"
+    && (permissions.iter().any(|p| p == "all.read") || permissions.iter().any(|p| p == "all.write"))
+  {
     return true;
   }
   false
@@ -169,11 +177,13 @@ pub async fn list_audit_log(
   let limit = q.limit.min(200);
   let offset = q.offset;
 
-  let mut query = audit_log::Entity::find();
-  let global_audit = has_global_scope(&db, &user, PERMISSION_AUDIT_READ).await;
-  if !global_audit {
-    query = query.filter(audit_log::Column::OrganizationId.eq(scope.organization_id));
-  }
+  let scope_opt: Option<&forge_auth::RequestScope> =
+    if has_global_scope(&db, &user, PERMISSION_AUDIT_READ).await {
+      None
+    } else {
+      Some(&scope)
+    };
+  let mut query = audit_log::Entity::find().with_scope(scope_opt);
   if let Some(ref from) = q.from {
     if let Ok(naive) = NaiveDateTime::parse_from_str(from, "%Y-%m-%dT%H:%M:%S%.fZ") {
       query = query.filter(audit_log::Column::OccurredAt.gte(naive));
@@ -327,7 +337,10 @@ pub async fn add_role_permission(
   };
   model.org_id = Set(org_id_opt);
   if let Err(e) = role_permission::Entity::insert(model).exec(&db).await {
-    if matches!(e.sql_err(), Some(sea_orm::SqlErr::UniqueConstraintViolation(_))) {
+    if matches!(
+      e.sql_err(),
+      Some(sea_orm::SqlErr::UniqueConstraintViolation(_))
+    ) {
       return Ok(
         (
           StatusCode::UNPROCESSABLE_ENTITY,
@@ -339,7 +352,16 @@ pub async fn add_role_permission(
     return Err(ForgeError::Generic(e.to_string()));
   }
   if let (Some(ref backend), Some(org_id)) = (live_backend.as_ref(), org_id_opt) {
-    let _ = broadcast_to_channel(backend, &Channel::org_resource(org_id, "role_permissions"), &LiveEvent::ResourceChanged { resource: "role_permissions".into(), id, action: Some("created".into()) }).await;
+    let _ = broadcast_to_channel(
+      backend,
+      &Channel::org_resource(org_id, "role_permissions"),
+      &LiveEvent::ResourceChanged {
+        resource: "role_permissions".into(),
+        id,
+        action: Some("created".into()),
+      },
+    )
+    .await;
   }
   Ok((StatusCode::CREATED, Json(serde_json::json!({ "ok": true }))).into_response())
 }
@@ -404,7 +426,10 @@ pub async fn delete_role_permission(
     Some(id) => q = q.filter(role_permission::Column::OrgId.eq(id)),
     None => q = q.filter(role_permission::Column::OrgId.is_null()),
   }
-  let result = q.exec(&db).await.map_err(|e| ForgeError::Generic(e.to_string()))?;
+  let result = q
+    .exec(&db)
+    .await
+    .map_err(|e| ForgeError::Generic(e.to_string()))?;
   if result.rows_affected == 0 {
     return Ok(
       (
@@ -415,7 +440,16 @@ pub async fn delete_role_permission(
     );
   }
   if let (Some(ref backend), Some(org_id)) = (live_backend.as_ref(), org_id_opt) {
-    let _ = broadcast_to_channel(backend, &Channel::org_resource(org_id, "role_permissions"), &LiveEvent::ResourceChanged { resource: "role_permissions".into(), id: Uuid::nil(), action: Some("deleted".into()) }).await;
+    let _ = broadcast_to_channel(
+      backend,
+      &Channel::org_resource(org_id, "role_permissions"),
+      &LiveEvent::ResourceChanged {
+        resource: "role_permissions".into(),
+        id: Uuid::nil(),
+        action: Some("deleted".into()),
+      },
+    )
+    .await;
   }
   Ok(Json(serde_json::json!({ "ok": true })).into_response())
 }
@@ -518,13 +552,22 @@ pub async fn create_role(
     return Ok(resp);
   }
   let org_id = if has_global_scope(&db, &user, PERMISSION_ROLES_WRITE).await {
-    payload.org_id.or(Some(scope.organization_id)).ok_or_else(|| ForgeError::Generic("org_id required".into()))?
+    payload
+      .org_id
+      .or(Some(scope.organization_id))
+      .ok_or_else(|| ForgeError::Generic("org_id required".into()))?
   } else {
-    if payload.org_id.map(|pid| pid != scope.organization_id).unwrap_or(false) {
+    if payload
+      .org_id
+      .map(|pid| pid != scope.organization_id)
+      .unwrap_or(false)
+    {
       return Ok(
         (
           StatusCode::FORBIDDEN,
-          Json(serde_json::json!({ "error": "Can only create roles in your current organization" })),
+          Json(
+            serde_json::json!({ "error": "Can only create roles in your current organization" }),
+          ),
         )
           .into_response(),
       );
@@ -558,7 +601,12 @@ pub async fn create_role(
   }
   let now = chrono::Utc::now().naive_utc();
   let id = Uuid::new_v4();
-  let display_name = payload.display_name.as_ref().map(|s| s.trim()).filter(|s| !s.is_empty()).map(|s| s.to_string());
+  let display_name = payload
+    .display_name
+    .as_ref()
+    .map(|s| s.trim())
+    .filter(|s| !s.is_empty())
+    .map(|s| s.to_string());
   let model = org_role::ActiveModel {
     id: Set(id),
     org_id: Set(org_id),
@@ -568,9 +616,21 @@ pub async fn create_role(
     updated_at: Set(now),
     ..Default::default()
   };
-  org_role::Entity::insert(model).exec(&db).await.map_err(|e| ForgeError::Generic(e.to_string()))?;
+  org_role::Entity::insert(model)
+    .exec(&db)
+    .await
+    .map_err(|e| ForgeError::Generic(e.to_string()))?;
   if let Some(ref backend) = live_backend {
-    let _ = broadcast_to_channel(backend, &Channel::org_resource(org_id, "roles"), &LiveEvent::ResourceChanged { resource: "roles".into(), id, action: Some("created".into()) }).await;
+    let _ = broadcast_to_channel(
+      backend,
+      &Channel::org_resource(org_id, "roles"),
+      &LiveEvent::ResourceChanged {
+        resource: "roles".into(),
+        id,
+        action: Some("created".into()),
+      },
+    )
+    .await;
   }
   Ok(
     (
@@ -612,7 +672,8 @@ pub async fn update_role(
     .await
     .map_err(|e| ForgeError::Generic(e.to_string()))?
     .ok_or_else(|| ForgeError::Generic("Role not found".into()))?;
-  let can_write_org = has_global_scope(&db, &user, PERMISSION_ROLES_WRITE).await || scope.organization_id == role.org_id;
+  let can_write_org = has_global_scope(&db, &user, PERMISSION_ROLES_WRITE).await
+    || scope.organization_id == role.org_id;
   if !can_write_org {
     return Ok(
       (
@@ -651,9 +712,20 @@ pub async fn update_role(
     am.display_name = Set(Some(display_name.trim().to_string()).filter(|s| !s.is_empty()));
   }
   am.updated_at = Set(chrono::Utc::now().naive_utc());
-  am.update(&db).await.map_err(|e| ForgeError::Generic(e.to_string()))?;
+  am.update(&db)
+    .await
+    .map_err(|e| ForgeError::Generic(e.to_string()))?;
   if let Some(ref backend) = live_backend {
-    let _ = broadcast_to_channel(backend, &Channel::org_resource(org_id, "roles"), &LiveEvent::ResourceChanged { resource: "roles".into(), id: role_id, action: Some("updated".into()) }).await;
+    let _ = broadcast_to_channel(
+      backend,
+      &Channel::org_resource(org_id, "roles"),
+      &LiveEvent::ResourceChanged {
+        resource: "roles".into(),
+        id: role_id,
+        action: Some("updated".into()),
+      },
+    )
+    .await;
   }
   Ok(Json(serde_json::json!({ "ok": true })).into_response())
 }
@@ -680,7 +752,8 @@ pub async fn delete_role(
     .await
     .map_err(|e| ForgeError::Generic(e.to_string()))?
     .ok_or_else(|| ForgeError::Generic("Role not found".into()))?;
-  let can_write_org = has_global_scope(&db, &user, PERMISSION_ROLES_WRITE).await || scope.organization_id == role.org_id;
+  let can_write_org = has_global_scope(&db, &user, PERMISSION_ROLES_WRITE).await
+    || scope.organization_id == role.org_id;
   if !can_write_org {
     return Ok(
       (
@@ -709,7 +782,16 @@ pub async fn delete_role(
     .await
     .map_err(|e| ForgeError::Generic(e.to_string()))?;
   if let Some(ref backend) = live_backend {
-    let _ = broadcast_to_channel(backend, &Channel::org_resource(role.org_id, "roles"), &LiveEvent::ResourceChanged { resource: "roles".into(), id: payload.id, action: Some("deleted".into()) }).await;
+    let _ = broadcast_to_channel(
+      backend,
+      &Channel::org_resource(role.org_id, "roles"),
+      &LiveEvent::ResourceChanged {
+        resource: "roles".into(),
+        id: payload.id,
+        action: Some("deleted".into()),
+      },
+    )
+    .await;
   }
   Ok(Json(serde_json::json!({ "ok": true })).into_response())
 }
@@ -724,7 +806,13 @@ fn slug_from_name(name: &str) -> String {
   name
     .to_lowercase()
     .chars()
-    .map(|c| if c.is_alphanumeric() || c == ' ' { c } else { '-' })
+    .map(|c| {
+      if c.is_alphanumeric() || c == ' ' {
+        c
+      } else {
+        '-'
+      }
+    })
     .collect::<String>()
     .split_whitespace()
     .filter(|s| !s.is_empty())
@@ -788,12 +876,26 @@ pub async fn create_organization(
       updated_at: Set(now),
       ..Default::default()
     };
-    org_role::Entity::insert(r).exec(&db).await.map_err(|e| ForgeError::Generic(e.to_string()))?;
+    org_role::Entity::insert(r)
+      .exec(&db)
+      .await
+      .map_err(|e| ForgeError::Generic(e.to_string()))?;
   }
-  db::seed_role_permissions_for_org(&db, id).await.map_err(|e| ForgeError::Generic(e.to_string()))?;
+  db::seed_role_permissions_for_org(&db, id)
+    .await
+    .map_err(|e| ForgeError::Generic(e.to_string()))?;
   if let Some(ref backend) = live_backend {
     let ch = Channel::raw("organizations");
-    let _ = broadcast_to_channel(backend, &ch, &LiveEvent::ResourceChanged { resource: "organizations".into(), id, action: Some("created".into()) }).await;
+    let _ = broadcast_to_channel(
+      backend,
+      &ch,
+      &LiveEvent::ResourceChanged {
+        resource: "organizations".into(),
+        id,
+        action: Some("created".into()),
+      },
+    )
+    .await;
   }
   Ok(
     (
@@ -848,23 +950,37 @@ pub async fn update_organization(
     }
   }
   am.updated_at = Set(chrono::Utc::now().naive_utc());
-  am.update(&db).await.map_err(|e| ForgeError::Generic(e.to_string()))?;
+  am.update(&db)
+    .await
+    .map_err(|e| ForgeError::Generic(e.to_string()))?;
   if let Some(ref backend) = live_backend {
     let ch = Channel::raw("organizations");
-    let _ = broadcast_to_channel(backend, &ch, &LiveEvent::ResourceChanged { resource: "organizations".into(), id: payload.id, action: Some("updated".into()) }).await;
+    let _ = broadcast_to_channel(
+      backend,
+      &ch,
+      &LiveEvent::ResourceChanged {
+        resource: "organizations".into(),
+        id: payload.id,
+        action: Some("updated".into()),
+      },
+    )
+    .await;
   }
   let updated = organization::Entity::find_by_id(payload.id)
     .one(&db)
     .await
     .map_err(|e| ForgeError::Generic(e.to_string()))?
     .ok_or_else(|| ForgeError::Generic("Organization not found".into()))?;
-  Ok(Json(serde_json::json!({
-    "id": updated.id.to_string(),
-    "name": updated.name,
-    "slug": updated.slug,
-    "created_at": updated.created_at.format("%Y-%m-%dT%H:%M:%S%.fZ").to_string(),
-    "updated_at": updated.updated_at.format("%Y-%m-%dT%H:%M:%S%.fZ").to_string(),
-  })).into_response())
+  Ok(
+    Json(serde_json::json!({
+      "id": updated.id.to_string(),
+      "name": updated.name,
+      "slug": updated.slug,
+      "created_at": updated.created_at.format("%Y-%m-%dT%H:%M:%S%.fZ").to_string(),
+      "updated_at": updated.updated_at.format("%Y-%m-%dT%H:%M:%S%.fZ").to_string(),
+    }))
+    .into_response(),
+  )
 }
 
 #[derive(Deserialize)]
@@ -899,7 +1015,16 @@ pub async fn delete_organization(
   }
   if let Some(ref backend) = live_backend {
     let ch = Channel::raw("organizations");
-    let _ = broadcast_to_channel(backend, &ch, &LiveEvent::ResourceChanged { resource: "organizations".into(), id: payload.id, action: Some("deleted".into()) }).await;
+    let _ = broadcast_to_channel(
+      backend,
+      &ch,
+      &LiveEvent::ResourceChanged {
+        resource: "organizations".into(),
+        id: payload.id,
+        action: Some("deleted".into()),
+      },
+    )
+    .await;
   }
   Ok(Json(serde_json::json!({ "ok": true })).into_response())
 }
@@ -914,51 +1039,34 @@ pub async fn list_users(
   if let Some(resp) = require_permission(&user, &db, PERMISSION_USERS_READ, Some(&scope)).await {
     return Ok(resp);
   }
-  let global_users = has_global_scope(&db, &user, PERMISSION_USERS_READ).await;
-  let (user_ids, scope_org_id_opt): (Vec<Uuid>, Option<Uuid>) = if global_users {
-    let all_memberships = membership::Entity::find()
-      .all(&db)
-      .await
-      .map_err(|e: sea_orm::DbErr| ForgeError::Generic(e.to_string()))?;
-    let ids: Vec<Uuid> = all_memberships.iter().map(|m| m.user_id).collect::<std::collections::HashSet<_>>().into_iter().collect();
-    (ids, None)
-  } else {
-    let scope_org_id = scope.organization_id;
-    let user_ids: Vec<Uuid> = membership::Entity::find()
-      .filter(membership::Column::OrgId.eq(scope_org_id))
-      .all(&db)
-      .await
-      .map_err(|e: sea_orm::DbErr| ForgeError::Generic(e.to_string()))?
-      .into_iter()
-      .map(|m| m.user_id)
-      .collect::<std::collections::HashSet<_>>()
-      .into_iter()
-      .collect();
-    (user_ids, Some(scope_org_id))
-  };
-  if user_ids.is_empty() {
-    return Ok(Json(serde_json::json!({ "users": [] })).into_response());
-  }
-  let users = user::Entity::find()
-    .filter(user::Column::Id.is_in(user_ids.clone()))
+  let scope_opt: Option<&forge_auth::RequestScope> =
+    if has_global_scope(&db, &user, PERMISSION_USERS_READ).await {
+      None
+    } else {
+      Some(&scope)
+    };
+  let users = user_find_scoped(&db, scope_opt)
+    .await
+    .map_err(|e: sea_orm::DbErr| ForgeError::Generic(e.to_string()))?
     .all(&db)
     .await
     .map_err(|e: sea_orm::DbErr| ForgeError::Generic(e.to_string()))?;
-  let all_uors = if global_users {
-    user_org_role::Entity::find()
-      .filter(user_org_role::Column::UserId.is_in(user_ids.clone()))
-      .all(&db)
-      .await
-      .map_err(|e: sea_orm::DbErr| ForgeError::Generic(e.to_string()))?
-  } else {
-    user_org_role::Entity::find()
-      .filter(user_org_role::Column::UserId.is_in(user_ids.clone()))
-      .filter(user_org_role::Column::OrgId.eq(scope_org_id_opt.unwrap()))
-      .all(&db)
-      .await
-      .map_err(|e: sea_orm::DbErr| ForgeError::Generic(e.to_string()))?
-  };
-  let role_ids: Vec<Uuid> = all_uors.iter().map(|x| x.role_id).collect::<std::collections::HashSet<_>>().into_iter().collect();
+  if users.is_empty() {
+    return Ok(Json(serde_json::json!({ "users": [] })).into_response());
+  }
+  let user_ids: Vec<Uuid> = users.iter().map(|u| u.id).collect();
+  let all_uors = user_org_role::Entity::find()
+    .with_scope(scope_opt)
+    .filter(user_org_role::Column::UserId.is_in(user_ids))
+    .all(&db)
+    .await
+    .map_err(|e: sea_orm::DbErr| ForgeError::Generic(e.to_string()))?;
+  let role_ids: Vec<Uuid> = all_uors
+    .iter()
+    .map(|x| x.role_id)
+    .collect::<std::collections::HashSet<_>>()
+    .into_iter()
+    .collect();
   let roles = if role_ids.is_empty() {
     vec![]
   } else {
@@ -970,7 +1078,12 @@ pub async fn list_users(
   };
   let role_map: std::collections::HashMap<Uuid, org_role::Model> =
     roles.into_iter().map(|r| (r.id, r)).collect();
-  let org_ids: Vec<Uuid> = all_uors.iter().map(|x| x.org_id).collect::<std::collections::HashSet<_>>().into_iter().collect();
+  let org_ids: Vec<Uuid> = all_uors
+    .iter()
+    .map(|x| x.org_id)
+    .collect::<std::collections::HashSet<_>>()
+    .into_iter()
+    .collect();
   let orgs = if org_ids.is_empty() {
     vec![]
   } else {
@@ -986,16 +1099,23 @@ pub async fn list_users(
     .into_iter()
     .map(|u| {
       let uors_for_user: Vec<_> = all_uors.iter().filter(|x| x.user_id == u.id).collect();
-      let mut org_to_roles: std::collections::HashMap<Uuid, Vec<String>> = std::collections::HashMap::new();
+      let mut org_to_roles: std::collections::HashMap<Uuid, Vec<String>> =
+        std::collections::HashMap::new();
       for x in &uors_for_user {
         if let Some(role) = role_map.get(&x.role_id) {
-          org_to_roles.entry(x.org_id).or_default().push(role.name.clone());
+          org_to_roles
+            .entry(x.org_id)
+            .or_default()
+            .push(role.name.clone());
         }
       }
       let mems: Vec<serde_json::Value> = org_to_roles
         .into_iter()
         .map(|(org_id, role_names)| {
-          let org_name = org_map.get(&org_id).map(|o| o.name.clone()).unwrap_or_else(|| "—".to_string());
+          let org_name = org_map
+            .get(&org_id)
+            .map(|o| o.name.clone())
+            .unwrap_or_else(|| "—".to_string());
           serde_json::json!({
             "org_id": org_id.to_string(),
             "org_name": org_name,
@@ -1163,7 +1283,10 @@ pub async fn create_user(
       updated_at: Set(now),
       ..Default::default()
     };
-    user_org_role::Entity::insert(uor).exec(&db).await.map_err(|e| ForgeError::Generic(e.to_string()))?;
+    user_org_role::Entity::insert(uor)
+      .exec(&db)
+      .await
+      .map_err(|e| ForgeError::Generic(e.to_string()))?;
   }
   let role_names: Vec<String> = org_role::Entity::find()
     .filter(org_role::Column::Id.is_in(payload.role_ids.clone()))
@@ -1174,7 +1297,15 @@ pub async fn create_user(
     .map(|r| r.name)
     .collect();
   if let Some(ref backend) = live_backend {
-    let _ = broadcast_to_channel(backend, &Channel::org_resource(org_id, "users"), &LiveEvent::UsersUpdated { user_id: Some(user_id), org_id: Some(org_id) }).await;
+    let _ = broadcast_to_channel(
+      backend,
+      &Channel::org_resource(org_id, "users"),
+      &LiveEvent::UsersUpdated {
+        user_id: Some(user_id),
+        org_id: Some(org_id),
+      },
+    )
+    .await;
   }
   Ok(
     (
@@ -1227,9 +1358,19 @@ pub async fn update_user(
     am.is_active = Set(is_active);
   }
   am.updated_at = Set(chrono::Utc::now().naive_utc());
-  am.update(&db).await.map_err(|e| ForgeError::Generic(e.to_string()))?;
+  am.update(&db)
+    .await
+    .map_err(|e| ForgeError::Generic(e.to_string()))?;
   if let Some(ref backend) = live_backend {
-    let _ = broadcast_to_channel(backend, &Channel::org_resource(scope.organization_id, "users"), &LiveEvent::UsersUpdated { user_id: Some(payload.id), org_id: Some(scope.organization_id) }).await;
+    let _ = broadcast_to_channel(
+      backend,
+      &Channel::org_resource(scope.organization_id, "users"),
+      &LiveEvent::UsersUpdated {
+        user_id: Some(payload.id),
+        org_id: Some(scope.organization_id),
+      },
+    )
+    .await;
   }
   Ok(Json(serde_json::json!({ "ok": true })).into_response())
 }
@@ -1270,7 +1411,15 @@ pub async fn delete_user(
     );
   }
   if let Some(ref backend) = live_backend {
-    let _ = broadcast_to_channel(backend, &Channel::org_resource(scope.organization_id, "users"), &LiveEvent::UsersUpdated { user_id: Some(payload.id), org_id: Some(scope.organization_id) }).await;
+    let _ = broadcast_to_channel(
+      backend,
+      &Channel::org_resource(scope.organization_id, "users"),
+      &LiveEvent::UsersUpdated {
+        user_id: Some(payload.id),
+        org_id: Some(scope.organization_id),
+      },
+    )
+    .await;
   }
   Ok(Json(serde_json::json!({ "ok": true })).into_response())
 }
@@ -1282,7 +1431,11 @@ mod tests {
 
   #[test]
   fn has_permission_true_when_key_in_list() {
-    let perms = vec!["a".to_string(), "dashboard.read".to_string(), "b".to_string()];
+    let perms = vec![
+      "a".to_string(),
+      "dashboard.read".to_string(),
+      "b".to_string(),
+    ];
     assert!(has_permission(&perms, "dashboard.read"));
   }
 

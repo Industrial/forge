@@ -11,7 +11,11 @@ description = "Structured audit logging for Forge framework"
 async-trait = "0.1"
 chrono = { version = "0.4", features = ["serde"] }
 forge-auth = { path = "../forge-auth" }
-sea-orm = { version = "1.1", default-features = false, features = ["sqlx-sqlite", "with-uuid", "with-chrono"] }
+sea-orm = { version = "1.1", default-features = false, features = [
+  "sqlx-sqlite",
+  "with-uuid",
+  "with-chrono",
+] }
 tracing = "0.1"
 uuid = { version = "1.0", features = ["v4", "serde"] }
 
@@ -19,4 +23,7 @@ uuid = { version = "1.0", features = ["v4", "serde"] }
 tokio = { version = "1", features = ["rt", "macros"] }
 
 [lints.rust]
-unexpected_cfgs = { level = "warn", check-cfg = ['cfg(coverage)', 'cfg(feature, values("mock"))'] }
+unexpected_cfgs = { level = "warn", check-cfg = [
+  'cfg(coverage)',
+  'cfg(feature, values("mock"))',
+] }

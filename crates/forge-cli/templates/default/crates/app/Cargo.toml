@@ -48,9 +48,10 @@ tempfile = "3.14"
 tower = "0.5"
 
 # Only when feature "test-utils" is enabled (HTTP path in test_client()).
-reqwest = { version = "0.12", default-features = false, features = ["json"], optional = true }
+reqwest = { version = "0.12", default-features = false, features = [
+  "json",
+], optional = true }
 
 [dev-dependencies]
 migrations = { path = "../migrations" }
 sea-orm-migration = "1.1"
-

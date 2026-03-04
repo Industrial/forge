@@ -97,7 +97,8 @@ impl TaskState {
     }
     *self.store.write().await = tasks.clone();
     let channel = Channel::raw("tasks");
-    let payload = serde_json::to_vec(&serde_json::json!({ "type": "tasks", "tasks": tasks })).unwrap_or_default();
+    let payload = serde_json::to_vec(&serde_json::json!({ "type": "tasks", "tasks": tasks }))
+      .unwrap_or_default();
     live_backend.broadcast(&channel, &payload).await;
   }
 }
@@ -121,9 +122,21 @@ mod tests {
   async fn task_state_tick_rotates_statuses() {
     let state = TaskState::new();
     let backend = Arc::new(InMemoryLiveBackend::new());
-    let before: Vec<TaskStatus> = state.store.read().await.iter().map(|t| t.status.clone()).collect();
+    let before: Vec<TaskStatus> = state
+      .store
+      .read()
+      .await
+      .iter()
+      .map(|t| t.status.clone())
+      .collect();
     state.tick(&backend).await;
-    let after: Vec<TaskStatus> = state.store.read().await.iter().map(|t| t.status.clone()).collect();
+    let after: Vec<TaskStatus> = state
+      .store
+      .read()
+      .await
+      .iter()
+      .map(|t| t.status.clone())
+      .collect();
     assert_eq!(before.len(), after.len());
     let planned_after = after.iter().filter(|s| **s == TaskStatus::Planned).count();
     let running_after = after.iter().filter(|s| **s == TaskStatus::Running).count();

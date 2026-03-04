@@ -16,7 +16,11 @@ forge-core = { path = "../forge-core" }
 forge-db = { path = "../forge-db" }
 futures = "0.3"
 hex = "0.4"
-sea-orm = { version = "1.1", default-features = false, features = ["runtime-tokio-rustls", "sqlx-sqlite", "macros"] }
+sea-orm = { version = "1.1", default-features = false, features = [
+  "runtime-tokio-rustls",
+  "sqlx-sqlite",
+  "macros",
+] }
 serde = { version = "1.0", features = ["derive"] }
 sha2 = "0.10"
 subtle = "2.5"

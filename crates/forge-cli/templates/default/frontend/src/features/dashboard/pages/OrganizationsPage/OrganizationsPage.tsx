@@ -51,9 +51,18 @@ function OrganizationForm({
 	disabled = false,
 }: OrganizationFormProps) {
 	const slugLabel = mode === "add" ? "Slug (optional)" : "Slug";
-	const slugPlaceholder = mode === "add" ? "Auto from name if blank" : undefined;
+	const slugPlaceholder =
+		mode === "add" ? "Auto from name if blank" : undefined;
 	return (
-		<Box sx={{ display: "flex", flexDirection: "column", gap: 2, pt: 1, minWidth: 0 }}>
+		<Box
+			sx={{
+				display: "flex",
+				flexDirection: "column",
+				gap: 2,
+				pt: 1,
+				minWidth: 0,
+			}}
+		>
 			<TextField
 				label="Name"
 				size="small"
@@ -273,7 +282,14 @@ export default function OrganizationsPage() {
 				<Typography variant="subtitle2" gutterBottom>
 					Filters
 				</Typography>
-				<Box sx={{ display: "flex", flexWrap: "wrap", gap: 2, alignItems: "flex-end" }}>
+				<Box
+					sx={{
+						display: "flex",
+						flexWrap: "wrap",
+						gap: 2,
+						alignItems: "flex-end",
+					}}
+				>
 					<TextField
 						label="Name"
 						size="small"
@@ -318,7 +334,17 @@ export default function OrganizationsPage() {
 					</Typography>
 				</Paper>
 			) : isMobile ? (
-				<Box component="ul" sx={{ listStyle: "none", m: 0, p: 0, display: "flex", flexDirection: "column", gap: 1.5 }}>
+				<Box
+					component="ul"
+					sx={{
+						listStyle: "none",
+						m: 0,
+						p: 0,
+						display: "flex",
+						flexDirection: "column",
+						gap: 1.5,
+					}}
+				>
 					{filteredOrganizations.map((org) => (
 						<Box key={org.id} component="li">
 							<Paper sx={{ p: 2 }}>
@@ -328,12 +354,29 @@ export default function OrganizationsPage() {
 								<Typography variant="body2" color="text.secondary">
 									{org.slug}
 								</Typography>
-								<Typography variant="caption" color="text.secondary" display="block" sx={{ mt: 0.5 }}>
-									Created {formatDate(org.created_at)} · Updated {formatDate(org.updated_at)}
+								<Typography
+									variant="caption"
+									color="text.secondary"
+									display="block"
+									sx={{ mt: 0.5 }}
+								>
+									Created {formatDate(org.created_at)} · Updated{" "}
+									{formatDate(org.updated_at)}
 								</Typography>
 								{canWrite && (
-									<Box sx={{ mt: 2, display: "flex", gap: 0.5, justifyContent: "flex-end" }}>
-										<Button size="small" startIcon={<EditIcon />} onClick={() => openEdit(org)}>
+									<Box
+										sx={{
+											mt: 2,
+											display: "flex",
+											gap: 0.5,
+											justifyContent: "flex-end",
+										}}
+									>
+										<Button
+											size="small"
+											startIcon={<EditIcon />}
+											onClick={() => openEdit(org)}
+										>
 											Edit
 										</Button>
 										<Button
@@ -368,11 +411,19 @@ export default function OrganizationsPage() {
 								<TableRow key={org.id}>
 									<TableCell sx={{ fontWeight: 500 }}>{org.name}</TableCell>
 									<TableCell>{org.slug}</TableCell>
-									<TableCell sx={{ whiteSpace: "nowrap" }}>{formatDate(org.created_at)}</TableCell>
-									<TableCell sx={{ whiteSpace: "nowrap" }}>{formatDate(org.updated_at)}</TableCell>
+									<TableCell sx={{ whiteSpace: "nowrap" }}>
+										{formatDate(org.created_at)}
+									</TableCell>
+									<TableCell sx={{ whiteSpace: "nowrap" }}>
+										{formatDate(org.updated_at)}
+									</TableCell>
 									{canWrite && (
 										<TableCell align="right">
-											<IconButton size="small" aria-label="Edit" onClick={() => openEdit(org)}>
+											<IconButton
+												size="small"
+												aria-label="Edit"
+												onClick={() => openEdit(org)}
+											>
 												<EditIcon />
 											</IconButton>
 											<IconButton

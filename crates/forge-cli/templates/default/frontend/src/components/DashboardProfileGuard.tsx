@@ -8,7 +8,9 @@ type DashboardProfileGuardProps = { children: React.ReactNode };
  * Redirects to /select-profile when the user is logged in but has no session profile set.
  * Use inside ProtectedRoute so it only runs for authenticated users.
  */
-export default function DashboardProfileGuard({ children }: DashboardProfileGuardProps) {
+export default function DashboardProfileGuard({
+	children,
+}: DashboardProfileGuardProps) {
 	const { user, needs_profile_select, loading } = useSession();
 
 	if (loading) return null;

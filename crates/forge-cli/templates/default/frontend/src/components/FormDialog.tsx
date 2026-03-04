@@ -38,10 +38,16 @@ export default function FormDialog({
 	const handleClose = () => {
 		if (!submitting) onClose();
 	};
-	const buttonLabel = submitting && submittingLabel ? submittingLabel : submitLabel;
+	const buttonLabel =
+		submitting && submittingLabel ? submittingLabel : submitLabel;
 
 	return (
-		<Dialog open={open} onClose={handleClose} maxWidth={maxWidth} fullWidth={fullWidth}>
+		<Dialog
+			open={open}
+			onClose={handleClose}
+			maxWidth={maxWidth}
+			fullWidth={fullWidth}
+		>
 			<DialogTitle>{title}</DialogTitle>
 			<DialogContent sx={contentSx}>{children}</DialogContent>
 			<DialogActions>

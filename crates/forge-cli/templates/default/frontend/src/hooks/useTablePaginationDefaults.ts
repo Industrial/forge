@@ -26,7 +26,10 @@ export function useTablePaginationDefaults(): {
 
 	useEffect(() => {
 		if (isLgUp) {
-			setDefaults({ defaultRowsPerPage: 50, rowsPerPageOptions: [10, 25, 50, 100] });
+			setDefaults({
+				defaultRowsPerPage: 50,
+				rowsPerPageOptions: [10, 25, 50, 100],
+			});
 		} else if (isMdUp) {
 			setDefaults({ defaultRowsPerPage: 25, rowsPerPageOptions: [10, 25, 50] });
 		} else {

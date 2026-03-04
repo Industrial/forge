@@ -16,8 +16,7 @@ const WS_DEBUG_KEY = "forge_ws_debug";
 export function isWsDebugEnabled(): boolean {
 	if (typeof window === "undefined") return false;
 	return (
-		import.meta.env.DEV ||
-		window.localStorage.getItem(WS_DEBUG_KEY) === "1"
+		import.meta.env.DEV || window.localStorage.getItem(WS_DEBUG_KEY) === "1"
 	);
 }
 

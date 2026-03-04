@@ -34,9 +34,7 @@ test.describe("e2e permission-based dashboard", () => {
 			page.getByRole("link", { name: "Organizations" }),
 		).toBeVisible();
 		await expect(page.getByRole("link", { name: "Users" })).toBeVisible();
-		await expect(
-			page.getByRole("link", { name: "Permissions" }),
-		).toBeVisible();
+		await expect(page.getByRole("link", { name: "Permissions" })).toBeVisible();
 
 		await page.getByRole("link", { name: "Organizations" }).click();
 		await expect(page).toHaveURL(/\/dashboard\/organizations/);
@@ -67,9 +65,7 @@ test.describe("e2e permission-based dashboard", () => {
 			page.getByRole("link", { name: "Organizations" }),
 		).not.toBeVisible();
 		await expect(page.getByRole("link", { name: "Users" })).toBeVisible();
-		await expect(
-			page.getByRole("link", { name: "Permissions" }),
-		).toBeVisible();
+		await expect(page.getByRole("link", { name: "Permissions" })).toBeVisible();
 
 		await page.goto("/dashboard/organizations");
 		await expect(page).toHaveURL(/\/dashboard$/, { timeout: 10_000 });
@@ -126,7 +122,9 @@ test.describe("e2e permission-based dashboard", () => {
 		).toBeVisible();
 		// After seeds, table or "No assignments" or description should be present (multiple elements may match)
 		await expect(
-			page.getByText(/View and manage role–permission|No assignments|Scope/).first(),
+			page
+				.getByText(/View and manage role–permission|No assignments|Scope/)
+				.first(),
 		).toBeVisible();
 	});
 
@@ -147,10 +145,12 @@ test.describe("e2e permission-based dashboard", () => {
 
 		await page.getByRole("link", { name: "Users" }).click();
 		await expect(page).toHaveURL(/\/dashboard\/users/);
-		await expect(
-			page.getByRole("heading", { name: "Users" }),
-		).toBeVisible();
+		await expect(page.getByRole("heading", { name: "Users" })).toBeVisible();
 		// Global-scope admin sees users from all orgs; seeds include "Other" org members (multiple cells contain "Other")
-		await expect(page.getByRole("cell", { name: /Other: (owner|admin|viewer|editor)/ }).first()).toBeVisible();
+		await expect(
+			page
+				.getByRole("cell", { name: /Other: (owner|admin|viewer|editor)/ })
+				.first(),
+		).toBeVisible();
 	});
 });

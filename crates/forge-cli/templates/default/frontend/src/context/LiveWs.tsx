@@ -74,20 +74,17 @@ export function LiveWsProvider({ children }: { children: React.ReactNode }) {
 	const wsRef = useRef<WebSocket | null>(null);
 	const listenersRef = useRef<Map<LiveUpdateKey, Set<Listener>>>(new Map());
 
-	const subscribe = useCallback(
-		(key: LiveUpdateKey, listener: Listener) => {
-			let set = listenersRef.current.get(key);
-			if (!set) {
-				set = new Set();
-				listenersRef.current.set(key, set);
-			}
-			set.add(listener);
-			return () => {
-				set?.delete(listener);
-			};
-		},
-		[],
-	);
+	const subscribe = useCallback((key: LiveUpdateKey, listener: Listener) => {
+		let set = listenersRef.current.get(key);
+		if (!set) {
+			set = new Set();
+			listenersRef.current.set(key, set);
+		}
+		set.add(listener);
+		return () => {
+			set?.delete(listener);
+		};
+	}, []);
 
 	useEffect(() => {
 		if (!user) {

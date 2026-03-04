@@ -51,7 +51,8 @@ export default function PermissionsPage() {
 	const [addPermission, setAddPermission] = useState<string>("");
 	const [adding, setAdding] = useState(false);
 	const [deletingKey, setDeletingKey] = useState<string | null>(null);
-	const { defaultRowsPerPage, rowsPerPageOptions } = useTablePaginationDefaults();
+	const { defaultRowsPerPage, rowsPerPageOptions } =
+		useTablePaginationDefaults();
 	const [page, setPage] = useState(0);
 	const [rowsPerPage, setRowsPerPage] = useState(defaultRowsPerPage);
 
@@ -101,7 +102,10 @@ export default function PermissionsPage() {
 
 	// Reset page if it goes out of range (e.g. after deleting items)
 	useEffect(() => {
-		const maxPage = Math.max(0, Math.ceil(assignments.length / rowsPerPage) - 1);
+		const maxPage = Math.max(
+			0,
+			Math.ceil(assignments.length / rowsPerPage) - 1,
+		);
 		if (page > maxPage) setPage(maxPage);
 	}, [assignments.length, rowsPerPage, page]);
 
@@ -137,7 +141,9 @@ export default function PermissionsPage() {
 	};
 
 	const handleDelete = async (a: Assignment) => {
-		const key = [a.scope, a.role_name, a.permission_key, a.org_id ?? ""].join(":");
+		const key = [a.scope, a.role_name, a.permission_key, a.org_id ?? ""].join(
+			":",
+		);
 		setDeletingKey(key);
 		setError(null);
 		try {
@@ -297,7 +303,12 @@ export default function PermissionsPage() {
 							</TableRow>
 						) : (
 							paginatedAssignments.map((a) => {
-								const key = [a.scope, a.role_name, a.permission_key, a.org_id ?? ""].join(":");
+								const key = [
+									a.scope,
+									a.role_name,
+									a.permission_key,
+									a.org_id ?? "",
+								].join(":");
 								return (
 									<TableRow key={key}>
 										<TableCell>{a.scope}</TableCell>

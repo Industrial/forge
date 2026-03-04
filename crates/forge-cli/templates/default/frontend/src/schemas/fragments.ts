@@ -12,7 +12,9 @@ export const emailSchema = Schema.NonEmptyTrimmedString.pipe(
 
 /** Password: min 8 characters. */
 export const passwordMin8Schema = Schema.NonEmptyTrimmedString.pipe(
-	Schema.minLength(8, { message: () => "Password must be at least 8 characters" }),
+	Schema.minLength(8, {
+		message: () => "Password must be at least 8 characters",
+	}),
 );
 
 /** Single organization ID (non-empty string). */

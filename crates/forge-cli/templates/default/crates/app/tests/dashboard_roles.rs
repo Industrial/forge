@@ -18,13 +18,21 @@ fn scope_headers<'a>(org_id: &'a str, role_id: &'a str) -> [(&'static str, &'a s
 #[tokio::test]
 async fn get_roles_viewer_200() {
   let client = app::test_client().await.expect("test_client");
-  let (token, org_id, role_id) = app::auth_with_profile(&client, "viewer@default.org", app::SEED_PASSWORD)
-    .await
-    .expect("login");
+  let (token, org_id, role_id) =
+    app::auth_with_profile(&client, "viewer@default.org", app::SEED_PASSWORD)
+      .await
+      .expect("login");
   let scope = scope_headers(org_id.as_str(), role_id.as_str());
-  let (status, body) = app::test_request(&client, "GET", "/api/dashboard/roles", Some(&token), None, Some(&scope))
-    .await
-    .unwrap();
+  let (status, body) = app::test_request(
+    &client,
+    "GET",
+    "/api/dashboard/roles",
+    Some(&token),
+    None,
+    Some(&scope),
+  )
+  .await
+  .unwrap();
   assert_eq!(status, StatusCode::OK);
   let json: app::serde_json::Value = app::serde_json::from_slice(&body).unwrap();
   assert!(json["roles"].as_array().is_some());
@@ -34,18 +42,26 @@ async fn get_roles_viewer_200() {
 async fn post_roles_anon_401() {
   let client = app::test_client().await.expect("test_client");
   let body = r#"{"name":"custom","display_name":"Custom"}"#;
-  let (status, _) = app::test_request(&client, "POST", "/api/dashboard/roles", None, Some(body), None)
-    .await
-    .unwrap();
+  let (status, _) = app::test_request(
+    &client,
+    "POST",
+    "/api/dashboard/roles",
+    None,
+    Some(body),
+    None,
+  )
+  .await
+  .unwrap();
   assert_eq!(status, StatusCode::UNAUTHORIZED);
 }
 
 #[tokio::test]
 async fn post_roles_viewer_403() {
   let client = app::test_client().await.expect("test_client");
-  let (token, org_id, role_id) = app::auth_with_profile(&client, "viewer@default.org", app::SEED_PASSWORD)
-    .await
-    .expect("login");
+  let (token, org_id, role_id) =
+    app::auth_with_profile(&client, "viewer@default.org", app::SEED_PASSWORD)
+      .await
+      .expect("login");
   let scope = scope_headers(org_id.as_str(), role_id.as_str());
   let body = r#"{"name":"custom","display_name":"Custom"}"#;
   let (status, _) = app::test_request(
@@ -64,9 +80,10 @@ async fn post_roles_viewer_403() {
 #[tokio::test]
 async fn post_roles_editor_201() {
   let client = app::test_client().await.expect("test_client");
-  let (token, org_id, role_id) = app::auth_with_profile(&client, "editor@default.org", app::SEED_PASSWORD)
-    .await
-    .expect("login");
+  let (token, org_id, role_id) =
+    app::auth_with_profile(&client, "editor@default.org", app::SEED_PASSWORD)
+      .await
+      .expect("login");
   let scope = scope_headers(org_id.as_str(), role_id.as_str());
   let body = r#"{"name":"testrole123","display_name":"Test Role"}"#;
   let (status, _) = app::test_request(
@@ -85,16 +102,27 @@ async fn post_roles_editor_201() {
 #[tokio::test]
 async fn patch_roles_viewer_403() {
   let client = app::test_client().await.expect("test_client");
-  let (token, org_id, role_id) = app::auth_with_profile(&client, "viewer@default.org", app::SEED_PASSWORD)
-    .await
-    .expect("login");
+  let (token, org_id, role_id) =
+    app::auth_with_profile(&client, "viewer@default.org", app::SEED_PASSWORD)
+      .await
+      .expect("login");
   let scope = scope_headers(org_id.as_str(), role_id.as_str());
-  let (_, body) = app::test_request(&client, "GET", "/api/dashboard/roles", Some(&token), None, Some(&scope))
-    .await
-    .unwrap();
+  let (_, body) = app::test_request(
+    &client,
+    "GET",
+    "/api/dashboard/roles",
+    Some(&token),
+    None,
+    Some(&scope),
+  )
+  .await
+  .unwrap();
   let json: app::serde_json::Value = app::serde_json::from_slice(&body).unwrap();
   let roles = json["roles"].as_array().unwrap();
-  let role_id = roles.first().and_then(|r| r["id"].as_str()).unwrap_or("00000000-0000-0000-0000-000000000000");
+  let role_id = roles
+    .first()
+    .and_then(|r| r["id"].as_str())
+    .unwrap_or("00000000-0000-0000-0000-000000000000");
   let patch_body = format!(r#"{{"id":"{}","display_name":"Updated"}}"#, role_id);
   let (status, _) = app::test_request(
     &client,
@@ -112,13 +140,21 @@ async fn patch_roles_viewer_403() {
 #[tokio::test]
 async fn patch_roles_editor_200() {
   let client = app::test_client().await.expect("test_client");
-  let (token, org_id, role_id) = app::auth_with_profile(&client, "editor@default.org", app::SEED_PASSWORD)
-    .await
-    .expect("login");
+  let (token, org_id, role_id) =
+    app::auth_with_profile(&client, "editor@default.org", app::SEED_PASSWORD)
+      .await
+      .expect("login");
   let scope = scope_headers(org_id.as_str(), role_id.as_str());
-  let (_, body) = app::test_request(&client, "GET", "/api/dashboard/roles", Some(&token), None, Some(&scope))
-    .await
-    .unwrap();
+  let (_, body) = app::test_request(
+    &client,
+    "GET",
+    "/api/dashboard/roles",
+    Some(&token),
+    None,
+    Some(&scope),
+  )
+  .await
+  .unwrap();
   let json: app::serde_json::Value = app::serde_json::from_slice(&body).unwrap();
   let roles = json["roles"].as_array().unwrap();
   let role_id = roles.first().and_then(|r| r["id"].as_str()).unwrap();
@@ -139,9 +175,10 @@ async fn patch_roles_editor_200() {
 #[tokio::test]
 async fn delete_roles_viewer_403() {
   let client = app::test_client().await.expect("test_client");
-  let (token, org_id, role_id) = app::auth_with_profile(&client, "viewer@default.org", app::SEED_PASSWORD)
-    .await
-    .expect("login");
+  let (token, org_id, role_id) =
+    app::auth_with_profile(&client, "viewer@default.org", app::SEED_PASSWORD)
+      .await
+      .expect("login");
   let scope = scope_headers(org_id.as_str(), role_id.as_str());
   let body = r#"{"id":"00000000-0000-0000-0000-000000000000"}"#;
   let (status, _) = app::test_request(

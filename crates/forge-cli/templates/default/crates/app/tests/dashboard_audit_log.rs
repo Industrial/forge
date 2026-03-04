@@ -1,11 +1,11 @@
-//! Dashboard: GET /api/dashboard/audit-log — 401 anon, 200 with dashboard.audit.read.
+//! GET /api/audit-log — 401 anon, 200 with valid token.
 
 use axum::http::StatusCode;
 
 #[tokio::test]
 async fn get_audit_log_anon_401() {
   let client = app::test_client().await.expect("test_client");
-  let (status, _) = app::test_request(&client, "GET", "/api/dashboard/audit-log", None, None, None)
+  let (status, _) = app::test_request(&client, "GET", "/api/audit-log", None, None, None)
     .await
     .unwrap();
   assert_eq!(status, StatusCode::UNAUTHORIZED);
@@ -14,16 +14,12 @@ async fn get_audit_log_anon_401() {
 #[tokio::test]
 async fn get_audit_log_viewer_200() {
   let client = app::test_client().await.expect("test_client");
-  let (token, org_id, role_id) = app::auth_with_profile(&client, "viewer@default.org", app::SEED_PASSWORD)
-    .await
-    .expect("login");
-  let scope = [
-    ("X-Organization-Id", org_id.as_str()),
-    ("X-Role-Id", role_id.as_str()),
-  ];
-  let (status, _) =
-    app::test_request(&client, "GET", "/api/dashboard/audit-log", Some(&token), None, Some(&scope))
+  let (token, _org_id, _role_id) =
+    app::auth_with_profile(&client, "viewer@default.org", app::SEED_PASSWORD)
       .await
-      .unwrap();
+      .expect("login");
+  let (status, _) = app::test_request(&client, "GET", "/api/audit-log", Some(&token), None, None)
+    .await
+    .unwrap();
   assert_eq!(status, StatusCode::OK);
 }

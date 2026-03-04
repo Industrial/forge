@@ -39,7 +39,11 @@ export type AuthState = {
 	loading: boolean;
 	fetchMe: () => Promise<void>;
 	logout: () => Promise<void>;
-	setCurrentScope: (orgId: string, roleId: string, roleName: string) => Promise<void>;
+	setCurrentScope: (
+		orgId: string,
+		roleId: string,
+		roleName: string,
+	) => Promise<void>;
 };
 
 const AuthContext = createContext<AuthState | null>(null);
@@ -92,7 +96,9 @@ async function fetchMe(token: string): Promise<{
 
 export function AuthProvider({ children }: { children: React.ReactNode }) {
 	const [user, setUser] = useState<AuthUser | null>(null);
-	const [token, setToken] = useState<string | null>(localStorage.getItem("token"));
+	const [token, setToken] = useState<string | null>(
+		localStorage.getItem("token"),
+	);
 	const [currentOrgId, setCurrentOrgId] = useState<string | null>(
 		localStorage.getItem("currentOrgId"),
 	);
@@ -156,8 +162,13 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 			return;
 		}
 
-		const { user: u, profiles: p, permissions: perm, flash: f, needs_profile_select: need } =
-			await fetchMe(token);
+		const {
+			user: u,
+			profiles: p,
+			permissions: perm,
+			flash: f,
+			needs_profile_select: need,
+		} = await fetchMe(token);
 
 		setUser(u);
 		setProfiles(p);
@@ -180,12 +191,15 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 		setNeedsProfileSelect(false);
 	}, []);
 
-	const setCurrentScope = useCallback(async (orgId: string, roleId: string, roleName: string) => {
-		setCurrentOrgId(orgId);
-		setCurrentRoleId(roleId);
-		setCurrentRoleName(roleName);
-		// TODO: Potentially re-fetch permissions based on new scope
-	}, []);
+	const setCurrentScope = useCallback(
+		async (orgId: string, roleId: string, roleName: string) => {
+			setCurrentOrgId(orgId);
+			setCurrentRoleId(roleId);
+			setCurrentRoleName(roleName);
+			// TODO: Potentially re-fetch permissions based on new scope
+		},
+		[],
+	);
 
 	useEffect(() => {
 		fetchMeCb();

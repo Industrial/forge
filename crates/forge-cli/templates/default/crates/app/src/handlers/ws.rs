@@ -8,14 +8,16 @@ use axum::{
   http::StatusCode,
   response::{IntoResponse, Response},
 };
+use forge_auth::token_auth::RequireAuth;
 use forge_db::DbConnection;
 use forge_live::{Channel, InMemoryLiveBackend, LiveBackend};
-use forge_auth::token_auth::RequireAuth;
 use futures_util::{SinkExt, StreamExt};
 use std::sync::Arc;
 use tokio::sync::mpsc;
 
-use crate::handlers::auth::{channels_from_permissions, get_scope_from_headers_map, resolve_permissions};
+use crate::handlers::auth::{
+  channels_from_permissions, get_scope_from_headers_map, resolve_permissions,
+};
 use crate::tasks::TaskState;
 use db::auth::Backend;
 use db::models::user;
@@ -57,9 +59,8 @@ async fn handle_socket(
   }
   if channels.iter().any(|c| c.as_str() == "tasks") {
     let tasks = task_state.store.read().await.clone();
-    let payload =
-      serde_json::to_string(&serde_json::json!({ "type": "tasks", "tasks": tasks }))
-        .unwrap_or_default();
+    let payload = serde_json::to_string(&serde_json::json!({ "type": "tasks", "tasks": tasks }))
+      .unwrap_or_default();
     let _ = main_tx.send(payload.into_bytes());
   }
 

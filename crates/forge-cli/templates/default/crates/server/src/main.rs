@@ -11,12 +11,12 @@ async fn main() -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
   let app = make_app(live_backend.clone())
     .with_migrations(migrations::Migrator)
     .with_seed(|db| {
-    Box::pin(async move {
-      migrations::run_seeds(db)
-        .await
-        .map_err(|e| -> Box<dyn std::error::Error> { e.to_string().into() })
-    })
-  });
+      Box::pin(async move {
+        migrations::run_seeds(db)
+          .await
+          .map_err(|e| -> Box<dyn std::error::Error> { e.to_string().into() })
+      })
+    });
 
   let app = if forge_config::effective_environment().eq_ignore_ascii_case("production") {
     app.with_rate_limit_per_ip(60).with_rate_limit_per_user(60)

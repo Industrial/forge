@@ -8,6 +8,11 @@ async fn get_healthz_livez_readyz_return_200() {
     let (status, _) = app::test_request(&client, "GET", path, None, None, None)
       .await
       .unwrap();
-    assert_eq!(status, axum::http::StatusCode::OK, "GET {} should return 200", path);
+    assert_eq!(
+      status,
+      axum::http::StatusCode::OK,
+      "GET {} should return 200",
+      path
+    );
   }
 }

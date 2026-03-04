@@ -64,7 +64,9 @@ function formatDate(iso: string) {
 
 function membershipsSummary(memberships: User["memberships"]) {
 	if (!memberships.length) return "—";
-	return memberships.map((m) => `${m.org_name}: ${(m.roles ?? []).join(", ") || "—"}`).join("; ");
+	return memberships
+		.map((m) => `${m.org_name}: ${(m.roles ?? []).join(", ") || "—"}`)
+		.join("; ");
 }
 
 export default function UsersPage() {
@@ -115,7 +117,11 @@ export default function UsersPage() {
 
 	const addForm = useForm<UserAddFormValuesStrict>({
 		resolver: effectSchemaResolver(
-			userAddFormSchemaStrict as Schema.Schema<UserAddFormValuesStrict, unknown, never>,
+			userAddFormSchemaStrict as Schema.Schema<
+				UserAddFormValuesStrict,
+				unknown,
+				never
+			>,
 		),
 		defaultValues: { email: "", password: "", orgId: "", roleIds: [] },
 		mode: "onChange",
@@ -134,8 +140,7 @@ export default function UsersPage() {
 	const fetchOrgs = useCallback(async () => {
 		if (!canRead) return;
 		try {
-			const res = await api("/api/dashboard/organizations", {
-			});
+			const res = await api("/api/dashboard/organizations", {});
 			if (res.ok) {
 				const data = await res.json();
 				setOrganizations(data.organizations ?? []);
@@ -159,8 +164,10 @@ export default function UsersPage() {
 			return;
 		}
 		try {
-			const res = await api(`/api/dashboard/roles?org_id=${encodeURIComponent(orgId)}`, {
-			});
+			const res = await api(
+				`/api/dashboard/roles?org_id=${encodeURIComponent(orgId)}`,
+				{},
+			);
 			if (res.ok) {
 				const data = await res.json();
 				setOrgRoles(data.roles ?? []);
@@ -285,12 +292,13 @@ export default function UsersPage() {
 			!filterEmail.trim() ||
 			user.email.toLowerCase().includes(filterEmail.trim().toLowerCase());
 		const orgMatch =
-			!filterOrgId ||
-			user.memberships.some((m) => m.org_id === filterOrgId);
+			!filterOrgId || user.memberships.some((m) => m.org_id === filterOrgId);
 		const roleMatch =
 			!filterRole ||
 			user.memberships.some((m) =>
-				(m.roles ?? []).some((r) => r.toLowerCase() === filterRole.toLowerCase()),
+				(m.roles ?? []).some(
+					(r) => r.toLowerCase() === filterRole.toLowerCase(),
+				),
 			);
 		const activeMatch =
 			filterActive === "" ||
@@ -323,7 +331,8 @@ export default function UsersPage() {
 				{wsConnected && <Chip label="Live" color="success" size="small" />}
 			</Box>
 			<Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
-				View and manage users. Write actions require <code>dashboard.users.write</code>.
+				View and manage users. Write actions require{" "}
+				<code>dashboard.users.write</code>.
 			</Typography>
 
 			{error && (
@@ -336,7 +345,14 @@ export default function UsersPage() {
 				<Typography variant="subtitle2" gutterBottom>
 					Filters
 				</Typography>
-				<Box sx={{ display: "flex", flexWrap: "wrap", gap: 2, alignItems: "flex-end" }}>
+				<Box
+					sx={{
+						display: "flex",
+						flexWrap: "wrap",
+						gap: 2,
+						alignItems: "flex-end",
+					}}
+				>
 					<TextField
 						label="Email"
 						type="search"
@@ -447,10 +463,7 @@ export default function UsersPage() {
 						<TableBody>
 							{filteredUsers.length === 0 ? (
 								<TableRow>
-									<TableCell
-										colSpan={canWrite ? 6 : 5}
-										align="center"
-									>
+									<TableCell colSpan={canWrite ? 6 : 5} align="center">
 										{users.length === 0
 											? "No users."
 											: "No users match the filters."}
@@ -505,7 +518,15 @@ export default function UsersPage() {
 				submitDisabled={!addForm.formState.isValid}
 				submitting={adding}
 			>
-				<Box sx={{ display: "flex", flexDirection: "column", gap: 2, pt: 1, minWidth: 320 }}>
+				<Box
+					sx={{
+						display: "flex",
+						flexDirection: "column",
+						gap: 2,
+						pt: 1,
+						minWidth: 320,
+					}}
+				>
 					<Controller
 						control={addForm.control}
 						name="email"
@@ -540,7 +561,12 @@ export default function UsersPage() {
 						control={addForm.control}
 						name="orgId"
 						render={({ field, fieldState }) => (
-							<FormControl fullWidth size="small" disabled={adding} error={Boolean(fieldState.error)}>
+							<FormControl
+								fullWidth
+								size="small"
+								disabled={adding}
+								error={Boolean(fieldState.error)}
+							>
 								<InputLabel>Organization</InputLabel>
 								<Select
 									{...field}
@@ -554,7 +580,15 @@ export default function UsersPage() {
 									))}
 								</Select>
 								{fieldState.error?.message && (
-									<Box component="span" sx={{ color: "error.main", fontSize: "0.75rem", mt: 0.5, display: "block" }}>
+									<Box
+										component="span"
+										sx={{
+											color: "error.main",
+											fontSize: "0.75rem",
+											mt: 0.5,
+											display: "block",
+										}}
+									>
 										{fieldState.error.message}
 									</Box>
 								)}
@@ -565,16 +599,25 @@ export default function UsersPage() {
 						control={addForm.control}
 						name="roleIds"
 						render={({ field, fieldState }) => (
-							<FormControl fullWidth size="small" disabled={adding} error={Boolean(fieldState.error)}>
+							<FormControl
+								fullWidth
+								size="small"
+								disabled={adding}
+								error={Boolean(fieldState.error)}
+							>
 								<InputLabel>Roles</InputLabel>
 								<Select
 									{...field}
 									label="Roles"
 									multiple
-									onChange={(e) => field.onChange([].slice.call(e.target.value))}
+									onChange={(e) =>
+										field.onChange([].slice.call(e.target.value))
+									}
 									renderValue={(selected) =>
 										(selected as string[])
-											.map((id) => orgRoles.find((r) => r.id === id)?.name ?? id)
+											.map(
+												(id) => orgRoles.find((r) => r.id === id)?.name ?? id,
+											)
 											.join(", ")
 									}
 								>
@@ -585,7 +628,15 @@ export default function UsersPage() {
 									))}
 								</Select>
 								{fieldState.error?.message && (
-									<Box component="span" sx={{ color: "error.main", fontSize: "0.75rem", mt: 0.5, display: "block" }}>
+									<Box
+										component="span"
+										sx={{
+											color: "error.main",
+											fontSize: "0.75rem",
+											mt: 0.5,
+											display: "block",
+										}}
+									>
 										{fieldState.error.message}
 									</Box>
 								)}
@@ -605,7 +656,15 @@ export default function UsersPage() {
 				submitDisabled={!editForm.formState.isValid}
 				submitting={saving}
 			>
-				<Box sx={{ display: "flex", flexDirection: "column", gap: 2, pt: 1, minWidth: 320 }}>
+				<Box
+					sx={{
+						display: "flex",
+						flexDirection: "column",
+						gap: 2,
+						pt: 1,
+						minWidth: 320,
+					}}
+				>
 					<Controller
 						control={editForm.control}
 						name="email"

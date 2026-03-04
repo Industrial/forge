@@ -25,11 +25,7 @@ impl MigrationTrait for Migration {
       .alter_table(
         Table::alter()
           .table(RolePermission::Table)
-          .add_column(
-            ColumnDef::new(RolePermission::OrgId)
-              .uuid()
-              .null(),
-          )
+          .add_column(ColumnDef::new(RolePermission::OrgId).uuid().null())
           .to_owned(),
       )
       .await?;

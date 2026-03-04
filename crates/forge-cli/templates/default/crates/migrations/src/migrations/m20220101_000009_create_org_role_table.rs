@@ -27,12 +27,7 @@ impl MigrationTrait for Migration {
         Table::create()
           .table(OrgRole::Table)
           .if_not_exists()
-          .col(
-            ColumnDef::new(OrgRole::Id)
-              .uuid()
-              .not_null()
-              .primary_key(),
-          )
+          .col(ColumnDef::new(OrgRole::Id).uuid().not_null().primary_key())
           .col(ColumnDef::new(OrgRole::OrgId).uuid().not_null())
           .col(ColumnDef::new(OrgRole::Name).string().not_null())
           .col(ColumnDef::new(OrgRole::DisplayName).string().null())

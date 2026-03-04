@@ -10,14 +10,24 @@ description = "Background jobs (Apalis) for Forge framework"
 [dependencies]
 apalis = "1.0.0-rc.4"
 apalis-codec = "0.1.0-rc.4"
-apalis-sqlite = { version = "1.0.0-rc.4", features = ["tokio-comp", "migrate", "json"] }
+apalis-sqlite = { version = "1.0.0-rc.4", features = [
+  "tokio-comp",
+  "migrate",
+  "json",
+] }
 forge-db = { path = "../forge-db" }
 serde = { version = "1.0", features = ["derive"] }
 tokio = { version = "1", features = ["time"] }
 tracing = "0.1"
 
 [dev-dependencies]
-sea-orm = { version = "1.1", default-features = false, features = ["runtime-tokio-rustls", "sqlx-sqlite", "macros", "with-uuid", "with-chrono"] }
+sea-orm = { version = "1.1", default-features = false, features = [
+  "runtime-tokio-rustls",
+  "sqlx-sqlite",
+  "macros",
+  "with-uuid",
+  "with-chrono",
+] }
 sea-orm-tracing = "0.2"
 serde_json = "1.0"
 tokio = { version = "1", features = ["rt-multi-thread", "macros", "time"] }

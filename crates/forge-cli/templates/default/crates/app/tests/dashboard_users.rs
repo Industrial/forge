@@ -4,10 +4,7 @@
 use axum::http::StatusCode;
 
 fn scope_headers<'a>(org_id: &'a str, role_id: &'a str) -> [(&'static str, &'a str); 2] {
-  [
-    ("X-Organization-Id", org_id),
-    ("X-Role-Id", role_id),
-  ]
+  [("X-Organization-Id", org_id), ("X-Role-Id", role_id)]
 }
 
 #[tokio::test]
@@ -22,13 +19,21 @@ async fn get_dashboard_users_anonymous_401() {
 #[tokio::test]
 async fn get_dashboard_users_as_viewer_default_200() {
   let client = app::test_client().await.expect("test_client");
-  let (token, org_id, role_id) = app::auth_with_profile(&client, "viewer@default.org", app::SEED_PASSWORD)
-    .await
-    .expect("login");
+  let (token, org_id, role_id) =
+    app::auth_with_profile(&client, "viewer@default.org", app::SEED_PASSWORD)
+      .await
+      .expect("login");
   let scope = scope_headers(org_id.as_str(), role_id.as_str());
-  let (status, _) = app::test_request(&client, "GET", "/api/dashboard/users", Some(&token), None, Some(&scope))
-    .await
-    .unwrap();
+  let (status, _) = app::test_request(
+    &client,
+    "GET",
+    "/api/dashboard/users",
+    Some(&token),
+    None,
+    Some(&scope),
+  )
+  .await
+  .unwrap();
   assert_eq!(status, StatusCode::OK);
 }
 
@@ -36,13 +41,21 @@ async fn get_dashboard_users_as_viewer_default_200() {
 #[tokio::test]
 async fn get_dashboard_users_viewer_default_only_sees_default_org() {
   let client = app::test_client().await.expect("test_client");
-  let (token, org_id, role_id) = app::auth_with_profile(&client, "viewer@default.org", app::SEED_PASSWORD)
-    .await
-    .expect("login");
+  let (token, org_id, role_id) =
+    app::auth_with_profile(&client, "viewer@default.org", app::SEED_PASSWORD)
+      .await
+      .expect("login");
   let scope = scope_headers(org_id.as_str(), role_id.as_str());
-  let (status, body) = app::test_request(&client, "GET", "/api/dashboard/users", Some(&token), None, Some(&scope))
-    .await
-    .unwrap();
+  let (status, body) = app::test_request(
+    &client,
+    "GET",
+    "/api/dashboard/users",
+    Some(&token),
+    None,
+    Some(&scope),
+  )
+  .await
+  .unwrap();
   assert_eq!(status, StatusCode::OK);
   let json: app::serde_json::Value = app::serde_json::from_slice(&body).unwrap();
   let users = json["users"].as_array().unwrap();
@@ -61,9 +74,10 @@ async fn get_dashboard_users_viewer_default_only_sees_default_org() {
 #[tokio::test]
 async fn post_dashboard_users_viewer_403() {
   let client = app::test_client().await.expect("test_client");
-  let (token, org_id, role_id) = app::auth_with_profile(&client, "viewer@default.org", app::SEED_PASSWORD)
-    .await
-    .expect("login");
+  let (token, org_id, role_id) =
+    app::auth_with_profile(&client, "viewer@default.org", app::SEED_PASSWORD)
+      .await
+      .expect("login");
   let scope = scope_headers(org_id.as_str(), role_id.as_str());
   let body_post = format!(
     r#"{{"email":"new@example.com","password":"password123","org_id":"{}","role_ids":[]}}"#,
@@ -85,13 +99,21 @@ async fn post_dashboard_users_viewer_403() {
 #[tokio::test]
 async fn post_dashboard_users_editor_201() {
   let client = app::test_client().await.expect("test_client");
-  let (token, org_id, role_id) = app::auth_with_profile(&client, "editor@default.org", app::SEED_PASSWORD)
-    .await
-    .expect("login");
+  let (token, org_id, role_id) =
+    app::auth_with_profile(&client, "editor@default.org", app::SEED_PASSWORD)
+      .await
+      .expect("login");
   let scope = scope_headers(org_id.as_str(), role_id.as_str());
-  let (_, profiles_body) = app::test_request(&client, "GET", "/api/auth/profiles", Some(&token), None, None)
-    .await
-    .unwrap();
+  let (_, profiles_body) = app::test_request(
+    &client,
+    "GET",
+    "/api/auth/profiles",
+    Some(&token),
+    None,
+    None,
+  )
+  .await
+  .unwrap();
   let profiles: app::serde_json::Value = app::serde_json::from_slice(&profiles_body).unwrap();
   let first = profiles["profiles"]
     .as_array()
@@ -122,13 +144,21 @@ async fn post_dashboard_users_editor_201() {
 #[tokio::test]
 async fn patch_dashboard_users_viewer_403() {
   let client = app::test_client().await.expect("test_client");
-  let (token, org_id, role_id) = app::auth_with_profile(&client, "viewer@default.org", app::SEED_PASSWORD)
-    .await
-    .expect("login");
+  let (token, org_id, role_id) =
+    app::auth_with_profile(&client, "viewer@default.org", app::SEED_PASSWORD)
+      .await
+      .expect("login");
   let scope = scope_headers(org_id.as_str(), role_id.as_str());
-  let (_, body) = app::test_request(&client, "GET", "/api/dashboard/users", Some(&token), None, Some(&scope))
-    .await
-    .unwrap();
+  let (_, body) = app::test_request(
+    &client,
+    "GET",
+    "/api/dashboard/users",
+    Some(&token),
+    None,
+    Some(&scope),
+  )
+  .await
+  .unwrap();
   let json: app::serde_json::Value = app::serde_json::from_slice(&body).unwrap();
   let user_id = json["users"]
     .as_array()
@@ -152,13 +182,21 @@ async fn patch_dashboard_users_viewer_403() {
 #[tokio::test]
 async fn patch_dashboard_users_editor_200() {
   let client = app::test_client().await.expect("test_client");
-  let (token, org_id, role_id) = app::auth_with_profile(&client, "editor@default.org", app::SEED_PASSWORD)
-    .await
-    .expect("login");
+  let (token, org_id, role_id) =
+    app::auth_with_profile(&client, "editor@default.org", app::SEED_PASSWORD)
+      .await
+      .expect("login");
   let scope = scope_headers(org_id.as_str(), role_id.as_str());
-  let (_, body) = app::test_request(&client, "GET", "/api/dashboard/users", Some(&token), None, Some(&scope))
-    .await
-    .unwrap();
+  let (_, body) = app::test_request(
+    &client,
+    "GET",
+    "/api/dashboard/users",
+    Some(&token),
+    None,
+    Some(&scope),
+  )
+  .await
+  .unwrap();
   let json: app::serde_json::Value = app::serde_json::from_slice(&body).unwrap();
   let user_id = json["users"]
     .as_array()
@@ -182,13 +220,21 @@ async fn patch_dashboard_users_editor_200() {
 #[tokio::test]
 async fn delete_dashboard_users_viewer_403() {
   let client = app::test_client().await.expect("test_client");
-  let (token, org_id, role_id) = app::auth_with_profile(&client, "viewer@default.org", app::SEED_PASSWORD)
-    .await
-    .expect("login");
+  let (token, org_id, role_id) =
+    app::auth_with_profile(&client, "viewer@default.org", app::SEED_PASSWORD)
+      .await
+      .expect("login");
   let scope = scope_headers(org_id.as_str(), role_id.as_str());
-  let (_, body) = app::test_request(&client, "GET", "/api/dashboard/users", Some(&token), None, Some(&scope))
-    .await
-    .unwrap();
+  let (_, body) = app::test_request(
+    &client,
+    "GET",
+    "/api/dashboard/users",
+    Some(&token),
+    None,
+    Some(&scope),
+  )
+  .await
+  .unwrap();
   let json: app::serde_json::Value = app::serde_json::from_slice(&body).unwrap();
   let user_id = json["users"]
     .as_array()
@@ -212,13 +258,21 @@ async fn delete_dashboard_users_viewer_403() {
 #[tokio::test]
 async fn get_users_viewer_default_only_default_org_in_memberships() {
   let client = app::test_client().await.expect("test_client");
-  let (token, org_id, role_id) = app::auth_with_profile(&client, "viewer@default.org", app::SEED_PASSWORD)
-    .await
-    .expect("login");
+  let (token, org_id, role_id) =
+    app::auth_with_profile(&client, "viewer@default.org", app::SEED_PASSWORD)
+      .await
+      .expect("login");
   let scope = scope_headers(org_id.as_str(), role_id.as_str());
-  let (status, body) = app::test_request(&client, "GET", "/api/dashboard/users", Some(&token), None, Some(&scope))
-    .await
-    .unwrap();
+  let (status, body) = app::test_request(
+    &client,
+    "GET",
+    "/api/dashboard/users",
+    Some(&token),
+    None,
+    Some(&scope),
+  )
+  .await
+  .unwrap();
   assert_eq!(status, StatusCode::OK);
   let json: app::serde_json::Value = app::serde_json::from_slice(&body).unwrap();
   let users = json["users"].as_array().unwrap();
@@ -226,7 +280,10 @@ async fn get_users_viewer_default_only_default_org_in_memberships() {
     let memberships = u["memberships"].as_array().unwrap();
     for m in memberships {
       let org_name = m["org_name"].as_str().unwrap();
-      assert!(!org_name.eq_ignore_ascii_case("Other"), "viewer@default.org should not see Other org in memberships");
+      assert!(
+        !org_name.eq_ignore_ascii_case("Other"),
+        "viewer@default.org should not see Other org in memberships"
+      );
     }
   }
 }
@@ -234,13 +291,21 @@ async fn get_users_viewer_default_only_default_org_in_memberships() {
 #[tokio::test]
 async fn get_users_viewer_other_only_other_org() {
   let client = app::test_client().await.expect("test_client");
-  let (token, org_id, role_id) = app::auth_with_profile(&client, "viewer@other.org", app::SEED_PASSWORD)
-    .await
-    .expect("login");
+  let (token, org_id, role_id) =
+    app::auth_with_profile(&client, "viewer@other.org", app::SEED_PASSWORD)
+      .await
+      .expect("login");
   let scope = scope_headers(org_id.as_str(), role_id.as_str());
-  let (status, body) = app::test_request(&client, "GET", "/api/dashboard/users", Some(&token), None, Some(&scope))
-    .await
-    .unwrap();
+  let (status, body) = app::test_request(
+    &client,
+    "GET",
+    "/api/dashboard/users",
+    Some(&token),
+    None,
+    Some(&scope),
+  )
+  .await
+  .unwrap();
   assert_eq!(status, StatusCode::OK);
   let json: app::serde_json::Value = app::serde_json::from_slice(&body).unwrap();
   let users = json["users"].as_array().unwrap();
@@ -248,7 +313,10 @@ async fn get_users_viewer_other_only_other_org() {
     let memberships = u["memberships"].as_array().unwrap();
     for m in memberships {
       let org_name = m["org_name"].as_str().unwrap();
-      assert_eq!(org_name, "Other", "viewer@other.org should only see Other org");
+      assert_eq!(
+        org_name, "Other",
+        "viewer@other.org should only see Other org"
+      );
     }
   }
 }
@@ -258,22 +326,31 @@ async fn get_users_viewer_other_only_other_org() {
 #[tokio::test]
 async fn get_dashboard_users_admin_sees_all_orgs_including_other() {
   let client = app::test_client().await.expect("test_client");
-  let (token, org_id, role_id) = app::auth_with_profile(&client, "admin@admin.com", app::SEED_PASSWORD)
-    .await
-    .expect("login");
+  let (token, org_id, role_id) =
+    app::auth_with_profile(&client, "admin@admin.com", app::SEED_PASSWORD)
+      .await
+      .expect("login");
   let scope = scope_headers(org_id.as_str(), role_id.as_str());
-  let (status, body) = app::test_request(&client, "GET", "/api/dashboard/users", Some(&token), None, Some(&scope))
-    .await
-    .unwrap();
+  let (status, body) = app::test_request(
+    &client,
+    "GET",
+    "/api/dashboard/users",
+    Some(&token),
+    None,
+    Some(&scope),
+  )
+  .await
+  .unwrap();
   assert_eq!(status, StatusCode::OK);
   let json: app::serde_json::Value = app::serde_json::from_slice(&body).unwrap();
   let users = json["users"].as_array().unwrap();
   let has_other_org_membership = users.iter().any(|u| {
-    u["memberships"]
-      .as_array()
-      .unwrap()
-      .iter()
-      .any(|m| m["org_name"].as_str().map(|s| s.eq_ignore_ascii_case("Other")).unwrap_or(false))
+    u["memberships"].as_array().unwrap().iter().any(|m| {
+      m["org_name"]
+        .as_str()
+        .map(|s| s.eq_ignore_ascii_case("Other"))
+        .unwrap_or(false)
+    })
   });
   assert!(
     has_other_org_membership,
@@ -284,9 +361,10 @@ async fn get_dashboard_users_admin_sees_all_orgs_including_other() {
 #[tokio::test]
 async fn post_users_org_id_other_as_viewer_default_403() {
   let client = app::test_client().await.expect("test_client");
-  let (token, org_id, role_id) = app::auth_with_profile(&client, "viewer@default.org", app::SEED_PASSWORD)
-    .await
-    .expect("login");
+  let (token, org_id, role_id) =
+    app::auth_with_profile(&client, "viewer@default.org", app::SEED_PASSWORD)
+      .await
+      .expect("login");
   let scope = scope_headers(org_id.as_str(), role_id.as_str());
   let body_post = r#"{"email":"x@example.com","password":"password123","org_id":"00000000-0000-0000-0000-000000000001","role_ids":[]}"#;
   let (status, _) = app::test_request(

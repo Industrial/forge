@@ -219,7 +219,8 @@ export default function RolesPage() {
 				{wsConnected && <Chip label="Live" color="success" size="small" />}
 			</Box>
 			<Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
-				Manage organization roles. Template roles (owner, admin, editor, viewer) are created when an org is created; you can add custom roles here.
+				Manage organization roles. Template roles (owner, admin, editor, viewer)
+				are created when an org is created; you can add custom roles here.
 			</Typography>
 
 			{error && (
@@ -260,14 +261,16 @@ export default function RolesPage() {
 							{roles.length === 0 ? (
 								<TableRow>
 									<TableCell colSpan={4} align="center">
-										No roles. Add a role or ensure your organization has template roles.
+										No roles. Add a role or ensure your organization has
+										template roles.
 									</TableCell>
 								</TableRow>
 							) : (
 								roles.map((role) => (
 									<TableRow key={role.id}>
 										<TableCell>
-											{organizations.find((o) => o.id === role.org_id)?.name ?? role.org_id}
+											{organizations.find((o) => o.id === role.org_id)?.name ??
+												role.org_id}
 										</TableCell>
 										<TableCell sx={{ fontWeight: 500 }}>{role.name}</TableCell>
 										<TableCell>{role.display_name ?? "—"}</TableCell>
@@ -303,10 +306,20 @@ export default function RolesPage() {
 				submitLabel="Add"
 				submittingLabel="Adding…"
 				onSubmit={handleAdd}
-				submitDisabled={!addName.trim() || (organizations.length > 1 && !addOrgId)}
+				submitDisabled={
+					!addName.trim() || (organizations.length > 1 && !addOrgId)
+				}
 				submitting={adding}
 			>
-				<Box sx={{ display: "flex", flexDirection: "column", gap: 2, pt: 1, minWidth: 320 }}>
+				<Box
+					sx={{
+						display: "flex",
+						flexDirection: "column",
+						gap: 2,
+						pt: 1,
+						minWidth: 320,
+					}}
+				>
 					{organizations.length > 1 && (
 						<FormControl fullWidth size="small" disabled={adding} required>
 							<InputLabel>Organization</InputLabel>
@@ -353,7 +366,15 @@ export default function RolesPage() {
 				submitDisabled={!editName.trim()}
 				submitting={saving}
 			>
-				<Box sx={{ display: "flex", flexDirection: "column", gap: 2, pt: 1, minWidth: 320 }}>
+				<Box
+					sx={{
+						display: "flex",
+						flexDirection: "column",
+						gap: 2,
+						pt: 1,
+						minWidth: 320,
+					}}
+				>
 					<TextField
 						label="Name"
 						value={editName}

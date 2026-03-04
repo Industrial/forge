@@ -9,13 +9,20 @@ import { useSession } from "../../../../context/Session";
 
 export default function SelectProfilePage() {
 	const navigate = useNavigate();
-	const { user, profiles, needs_profile_select, loading, refresh } = useSession();
+	const { user, profiles, needs_profile_select, loading, refresh } =
+		useSession();
 	const [submitting, setSubmitting] = useState<string | null>(null);
 	const [error, setError] = useState<string | null>(null);
 
 	// Must be logged in
 	if (!loading && user == null) {
-		return <Navigate to="/login" replace state={{ from: { pathname: "/dashboard" } }} />;
+		return (
+			<Navigate
+				to="/login"
+				replace
+				state={{ from: { pathname: "/dashboard" } }}
+			/>
+		);
 	}
 	// Already have a profile, go to dashboard
 	if (!loading && user != null && !needs_profile_select) {
@@ -34,7 +41,11 @@ export default function SelectProfilePage() {
 			});
 			if (!res.ok) {
 				const data = await res.json().catch(() => ({}));
-				setError(typeof data?.error === "string" ? data.error : "Failed to set profile");
+				setError(
+					typeof data?.error === "string"
+						? data.error
+						: "Failed to set profile",
+				);
 				return;
 			}
 			await refresh();
@@ -68,7 +79,11 @@ export default function SelectProfilePage() {
 				Choose the organization and role to use for this session.
 			</Typography>
 			{error != null && (
-				<Typography color="error" sx={{ mb: 2 }} data-testid="profile-select-error">
+				<Typography
+					color="error"
+					sx={{ mb: 2 }}
+					data-testid="profile-select-error"
+				>
 					{error}
 				</Typography>
 			)}

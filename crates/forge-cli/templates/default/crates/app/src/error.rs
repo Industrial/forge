@@ -43,9 +43,7 @@ impl IntoResponse for Error {
       Error::Authz(ref e) => match e {
         AuthzError::Forbidden => (StatusCode::FORBIDDEN, e.to_string()),
         AuthzError::NotFound => (StatusCode::NOT_FOUND, e.to_string()),
-        AuthzError::DatabaseError(_) => {
-          (StatusCode::INTERNAL_SERVER_ERROR, e.to_string())
-        }
+        AuthzError::DatabaseError(_) => (StatusCode::INTERNAL_SERVER_ERROR, e.to_string()),
       },
       Error::Auth(status, msg) => (status, msg),
     };

@@ -9,7 +9,11 @@ function setNested(
 	let current: Record<string, unknown> = obj;
 	for (let i = 0; i < path.length - 1; i++) {
 		const key = path[i];
-		if (!(key in current) || typeof current[key] !== "object" || current[key] === null) {
+		if (
+			!(key in current) ||
+			typeof current[key] !== "object" ||
+			current[key] === null
+		) {
 			current[key] = {};
 		}
 		current = current[key] as Record<string, unknown>;
@@ -41,7 +45,9 @@ export function effectSchemaResolver<A extends FieldValues>(
 				? ((parseError as { path: string[] }).path as string[])
 				: [];
 		const message =
-			typeof parseError === "object" && parseError !== null && "message" in parseError
+			typeof parseError === "object" &&
+			parseError !== null &&
+			"message" in parseError
 				? String((parseError as { message: unknown }).message)
 				: "Validation failed";
 		if (path.length > 0) {
@@ -49,6 +55,9 @@ export function effectSchemaResolver<A extends FieldValues>(
 		} else {
 			errors.root = { message };
 		}
-		return { values: {} as Record<string, never>, errors: errors as FieldErrors<A> };
+		return {
+			values: {} as Record<string, never>,
+			errors: errors as FieldErrors<A>,
+		};
 	};
 }

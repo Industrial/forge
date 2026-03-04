@@ -53,149 +53,149 @@ function App() {
 	return (
 		<SessionProvider>
 			<LiveWsProvider>
-			<ThemeProvider theme={theme}>
-				<CssBaseline />
-				<Box
-					component="main"
-					sx={{
-						height: "100vh",
-						minHeight: "100vh",
-						display: "flex",
-						flexDirection: "column",
-					}}
-				>
-					<Routes>
-					<Route
-						path="/login"
-						element={
-							<AuthenticationLayout>
-								<LoginPage />
-							</AuthenticationLayout>
-						}
-					/>
-					<Route
-						path="/register"
-						element={
-							<AuthenticationLayout>
-								<RegisterPage />
-							</AuthenticationLayout>
-						}
-					/>
-					<Route
-						path="/select-profile"
-						element={
-							<ProtectedRoute>
-								<AuthenticationLayout>
-									<SelectProfilePage />
-								</AuthenticationLayout>
-							</ProtectedRoute>
-						}
-					/>
-					<Route path="/ws-demo" element={<WebsocketsDemoPage />} />
-					<Route
-						path="/"
-						element={
-							<ProtectedRoute>
-								<Layout {...layoutProps}>
-									<HomePage />
-								</Layout>
-							</ProtectedRoute>
-						}
-					/>
-					<Route
-						path="/dashboard"
-						element={
-							<ProtectedRoute>
-								<DashboardProfileGuard>
-									<DashboardLayout {...layoutProps}>
-										<Outlet />
-									</DashboardLayout>
-								</DashboardProfileGuard>
-							</ProtectedRoute>
-						}
+				<ThemeProvider theme={theme}>
+					<CssBaseline />
+					<Box
+						component="main"
+						sx={{
+							height: "100vh",
+							minHeight: "100vh",
+							display: "flex",
+							flexDirection: "column",
+						}}
 					>
-						<Route
-							index
-							element={
-								<DashboardPermissionGuard permission="dashboard">
-									<DashboardPage />
-								</DashboardPermissionGuard>
-							}
-						/>
-						<Route
-							path="organizations"
-							element={
-								<DashboardPermissionGuard
-									permission={[
-										"dashboard.organizations.read",
-										"dashboard.organizations.write",
-									]}
-								>
-									<OrganizationsPage />
-								</DashboardPermissionGuard>
-							}
-						/>
-						<Route
-							path="users"
-							element={
-								<DashboardPermissionGuard
-									permission={[
-										"dashboard.users.read",
-										"dashboard.users.write",
-									]}
-								>
-									<UsersPage />
-								</DashboardPermissionGuard>
-							}
-						/>
-						<Route
-							path="roles"
-							element={
-								<DashboardPermissionGuard
-									permission={[
-										"dashboard.roles.read",
-										"dashboard.roles.write",
-									]}
-								>
-									<RolesPage />
-								</DashboardPermissionGuard>
-							}
-						/>
-						<Route
-							path="roles-and-permissions"
-							element={
-								<DashboardPermissionGuard
-									permission={[
-										"dashboard.permissions.read",
-										"dashboard.permissions.write",
-									]}
-								>
-									<PermissionsPage />
-								</DashboardPermissionGuard>
-							}
-						/>
-						<Route
-							path="audit-log"
-							element={
-								<DashboardPermissionGuard permission="dashboard.audit.read">
-									<AuditLogPage />
-								</DashboardPermissionGuard>
-							}
-						/>
-					</Route>
-					<Route
-						path="/profile"
-						element={
-							<ProtectedRoute>
-								<Layout {...layoutProps}>
-									<ProfilePage />
-								</Layout>
-							</ProtectedRoute>
-						}
-					/>
-					</Routes>
-				</Box>
-			</ThemeProvider>
+						<Routes>
+							<Route
+								path="/login"
+								element={
+									<AuthenticationLayout>
+										<LoginPage />
+									</AuthenticationLayout>
+								}
+							/>
+							<Route
+								path="/register"
+								element={
+									<AuthenticationLayout>
+										<RegisterPage />
+									</AuthenticationLayout>
+								}
+							/>
+							<Route
+								path="/select-profile"
+								element={
+									<ProtectedRoute>
+										<AuthenticationLayout>
+											<SelectProfilePage />
+										</AuthenticationLayout>
+									</ProtectedRoute>
+								}
+							/>
+							<Route path="/ws-demo" element={<WebsocketsDemoPage />} />
+							<Route
+								path="/"
+								element={
+									<ProtectedRoute>
+										<Layout {...layoutProps}>
+											<HomePage />
+										</Layout>
+									</ProtectedRoute>
+								}
+							/>
+							<Route
+								path="/dashboard"
+								element={
+									<ProtectedRoute>
+										<DashboardProfileGuard>
+											<DashboardLayout {...layoutProps}>
+												<Outlet />
+											</DashboardLayout>
+										</DashboardProfileGuard>
+									</ProtectedRoute>
+								}
+							>
+								<Route
+									index
+									element={
+										<DashboardPermissionGuard permission="dashboard">
+											<DashboardPage />
+										</DashboardPermissionGuard>
+									}
+								/>
+								<Route
+									path="organizations"
+									element={
+										<DashboardPermissionGuard
+											permission={[
+												"dashboard.organizations.read",
+												"dashboard.organizations.write",
+											]}
+										>
+											<OrganizationsPage />
+										</DashboardPermissionGuard>
+									}
+								/>
+								<Route
+									path="users"
+									element={
+										<DashboardPermissionGuard
+											permission={[
+												"dashboard.users.read",
+												"dashboard.users.write",
+											]}
+										>
+											<UsersPage />
+										</DashboardPermissionGuard>
+									}
+								/>
+								<Route
+									path="roles"
+									element={
+										<DashboardPermissionGuard
+											permission={[
+												"dashboard.roles.read",
+												"dashboard.roles.write",
+											]}
+										>
+											<RolesPage />
+										</DashboardPermissionGuard>
+									}
+								/>
+								<Route
+									path="roles-and-permissions"
+									element={
+										<DashboardPermissionGuard
+											permission={[
+												"dashboard.permissions.read",
+												"dashboard.permissions.write",
+											]}
+										>
+											<PermissionsPage />
+										</DashboardPermissionGuard>
+									}
+								/>
+								<Route
+									path="audit-log"
+									element={
+										<DashboardPermissionGuard permission="dashboard.audit.read">
+											<AuditLogPage />
+										</DashboardPermissionGuard>
+									}
+								/>
+							</Route>
+							<Route
+								path="/profile"
+								element={
+									<ProtectedRoute>
+										<Layout {...layoutProps}>
+											<ProfilePage />
+										</Layout>
+									</ProtectedRoute>
+								}
+							/>
+						</Routes>
+					</Box>
+				</ThemeProvider>
 			</LiveWsProvider>
 		</SessionProvider>
 	);

@@ -60,9 +60,16 @@ async fn get_profiles_anon_401() {
 async fn get_profiles_auth_200() {
   let client = app::test_client().await.expect("test_client");
   let token = token_for(&client, "viewer@default.org").await;
-  let (status, body) = app::test_request(&client, "GET", "/api/auth/profiles", Some(&token), None, None)
-    .await
-    .unwrap();
+  let (status, body) = app::test_request(
+    &client,
+    "GET",
+    "/api/auth/profiles",
+    Some(&token),
+    None,
+    None,
+  )
+  .await
+  .unwrap();
   assert_eq!(status, StatusCode::OK);
   let json: app::serde_json::Value = app::serde_json::from_slice(&body).unwrap();
   assert!(json.get("profiles").is_some());

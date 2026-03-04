@@ -18,6 +18,7 @@ use tempfile::TempDir;
 pub mod error;
 pub mod handlers;
 pub mod permissions;
+pub mod scoped_query;
 pub mod tasks;
 
 pub use error::Error;
@@ -44,26 +45,39 @@ pub fn make_app(live_backend: Arc<forge_live::InMemoryLiveBackend>) -> App {
     .post_route("/api/auth/login", handlers::auth::login)
     .route("/api/auth/logout", handlers::auth::logout)
     .route("/api/auth/me", axum::routing::get(handlers::auth::get_me))
-    .route("/api/auth/profiles", axum::routing::get(handlers::auth::profiles_list))
+    .route(
+      "/api/auth/profiles",
+      axum::routing::get(handlers::auth::profiles_list),
+    )
     .post_route("/api/auth/tokens", handlers::auth::create_token)
     .route("/api/auth/admin", handlers::auth::admin_only)
     // Unprotected REST API (no auth)
-    .route("/api/permissions", axum::routing::get(handlers::rest::list_permissions))
+    .route(
+      "/api/permissions",
+      axum::routing::get(handlers::rest::list_permissions),
+    )
     .route_methods(
       "/api/users",
       axum::routing::get(handlers::rest::list_users).post(handlers::rest::create_user),
     )
-    .route("/api/users/me", axum::routing::get(handlers::rest::users_me))
+    .route(
+      "/api/users/me",
+      axum::routing::get(handlers::rest::users_me),
+    )
     .route_methods(
       "/api/users/{id}",
       axum::routing::get(handlers::rest::get_user)
         .patch(handlers::rest::update_user)
         .delete(handlers::rest::delete_user),
     )
-    .route("/api/users/{id}/organizations", axum::routing::get(handlers::rest::get_user_organizations))
+    .route(
+      "/api/users/{id}/organizations",
+      axum::routing::get(handlers::rest::get_user_organizations),
+    )
     .route_methods(
       "/api/organizations",
-      axum::routing::get(handlers::rest::list_organizations).post(handlers::rest::create_organization),
+      axum::routing::get(handlers::rest::list_organizations)
+        .post(handlers::rest::create_organization),
     )
     .route_methods(
       "/api/organizations/{id}",
@@ -101,8 +115,14 @@ pub fn make_app(live_backend: Arc<forge_live::InMemoryLiveBackend>) -> App {
         .patch(handlers::rest::update_org_role)
         .delete(handlers::rest::delete_org_role),
     )
-    .route("/api/audit-log", axum::routing::get(handlers::rest::list_audit_log))
-    .route("/api/audit-log/{id}", axum::routing::get(handlers::rest::get_audit_log))
+    .route(
+      "/api/audit-log",
+      axum::routing::get(handlers::rest::list_audit_log),
+    )
+    .route(
+      "/api/audit-log/{id}",
+      axum::routing::get(handlers::rest::get_audit_log),
+    )
 }
 
 /// Guard that restores the previous working directory when dropped. Keep this alive for the
@@ -174,8 +194,7 @@ pub enum TestClient {
 /// Returns a [TestClient]. If `E2E_API_URL` is set, uses that server (no per-test server).
 /// When running with `--features test-utils` (e.g. bin/test-integration), E2E_API_URL must be set.
 #[cfg(any(test, feature = "test-utils"))]
-pub async fn test_client(
-) -> Result<TestClient, Box<dyn std::error::Error + Send + Sync>> {
+pub async fn test_client() -> Result<TestClient, Box<dyn std::error::Error + Send + Sync>> {
   if let Ok(url) = std::env::var("E2E_API_URL") {
     let base_url = url.trim_end_matches('/').to_string();
     let client = reqwest::Client::builder()
@@ -198,14 +217,16 @@ pub async fn test_client(
 /// Build the API router for integration tests (in-process). Only compiled when not using `test-utils` feature.
 /// When using `test-utils`, use E2E_API_URL and the HTTP client instead.
 #[cfg(all(test, not(feature = "test-utils")))]
-pub async fn build_router_for_test(
-) -> Result<(Router, TestEnvGuard), Box<dyn std::error::Error + Send + Sync>> {
+pub async fn build_router_for_test()
+-> Result<(Router, TestEnvGuard), Box<dyn std::error::Error + Send + Sync>> {
   let temp = TempDir::new()?;
   let original_cwd = std::env::current_dir()?;
   let db_name = format!("testdb_{}", uuid::Uuid::new_v4());
   write_test_config(temp.path(), &db_name)?;
 
-  let _lock = BUILD_ROUTER_FOR_TEST_LOCK.lock().expect("test router build lock");
+  let _lock = BUILD_ROUTER_FOR_TEST_LOCK
+    .lock()
+    .expect("test router build lock");
 
   std::env::set_current_dir(temp.path())?;
   let guard = TestEnvGuard {
@@ -223,7 +244,9 @@ pub async fn build_router_for_test(
   {
     use sea_orm::{ConnectionTrait, Statement};
     use sea_orm_migration::MigratorTrait;
-    migrations::Migrator::up(&db_conn, None).await.map_err(|e| e.to_string())?;
+    migrations::Migrator::up(&db_conn, None)
+      .await
+      .map_err(|e| e.to_string())?;
     migrations::run_seeds(db_conn.clone())
       .await
       .map_err(|e| e.to_string())?;
@@ -260,13 +283,23 @@ async fn login_as_seed_user_impl(
   email: &str,
   password: &str,
 ) -> Result<String, Box<dyn std::error::Error + Send + Sync>> {
-  let (status, body) = test_request_impl(client, "POST", "/api/auth/login", None, Some(&serde_json::json!({ "email": email, "password": password }).to_string()), None).await?;
+  let (status, body) = test_request_impl(
+    client,
+    "POST",
+    "/api/auth/login",
+    None,
+    Some(&serde_json::json!({ "email": email, "password": password }).to_string()),
+    None,
+  )
+  .await?;
   if status != axum::http::StatusCode::OK {
     let msg = String::from_utf8_lossy(&body);
     return Err(format!("login failed {}: {}", status, msg).into());
   }
   let json: serde_json::Value = serde_json::from_slice(&body)?;
-  let token = json["token"].as_str().ok_or("token not found in response")?;
+  let token = json["token"]
+    .as_str()
+    .ok_or("token not found in response")?;
   Ok(token.to_string())
 }
 
@@ -280,9 +313,14 @@ async fn test_request_impl(
   extra_headers: Option<&[(&str, &str)]>,
 ) -> Result<(axum::http::StatusCode, Vec<u8>), Box<dyn std::error::Error + Send + Sync>> {
   match client {
-    TestClient::Http { client: reqwest_client, base_url } => {
+    TestClient::Http {
+      client: reqwest_client,
+      base_url,
+    } => {
       let url = format!("{}{}", base_url, path);
-      let method = method.parse::<reqwest::Method>().unwrap_or(reqwest::Method::GET);
+      let method = method
+        .parse::<reqwest::Method>()
+        .unwrap_or(reqwest::Method::GET);
       let mut req = reqwest_client.request(method, &url);
       if let Some(t) = token {
         req = req.header("authorization", format!("Bearer {}", t));
@@ -293,7 +331,11 @@ async fn test_request_impl(
         }
       }
       let res = if let Some(b) = body {
-        req.header("content-type", "application/json").body(b.to_string()).send().await?
+        req
+          .header("content-type", "application/json")
+          .body(b.to_string())
+          .send()
+          .await?
       } else {
         req.send().await?
       };
@@ -316,7 +358,9 @@ async fn test_request_impl(
         }
       }
       let req = if let Some(b) = body {
-        builder.header("content-type", "application/json").body(Body::from(b.to_string()))?
+        builder
+          .header("content-type", "application/json")
+          .body(Body::from(b.to_string()))?
       } else {
         builder.body(Body::empty())?
       };
@@ -361,13 +405,23 @@ pub async fn auth_with_profile(
   password: &str,
 ) -> Result<(String, String, String), Box<dyn std::error::Error + Send + Sync>> {
   let token = login_as_seed_user_impl(client, email, password).await?;
-  let (status, body) = test_request_impl(client, "GET", "/api/auth/profiles", Some(&token), None, None).await?;
+  let (status, body) = test_request_impl(
+    client,
+    "GET",
+    "/api/auth/profiles",
+    Some(&token),
+    None,
+    None,
+  )
+  .await?;
   if status != axum::http::StatusCode::OK {
     let msg = String::from_utf8_lossy(&body);
     return Err(format!("GET /api/auth/profiles failed {}: {}", status, msg).into());
   }
   let json: serde_json::Value = serde_json::from_slice(&body)?;
-  let profiles = json["profiles"].as_array().ok_or("profiles array missing")?;
+  let profiles = json["profiles"]
+    .as_array()
+    .ok_or("profiles array missing")?;
   let first = profiles.first().ok_or("no profiles")?;
   let org_id = first["org_id"].as_str().ok_or("org_id missing")?;
   let role_id = first["role_id"].as_str().ok_or("role_id missing")?;

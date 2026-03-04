@@ -2,32 +2,41 @@
 //! Unique to the platform admin; other orgs (Default, Other, Personal) are created in the next seed.
 
 use chrono::Utc;
-use forge_db::DbConnection;
 use forge_auth::token_auth::hash_password;
+use forge_db::DbConnection;
 use sea_orm::{ColumnTrait, EntityTrait, QueryFilter, Set};
 use tracing::info;
 use uuid::Uuid;
 
-use db::models::{membership, org_role, organization, role_permission, user, user_org_role};
+use db::models::{
+  membership, org_role, organization, role_permission, user, user_global_role, user_org_role,
+};
 
 const SEED_PASSWORD: &str = "password";
 const ADMIN_ORG_NAME: &str = "Admin";
 const ADMIN_ORG_SLUG: &str = "admin";
 const ADMIN_ROLE_NAME: &str = "admin";
 const ADMIN_EMAIL: &str = "admin@admin.com";
+const PLATFORM_ADMIN_ROLE: &str = "platform_admin";
 
 /// Permissions unique to the Admin org role: full read and write.
 const ADMIN_PERMISSIONS: &[&str] = &["all.read", "all.write"];
+
+/// Global-scope permissions for platform_admin. all.read / all.write grant any read/write in has_global_scope.
+const PLATFORM_ADMIN_PERMISSIONS: &[&str] = &["all.read", "all.write"];
 
 pub async fn seed(db: &DbConnection) -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
   let admin_org_id = ensure_admin_org(db).await?;
   let admin_role_id = ensure_admin_role(db, admin_org_id).await?;
   ensure_admin_role_permissions(db, admin_org_id).await?;
   ensure_admin_user(db, admin_org_id, admin_role_id).await?;
+  ensure_global_platform_admin(db).await?;
   Ok(())
 }
 
-async fn ensure_admin_org(db: &DbConnection) -> Result<Uuid, Box<dyn std::error::Error + Send + Sync>> {
+async fn ensure_admin_org(
+  db: &DbConnection,
+) -> Result<Uuid, Box<dyn std::error::Error + Send + Sync>> {
   let existing = organization::Entity::find()
     .filter(organization::Column::Slug.eq(ADMIN_ORG_SLUG))
     .one(db)
@@ -47,13 +56,19 @@ async fn ensure_admin_org(db: &DbConnection) -> Result<Uuid, Box<dyn std::error:
         ..Default::default()
       };
       organization::Entity::insert(o).exec(db).await?;
-      info!("Seeded organization: {} ({})", ADMIN_ORG_NAME, ADMIN_ORG_SLUG);
+      info!(
+        "Seeded organization: {} ({})",
+        ADMIN_ORG_NAME, ADMIN_ORG_SLUG
+      );
       Ok(id)
     }
   }
 }
 
-async fn ensure_admin_role(db: &DbConnection, org_id: Uuid) -> Result<Uuid, Box<dyn std::error::Error + Send + Sync>> {
+async fn ensure_admin_role(
+  db: &DbConnection,
+  org_id: Uuid,
+) -> Result<Uuid, Box<dyn std::error::Error + Send + Sync>> {
   let existing = org_role::Entity::find()
     .filter(org_role::Column::OrgId.eq(org_id))
     .filter(org_role::Column::Name.eq(ADMIN_ROLE_NAME))
@@ -81,7 +96,10 @@ async fn ensure_admin_role(db: &DbConnection, org_id: Uuid) -> Result<Uuid, Box<
   }
 }
 
-async fn ensure_admin_role_permissions(db: &DbConnection, org_id: Uuid) -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
+async fn ensure_admin_role_permissions(
+  db: &DbConnection,
+  org_id: Uuid,
+) -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
   for &key in ADMIN_PERMISSIONS {
     let exists = role_permission::Entity::find()
       .filter(role_permission::Column::Scope.eq("org"))
@@ -101,7 +119,10 @@ async fn ensure_admin_role_permissions(db: &DbConnection, org_id: Uuid) -> Resul
         ..Default::default()
       };
       role_permission::Entity::insert(model).exec(db).await?;
-      info!("Seeded role_permission: org {} role={} key={}", org_id, ADMIN_ROLE_NAME, key);
+      info!(
+        "Seeded role_permission: org {} role={} key={}",
+        org_id, ADMIN_ROLE_NAME, key
+      );
     }
   }
   Ok(())
@@ -166,5 +187,62 @@ async fn ensure_admin_user(
     "Seeded admin user: {} (is_admin=true, org={}, role={})",
     ADMIN_EMAIL, ADMIN_ORG_NAME, ADMIN_ROLE_NAME
   );
+  Ok(())
+}
+
+/// Give admin user global platform_admin role so has_global_scope() returns true for dashboard.organizations.* etc.
+async fn ensure_global_platform_admin(
+  db: &DbConnection,
+) -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
+  let admin = user::Entity::find()
+    .filter(user::Column::Email.eq(ADMIN_EMAIL))
+    .one(db)
+    .await?
+    .ok_or("admin user not found")?;
+  for &key in PLATFORM_ADMIN_PERMISSIONS {
+    let exists = role_permission::Entity::find()
+      .filter(role_permission::Column::Scope.eq("global"))
+      .filter(role_permission::Column::OrgId.is_null())
+      .filter(role_permission::Column::RoleName.eq(PLATFORM_ADMIN_ROLE))
+      .filter(role_permission::Column::PermissionKey.eq(key))
+      .one(db)
+      .await?;
+    if exists.is_none() {
+      let id = Uuid::new_v4();
+      role_permission::Entity::insert(role_permission::ActiveModel {
+        id: Set(id),
+        scope: Set("global".to_string()),
+        role_name: Set(PLATFORM_ADMIN_ROLE.to_string()),
+        permission_key: Set(key.to_string()),
+        org_id: Set(None),
+        ..Default::default()
+      })
+      .exec(db)
+      .await?;
+      info!(
+        "Seeded role_permission: global {} {}",
+        PLATFORM_ADMIN_ROLE, key
+      );
+    }
+  }
+  let exists = user_global_role::Entity::find()
+    .filter(user_global_role::Column::UserId.eq(admin.id))
+    .filter(user_global_role::Column::RoleName.eq(PLATFORM_ADMIN_ROLE))
+    .one(db)
+    .await?;
+  if exists.is_none() {
+    user_global_role::Entity::insert(user_global_role::ActiveModel {
+      id: Set(Uuid::new_v4()),
+      user_id: Set(admin.id),
+      role_name: Set(PLATFORM_ADMIN_ROLE.to_string()),
+      ..Default::default()
+    })
+    .exec(db)
+    .await?;
+    info!(
+      "Seeded user_global_role: {} -> {}",
+      ADMIN_EMAIL, PLATFORM_ADMIN_ROLE
+    );
+  }
   Ok(())
 }

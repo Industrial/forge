@@ -47,7 +47,8 @@ export default function AuditLogPage() {
 	const [total, setTotal] = useState(0);
 	const [loading, setLoading] = useState(true);
 	const [error, setError] = useState<string | null>(null);
-	const { defaultRowsPerPage, rowsPerPageOptions } = useTablePaginationDefaults();
+	const { defaultRowsPerPage, rowsPerPageOptions } =
+		useTablePaginationDefaults();
 	const [page, setPage] = useState(0);
 	const [rowsPerPage, setRowsPerPage] = useState(defaultRowsPerPage);
 	const [from, setFrom] = useState("");
@@ -57,7 +58,13 @@ export default function AuditLogPage() {
 	const [action, setAction] = useState("");
 	const [reason, setReason] = useState("");
 	const { connected: wsConnected } = useLiveUpdates("audit-log", (data) => {
-		if (data && typeof data === "object" && "type" in data && (data as { type: string }).type === "audit_log" && "entry" in data) {
+		if (
+			data &&
+			typeof data === "object" &&
+			"type" in data &&
+			(data as { type: string }).type === "audit_log" &&
+			"entry" in data
+		) {
 			setEntries((prev) => [(data as { entry: AuditLogEntry }).entry, ...prev]);
 			setTotal((prev) => prev + 1);
 		}

@@ -99,11 +99,9 @@ mod tests {
 
   #[tokio::test]
   async fn backend_new_creates_instance() {
-    let conn = Database::connect(sea_orm::ConnectOptions::new(
-      "sqlite::memory:".to_string(),
-    ))
-    .await
-    .unwrap();
+    let conn = Database::connect(sea_orm::ConnectOptions::new("sqlite::memory:".to_string()))
+      .await
+      .unwrap();
     let db = forge_db::wrap_traced(conn);
     let backend = Backend::new(db);
     let _ = backend;

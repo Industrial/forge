@@ -48,8 +48,16 @@ impl MigrationTrait for Migration {
           .col(ColumnDef::new(UserOrgRole::UserId).uuid().not_null())
           .col(ColumnDef::new(UserOrgRole::OrgId).uuid().not_null())
           .col(ColumnDef::new(UserOrgRole::RoleId).uuid().not_null())
-          .col(ColumnDef::new(UserOrgRole::CreatedAt).date_time().not_null())
-          .col(ColumnDef::new(UserOrgRole::UpdatedAt).date_time().not_null())
+          .col(
+            ColumnDef::new(UserOrgRole::CreatedAt)
+              .date_time()
+              .not_null(),
+          )
+          .col(
+            ColumnDef::new(UserOrgRole::UpdatedAt)
+              .date_time()
+              .not_null(),
+          )
           .foreign_key(
             ForeignKey::create()
               .name("fk_user_org_role_user_id")

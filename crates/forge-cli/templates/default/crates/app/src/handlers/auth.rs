@@ -1,3 +1,4 @@
+use crate::Error as ForgeError;
 use axum::{
   Form, Json,
   extract::{Extension, FromRequest, FromRequestParts, Request, State},
@@ -6,14 +7,15 @@ use axum::{
   response::IntoResponse,
 };
 use chrono::Utc;
-use forge_audit::{log, AuditEvent, EventKind, LogResult, Outcome};
 use forge_audit::record_authz_denied;
-use forge_auth::token_auth::{hash_api_token, hash_password, OptionalRequireAuth, RequireAuth, TokenUser};
+use forge_audit::{AuditEvent, EventKind, LogResult, Outcome, log};
+use forge_auth::token_auth::{
+  OptionalRequireAuth, RequireAuth, TokenUser, hash_api_token, hash_password,
+};
 use forge_auth::{Action, RequestScope};
 use forge_core::Valid;
 use forge_db::DbConnection;
 use forge_live::{Channel, InMemoryLiveBackend, LiveBackend};
-use crate::Error as ForgeError;
 use sea_orm::{ActiveModelTrait, ColumnTrait, EntityTrait, QueryFilter, Set, TransactionTrait};
 use serde::Deserialize;
 use serde::de::DeserializeOwned;
@@ -22,13 +24,20 @@ use validator::Validate;
 
 use axum_login::AuthnBackend;
 use db::auth::Backend;
-use db::models::{api_token, membership, org_role, organization, role_permission, user, user_global_role, user_org_role};
+use db::models::{
+  api_token, membership, org_role, organization, role_permission, user, user_global_role,
+  user_org_role,
+};
 
 pub use crate::permissions::DASHBOARD_PERMISSIONS;
 
 /// Resolves the list of permission keys for the current user from org-scoped and global-scope role_permission.
 /// Uses scope (X-Organization-Id, X-Role-Id) when provided; otherwise only global-scope permissions are included.
-pub async fn resolve_permissions(db: &DbConnection, user: &user::Model, scope: Option<&RequestScope>) -> Vec<String> {
+pub async fn resolve_permissions(
+  db: &DbConnection,
+  user: &user::Model,
+  scope: Option<&RequestScope>,
+) -> Vec<String> {
   let mut keys = std::collections::HashSet::<String>::new();
 
   // Global-scope: user_global_role -> role_permission with scope=global and org_id=null.
@@ -74,6 +83,7 @@ pub async fn resolve_permissions(db: &DbConnection, user: &user::Model, scope: O
 }
 
 /// True if the user has the given permission at global scope (via user_global_role + role_permission scope=global).
+/// Global `all.read` grants any read permission (e.g. `*.read`); global `all.write` grants any write permission.
 pub async fn has_global_scope(db: &DbConnection, user: &user::Model, permission_key: &str) -> bool {
   let global_roles: Vec<String> = user_global_role::Entity::find()
     .filter(user_global_role::Column::UserId.eq(user.id))
@@ -87,16 +97,23 @@ pub async fn has_global_scope(db: &DbConnection, user: &user::Model, permission_
   if global_roles.is_empty() {
     return false;
   }
-  let exists = role_permission::Entity::find()
+  let keys: std::collections::HashSet<String> = role_permission::Entity::find()
     .filter(role_permission::Column::Scope.eq("global"))
     .filter(role_permission::Column::OrgId.is_null())
     .filter(role_permission::Column::RoleName.is_in(global_roles))
-    .filter(role_permission::Column::PermissionKey.eq(permission_key))
-    .one(db)
+    .all(db)
     .await
     .ok()
-    .flatten();
-  exists.is_some()
+    .unwrap_or_default()
+    .into_iter()
+    .map(|r| r.permission_key)
+    .collect();
+  if keys.contains(permission_key) {
+    return true;
+  }
+  let is_read = permission_key == "all.read" || permission_key.ends_with(".read");
+  let is_write = permission_key == "all.write" || permission_key.ends_with(".write");
+  (is_read && keys.contains("all.read")) || (is_write && keys.contains("all.write"))
 }
 
 /// Derives live-update channel subscriptions from the user's permissions and current org.
@@ -142,13 +159,27 @@ pub async fn try_scope_from_headers(
   let org_id_str = headers
     .get(HEADER_ORGANIZATION_ID)
     .and_then(|v| v.to_str().ok())
-    .ok_or_else(|| ForgeError::Auth(StatusCode::BAD_REQUEST, "Missing or invalid X-Organization-Id header".to_string()))?;
-  let org_id = Uuid::parse_str(org_id_str)
-    .map_err(|_| ForgeError::Auth(StatusCode::BAD_REQUEST, "Invalid X-Organization-Id".to_string()))?;
+    .ok_or_else(|| {
+      ForgeError::Auth(
+        StatusCode::BAD_REQUEST,
+        "Missing or invalid X-Organization-Id header".to_string(),
+      )
+    })?;
+  let org_id = Uuid::parse_str(org_id_str).map_err(|_| {
+    ForgeError::Auth(
+      StatusCode::BAD_REQUEST,
+      "Invalid X-Organization-Id".to_string(),
+    )
+  })?;
   let role_id_str = headers
     .get(HEADER_ROLE_ID)
     .and_then(|v| v.to_str().ok())
-    .ok_or_else(|| ForgeError::Auth(StatusCode::BAD_REQUEST, "Missing or invalid X-Role-Id header".to_string()))?;
+    .ok_or_else(|| {
+      ForgeError::Auth(
+        StatusCode::BAD_REQUEST,
+        "Missing or invalid X-Role-Id header".to_string(),
+      )
+    })?;
   let role_id = Uuid::parse_str(role_id_str)
     .map_err(|_| ForgeError::Auth(StatusCode::BAD_REQUEST, "Invalid X-Role-Id".to_string()))?;
 
@@ -204,11 +235,19 @@ impl FromRequestParts<DbConnection> for ScopeFromHeaders {
     parts: &mut Parts,
     state: &DbConnection,
   ) -> impl std::future::Future<Output = Result<Self, Self::Rejection>> + Send {
-    let user_id = parts.extensions.get::<TokenUser<user::Model>>().map(|tu| tu.user.id);
+    let user_id = parts
+      .extensions
+      .get::<TokenUser<user::Model>>()
+      .map(|tu| tu.user.id);
     let db = state.clone();
     let headers = parts.headers.clone();
     async move {
-      let user_id = user_id.ok_or_else(|| ForgeError::Auth(StatusCode::UNAUTHORIZED, "Authentication required".to_string()))?;
+      let user_id = user_id.ok_or_else(|| {
+        ForgeError::Auth(
+          StatusCode::UNAUTHORIZED,
+          "Authentication required".to_string(),
+        )
+      })?;
       let scope = try_scope_from_headers(&headers, &db, user_id).await?;
       Ok(ScopeFromHeaders(scope))
     }
@@ -246,7 +285,8 @@ pub async fn register(
   Valid(Json(payload)): Valid<Json<RegisterRequest>>,
 ) -> Result<impl IntoResponse, ForgeError> {
   tracing::debug!(target: "app::auth", "route: POST /api/auth/register email={}", payload.email);
-  let password_hash = hash_password(&payload.password).map_err(|e| ForgeError::Generic(e.to_string()))?;
+  let password_hash =
+    hash_password(&payload.password).map_err(|e| ForgeError::Generic(e.to_string()))?;
   let now = Utc::now().naive_utc();
   let user_id = Uuid::new_v4();
   let org_id = Uuid::new_v4();
@@ -416,8 +456,8 @@ async fn broadcast_audit_entry(
     "occurred_at": result.occurred_at.format("%Y-%m-%dT%H:%M:%S%.fZ").to_string(),
   });
   if let Some(backend) = live_backend {
-    let payload =
-      serde_json::to_vec(&serde_json::json!({ "type": "audit_log", "entry": entry })).unwrap_or_default();
+    let payload = serde_json::to_vec(&serde_json::json!({ "type": "audit_log", "entry": entry }))
+      .unwrap_or_default();
     let channel = Channel::raw("audit-log");
     backend.broadcast(&channel, &payload).await;
   }
@@ -473,7 +513,11 @@ pub async fn login(
       event_kind: EventKind::Auth,
       actor_id: user.id,
       subject_id: Some(user.id),
-      organization_id: if uors.len() == 1 { Some(uors[0].org_id) } else { None },
+      organization_id: if uors.len() == 1 {
+        Some(uors[0].org_id)
+      } else {
+        None
+      },
       action: Action::Manage,
       resource_type: "auth".to_string(),
       resource_id: None,
@@ -542,7 +586,12 @@ pub async fn get_me(
       .filter(org_role::Column::Id.is_in(role_ids))
       .all(&db)
       .await?;
-    let org_ids: Vec<Uuid> = uors.iter().map(|u| u.org_id).collect::<std::collections::HashSet<_>>().into_iter().collect();
+    let org_ids: Vec<Uuid> = uors
+      .iter()
+      .map(|u| u.org_id)
+      .collect::<std::collections::HashSet<_>>()
+      .into_iter()
+      .collect();
     let orgs = organization::Entity::find()
       .filter(organization::Column::Id.is_in(org_ids))
       .all(&db)
@@ -599,7 +648,12 @@ pub async fn profiles_list(
     .filter(org_role::Column::Id.is_in(role_ids))
     .all(&db)
     .await?;
-  let org_ids: Vec<Uuid> = uors.iter().map(|u| u.org_id).collect::<std::collections::HashSet<_>>().into_iter().collect();
+  let org_ids: Vec<Uuid> = uors
+    .iter()
+    .map(|u| u.org_id)
+    .collect::<std::collections::HashSet<_>>()
+    .into_iter()
+    .collect();
   let orgs = organization::Entity::find()
     .filter(organization::Column::Id.is_in(org_ids))
     .all(&db)
