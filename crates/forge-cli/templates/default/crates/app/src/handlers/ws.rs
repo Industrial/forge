@@ -18,14 +18,15 @@ use tokio::sync::mpsc;
 use crate::handlers::auth::{channels_from_permissions, get_scope_from_headers_map, resolve_permissions};
 use crate::tasks::TaskState;
 use db::auth::Backend;
+use db::models::user;
 
 pub async fn handler(
   ws: WebSocketUpgrade,
-  Request(req): Request,
-  auth: RequireAuth<Backend>,
+  auth: RequireAuth<Backend, user::Model>,
   State(db): State<DbConnection>,
   Extension(live_backend): Extension<Option<Arc<InMemoryLiveBackend>>>,
   Extension(task_state): Extension<Arc<TaskState>>,
+  req: Request,
 ) -> Response {
   let user = &auth.0;
   tracing::debug!(target: "app::handlers", "route: GET /ws (upgrade)");

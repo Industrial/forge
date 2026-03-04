@@ -1,4 +1,3 @@
-use async_trait::async_trait;
 use axum::{
   Form, Json,
   extract::{Extension, FromRequest, FromRequestParts, Request, State},
@@ -21,6 +20,7 @@ use serde::de::DeserializeOwned;
 use uuid::Uuid;
 use validator::Validate;
 
+use axum_login::AuthnBackend;
 use db::auth::Backend;
 use db::models::{api_token, membership, org_role, organization, role_permission, user, user_global_role, user_org_role};
 
@@ -197,20 +197,21 @@ pub async fn try_scope_from_headers(
 #[derive(Clone, Debug)]
 pub struct ScopeFromHeaders(pub RequestScope);
 
-#[async_trait]
 impl FromRequestParts<DbConnection> for ScopeFromHeaders {
   type Rejection = ForgeError;
 
-  async fn from_request_parts(parts: &mut Parts, state: &DbConnection) -> Result<Self, Self::Rejection> {
-    let db = state;
-    let user_id = parts
-      .extensions
-      .get::<TokenUser<user::Model>>()
-      .map(|tu| tu.user.id)
-      .ok_or_else(|| ForgeError::Auth(StatusCode::UNAUTHORIZED, "Authentication required".to_string()))?;
-    let scope = try_scope_from_headers(&parts.headers, db, user_id).await?;
-    parts.extensions.insert(scope.clone());
-    Ok(ScopeFromHeaders(scope))
+  fn from_request_parts(
+    parts: &mut Parts,
+    state: &DbConnection,
+  ) -> impl std::future::Future<Output = Result<Self, Self::Rejection>> + Send {
+    let user_id = parts.extensions.get::<TokenUser<user::Model>>().map(|tu| tu.user.id);
+    let db = state.clone();
+    let headers = parts.headers.clone();
+    async move {
+      let user_id = user_id.ok_or_else(|| ForgeError::Auth(StatusCode::UNAUTHORIZED, "Authentication required".to_string()))?;
+      let scope = try_scope_from_headers(&headers, &db, user_id).await?;
+      Ok(ScopeFromHeaders(scope))
+    }
   }
 }
 
@@ -245,7 +246,7 @@ pub async fn register(
   Valid(Json(payload)): Valid<Json<RegisterRequest>>,
 ) -> Result<impl IntoResponse, ForgeError> {
   tracing::debug!(target: "app::auth", "route: POST /api/auth/register email={}", payload.email);
-  let password_hash = hash_password(&payload.password)?;
+  let password_hash = hash_password(&payload.password).map_err(|e| ForgeError::Generic(e.to_string()))?;
   let now = Utc::now().naive_utc();
   let user_id = Uuid::new_v4();
   let org_id = Uuid::new_v4();
@@ -522,7 +523,7 @@ pub async fn login(
 /// GET /api/auth/me — current user, profiles, permissions (from optional scope headers), and needs_profile_select.
 /// Frontend uses this on load; if the request includes X-Organization-Id and X-Role-Id, permissions are org-scoped.
 pub async fn get_me(
-  auth: RequireAuth<Backend>,
+  auth: RequireAuth<Backend, user::Model>,
   State(db): State<DbConnection>,
   req: Request,
 ) -> Result<impl IntoResponse, ForgeError> {
@@ -582,7 +583,7 @@ pub async fn logout() -> impl IntoResponse {
 
 /// List of profiles (org + role) the current user can switch to. One entry per (org, role).
 pub async fn profiles_list(
-  auth: RequireAuth<Backend>,
+  auth: RequireAuth<Backend, user::Model>,
   State(db): State<DbConnection>,
 ) -> Result<impl IntoResponse, ForgeError> {
   let user = &auth.0;
@@ -629,7 +630,7 @@ pub struct CreateTokenRequest {
 }
 
 pub async fn create_token(
-  auth: RequireAuth<Backend>,
+  auth: RequireAuth<Backend, user::Model>,
   State(db): State<DbConnection>,
   Valid(Json(payload)): Valid<Json<CreateTokenRequest>>,
 ) -> Result<impl IntoResponse, ForgeError> {
@@ -655,7 +656,7 @@ pub async fn create_token(
 
 /// Global admin only: only users with is_admin can access. Audits the decision.
 pub async fn admin_only(
-  opt_auth: OptionalRequireAuth<Backend>,
+  opt_auth: OptionalRequireAuth<Backend, user::Model>,
   State(db): State<DbConnection>,
 ) -> Result<impl IntoResponse, ForgeError> {
   let maybe_user = opt_auth.0;

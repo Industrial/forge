@@ -312,7 +312,7 @@ mod tests {
       );
       assert!(app_cargo.contains("db ="));
 
-      // lib.rs: Forge app building (explicit imports, cron, route_methods for dashboard)
+      // lib.rs: Forge app building (explicit imports, route_methods for dashboard)
       let lib_content = fs::read_to_string(project_path.join("crates/app/src/lib.rs")).unwrap();
       assert!(
         (lib_content.contains("use forge_app::") || lib_content.contains("use forge::"))
@@ -325,13 +325,12 @@ mod tests {
       );
       assert!(lib_content.contains("App::new()"));
       assert!(lib_content.contains(".with_migrations(db::Migrator)"));
-      assert!(lib_content.contains(".with_cron"));
-      assert!(lib_content.contains("CronSchedule"));
       assert!(lib_content.contains(".post_route"));
       assert!(lib_content.contains(".route(\"/api/auth/admin\""));
       assert!(
         lib_content.contains(".route_methods(")
           && (lib_content.contains("/api/dashboard/users")
+            || lib_content.contains("/api/organizations/{id}/users")
             || lib_content.contains("/api/organizations/:id/users")),
         "generated app should use route_methods for dashboard/org users"
       );

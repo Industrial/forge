@@ -74,7 +74,7 @@ pub async fn seed_role_permissions_for_org<C: sea_orm::ConnectionTrait>(
   db: &C,
   org_id: uuid::Uuid,
 ) -> Result<(), sea_orm::DbErr> {
-  use sea_orm::{ActiveModelTrait, ColumnTrait, EntityTrait, QueryFilter, Set};
+  use sea_orm::{ColumnTrait, EntityTrait, QueryFilter, Set};
   let roles = models::org_role::Entity::find()
     .filter(models::org_role::Column::OrgId.eq(org_id))
     .all(db)

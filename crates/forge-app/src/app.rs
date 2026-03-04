@@ -290,9 +290,33 @@ impl App {
     self
   }
 
-  /// Mounts a `Router` at the given path.
-  pub fn route(mut self, path: &str, service: impl Handler<(), DbConnection>) -> Self {
+  /// Mounts a `Router` at the given path (GET).
+  pub fn route<T, H>(mut self, path: &str, service: H) -> Self
+  where
+    H: Handler<T, DbConnection> + Clone + Send + 'static,
+    T: Send + 'static,
+  {
     self.router = self.router.route(path, axum::routing::get(service));
+    self
+  }
+
+  /// Mounts a `Router` at the given path (POST).
+  pub fn post_route<T, H>(mut self, path: &str, service: H) -> Self
+  where
+    H: Handler<T, DbConnection> + Clone + Send + 'static,
+    T: Send + 'static,
+  {
+    self.router = self.router.route(path, axum::routing::post(service));
+    self
+  }
+
+  /// Mounts a `Router` at the given path with a [axum::routing::MethodRouter] (e.g. `.get(h).post(p)`).
+  pub fn route_methods(
+    mut self,
+    path: &str,
+    method_router: axum::routing::MethodRouter<DbConnection>,
+  ) -> Self {
+    self.router = self.router.route(path, method_router);
     self
   }
 

@@ -7,11 +7,9 @@ pub use serde_json;
 
 use std::path::PathBuf;
 use std::sync::Arc;
-use std::time::Duration;
 
 use axum::Router;
 use forge_app::App;
-use forge_cron::CronSchedule;
 use tempfile::TempDir;
 
 pub mod error;
@@ -27,11 +25,9 @@ pub fn make_app(live_backend: Arc<forge_live::InMemoryLiveBackend>) -> App {
   let app = App::new()
     .with_migrations(db::Migrator)
     .with_seed(|db| Box::pin(db::run_seeds(db)))
-    .with_token_auth_only(|db| db::auth::Backend::new(db), db::token_lookup)
-    .with_cron(
-      "heartbeat",
-      CronSchedule::Interval(Duration::from_secs(60)),
-      |_db| async move { Ok(()) },
+    .with_token_auth_only(
+      |db| db::auth::Backend::new(db),
+      Arc::new(move |db, raw_token| Box::pin(db::token_lookup(db, raw_token))),
     )
     .with_live_query_using(live_backend);
 
@@ -58,54 +54,54 @@ pub fn make_app(live_backend: Arc<forge_live::InMemoryLiveBackend>) -> App {
     )
     .route("/api/users/me", axum::routing::get(handlers::rest::users_me))
     .route_methods(
-      "/api/users/:id",
+      "/api/users/{id}",
       axum::routing::get(handlers::rest::get_user)
         .patch(handlers::rest::update_user)
         .delete(handlers::rest::delete_user),
     )
-    .route("/api/users/:id/organizations", axum::routing::get(handlers::rest::get_user_organizations))
+    .route("/api/users/{id}/organizations", axum::routing::get(handlers::rest::get_user_organizations))
     .route_methods(
       "/api/organizations",
       axum::routing::get(handlers::rest::list_organizations).post(handlers::rest::create_organization),
     )
     .route_methods(
-      "/api/organizations/:id",
+      "/api/organizations/{id}",
       axum::routing::get(handlers::rest::get_organization)
         .patch(handlers::rest::update_organization)
         .delete(handlers::rest::delete_organization),
     )
     .route_methods(
-      "/api/organizations/:id/users",
+      "/api/organizations/{id}/users",
       axum::routing::get(handlers::rest::list_org_users).post(handlers::rest::add_org_user),
     )
     .route(
-      "/api/organizations/:id/users/:user_id/roles",
+      "/api/organizations/{id}/users/{user_id}/roles",
       axum::routing::post(handlers::rest::add_org_user_roles),
     )
     .route_methods(
-      "/api/organizations/:id/users/:user_id",
+      "/api/organizations/{id}/users/{user_id}",
       axum::routing::get(handlers::rest::get_org_user)
         .patch(handlers::rest::update_org_user)
         .delete(handlers::rest::delete_org_user),
     )
     .route_methods(
-      "/api/organizations/:id/roles",
+      "/api/organizations/{id}/roles",
       axum::routing::get(handlers::rest::list_org_roles).post(handlers::rest::create_org_role),
     )
     .route_methods(
-      "/api/organizations/:id/roles/:role_id/permissions",
+      "/api/organizations/{id}/roles/{role_id}/permissions",
       axum::routing::get(handlers::rest::list_org_role_permissions)
         .post(handlers::rest::add_org_role_permission)
         .delete(handlers::rest::delete_org_role_permission),
     )
     .route_methods(
-      "/api/organizations/:id/roles/:role_id",
+      "/api/organizations/{id}/roles/{role_id}",
       axum::routing::get(handlers::rest::get_org_role)
         .patch(handlers::rest::update_org_role)
         .delete(handlers::rest::delete_org_role),
     )
     .route("/api/audit-log", axum::routing::get(handlers::rest::list_audit_log))
-    .route("/api/audit-log/:id", axum::routing::get(handlers::rest::get_audit_log))
+    .route("/api/audit-log/{id}", axum::routing::get(handlers::rest::get_audit_log))
 }
 
 /// Guard that restores the previous working directory when dropped. Keep this alive for the
