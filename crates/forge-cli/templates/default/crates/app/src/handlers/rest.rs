@@ -7,7 +7,7 @@ use axum::http::StatusCode;
 use axum::response::IntoResponse;
 use chrono::NaiveDateTime;
 use db::auth::Backend;
-use forge_auth::token_auth::{RequireAuth, hash_password};
+use forge_auth::token_auth::{OptionalRequireAuth, RequireAuth, hash_password};
 use forge_db::DbConnection;
 use sea_orm::{
   ActiveModelTrait, ColumnTrait, EntityTrait, PaginatorTrait, QueryFilter, QueryOrder, QuerySelect,
@@ -2057,12 +2057,26 @@ pub struct ListAuditLogQuery {
   pub offset: Option<u64>,
 }
 
+/// GET /api/audit-log — list audit entries. Global scope only; requires dashboard.audit.read (admin).
+/// Returns 401 when unauthenticated, 403 when authenticated but not admin.
 pub async fn list_audit_log(
-  auth: RequireAuth<Backend, user::Model>,
+  auth: OptionalRequireAuth<Backend, user::Model>,
   State(db): State<DbConnection>,
   axum::extract::Query(q): axum::extract::Query<ListAuditLogQuery>,
 ) -> Result<impl IntoResponse, ForgeError> {
-  if !has_global_scope(&db, &auth.0, "dashboard.audit.read").await {
+  let user = match &auth.0 {
+    None => {
+      return Ok(
+        (
+          StatusCode::UNAUTHORIZED,
+          Json(serde_json::json!({ "error": "Authentication required" })),
+        )
+          .into_response(),
+      );
+    }
+    Some(u) => u,
+  };
+  if !has_global_scope(&db, user, "dashboard.audit.read").await {
     return Ok(
       (
         StatusCode::FORBIDDEN,
@@ -2110,12 +2124,26 @@ pub async fn list_audit_log(
   Ok(Json(serde_json::json!({ "entries": entries, "total": total })).into_response())
 }
 
+/// GET /api/audit-log/:id — get one audit entry. Global scope only; requires dashboard.audit.read (admin).
+/// Returns 401 when unauthenticated, 403 when authenticated but not admin.
 pub async fn get_audit_log(
-  auth: RequireAuth<Backend, user::Model>,
+  auth: OptionalRequireAuth<Backend, user::Model>,
   Path(id): Path<Uuid>,
   State(db): State<DbConnection>,
 ) -> Result<impl IntoResponse, ForgeError> {
-  if !has_global_scope(&db, &auth.0, "dashboard.audit.read").await {
+  let user = match &auth.0 {
+    None => {
+      return Ok(
+        (
+          StatusCode::UNAUTHORIZED,
+          Json(serde_json::json!({ "error": "Authentication required" })),
+        )
+          .into_response(),
+      );
+    }
+    Some(u) => u,
+  };
+  if !has_global_scope(&db, user, "dashboard.audit.read").await {
     return Ok(
       (
         StatusCode::FORBIDDEN,

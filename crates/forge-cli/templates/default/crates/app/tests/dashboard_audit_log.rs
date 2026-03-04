@@ -1,4 +1,4 @@
-//! GET /api/audit-log — 401 anon, 200 with valid token.
+//! GET /api/audit-log — 401 anon; 403 non-admin (e.g. viewer); 200 admin only.
 
 use axum::http::StatusCode;
 
@@ -12,10 +12,23 @@ async fn get_audit_log_anon_401() {
 }
 
 #[tokio::test]
-async fn get_audit_log_viewer_200() {
+async fn get_audit_log_viewer_403() {
   let client = app::test_client().await.expect("test_client");
   let (token, _org_id, _role_id) =
     app::auth_with_profile(&client, "viewer@default.org", app::SEED_PASSWORD)
+      .await
+      .expect("login");
+  let (status, _) = app::test_request(&client, "GET", "/api/audit-log", Some(&token), None, None)
+    .await
+    .unwrap();
+  assert_eq!(status, StatusCode::FORBIDDEN);
+}
+
+#[tokio::test]
+async fn get_audit_log_admin_200() {
+  let client = app::test_client().await.expect("test_client");
+  let (token, _org_id, _role_id) =
+    app::auth_with_profile(&client, "admin@admin.com", app::SEED_PASSWORD)
       .await
       .expect("login");
   let (status, _) = app::test_request(&client, "GET", "/api/audit-log", Some(&token), None, None)
