@@ -2,13 +2,39 @@ import { Effect, Layer, Ref, Runtime } from 'effect'
 import type { ConnectionStatus, WebsocketService } from './Websocket'
 import { Websocket, WebsocketError } from './Websocket'
 
+/**
+ * Returns the WebSocket URL for the app's /ws endpoint.
+ * In dev (Vite), uses VITE_BACKEND_URL so the socket connects directly to the backend.
+ * In production, uses the same origin as the page.
+ */
+export function getWsUrl(): string {
+  if (typeof window === 'undefined') return 'ws://localhost/ws'
+  const backendUrl = import.meta.env.VITE_BACKEND_URL as string | undefined
+  if (import.meta.env.DEV && backendUrl) {
+    try {
+      const url = new URL(backendUrl)
+      url.protocol = url.protocol === 'https:' ? 'wss:' : 'ws:'
+      url.pathname = '/ws'
+      return url.toString()
+    } catch {
+      // fall through to same-origin
+    }
+  }
+  const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:'
+  return `${protocol}//${window.location.host}/ws`
+}
+
+const WS_DEBUG_KEY = 'forge_ws_debug'
+
+function isWsDebugEnabled(): boolean {
+  if (typeof window === 'undefined') return false
+  return (
+    import.meta.env.DEV || window.localStorage.getItem(WS_DEBUG_KEY) === '1'
+  )
+}
+
 function attachWsDebugLogging(ws: WebSocket): void {
-  if (typeof window === 'undefined') return
-  const key = 'forge_ws_debug'
-  const enabled =
-    (import.meta as unknown as { env?: { DEV?: boolean } }).env?.DEV === true ||
-    window.localStorage?.getItem(key) === '1'
-  if (!enabled) return
+  if (!isWsDebugEnabled()) return
   const originalSend = ws.send.bind(ws)
   ws.send = function (data: string | ArrayBufferLike | Blob) {
     try {

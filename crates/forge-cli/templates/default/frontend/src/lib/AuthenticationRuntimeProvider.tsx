@@ -5,7 +5,7 @@ import type { HttpClientWithAuthConfig } from './httpClientWithAuth'
 import { AppLayer, runWithAppRuntime, type AppServices } from './appLayer'
 import { AuthenticationStore } from '../features/authentication/services/AuthenticationStore'
 import { Websocket } from '../services/Websocket'
-import { getWsUrl } from '../utils/ws'
+import { getWsUrl } from '../services/WebsocketLive'
 
 function getInitialConfig(): HttpClientWithAuthConfig {
   if (typeof window === 'undefined') {
