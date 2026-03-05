@@ -167,10 +167,7 @@ export default function OrganizationsPage() {
 
   const refreshStream = streamWithPendingState(listEffect)
   const refreshEffect = Effect.gen(function* () {
-    yield* runStreamInto(
-      refreshStream,
-      (s) => setListStateAsEffect(s) as Effect.Effect<void, never, never>,
-    )
+    yield* runStreamInto(refreshStream, setListStateAsEffect)
   })
 
   const [addDialogOpen, setAddDialogOpen, setAddDialogOpenAsEffect] =
@@ -221,7 +218,7 @@ export default function OrganizationsPage() {
             return yield* orgs.list()
           }),
         ),
-        (s) => setCreateStateAsEffect(s) as Effect.Effect<void, never, never>,
+        setCreateStateAsEffect,
       ),
     )
   }
@@ -248,7 +245,7 @@ export default function OrganizationsPage() {
             return yield* orgs.list()
           }),
         ),
-        (s) => setUpdateStateAsEffect(s) as Effect.Effect<void, never, never>,
+        setUpdateStateAsEffect,
       ),
     )
   }
@@ -265,7 +262,7 @@ export default function OrganizationsPage() {
             return yield* orgs.list()
           }),
         ),
-        (s) => setDeleteStateAsEffect(s) as Effect.Effect<void, never, never>,
+        setDeleteStateAsEffect,
       ),
     )
   }
