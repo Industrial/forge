@@ -1,4 +1,4 @@
-import { Data } from "effect";
+import { Data } from 'effect'
 
 /**
  * User identity returned from `/api/auth/me`.
@@ -7,8 +7,8 @@ import { Data } from "effect";
  * Tagged Data class for structural equality. The token is the session bearer
  * token used for API and WebSocket auth.
  */
-export class AuthUser extends Data.TaggedClass("AuthUser")<{
-	readonly id: string;
-	readonly email: string;
-	readonly token: string;
+export class AuthUser extends Data.TaggedClass('AuthUser')<{
+  readonly id: string
+  readonly email: string
+  readonly token: string
 }> {}

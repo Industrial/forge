@@ -1,19 +1,21 @@
-import { Context, Data, Effect } from "effect";
+import { Context, Data, Effect } from 'effect'
 
 /**
  * Keys for keyed live-update subscriptions.
  * Maps backend message types (e.g. users_updated, resource_changed) to subscription keys.
  */
 export type ForgeWebsocketKey =
-	| "audit-log"
-	| "users"
-	| "roles"
-	| "role_permissions"
-	| "organizations";
+  | 'audit-log'
+  | 'users'
+  | 'roles'
+  | 'role_permissions'
+  | 'organizations'
 
-export class ForgeWebsocketError extends Data.TaggedError("ForgeWebsocketError")<{
-	readonly message: string;
-	readonly cause?: unknown;
+export class ForgeWebsocketError extends Data.TaggedError(
+  'ForgeWebsocketError',
+)<{
+  readonly message: string
+  readonly cause?: unknown
 }> {}
 
 /**
@@ -34,19 +36,21 @@ export class ForgeWebsocketError extends Data.TaggedError("ForgeWebsocketError")
  */
 
 export interface ForgeWebsocketService {
-	/** Whether the underlying WebSocket connection is open. */
-	readonly getConnected: () => Effect.Effect<boolean, never, never>;
-	/**
-	 * Subscribes to messages for the given key. The listener is called only when
-	 * an incoming message matches that key (e.g. type "users_updated" → key "users").
-	 * Returns an Effect that yields a function to remove the listener.
-	 */
-	readonly subscribe: (
-		key: ForgeWebsocketKey,
-		listener: (data: unknown) => void,
-	) => Effect.Effect<() => void, never, never>;
-	/** Sends a string message (typically JSON). Fails if the connection is not open. */
-	readonly send: (message: string) => Effect.Effect<void, ForgeWebsocketError, never>;
+  /** Whether the underlying WebSocket connection is open. */
+  readonly getConnected: () => Effect.Effect<boolean, never, never>
+  /**
+   * Subscribes to messages for the given key. The listener is called only when
+   * an incoming message matches that key (e.g. type "users_updated" → key "users").
+   * Returns an Effect that yields a function to remove the listener.
+   */
+  readonly subscribe: (
+    key: ForgeWebsocketKey,
+    listener: (data: unknown) => void,
+  ) => Effect.Effect<() => void, never, never>
+  /** Sends a string message (typically JSON). Fails if the connection is not open. */
+  readonly send: (
+    message: string,
+  ) => Effect.Effect<void, ForgeWebsocketError, never>
 }
 
 /**
@@ -65,5 +69,5 @@ export interface ForgeWebsocketService {
  * ```
  */
 export const ForgeWebsocket = Context.GenericTag<ForgeWebsocketService>(
-	"@forge/ForgeWebsocket",
-);
+  '@forge/ForgeWebsocket',
+)

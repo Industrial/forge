@@ -1,6 +1,6 @@
-import { Effect, Runtime } from "effect";
-import { useCallback, useRef, useState } from "react";
-import { useEffectRuntime } from "./EffectRuntime";
+import { Effect, Runtime } from 'effect'
+import { useCallback, useRef, useState } from 'react'
+import { useEffectRuntime } from './EffectRuntime'
 
 /**
  * Mirrors React's `useReducer`, but the reducer returns an Effect.
@@ -35,46 +35,51 @@ import { useEffectRuntime } from "./EffectRuntime";
  * ```
  */
 export function useEffectReducer<S, A, E = unknown, R = never>(
-	reducer: (state: S, action: A) => Effect.Effect<S, E, R>,
-	initialState: S,
-	onError?: (error: E) => void,
-): [state: S, dispatch: (action: A) => void, isPending: boolean, error: E | null] {
-	const { runtime } = useEffectRuntime<R>();
-	const [state, setState] = useState<S>(initialState);
-	const stateRef = useRef(state);
-	stateRef.current = state;
-	const [error, setError] = useState<E | null>(null);
-	const [isPending, setIsPending] = useState(false);
-	const runCountRef = useRef(0);
+  reducer: (state: S, action: A) => Effect.Effect<S, E, R>,
+  initialState: S,
+  onError?: (error: E) => void,
+): [
+  state: S,
+  dispatch: (action: A) => void,
+  isPending: boolean,
+  error: E | null,
+] {
+  const { runtime } = useEffectRuntime<R>()
+  const [state, setState] = useState<S>(initialState)
+  const stateRef = useRef(state)
+  stateRef.current = state
+  const [error, setError] = useState<E | null>(null)
+  const [isPending, setIsPending] = useState(false)
+  const runCountRef = useRef(0)
 
-	const dispatch = useCallback(
-		(action: A) => {
-			const runId = ++runCountRef.current;
-			setIsPending(true);
-			setError(null);
+  const dispatch = useCallback(
+    (action: A) => {
+      const runId = ++runCountRef.current
+      setIsPending(true)
+      setError(null)
 
-			const eff = reducer(stateRef.current, action);
-			Runtime.runPromise(runtime)(eff)
-				.then((nextState) => {
-					if (runId === runCountRef.current) {
-						setState(nextState);
-						setError(null);
-					}
-				})
-				.catch((err) => {
-					if (runId === runCountRef.current) {
-						setError(err as E);
-						onError?.(err as E);
-					}
-				})
-				.finally(() => {
-					if (runId === runCountRef.current) {
-						setIsPending(false);
-					}
-				});
-		},
-		[reducer, runtime, onError],
-	);
+      const eff = reducer(stateRef.current, action)
+      Runtime.runPromise(runtime)(eff)
+        .then((nextState) => {
+          if (runId === runCountRef.current) {
+            setState(nextState)
+            setError(null)
+          }
+        })
+        .catch((err) => {
+          if (runId === runCountRef.current) {
+            setError(err as E)
+            onError?.(err as E)
+          }
+        })
+        .finally(() => {
+          if (runId === runCountRef.current) {
+            setIsPending(false)
+          }
+        })
+    },
+    [reducer, runtime, onError],
+  )
 
-	return [state, dispatch, isPending, error];
+  return [state, dispatch, isPending, error]
 }

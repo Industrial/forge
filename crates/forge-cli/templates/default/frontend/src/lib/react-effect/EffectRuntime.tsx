@@ -1,5 +1,5 @@
-import { type Runtime, Runtime as RuntimeModule } from "effect";
-import { createContext, useContext, useMemo, type ReactNode } from "react";
+import { type Runtime, Runtime as RuntimeModule } from 'effect'
+import { createContext, useContext, useMemo, type ReactNode } from 'react'
 
 /**
  * Context value holding the Effect runtime used by all react-effect hooks.
@@ -11,13 +11,13 @@ import { createContext, useContext, useMemo, type ReactNode } from "react";
  * @typeParam R - The type of requirements (context) the runtime can provide to Effects.
  */
 export interface EffectRuntimeContext<R = never> {
-	/** The Effect runtime. Use with `Runtime.runPromise(runtime)(effect)` or similar. */
-	readonly runtime: Runtime.Runtime<R>;
+  /** The Effect runtime. Use with `Runtime.runPromise(runtime)(effect)` or similar. */
+  readonly runtime: Runtime.Runtime<R>
 }
 
 const EffectRuntimeContext = createContext<EffectRuntimeContext<never> | null>(
-	null,
-);
+  null,
+)
 
 /**
  * Props for {@link EffectRuntimeProvider}.
@@ -25,16 +25,16 @@ const EffectRuntimeContext = createContext<EffectRuntimeContext<never> | null>(
  * @typeParam R - The type of requirements (context) the runtime provides.
  */
 export interface EffectRuntimeProviderProps<R> {
-	/**
-	 * Optional custom runtime. If omitted, Effect's `defaultRuntime` is used (no requirements).
-	 * Pass a runtime built with Layers when your Effects require services (e.g. HttpClient).
-	 */
-	readonly runtime?: Runtime.Runtime<R>;
-	/** Child tree that can use react-effect hooks. */
-	readonly children: ReactNode;
+  /**
+   * Optional custom runtime. If omitted, Effect's `defaultRuntime` is used (no requirements).
+   * Pass a runtime built with Layers when your Effects require services (e.g. HttpClient).
+   */
+  readonly runtime?: Runtime.Runtime<R>
+  /** Child tree that can use react-effect hooks. */
+  readonly children: ReactNode
 }
 
-const defaultRuntime = RuntimeModule.defaultRuntime as Runtime.Runtime<never>;
+const defaultRuntime = RuntimeModule.defaultRuntime as Runtime.Runtime<never>
 
 /**
  * Provides the Effect runtime to the subtree so that hooks can run Effects.
@@ -64,18 +64,18 @@ const defaultRuntime = RuntimeModule.defaultRuntime as Runtime.Runtime<never>;
  * ```
  */
 export function EffectRuntimeProvider<R>({
-	runtime,
-	children,
+  runtime,
+  children,
 }: EffectRuntimeProviderProps<R>) {
-	const value = useMemo<EffectRuntimeContext<R>>(
-		() => ({ runtime: (runtime ?? defaultRuntime) as Runtime.Runtime<R> }),
-		[runtime],
-	);
-	return (
-		<EffectRuntimeContext.Provider value={value as EffectRuntimeContext<never>}>
-			{children}
-		</EffectRuntimeContext.Provider>
-	);
+  const value = useMemo<EffectRuntimeContext<R>>(
+    () => ({ runtime: (runtime ?? defaultRuntime) as Runtime.Runtime<R> }),
+    [runtime],
+  )
+  return (
+    <EffectRuntimeContext.Provider value={value as EffectRuntimeContext<never>}>
+      {children}
+    </EffectRuntimeContext.Provider>
+  )
 }
 
 /**
@@ -96,11 +96,11 @@ export function EffectRuntimeProvider<R>({
  * ```
  */
 export function useEffectRuntime<R = never>(): EffectRuntimeContext<R> {
-	const ctx = useContext(EffectRuntimeContext);
-	if (ctx === null) {
-		throw new Error(
-			"useEffectRuntime must be used within an EffectRuntimeProvider",
-		);
-	}
-	return ctx as EffectRuntimeContext<R>;
+  const ctx = useContext(EffectRuntimeContext)
+  if (ctx === null) {
+    throw new Error(
+      'useEffectRuntime must be used within an EffectRuntimeProvider',
+    )
+  }
+  return ctx as EffectRuntimeContext<R>
 }

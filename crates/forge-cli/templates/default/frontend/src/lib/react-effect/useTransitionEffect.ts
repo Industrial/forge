@@ -1,6 +1,6 @@
-import { Effect, Runtime } from "effect";
-import { useCallback, useRef, useState } from "react";
-import { useEffectRuntime } from "./EffectRuntime";
+import { Effect, Runtime } from 'effect'
+import { useCallback, useRef, useState } from 'react'
+import { useEffectRuntime } from './EffectRuntime'
 
 /**
  * Mirrors React's `useTransition`: returns a pending flag and a function to start
@@ -39,43 +39,45 @@ import { useEffectRuntime } from "./EffectRuntime";
  * ```
  */
 export function useTransitionEffect<R = never>(): [
-	isPending: boolean,
-	startTransition: <A, E>(
-		fn: () => void | Promise<void> | Effect.Effect<A, E, R>,
-	) => void,
+  isPending: boolean,
+  startTransition: <A, E>(
+    fn: () => void | Promise<void> | Effect.Effect<A, E, R>,
+  ) => void,
 ] {
-	const { runtime } = useEffectRuntime<R>();
-	const [isPending, setIsPending] = useState(false);
-	const runCountRef = useRef(0);
+  const { runtime } = useEffectRuntime<R>()
+  const [isPending, setIsPending] = useState(false)
+  const runCountRef = useRef(0)
 
-	const startTransition = useCallback(
-		<A, E>(
-			fn: () => void | Promise<void> | Effect.Effect<A, E, R>,
-		) => {
-			const runId = ++runCountRef.current;
-			setIsPending(true);
+  const startTransition = useCallback(
+    <A, E>(fn: () => void | Promise<void> | Effect.Effect<A, E, R>) => {
+      const runId = ++runCountRef.current
+      setIsPending(true)
 
-			const run = async () => {
-				try {
-					const result = fn();
-					if (result !== undefined && result !== null && Effect.isEffect(result)) {
-						await Runtime.runPromise(runtime)(result as Effect.Effect<A, E, R>);
-					} else if (typeof (result as Promise<void>)?.then === "function") {
-						await (result as Promise<void>);
-					}
-				} catch (_) {
-					// ignore
-				} finally {
-					if (runId === runCountRef.current) {
-						setIsPending(false);
-					}
-				}
-			};
+      const run = async () => {
+        try {
+          const result = fn()
+          if (
+            result !== undefined &&
+            result !== null &&
+            Effect.isEffect(result)
+          ) {
+            await Runtime.runPromise(runtime)(result as Effect.Effect<A, E, R>)
+          } else if (typeof (result as Promise<void>)?.then === 'function') {
+            await (result as Promise<void>)
+          }
+        } catch (_) {
+          // ignore
+        } finally {
+          if (runId === runCountRef.current) {
+            setIsPending(false)
+          }
+        }
+      }
 
-			run();
-		},
-		[runtime],
-	);
+      run()
+    },
+    [runtime],
+  )
 
-	return [isPending, startTransition];
+  return [isPending, startTransition]
 }

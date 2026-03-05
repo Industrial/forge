@@ -1,4 +1,4 @@
-import { Effect } from "effect";
+import { Effect } from 'effect'
 
 /**
  * Run an Effect and return a Promise. Use in event handlers and useEffect
@@ -10,5 +10,5 @@ import { Effect } from "effect";
  * setUsers(data);
  */
 export function runPromise<A, E>(effect: Effect.Effect<A, E>): Promise<A> {
-	return Effect.runPromise(effect);
+  return Effect.runPromise(effect)
 }

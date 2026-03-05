@@ -10,7 +10,7 @@
  * @see WebsocketMock – test double
  */
 
-import { Context, Data, Effect } from "effect";
+import { Context, Data, Effect } from 'effect'
 
 /**
  * Current WebSocket connection state.
@@ -20,7 +20,7 @@ import { Context, Data, Effect } from "effect";
  * - **closing**: Close requested, waiting for `close`
  * - **closed**: Not connected
  */
-export type ConnectionStatus = "connecting" | "open" | "closing" | "closed";
+export type ConnectionStatus = 'connecting' | 'open' | 'closing' | 'closed'
 
 /**
  * Error produced by WebSocket operations.
@@ -29,9 +29,9 @@ export type ConnectionStatus = "connecting" | "open" | "closing" | "closed";
  * Tagged Data error for pattern matching. Used when connect fails (e.g. network),
  * send fails (e.g. not open), or the socket errors.
  */
-export class WebsocketError extends Data.TaggedError("WebsocketError")<{
-	readonly message: string;
-	readonly cause?: unknown;
+export class WebsocketError extends Data.TaggedError('WebsocketError')<{
+  readonly message: string
+  readonly cause?: unknown
 }> {}
 
 /**
@@ -50,22 +50,22 @@ export class WebsocketError extends Data.TaggedError("WebsocketError")<{
  * - **subscribe(listener)**: Registers a callback for each incoming message (parsed as JSON in Live); returns an Effect that yields an unsubscribe function.
  */
 export interface WebsocketService {
-	/** Returns the current connection status. Never fails. */
-	readonly getStatus: () => Effect.Effect<ConnectionStatus, never, never>;
-	/** Opens the connection to `url` (e.g. `ws://host/ws`). No-op if already open. */
-	readonly connect: (url: string) => Effect.Effect<void, WebsocketError, never>;
-	/** Closes the connection. */
-	readonly disconnect: () => Effect.Effect<void, WebsocketError, never>;
-	/** Sends a string message (typically JSON). Fails if the socket is not open. */
-	readonly send: (message: string) => Effect.Effect<void, WebsocketError, never>;
-	/**
-	 * Subscribes to incoming messages. The listener is called with the parsed
-	 * payload (e.g. JSON in Live). Returns an Effect that yields a function
-	 * to remove the listener.
-	 */
-	readonly subscribe: (
-		listener: (data: unknown) => void,
-	) => Effect.Effect<() => void, never, never>;
+  /** Returns the current connection status. Never fails. */
+  readonly getStatus: () => Effect.Effect<ConnectionStatus, never, never>
+  /** Opens the connection to `url` (e.g. `ws://host/ws`). No-op if already open. */
+  readonly connect: (url: string) => Effect.Effect<void, WebsocketError, never>
+  /** Closes the connection. */
+  readonly disconnect: () => Effect.Effect<void, WebsocketError, never>
+  /** Sends a string message (typically JSON). Fails if the socket is not open. */
+  readonly send: (message: string) => Effect.Effect<void, WebsocketError, never>
+  /**
+   * Subscribes to incoming messages. The listener is called with the parsed
+   * payload (e.g. JSON in Live). Returns an Effect that yields a function
+   * to remove the listener.
+   */
+  readonly subscribe: (
+    listener: (data: unknown) => void,
+  ) => Effect.Effect<() => void, never, never>
 }
 
 /**
@@ -85,4 +85,5 @@ export interface WebsocketService {
  * });
  * ```
  */
-export const Websocket = Context.GenericTag<WebsocketService>("@forge/Websocket");
+export const Websocket =
+  Context.GenericTag<WebsocketService>('@forge/Websocket')

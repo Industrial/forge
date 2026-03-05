@@ -10,16 +10,16 @@
  * @see AuthenticationStoreMock – test double
  */
 
-import { Context, Effect } from "effect";
+import { Context, Effect } from 'effect'
 import {
-	AuthError,
-	AuthStateSnapshot,
-	AuthUser,
-	Flash,
-	Profile,
-} from "../domain";
+  AuthError,
+  AuthStateSnapshot,
+  AuthUser,
+  Flash,
+  Profile,
+} from '../domain'
 
-export { AuthError, AuthStateSnapshot, AuthUser, Flash, Profile };
+export { AuthError, AuthStateSnapshot, AuthUser, Flash, Profile }
 
 /**
  * AuthenticationStore service interface.
@@ -37,28 +37,32 @@ export { AuthError, AuthStateSnapshot, AuthUser, Flash, Profile };
  * - **setScope**: Set current org/role for the session (used for X-Organization-Id / X-Role-Id); does not call the API.
  */
 export interface AuthenticationStoreService {
-	/** Returns the current bearer token or null if logged out. */
-	readonly getToken: () => Effect.Effect<string | null, AuthError, never>;
-	/** Sets the bearer token (and persists in Live); pass null to clear. */
-	readonly setToken: (token: string | null) => Effect.Effect<void, AuthError, never>;
-	/** Returns a read-only snapshot of the current auth state. */
-	readonly getState: () => Effect.Effect<AuthStateSnapshot, AuthError, never>;
-	/**
-	 * Fetches `/api/auth/me` and updates internal state (user, profiles, permissions, needs_profile_select).
-	 * If `tokenOverride` is provided, sets the token first then fetches (e.g. after login).
-	 */
-	readonly fetchMe: (tokenOverride?: string | null) => Effect.Effect<void, AuthError, never>;
-	/** Clears token and scope; no API call. */
-	readonly logout: () => Effect.Effect<void, AuthError, never>;
-	/**
-	 * Sets the current scope (org + role) for the session.
-	 * Does not call the API; used for request headers and UI.
-	 */
-	readonly setScope: (
-		orgId: string,
-		roleId: string,
-		roleName: string,
-	) => Effect.Effect<void, AuthError, never>;
+  /** Returns the current bearer token or null if logged out. */
+  readonly getToken: () => Effect.Effect<string | null, AuthError, never>
+  /** Sets the bearer token (and persists in Live); pass null to clear. */
+  readonly setToken: (
+    token: string | null,
+  ) => Effect.Effect<void, AuthError, never>
+  /** Returns a read-only snapshot of the current auth state. */
+  readonly getState: () => Effect.Effect<AuthStateSnapshot, AuthError, never>
+  /**
+   * Fetches `/api/auth/me` and updates internal state (user, profiles, permissions, needs_profile_select).
+   * If `tokenOverride` is provided, sets the token first then fetches (e.g. after login).
+   */
+  readonly fetchMe: (
+    tokenOverride?: string | null,
+  ) => Effect.Effect<void, AuthError, never>
+  /** Clears token and scope; no API call. */
+  readonly logout: () => Effect.Effect<void, AuthError, never>
+  /**
+   * Sets the current scope (org + role) for the session.
+   * Does not call the API; used for request headers and UI.
+   */
+  readonly setScope: (
+    orgId: string,
+    roleId: string,
+    roleName: string,
+  ) => Effect.Effect<void, AuthError, never>
 }
 
 /**
@@ -78,6 +82,5 @@ export interface AuthenticationStoreService {
  * });
  * ```
  */
-export const AuthenticationStore = Context.GenericTag<AuthenticationStoreService>(
-	"@forge/AuthenticationStore",
-);
+export const AuthenticationStore =
+  Context.GenericTag<AuthenticationStoreService>('@forge/AuthenticationStore')

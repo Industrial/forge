@@ -1,8 +1,8 @@
-import { Effect, Runtime } from "effect";
-import { useCallback, useRef, useState } from "react";
-import { useEffectRuntime } from "./EffectRuntime";
-import type { AsyncState } from "./AsyncState";
-import { failure, idle, pending, success } from "./AsyncState";
+import { Effect, Runtime } from 'effect'
+import { useCallback, useRef, useState } from 'react'
+import { useEffectRuntime } from './EffectRuntime'
+import type { AsyncState } from './AsyncState'
+import { failure, idle, pending, success } from './AsyncState'
 
 /**
  * Mirrors React's `useActionState`: state for an "action" (Effect), a dispatch
@@ -37,38 +37,34 @@ import { failure, idle, pending, success } from "./AsyncState";
  * ```
  */
 export function useActionStateEffect<A, E, R = never>(
-	action: (prev: AsyncState<A, E>) => Effect.Effect<A, E, R>,
-	initialState: AsyncState<A, E> = idle<A, E>(),
-): [
-	state: AsyncState<A, E>,
-	dispatchAction: () => void,
-	isPending: boolean,
-] {
-	const { runtime } = useEffectRuntime<R>();
-	const [state, setState] = useState<AsyncState<A, E>>(initialState);
-	const stateRef = useRef(state);
-	stateRef.current = state;
-	const runCountRef = useRef(0);
+  action: (prev: AsyncState<A, E>) => Effect.Effect<A, E, R>,
+  initialState: AsyncState<A, E> = idle<A, E>(),
+): [state: AsyncState<A, E>, dispatchAction: () => void, isPending: boolean] {
+  const { runtime } = useEffectRuntime<R>()
+  const [state, setState] = useState<AsyncState<A, E>>(initialState)
+  const stateRef = useRef(state)
+  stateRef.current = state
+  const runCountRef = useRef(0)
 
-	const dispatchAction = useCallback(() => {
-		const runId = ++runCountRef.current;
-		setState(pending<A, E>());
+  const dispatchAction = useCallback(() => {
+    const runId = ++runCountRef.current
+    setState(pending<A, E>())
 
-		const eff = action(stateRef.current);
-		Runtime.runPromise(runtime)(eff)
-			.then((value) => {
-				if (runId === runCountRef.current) {
-					setState(success(value));
-				}
-			})
-			.catch((error) => {
-				if (runId === runCountRef.current) {
-					setState(failure(error));
-				}
-			});
-	}, [action, runtime]);
+    const eff = action(stateRef.current)
+    Runtime.runPromise(runtime)(eff)
+      .then((value) => {
+        if (runId === runCountRef.current) {
+          setState(success(value))
+        }
+      })
+      .catch((error) => {
+        if (runId === runCountRef.current) {
+          setState(failure(error))
+        }
+      })
+  }, [action, runtime])
 
-	const isPending = state._tag === "pending";
+  const isPending = state._tag === 'pending'
 
-	return [state, dispatchAction, isPending];
+  return [state, dispatchAction, isPending]
 }

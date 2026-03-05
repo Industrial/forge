@@ -1,6 +1,6 @@
-import { Effect, Runtime } from "effect";
-import { useCallback, useRef, useState } from "react";
-import { useEffectRuntime } from "./EffectRuntime";
+import { Effect, Runtime } from 'effect'
+import { useCallback, useRef, useState } from 'react'
+import { useEffectRuntime } from './EffectRuntime'
 
 /**
  * Mirrors React's `useOptimistic`: optimistic state plus a setter that can
@@ -34,60 +34,55 @@ import { useEffectRuntime } from "./EffectRuntime";
  * ```
  */
 export function useOptimisticEffect<A, E, R = never>(
-	initialValue: A,
-	reducer?: (current: A, optimisticUpdate: A) => A,
+  initialValue: A,
+  reducer?: (current: A, optimisticUpdate: A) => A,
 ): [
-	optimisticState: A,
-	setOptimistic: (
-		update: A | ((current: A) => A),
-		effect?: Effect.Effect<A, E, R>,
-	) => void,
+  optimisticState: A,
+  setOptimistic: (
+    update: A | ((current: A) => A),
+    effect?: Effect.Effect<A, E, R>,
+  ) => void,
 ] {
-	const { runtime } = useEffectRuntime<R>();
-	const [committed, setCommitted] = useState<A>(initialValue);
-	const [optimistic, setOptimisticState] = useState<A>(initialValue);
-	const committedRef = useRef(initialValue);
-	const runCountRef = useRef(0);
+  const { runtime } = useEffectRuntime<R>()
+  const [committed, setCommitted] = useState<A>(initialValue)
+  const [optimistic, setOptimisticState] = useState<A>(initialValue)
+  const committedRef = useRef(initialValue)
+  const runCountRef = useRef(0)
 
-	committedRef.current = committed;
+  committedRef.current = committed
 
-	const setOptimistic = useCallback(
-		(
-			update: A | ((current: A) => A),
-			effect?: Effect.Effect<A, E, R>,
-		) => {
-			const nextOptimistic =
-				typeof update === "function"
-					? (update as (current: A) => A)(optimistic)
-					: update;
-			setOptimisticState(nextOptimistic);
+  const setOptimistic = useCallback(
+    (update: A | ((current: A) => A), effect?: Effect.Effect<A, E, R>) => {
+      const nextOptimistic =
+        typeof update === 'function'
+          ? (update as (current: A) => A)(optimistic)
+          : update
+      setOptimisticState(nextOptimistic)
 
-			if (effect === undefined) {
-				setCommitted(nextOptimistic);
-				return;
-			}
+      if (effect === undefined) {
+        setCommitted(nextOptimistic)
+        return
+      }
 
-			const runId = ++runCountRef.current;
-			const prevCommitted = committedRef.current;
+      const runId = ++runCountRef.current
+      const prevCommitted = committedRef.current
 
-			Runtime.runPromise(runtime)(effect)
-				.then((value) => {
-					if (runId === runCountRef.current) {
-						const next = reducer
-							? reducer(committedRef.current, value)
-							: value;
-						setCommitted(next);
-						setOptimisticState(next);
-					}
-				})
-				.catch(() => {
-					if (runId === runCountRef.current) {
-						setOptimisticState(prevCommitted);
-					}
-				});
-		},
-		[optimistic, reducer, runtime],
-	);
+      Runtime.runPromise(runtime)(effect)
+        .then((value) => {
+          if (runId === runCountRef.current) {
+            const next = reducer ? reducer(committedRef.current, value) : value
+            setCommitted(next)
+            setOptimisticState(next)
+          }
+        })
+        .catch(() => {
+          if (runId === runCountRef.current) {
+            setOptimisticState(prevCommitted)
+          }
+        })
+    },
+    [optimistic, reducer, runtime],
+  )
 
-	return [optimistic, setOptimistic];
+  return [optimistic, setOptimistic]
 }

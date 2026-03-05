@@ -34,8 +34,7 @@
   "linter": {
     "enabled": true,
     "rules": {
-      "security": {
-      },
+      "security": {},
       "complexity": {
         "noExcessiveNestedTestSuites": "off",
         "noForEach": "off",

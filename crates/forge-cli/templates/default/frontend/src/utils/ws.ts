@@ -6,18 +6,18 @@
  * the backend must be running before opening the app.
  */
 export function getWsUrl(): string {
-	const protocol = window.location.protocol === "https:" ? "wss:" : "ws:";
-	return `${protocol}//${window.location.host}/ws`;
+  const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:'
+  return `${protocol}//${window.location.host}/ws`
 }
 
-const WS_DEBUG_KEY = "forge_ws_debug";
+const WS_DEBUG_KEY = 'forge_ws_debug'
 
 /** True when WebSocket debug logging should run (dev or localStorage "forge_ws_debug" set). */
 export function isWsDebugEnabled(): boolean {
-	if (typeof window === "undefined") return false;
-	return (
-		import.meta.env.DEV || window.localStorage.getItem(WS_DEBUG_KEY) === "1"
-	);
+  if (typeof window === 'undefined') return false
+  return (
+    import.meta.env.DEV || window.localStorage.getItem(WS_DEBUG_KEY) === '1'
+  )
 }
 
 /**
@@ -26,24 +26,24 @@ export function isWsDebugEnabled(): boolean {
  * debug is enabled (dev or localStorage "forge_ws_debug" = "1").
  */
 export function attachWsDebugLogging(ws: WebSocket): void {
-	if (!isWsDebugEnabled()) return;
-	const originalSend = ws.send.bind(ws);
-	ws.send = function (data: string | ArrayBufferLike | Blob) {
-		try {
-			const payload = typeof data === "string" ? JSON.parse(data) : data;
-			console.log("[Forge WS] →", payload);
-		} catch {
-			console.log("[Forge WS] →", data);
-		}
-		originalSend(data);
-	};
-	ws.addEventListener("message", (event) => {
-		try {
-			const payload =
-				typeof event.data === "string" ? JSON.parse(event.data) : event.data;
-			console.log("[Forge WS] ←", payload);
-		} catch {
-			console.log("[Forge WS] ←", event.data);
-		}
-	});
+  if (!isWsDebugEnabled()) return
+  const originalSend = ws.send.bind(ws)
+  ws.send = function (data: string | ArrayBufferLike | Blob) {
+    try {
+      const payload = typeof data === 'string' ? JSON.parse(data) : data
+      console.log('[Forge WS] →', payload)
+    } catch {
+      console.log('[Forge WS] →', data)
+    }
+    originalSend(data)
+  }
+  ws.addEventListener('message', (event) => {
+    try {
+      const payload =
+        typeof event.data === 'string' ? JSON.parse(event.data) : event.data
+      console.log('[Forge WS] ←', payload)
+    } catch {
+      console.log('[Forge WS] ←', event.data)
+    }
+  })
 }

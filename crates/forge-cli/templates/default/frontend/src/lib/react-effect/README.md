@@ -82,6 +82,75 @@ Request ordering / cancellation (e.g. “cancel previous when dispatch is called
 2. Use the hooks inside that tree: `useEffectRuntime()` for the runtime, and the effect hooks as needed.
 3. For hooks that need `R` (e.g. `HttpClient`), ensure the provider’s runtime is built with the required layers so that `Effect<A, E, R>` can be run.
 
+## Per-page effects and state
+
+When each page (or feature) owns its backend requests, use **one or more Effect(s) per page** for those requests, then drive React state from those effects using react-effect hooks.
+
+### 1. Where to put the effects
+
+- **Per page:** e.g. `features/dashboard/pages/PermissionsPage/effects.ts` (or `api.ts`) that export `fetchPermissionsDataEffect`, `addPermissionAssignmentEffect`, etc. Each page’s Effect(s) call the backend; they are plain `Effect<A, E, R>` and do not hold React state.
+- **Shared runtime:** Run them with the app runtime via `runWithAppRuntime(runtime, effect)` or via the hooks below so they get `HttpClient` (and any other services) from context.
+
+### 2. How to manage state and update the UI
+
+Pick one of these patterns depending on what the page does:
+
+| Need | Hook / pattern | Use when |
+|------|----------------|----------|
+| **Fetch on mount + refresh** (list/data page) | Custom hook with `useState` + `runWithAppRuntime` + `useEffect` | You want `{ data, loading, error, refresh }` and full control (e.g. `useUsers`). |
+| **Same, but setter can run an Effect** | `useEffectState<Data>(initial, onError)` then `setData(fetchEffect)` | One “current data” that you load/refresh by running an Effect; setter runs it and sets state on success. |
+| **One-shot action** (submit, delete) | `useActionStateEffect(action, initialState)` | You want `idle \| pending \| success(value) \| failure(error)` for a single action (e.g. save form, delete row). |
+| **Fire-and-forget** (no state from result) | `useTransitionEffect()` then `startTransition(() => fetchEffect)` | You only need a loading flag; result is not stored (e.g. refresh in background, then call another refresh). |
+
+**Fetch-on-mount + refresh (custom hook, like useUsers):**
+
+```ts
+// Page owns: effects.ts with fetchPermissionsDataEffect, etc.
+// Page (or a hook) manages state:
+function usePermissionsData() {
+  const { runtime } = useEffectRuntime<AppServices>();
+  const [data, setData] = useState<PermissionsData | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+
+  const refresh = useCallback(() => {
+    setLoading(true);
+    setError(null);
+    runWithAppRuntime(runtime, fetchPermissionsDataEffect)
+      .then((result) => { setData(result); setLoading(false); })
+      .catch((e) => { setError(String(e)); setLoading(false); });
+  }, [runtime]);
+
+  useEffect(() => { refresh(); }, [refresh]);
+  return { data, loading, error, refresh };
+}
+```
+
+**Same idea with useEffectState (setter runs the Effect):**
+
+```ts
+function usePermissionsData() {
+  const [state, setState] = useEffectState<PermissionsData | null>(null, (e) => {
+    // onError: e.g. set a toast or local error state
+  });
+
+  const refresh = useCallback(() => {
+    setState(fetchPermissionsDataEffect); // setter runs Effect, then sets state on success
+  }, [setState]);
+
+  useEffect(() => { refresh(); }, [refresh]);
+  return { data: state, refresh };
+}
+```
+
+**Mutations (e.g. add/delete):** keep using `runWithAppRuntime(runtime, addPermissionEffect(...))` in event handlers and then call `refresh()`, or use `useActionStateEffect` if you want to show success/error in the UI from `AsyncState`.
+
+### 3. Summary
+
+- **Effects:** One (or more) Effect per page, in that page’s folder; they only describe the request.
+- **State:** Use a small custom hook (e.g. `usePermissionsData`) that runs the fetch Effect on mount and on refresh, and holds `data | loading | error` (or use `useEffectState` and pass the Effect to the setter).
+- **UI:** Render from that state (`data`, `loading`, `error`) and trigger `refresh()` after mutations or from live-update callbacks.
+
 ## Dependencies
 
 - `effect` – Effect core (Runtime, Scope, Effect, Fiber, etc.).

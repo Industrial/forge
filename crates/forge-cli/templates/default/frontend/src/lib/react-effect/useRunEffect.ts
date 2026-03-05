@@ -1,6 +1,6 @@
-import { Effect, Exit, Runtime, Scope } from "effect";
-import { useEffect, useRef } from "react";
-import { useEffectRuntime } from "./EffectRuntime";
+import { Effect, Exit, Runtime, Scope } from 'effect'
+import { useEffect, useRef } from 'react'
+import { useEffectRuntime } from './EffectRuntime'
 
 /**
  * Runs an Effect when the component mounts and when dependencies change.
@@ -27,52 +27,52 @@ import { useEffectRuntime } from "./EffectRuntime";
  * ```
  */
 export function useRunEffect<A, E, R>(
-	effect: Effect.Effect<A, E, R>,
-	deps: React.DependencyList,
+  effect: Effect.Effect<A, E, R>,
+  deps: React.DependencyList,
 ): void {
-	const { runtime } = useEffectRuntime<R>();
-	type ScopeRef = Parameters<typeof Scope.close>[0];
-	const scopeRef = useRef<ScopeRef | null>(null);
-	const isMountedRef = useRef(true);
+  const { runtime } = useEffectRuntime<R>()
+  type ScopeRef = Parameters<typeof Scope.close>[0]
+  const scopeRef = useRef<ScopeRef | null>(null)
+  const isMountedRef = useRef(true)
 
-	useEffect(() => {
-		isMountedRef.current = true;
-		let cancelled = false;
+  useEffect(() => {
+    isMountedRef.current = true
+    let cancelled = false
 
-		const run = async () => {
-			try {
-				const scoped = Effect.gen(function* () {
-					const scope = yield* Scope.make();
-					yield* Effect.fork(Scope.extend(effect, scope));
-					return scope;
-				});
-				const scope = await Runtime.runPromise(runtime)(
-					scoped as Effect.Effect<Scope.CloseableScope, never, R>,
-				);
-				if (!cancelled && isMountedRef.current) {
-					scopeRef.current = scope;
-				} else {
-					Runtime.runPromise(runtime)(Scope.close(scope, Exit.void)).catch(
-						() => {},
-					);
-				}
-			} catch (_) {
-				// Effect failed or was interrupted; ignore for fire-and-forget
-			}
-		};
+    const run = async () => {
+      try {
+        const scoped = Effect.gen(function* () {
+          const scope = yield* Scope.make()
+          yield* Effect.fork(Scope.extend(effect, scope))
+          return scope
+        })
+        const scope = await Runtime.runPromise(runtime)(
+          scoped as Effect.Effect<Scope.CloseableScope, never, R>,
+        )
+        if (!cancelled && isMountedRef.current) {
+          scopeRef.current = scope
+        } else {
+          Runtime.runPromise(runtime)(Scope.close(scope, Exit.void)).catch(
+            () => {},
+          )
+        }
+      } catch (_) {
+        // Effect failed or was interrupted; ignore for fire-and-forget
+      }
+    }
 
-		run();
+    run()
 
-		return () => {
-			cancelled = true;
-			isMountedRef.current = false;
-			const scope = scopeRef.current;
-			scopeRef.current = null;
-			if (scope) {
-				Runtime.runPromise(runtime)(Scope.close(scope, Exit.void)).catch(
-					() => {},
-				);
-			}
-		};
-	}, deps);
+    return () => {
+      cancelled = true
+      isMountedRef.current = false
+      const scope = scopeRef.current
+      scopeRef.current = null
+      if (scope) {
+        Runtime.runPromise(runtime)(Scope.close(scope, Exit.void)).catch(
+          () => {},
+        )
+      }
+    }
+  }, deps)
 }
