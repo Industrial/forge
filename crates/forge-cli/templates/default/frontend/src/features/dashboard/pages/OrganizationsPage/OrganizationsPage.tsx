@@ -1,4 +1,3 @@
-import Typography from '@mui/material/Typography'
 import Box from '@mui/material/Box'
 import Button from '@mui/material/Button'
 import TextField from '@mui/material/TextField'
@@ -9,16 +8,17 @@ import TableContainer from '@mui/material/TableContainer'
 import TableHead from '@mui/material/TableHead'
 import TableRow from '@mui/material/TableRow'
 import Paper from '@mui/material/Paper'
-import IconButton from '@mui/material/IconButton'
 import AddIcon from '@mui/icons-material/Add'
-import DeleteIcon from '@mui/icons-material/Delete'
-import EditIcon from '@mui/icons-material/Edit'
-import Alert from '@mui/material/Alert'
-import CircularProgress from '@mui/material/CircularProgress'
-import Chip from '@mui/material/Chip'
 import useTheme from '@mui/material/styles/useTheme'
 import FormDialog from '../../../../components/FormDialog'
+import LoadingSpinner from '../../../../components/LoadingSpinner'
+import EmptyState from '../../../../components/EmptyState'
+import PageHeader from '../../../../components/PageHeader'
+import ErrorAlert from '../../../../components/ErrorAlert'
 import useMediaQuery from '@mui/material/useMediaQuery'
+import OrganizationsFilters from '../../components/OrganizationsFilters'
+import OrganizationCard from '../../components/OrganizationCard'
+import OrganizationTableRow from '../../components/OrganizationTableRow'
 import { useAuthentication } from '../../../../context/AuthenticationContext'
 import { useLiveUpdates } from '../../../../context/LiveWs'
 import {
@@ -96,15 +96,6 @@ function OrganizationForm({
       />
     </Box>
   )
-}
-
-function formatDate(iso: string | undefined) {
-  if (iso == null || iso === '') return '—'
-  try {
-    return new Date(iso).toLocaleString()
-  } catch {
-    return iso
-  }
 }
 
 export default function OrganizationsPage() {
@@ -336,53 +327,27 @@ export default function OrganizationsPage() {
 
   return (
     <>
-      <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 0 }}>
-        <Typography variant="h4" component="h1" gutterBottom sx={{ mb: 0 }}>
-          Organizations
-        </Typography>
-        {wsConnected && <Chip label="Live" color="success" size="small" />}
-      </Box>
-      <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
-        View and manage organizations. Write actions require{' '}
-        <code>dashboard.organizations.write</code>.
-      </Typography>
+      <PageHeader
+        title="Organizations"
+        description={
+          <>
+            View and manage organizations. Write actions require{' '}
+            <code>dashboard.organizations.write</code>.
+          </>
+        }
+        liveConnected={wsConnected}
+      />
 
       {errorMessage != null && (
-        <Alert severity="error" sx={{ mb: 2 }} onClose={handleClearError}>
-          {errorMessage}
-        </Alert>
+        <ErrorAlert message={errorMessage} onClose={handleClearError} />
       )}
 
-      <Paper sx={{ p: 2, mb: 2 }}>
-        <Typography variant="subtitle2" gutterBottom>
-          Filters
-        </Typography>
-        <Box
-          sx={{
-            display: 'flex',
-            flexWrap: 'wrap',
-            gap: 2,
-            alignItems: 'flex-end',
-          }}
-        >
-          <TextField
-            label="Name"
-            size="small"
-            value={filterName}
-            onChange={(e) => setFilterName(e.target.value)}
-            placeholder="Search by name"
-            sx={{ minWidth: 200 }}
-          />
-          <TextField
-            label="Slug"
-            size="small"
-            value={filterSlug}
-            onChange={(e) => setFilterSlug(e.target.value)}
-            placeholder="Search by slug"
-            sx={{ minWidth: 160 }}
-          />
-        </Box>
-      </Paper>
+      <OrganizationsFilters
+        filterName={filterName}
+        filterSlug={filterSlug}
+        onFilterNameChange={setFilterName}
+        onFilterSlugChange={setFilterSlug}
+      />
 
       {canWrite && (
         <Box sx={{ mb: 2 }}>
@@ -397,17 +362,15 @@ export default function OrganizationsPage() {
       )}
 
       {loading ? (
-        <Box sx={{ display: 'flex', justifyContent: 'center', py: 4 }}>
-          <CircularProgress />
-        </Box>
+        <LoadingSpinner />
       ) : filteredOrganizations.length === 0 ? (
-        <Paper sx={{ p: 3, textAlign: 'center' }}>
-          <Typography color="text.secondary">
-            {organizations.length === 0
+        <EmptyState
+          message={
+            organizations.length === 0
               ? 'No organizations.'
-              : 'No organizations match the filters.'}
-          </Typography>
-        </Paper>
+              : 'No organizations match the filters.'
+          }
+        />
       ) : isMobile ? (
         <Box
           component="ul"
@@ -422,50 +385,13 @@ export default function OrganizationsPage() {
         >
           {filteredOrganizations.map((org) => (
             <Box key={org.id} component="li">
-              <Paper sx={{ p: 2 }}>
-                <Typography variant="subtitle1" fontWeight={600}>
-                  {org.name}
-                </Typography>
-                <Typography variant="body2" color="text.secondary">
-                  {org.slug}
-                </Typography>
-                <Typography
-                  variant="caption"
-                  color="text.secondary"
-                  display="block"
-                  sx={{ mt: 0.5 }}
-                >
-                  Created {formatDate(org.created_at)} · Updated{' '}
-                  {formatDate(org.updated_at)}
-                </Typography>
-                {canWrite && (
-                  <Box
-                    sx={{
-                      mt: 2,
-                      display: 'flex',
-                      gap: 0.5,
-                      justifyContent: 'flex-end',
-                    }}
-                  >
-                    <Button
-                      size="small"
-                      startIcon={<EditIcon />}
-                      onClick={() => handleOpenEdit(org)}
-                    >
-                      Edit
-                    </Button>
-                    <Button
-                      size="small"
-                      color="error"
-                      startIcon={<DeleteIcon />}
-                      onClick={() => handleDelete(org.id)}
-                      disabled={isDeleting(org.id)}
-                    >
-                      Delete
-                    </Button>
-                  </Box>
-                )}
-              </Paper>
+              <OrganizationCard
+                org={org}
+                canWrite={canWrite}
+                onEdit={handleOpenEdit}
+                onDelete={handleDelete}
+                isDeleting={isDeleting(org.id)}
+              />
             </Box>
           ))}
         </Box>
@@ -483,35 +409,14 @@ export default function OrganizationsPage() {
             </TableHead>
             <TableBody>
               {filteredOrganizations.map((org) => (
-                <TableRow key={org.id}>
-                  <TableCell sx={{ fontWeight: 500 }}>{org.name}</TableCell>
-                  <TableCell>{org.slug}</TableCell>
-                  <TableCell sx={{ whiteSpace: 'nowrap' }}>
-                    {formatDate(org.created_at)}
-                  </TableCell>
-                  <TableCell sx={{ whiteSpace: 'nowrap' }}>
-                    {formatDate(org.updated_at)}
-                  </TableCell>
-                  {canWrite && (
-                    <TableCell align="right">
-                      <IconButton
-                        size="small"
-                        aria-label="Edit"
-                        onClick={() => handleOpenEdit(org)}
-                      >
-                        <EditIcon />
-                      </IconButton>
-                      <IconButton
-                        size="small"
-                        aria-label="Delete"
-                        onClick={() => handleDelete(org.id)}
-                        disabled={isDeleting(org.id)}
-                      >
-                        <DeleteIcon />
-                      </IconButton>
-                    </TableCell>
-                  )}
-                </TableRow>
+                <OrganizationTableRow
+                  key={org.id}
+                  org={org}
+                  canWrite={canWrite}
+                  onEdit={handleOpenEdit}
+                  onDelete={handleDelete}
+                  isDeleting={isDeleting(org.id)}
+                />
               ))}
             </TableBody>
           </Table>
