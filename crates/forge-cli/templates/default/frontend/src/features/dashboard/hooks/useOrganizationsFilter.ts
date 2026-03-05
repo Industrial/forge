@@ -1,6 +1,6 @@
 import { useCallback, type Dispatch, type SetStateAction } from 'react'
 import { useFilteredList } from '../../../hooks/useFilteredList'
-import type { Organization } from '../domain'
+import type { Organization } from '../domain/Organization'
 
 export type OrganizationsFilterState = {
   filterName: string

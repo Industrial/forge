@@ -6,8 +6,18 @@ import type { HttpClient } from '@effect/platform'
 import { Effect, Layer, Runtime } from 'effect'
 import type { HttpClientWithAuthConfig } from './httpClientWithAuth'
 import { AuthenticationFeatureLayer } from '../features/authentication/layer'
+import type { AuditLogService } from '../features/dashboard/services/AuditLog'
+import { AuditLogLive } from '../features/dashboard/services/AuditLogLive'
+import type { DashboardService } from '../features/dashboard/services/Dashboard'
+import { DashboardLive } from '../features/dashboard/services/DashboardLive'
 import type { OrganizationsService } from '../features/dashboard/services/Organizations'
 import { OrganizationsLive } from '../features/dashboard/services/OrganizationsLive'
+import type { PermissionsService } from '../features/dashboard/services/Permissions'
+import { PermissionsLive } from '../features/dashboard/services/PermissionsLive'
+import type { RolesService } from '../features/dashboard/services/Roles'
+import { RolesLive } from '../features/dashboard/services/RolesLive'
+import type { UsersService } from '../features/dashboard/services/Users'
+import { UsersLive } from '../features/dashboard/services/UsersLive'
 import type { AuthenticationStoreService } from '../services/AuthenticationStore'
 import { ForgeWebsocketLive } from '../services/ForgeWebsocketLive'
 import type { ForgeWebsocketService } from '../services/ForgeWebsocket'
@@ -25,6 +35,11 @@ export type AppServices =
   | WebsocketService
   | ForgeWebsocketService
   | OrganizationsService
+  | AuditLogService
+  | PermissionsService
+  | RolesService
+  | UsersService
+  | DashboardService
 
 /**
  * Runs an effect with the app runtime. Use this instead of Runtime.runPromise(runtime)(effect)
@@ -52,5 +67,13 @@ export const AppLayer = (config: HttpClientWithAuthConfig) => {
     WebsocketLive,
     ForgeWebsocketLive.pipe(Layer.provide(WebsocketLive)),
   )
-  return Layer.mergeAll(base, OrganizationsLive.pipe(Layer.provide(base)))
+  const dashboardServices = Layer.mergeAll(
+    OrganizationsLive,
+    AuditLogLive,
+    PermissionsLive,
+    RolesLive,
+    UsersLive,
+    DashboardLive,
+  ).pipe(Layer.provide(base))
+  return Layer.mergeAll(base, dashboardServices)
 }

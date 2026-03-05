@@ -1,7 +1,19 @@
-import { useCallback, useEffect, useState } from 'react'
-import { useEffectRuntime } from '../../../../lib/react-effect'
+import { useState } from 'react'
+import {
+  useEffectRuntime,
+  useEffectState,
+  useRunEffect,
+  streamWithPendingState,
+  runStreamInto,
+  type AsyncState,
+  idle,
+  success as asyncSuccess,
+  isSuccess,
+  isFailure,
+  isPending,
+} from '../../../../lib/react-effect'
 import { runWithAppRuntime, type AppServices } from '../../../../lib/appLayer'
-import Typography from '@mui/material/Typography'
+import { Effect } from 'effect'
 import Box from '@mui/material/Box'
 import Button from '@mui/material/Button'
 import TextField from '@mui/material/TextField'
@@ -12,19 +24,18 @@ import TableContainer from '@mui/material/TableContainer'
 import TableHead from '@mui/material/TableHead'
 import TableRow from '@mui/material/TableRow'
 import Paper from '@mui/material/Paper'
-import IconButton from '@mui/material/IconButton'
 import AddIcon from '@mui/icons-material/Add'
-import DeleteIcon from '@mui/icons-material/Delete'
-import EditIcon from '@mui/icons-material/Edit'
-import Alert from '@mui/material/Alert'
-import CircularProgress from '@mui/material/CircularProgress'
-import Chip from '@mui/material/Chip'
 import FormDialog from '../../../../components/FormDialog'
+import TableEmptyRow from '../../../../components/TableEmptyRow'
+import RoleTableRow from '../../components/RoleTableRow'
 import FormControl from '@mui/material/FormControl'
 import InputLabel from '@mui/material/InputLabel'
 import Select from '@mui/material/Select'
 import MenuItem from '@mui/material/MenuItem'
-import { useLiveUpdates } from '../../../../context/LiveWs'
+import PageHeader from '../../../../components/PageHeader'
+import ErrorAlert from '../../../../components/ErrorAlert'
+import LoadingSpinner from '../../../../components/LoadingSpinner'
+import { useLiveRefreshTrigger } from '../../../../hooks/useLiveRefreshTrigger'
 import {
   fetchRolesListEffect,
   fetchOrganizationsEffect,
@@ -35,81 +46,130 @@ import {
   type Organization as ApiOrganization,
 } from '../../../../effects/dashboard'
 
+type ListState = AsyncState<Role[], Error>
+
 export default function RolesPage() {
   const { runtime } = useEffectRuntime<AppServices>()
-  const [liveRefreshTrigger, setLiveRefreshTrigger] = useState(0)
-  const { connected: wsConnected } = useLiveUpdates('roles', () => {
-    setLiveRefreshTrigger((n) => n + 1)
-  })
+  const { trigger: liveRefreshTrigger, connected: wsConnected } =
+    useLiveRefreshTrigger('roles')
 
-  const [roles, setRoles] = useState<Role[]>([])
-  const [organizations, setOrganizations] = useState<ApiOrganization[]>([])
-  const [loading, setLoading] = useState(true)
-  const [error, setError] = useState<string | null>(null)
+  const [listState, , setListStateAsEffect] = useEffectState<ListState, never, never>(
+    idle<Role[], Error>(),
+  )
+  const [addState, , setAddStateAsEffect] = useEffectState<ListState, never, never>(
+    idle<Role[], Error>(),
+  )
+  const [updateState, , setUpdateStateAsEffect] =
+    useEffectState<ListState, never, never>(idle<Role[], Error>())
+  const [deleteState, , setDeleteStateAsEffect] =
+    useEffectState<ListState, never, never>(idle<Role[], Error>())
+
+  const [orgListState, , setOrgListStateAsEffect] = useEffectState<
+    AsyncState<ApiOrganization[], Error>,
+    never,
+    never
+  >(idle<ApiOrganization[], Error>())
+
+  const roles = isSuccess(listState) ? listState.value : []
+  const organizations = isSuccess(orgListState) ? orgListState.value : []
+  const loading = isPending(listState)
+  const error: Error | null = isFailure(listState)
+    ? listState.error
+    : isFailure(addState)
+      ? addState.error
+      : isFailure(updateState)
+        ? updateState.error
+        : isFailure(deleteState)
+          ? deleteState.error
+          : null
+  const errorMessage =
+    error instanceof Error
+      ? error.message
+      : error != null
+        ? String(error)
+        : null
+
   const [addOpen, setAddOpen] = useState(false)
   const [addName, setAddName] = useState('')
   const [addDisplayName, setAddDisplayName] = useState('')
   const [addOrgId, setAddOrgId] = useState('')
-  const [adding, setAdding] = useState(false)
   const [editRole, setEditRole] = useState<Role | null>(null)
   const [editName, setEditName] = useState('')
   const [editDisplayName, setEditDisplayName] = useState('')
-  const [saving, setSaving] = useState(false)
   const [deletingId, setDeletingId] = useState<string | null>(null)
 
-  const fetchRoles = useCallback(() => {
-    setError(null)
-    runWithAppRuntime(runtime, fetchRolesListEffect)
-      .then(setRoles)
-      .catch((e) => {
-        setError(e instanceof Error ? e.message : 'Failed to load roles.')
-        setRoles([])
+  const adding = isPending(addState)
+  const saving = isPending(updateState)
+  const deleting = isPending(deleteState)
+
+  const refreshStream = streamWithPendingState(fetchRolesListEffect)
+  const refreshEffect = Effect.gen(function* () {
+    yield* runStreamInto(refreshStream, setListStateAsEffect)
+  })
+
+  useRunEffect(refreshEffect, [liveRefreshTrigger, setListStateAsEffect])
+
+  const orgsStream = streamWithPendingState(fetchOrganizationsEffect)
+  const orgsEffect = Effect.gen(function* () {
+    yield* runStreamInto(orgsStream, setOrgListStateAsEffect)
+  })
+
+  useRunEffect(orgsEffect, [setOrgListStateAsEffect])
+
+  // On add success: copy to listState, close add dialog, reset form, reset add state
+  useRunEffect(
+    Effect.gen(function* () {
+      if (!isSuccess(addState)) return
+      yield* setListStateAsEffect(asyncSuccess(addState.value))
+      yield* Effect.sync(() => {
+        setAddOpen(false)
+        setAddName('')
+        setAddDisplayName('')
+        setAddOrgId(organizations[0]?.id ?? '')
       })
-      .finally(() => setLoading(false))
-  }, [runtime])
+      yield* setAddStateAsEffect(idle())
+    }),
+    [addState, setListStateAsEffect, setAddStateAsEffect, organizations],
+  )
 
-  const fetchOrgs = useCallback(() => {
-    runWithAppRuntime(runtime, fetchOrganizationsEffect)
-      .then(setOrganizations)
-      .catch(() => {})
-  }, [runtime])
+  // On update success: copy to listState, close edit dialog, reset update state
+  useRunEffect(
+    Effect.gen(function* () {
+      if (!isSuccess(updateState)) return
+      yield* setListStateAsEffect(asyncSuccess(updateState.value))
+      yield* Effect.sync(() => setEditRole(null))
+      yield* setUpdateStateAsEffect(idle())
+    }),
+    [updateState, setListStateAsEffect, setUpdateStateAsEffect],
+  )
 
-  useEffect(() => {
-    fetchRoles()
-  }, [fetchRoles, liveRefreshTrigger])
+  // On delete success: copy to listState, clear deletingId, reset delete state
+  useRunEffect(
+    Effect.gen(function* () {
+      if (!isSuccess(deleteState)) return
+      yield* setListStateAsEffect(asyncSuccess(deleteState.value))
+      yield* Effect.sync(() => setDeletingId(null))
+      yield* setDeleteStateAsEffect(idle())
+    }),
+    [deleteState, setListStateAsEffect, setDeleteStateAsEffect],
+  )
 
-  useEffect(() => {
-    fetchOrgs()
-  }, [fetchOrgs])
-
-  const handleAdd = async () => {
+  const handleAdd = () => {
     const name = addName.trim()
-    if (!name) {
-      setError('Name is required.')
-      return
-    }
-    setAdding(true)
-    setError(null)
-    try {
-      const orgId = addOrgId || organizations[0]?.id
-      await runWithAppRuntime(
-        runtime,
-        createRoleEffect({
-          name,
-          display_name: addDisplayName.trim() || undefined,
-          org_id: orgId ?? '',
-        }),
-      )
-      setAddName('')
-      setAddDisplayName('')
-      setAddOrgId(organizations[0]?.id ?? '')
-      setAddOpen(false)
-      fetchRoles()
-    } catch (e) {
-      setError(e instanceof Error ? e.message : 'Failed to create role.')
-    } finally {
-      setAdding(false)
-    }
+    if (!name) return
+    const orgId = addOrgId || (organizations[0]?.id ?? '')
+    const addThenList = Effect.gen(function* () {
+      yield* createRoleEffect({
+        name,
+        display_name: addDisplayName.trim() || undefined,
+        org_id: orgId,
+      })
+      return yield* fetchRolesListEffect
+    })
+    runWithAppRuntime(
+      runtime,
+      runStreamInto(streamWithPendingState(addThenList), setAddStateAsEffect),
+    )
   }
 
   const openEdit = (role: Role) => {
@@ -118,58 +178,55 @@ export default function RolesPage() {
     setEditDisplayName(role.display_name ?? '')
   }
 
-  const handleSaveEdit = async () => {
+  const handleSaveEdit = () => {
     if (!editRole) return
-    setSaving(true)
-    setError(null)
-    try {
-      await runWithAppRuntime(
-        runtime,
-        updateRoleEffect({
-          id: editRole.id,
-          name: editName.trim() || undefined,
-          display_name: editDisplayName.trim() || undefined,
-        }),
-      )
-      setEditRole(null)
-      fetchRoles()
-    } catch (e) {
-      setError(e instanceof Error ? e.message : 'Failed to update role.')
-    } finally {
-      setSaving(false)
-    }
+    const updateThenList = Effect.gen(function* () {
+      yield* updateRoleEffect({
+        id: editRole.id,
+        name: editName.trim() || undefined,
+        display_name: editDisplayName.trim() || undefined,
+      })
+      return yield* fetchRolesListEffect
+    })
+    runWithAppRuntime(
+      runtime,
+      runStreamInto(
+        streamWithPendingState(updateThenList),
+        setUpdateStateAsEffect,
+      ),
+    )
   }
 
-  const handleDelete = async (id: string) => {
+  const handleDelete = (id: string) => {
     setDeletingId(id)
-    setError(null)
-    try {
-      await runWithAppRuntime(runtime, deleteRoleEffect(id))
-      fetchRoles()
-    } catch (e) {
-      setError(e instanceof Error ? e.message : 'Failed to delete role.')
-    } finally {
-      setDeletingId(null)
-    }
+    const deleteThenList = Effect.gen(function* () {
+      yield* deleteRoleEffect(id)
+      return yield* fetchRolesListEffect
+    })
+    runWithAppRuntime(
+      runtime,
+      runStreamInto(
+        streamWithPendingState(deleteThenList),
+        setDeleteStateAsEffect,
+      ),
+    )
   }
 
   return (
     <>
-      <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 0 }}>
-        <Typography variant="h4" component="h1" gutterBottom sx={{ mb: 0 }}>
-          Roles
-        </Typography>
-        {wsConnected && <Chip label="Live" color="success" size="small" />}
-      </Box>
-      <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
-        Manage organization roles. Template roles (owner, admin, editor, viewer)
-        are created when an org is created; you can add custom roles here.
-      </Typography>
+      <PageHeader
+        title="Roles"
+        description="Manage organization roles. Template roles (owner, admin, editor, viewer) are created when an org is created; you can add custom roles here."
+        liveConnected={wsConnected}
+      />
 
-      {error && (
-        <Alert severity="error" sx={{ mb: 2 }} onClose={() => setError(null)}>
-          {error}
-        </Alert>
+      {errorMessage != null && (
+        <ErrorAlert
+          message={errorMessage}
+          onClose={() => {
+            runWithAppRuntime(runtime, refreshEffect)
+          }}
+        />
       )}
 
       <Box sx={{ mb: 2 }}>
@@ -186,9 +243,7 @@ export default function RolesPage() {
       </Box>
 
       {loading ? (
-        <Box sx={{ display: 'flex', justifyContent: 'center', py: 4 }}>
-          <CircularProgress />
-        </Box>
+        <LoadingSpinner />
       ) : (
         <TableContainer component={Paper}>
           <Table size="small" aria-label="Roles">
@@ -202,39 +257,23 @@ export default function RolesPage() {
             </TableHead>
             <TableBody>
               {roles.length === 0 ? (
-                <TableRow>
-                  <TableCell colSpan={4} align="center">
-                    No roles. Add a role or ensure your organization has
-                    template roles.
-                  </TableCell>
-                </TableRow>
+                <TableEmptyRow colSpan={4}>
+                  No roles. Add a role or ensure your organization has template
+                  roles.
+                </TableEmptyRow>
               ) : (
                 roles.map((role) => (
-                  <TableRow key={role.id}>
-                    <TableCell>
-                      {organizations.find((o) => o.id === role.org_id)?.name ??
-                        role.org_id}
-                    </TableCell>
-                    <TableCell sx={{ fontWeight: 500 }}>{role.name}</TableCell>
-                    <TableCell>{role.display_name ?? '—'}</TableCell>
-                    <TableCell align="right">
-                      <IconButton
-                        size="small"
-                        aria-label="Edit"
-                        onClick={() => openEdit(role)}
-                      >
-                        <EditIcon />
-                      </IconButton>
-                      <IconButton
-                        size="small"
-                        aria-label="Delete"
-                        onClick={() => handleDelete(role.id)}
-                        disabled={deletingId === role.id}
-                      >
-                        <DeleteIcon />
-                      </IconButton>
-                    </TableCell>
-                  </TableRow>
+                  <RoleTableRow
+                    key={role.id}
+                    role={role}
+                    orgName={
+                      organizations.find((o) => o.id === role.org_id)?.name ??
+                      role.org_id
+                    }
+                    onEdit={openEdit}
+                    onDelete={handleDelete}
+                    isDeleting={deleting && deletingId === role.id}
+                  />
                 ))
               )}
             </TableBody>

@@ -1,7 +1,5 @@
-import Typography from '@mui/material/Typography'
-import Box from '@mui/material/Box'
 import TextField from '@mui/material/TextField'
-import Paper from '@mui/material/Paper'
+import FiltersPanel from '../../../components/FiltersPanel'
 
 export type OrganizationsFiltersProps = {
   filterName: string
@@ -17,19 +15,8 @@ export default function OrganizationsFilters({
   onFilterSlugChange,
 }: OrganizationsFiltersProps) {
   return (
-    <Paper sx={{ p: 2, mb: 2 }}>
-      <Typography variant="subtitle2" gutterBottom>
-        Filters
-      </Typography>
-      <Box
-        sx={{
-          display: 'flex',
-          flexWrap: 'wrap',
-          gap: 2,
-          alignItems: 'flex-end',
-        }}
-      >
-        <TextField
+    <FiltersPanel>
+      <TextField
           label="Name"
           size="small"
           value={filterName}
@@ -45,7 +32,6 @@ export default function OrganizationsFilters({
           placeholder="Search by slug"
           sx={{ minWidth: 160 }}
         />
-      </Box>
-    </Paper>
+    </FiltersPanel>
   )
 }

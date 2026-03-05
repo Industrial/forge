@@ -7,7 +7,8 @@
 
 import { HttpClient, HttpClientRequest } from '@effect/platform'
 import { Effect, Layer } from 'effect'
-import { Organization, Organizations } from './Organizations'
+import { Organizations } from './Organizations'
+import { Organization } from '../domain/Organization'
 import type { OrganizationsService } from './Organizations'
 
 function parseError(body: unknown): string {

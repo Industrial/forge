@@ -1,6 +1,5 @@
-import { useCallback, useEffect, useState } from 'react'
+import { useEffect, useState } from 'react'
 import { useForm, Controller } from 'react-hook-form'
-import Typography from '@mui/material/Typography'
 import Box from '@mui/material/Box'
 import Button from '@mui/material/Button'
 import TextField from '@mui/material/TextField'
@@ -11,25 +10,38 @@ import TableContainer from '@mui/material/TableContainer'
 import TableHead from '@mui/material/TableHead'
 import TableRow from '@mui/material/TableRow'
 import Paper from '@mui/material/Paper'
-import IconButton from '@mui/material/IconButton'
 import AddIcon from '@mui/icons-material/Add'
-import DeleteIcon from '@mui/icons-material/Delete'
-import EditIcon from '@mui/icons-material/Edit'
-import Alert from '@mui/material/Alert'
-import CircularProgress from '@mui/material/CircularProgress'
-import FormControlLabel from '@mui/material/FormControlLabel'
-import FormDialog from '../../../../components/FormDialog'
-import Checkbox from '@mui/material/Checkbox'
 import FormControl from '@mui/material/FormControl'
 import InputLabel from '@mui/material/InputLabel'
 import Select from '@mui/material/Select'
 import MenuItem from '@mui/material/MenuItem'
-import Chip from '@mui/material/Chip'
-import { useLiveUpdates } from '../../../../context/LiveWs'
-import { useAuthentication } from '../../../../context/AuthenticationContext'
-import { Schema } from 'effect'
+import Alert from '@mui/material/Alert'
+import FormControlLabel from '@mui/material/FormControlLabel'
+import FormDialog from '../../../../components/FormDialog'
+import Checkbox from '@mui/material/Checkbox'
+import PageHeader from '../../../../components/PageHeader'
+import TableEmptyRow from '../../../../components/TableEmptyRow'
+import UsersFilters from '../../components/UsersFilters'
+import UserTableRow from '../../components/UserTableRow'
+import ErrorAlert from '../../../../components/ErrorAlert'
+import LoadingSpinner from '../../../../components/LoadingSpinner'
+import { useLiveRefreshTrigger } from '../../../../hooks/useLiveRefreshTrigger'
+import { usePermission } from '../../../../hooks/usePermission'
+import { Effect, Schema } from 'effect'
 import { runWithAppRuntime } from '../../../../lib/appLayer'
-import { useEffectRuntime } from '../../../../lib/react-effect'
+import {
+  useEffectRuntime,
+  useEffectState,
+  useRunEffect,
+  streamWithPendingState,
+  runStreamInto,
+  type AsyncState,
+  idle,
+  success as asyncSuccess,
+  isSuccess,
+  isFailure,
+  isPending,
+} from '../../../../lib/react-effect'
 import { effectSchemaResolver } from '../../../../lib/effectSchemaResolver'
 import {
   userAddFormSchemaStrict,
@@ -37,10 +49,10 @@ import {
   type UserAddFormValuesStrict,
   type UserEditFormValues,
 } from '../../../../schemas/userFormSchemas'
-import { useUsers } from '../../../../hooks/useUsers'
 import type { AppServices } from '../../../../lib/appLayer'
 import type { User } from '../../../../effects/users'
 import {
+  fetchUsersEffect,
   createUserEffect,
   updateUserEffect,
   deleteUserEffect,
@@ -56,51 +68,53 @@ const USERS_READ = 'dashboard.users.read'
 const USERS_WRITE = 'dashboard.users.write'
 const FILTER_ROLES = ['owner', 'admin', 'editor', 'viewer']
 
-function formatDate(iso: string) {
-  try {
-    return new Date(iso).toLocaleString()
-  } catch {
-    return iso
-  }
-}
-
-function membershipsSummary(memberships: User['memberships']) {
-  if (!memberships.length) return '—'
-  return memberships
-    .map((m) => `${m.org_name}: ${(m.roles ?? []).join(', ') || '—'}`)
-    .join('; ')
-}
-
 export default function UsersPage() {
-  const { permissions } = useAuthentication()
-  const canRead = permissions.includes(USERS_READ)
-  const canWrite = permissions.includes(USERS_WRITE)
+  const canRead = usePermission(USERS_READ)
+  const canWrite = usePermission(USERS_WRITE)
   const { runtime } = useEffectRuntime<AppServices>()
-  const {
-    users,
-    loading,
-    error: listError,
-    refresh: fetchUsers,
-  } = useUsers(canRead)
-  const [mutationError, setMutationError] = useState<string | null>(null)
-  const error = listError ?? mutationError
-  const [liveRefreshTrigger, setLiveRefreshTrigger] = useState(0)
-  const { connected: wsConnected } = useLiveUpdates('users', () => {
-    setLiveRefreshTrigger((n) => n + 1)
-  })
+  const { trigger: liveRefreshTrigger, connected: wsConnected } =
+    useLiveRefreshTrigger('users')
 
-  const [organizations, setOrganizations] = useState<ApiOrganization[]>([])
+  const [listState, setListState, setListStateAsEffect] = useEffectState<
+    AsyncState<User[], Error>
+  >(idle())
+  const [addState, _setAddState, setAddStateAsEffect] = useEffectState<
+    AsyncState<User[], Error>
+  >(idle())
+  const [updateState, _setUpdateState, setUpdateStateAsEffect] = useEffectState<
+    AsyncState<User[], Error>
+  >(idle())
+  const [deleteState, _setDeleteState, setDeleteStateAsEffect] = useEffectState<
+    AsyncState<User[], Error>
+  >(idle())
+  const [orgListState, setOrgListState, setOrgListStateAsEffect] =
+    useEffectState<AsyncState<ApiOrganization[], Error>>(idle())
+  const [orgRoles, _setOrgRoles, setOrgRolesAsEffect] =
+    useEffectState<DashboardRole[]>([])
+
   const [addDialogOpen, setAddDialogOpen] = useState(false)
-  const [orgRoles, setOrgRoles] = useState<DashboardRole[]>([])
-  const [adding, setAdding] = useState(false)
   const [filterEmail, setFilterEmail] = useState('')
   const [filterOrgId, setFilterOrgId] = useState('')
   const [filterRole, setFilterRole] = useState('')
   const [filterActive, setFilterActive] = useState<'' | 'yes' | 'no'>('')
   const [filterAdmin, setFilterAdmin] = useState<'' | 'yes' | 'no'>('')
   const [editUser, setEditUser] = useState<User | null>(null)
-  const [saving, setSaving] = useState(false)
   const [deletingId, setDeletingId] = useState<string | null>(null)
+
+  const users =
+    listState._tag === 'success' ? listState.value : []
+  const organizations =
+    orgListState._tag === 'success' ? orgListState.value : []
+  const loading = isPending(listState)
+  const adding = isPending(addState)
+  const saving = isPending(updateState)
+  const deleting = isPending(deleteState)
+  const errorMessage =
+    [listState, addState, updateState, deleteState]
+      .filter((s): s is AsyncState<User[], Error> & { _tag: 'failure' } =>
+        isFailure(s),
+      )[0]?.error?.message ?? null
+  const error = errorMessage != null ? errorMessage : null
 
   const addForm = useForm<UserAddFormValuesStrict>({
     resolver: effectSchemaResolver(
@@ -124,37 +138,35 @@ export default function UsersPage() {
 
   const addFormOrgId = addForm.watch('orgId')
 
-  const fetchOrgs = useCallback(() => {
-    if (!canRead) return
-    runWithAppRuntime(runtime, fetchOrganizationsEffect)
-      .then((list) => setOrganizations(list))
-      .catch(() => {})
-  }, [canRead, runtime])
-
-  useEffect(() => {
-    fetchUsers()
-  }, [fetchUsers, liveRefreshTrigger])
-
-  useEffect(() => {
-    fetchOrgs()
-  }, [fetchOrgs])
-
-  const fetchOrgRoles = useCallback(
-    (orgId: string) => {
-      if (!orgId) {
-        setOrgRoles([])
-        return
-      }
-      runWithAppRuntime(runtime, fetchRolesEffect(orgId))
-        .then(setOrgRoles)
-        .catch(() => setOrgRoles([]))
-    },
-    [runtime],
+  const refreshEffect = streamWithPendingState(
+    canRead ? fetchUsersEffect : Effect.succeed([] as User[]),
+  )
+  useRunEffect(
+    canRead
+      ? runStreamInto(refreshEffect, setListStateAsEffect)
+      : Effect.sync(() => setListState(idle())),
+    [liveRefreshTrigger, setListStateAsEffect, canRead],
   )
 
-  useEffect(() => {
-    fetchOrgRoles(addFormOrgId)
-  }, [addFormOrgId, fetchOrgRoles])
+  useRunEffect(
+    canRead
+      ? runStreamInto(
+          streamWithPendingState(fetchOrganizationsEffect),
+          setOrgListStateAsEffect,
+        )
+      : Effect.sync(() => setOrgListState(idle())),
+    [setOrgListStateAsEffect, canRead],
+  )
+
+  useRunEffect(
+    addFormOrgId
+      ? Effect.gen(function* () {
+          const roles = yield* fetchRolesEffect(addFormOrgId)
+          yield* setOrgRolesAsEffect(roles)
+        })
+      : setOrgRolesAsEffect([]),
+    [addFormOrgId, setOrgRolesAsEffect],
+  )
 
   useEffect(() => {
     const current = addForm.getValues('roleIds')
@@ -164,29 +176,25 @@ export default function UsersPage() {
     }
   }, [orgRoles, addForm])
 
-  const handleAdd = async (data: UserAddFormValuesStrict) => {
-    setAdding(true)
-    setMutationError(null)
-    try {
-      await runWithAppRuntime(
-        runtime,
-        createUserEffect({
-          email: data.email,
-          password: data.password,
-          org_id: data.orgId,
-          role_ids: [...data.roleIds],
-        }),
-      )
-      addForm.reset({ email: '', password: '', orgId: '', roleIds: [] })
-      setAddDialogOpen(false)
-      await fetchUsers()
-    } catch (e) {
-      setMutationError(
-        e instanceof Error ? e.message : 'Failed to create user.',
-      )
-    } finally {
-      setAdding(false)
-    }
+  const createThenList = (data: UserAddFormValuesStrict) =>
+    Effect.gen(function* () {
+      yield* createUserEffect({
+        email: data.email,
+        password: data.password,
+        org_id: data.orgId,
+        role_ids: [...data.roleIds],
+      })
+      return yield* fetchUsersEffect
+    })
+
+  const handleAdd = (data: UserAddFormValuesStrict) => {
+    runWithAppRuntime(
+      runtime,
+      runStreamInto(
+        streamWithPendingState(createThenList(data)),
+        setAddStateAsEffect,
+      ),
+    )
   }
 
   const openEdit = (user: User) => {
@@ -194,44 +202,85 @@ export default function UsersPage() {
     editForm.reset({ email: user.email, active: user.is_active })
   }
 
-  const handleSaveEdit = async (data: UserEditFormValues) => {
+  const updateThenList = (data: UserEditFormValues) =>
+    Effect.gen(function* () {
+      if (!editUser) return yield* fetchUsersEffect
+      yield* updateUserEffect({
+        id: editUser.id,
+        email: data.email.trim() || undefined,
+        is_active: data.active,
+      })
+      return yield* fetchUsersEffect
+    })
+
+  const handleSaveEdit = (data: UserEditFormValues) => {
     if (!editUser) return
-    setSaving(true)
-    setMutationError(null)
-    try {
-      await runWithAppRuntime(
-        runtime,
-        updateUserEffect({
-          id: editUser.id,
-          email: data.email.trim() || undefined,
-          is_active: data.active,
-        }),
-      )
-      setEditUser(null)
-      await fetchUsers()
-    } catch (e) {
-      setMutationError(
-        e instanceof Error ? e.message : 'Failed to update user.',
-      )
-    } finally {
-      setSaving(false)
-    }
+    runWithAppRuntime(
+      runtime,
+      runStreamInto(
+        streamWithPendingState(updateThenList(data)),
+        setUpdateStateAsEffect,
+      ),
+    )
   }
 
-  const handleDelete = async (id: string) => {
+  const deleteThenList = (id: string) =>
+    Effect.gen(function* () {
+      yield* deleteUserEffect(id)
+      return yield* fetchUsersEffect
+    })
+
+  const handleDelete = (id: string) => {
     setDeletingId(id)
-    setMutationError(null)
-    try {
-      await runWithAppRuntime(runtime, deleteUserEffect(id))
-      await fetchUsers()
-    } catch (e) {
-      setMutationError(
-        e instanceof Error ? e.message : 'Failed to delete user.',
-      )
-    } finally {
-      setDeletingId(null)
-    }
+    runWithAppRuntime(
+      runtime,
+      runStreamInto(
+        streamWithPendingState(deleteThenList(id)),
+        setDeleteStateAsEffect,
+      ),
+    )
   }
+
+  useRunEffect(
+    isSuccess(addState)
+      ? Effect.gen(function* () {
+          yield* setListStateAsEffect(asyncSuccess(addState.value))
+          yield* Effect.sync(() => {
+            addForm.reset({
+              email: '',
+              password: '',
+              orgId: organizations[0]?.id ?? '',
+              roleIds: [],
+            })
+            setAddDialogOpen(false)
+          })
+          yield* setAddStateAsEffect(idle())
+        })
+      : Effect.void,
+    [addState],
+  )
+
+  useRunEffect(
+    isSuccess(updateState)
+      ? Effect.gen(function* () {
+          yield* setListStateAsEffect(asyncSuccess(updateState.value))
+          yield* Effect.sync(() => setEditUser(null))
+          yield* setUpdateStateAsEffect(idle())
+        })
+      : Effect.void,
+    [updateState],
+  )
+
+  useRunEffect(
+    isSuccess(deleteState)
+      ? Effect.gen(function* () {
+          yield* setListStateAsEffect(asyncSuccess(deleteState.value))
+          yield* Effect.sync(() => setDeletingId(null))
+          yield* setDeleteStateAsEffect(idle())
+        })
+      : Effect.void,
+    [deleteState],
+  )
 
   const filteredUsers = users.filter((user) => {
     const emailMatch =
@@ -260,9 +309,7 @@ export default function UsersPage() {
   if (!canRead) {
     return (
       <>
-        <Typography variant="h4" component="h1" gutterBottom>
-          Users
-        </Typography>
+        <PageHeader title="Users" />
         <Alert severity="info">You do not have permission to view users.</Alert>
       </>
     )
@@ -270,108 +317,48 @@ export default function UsersPage() {
 
   return (
     <>
-      <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 0 }}>
-        <Typography variant="h4" component="h1" gutterBottom sx={{ mb: 0 }}>
-          Users
-        </Typography>
-        {wsConnected && <Chip label="Live" color="success" size="small" />}
-      </Box>
-      <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
-        View and manage users. Write actions require{' '}
-        <code>dashboard.users.write</code>.
-      </Typography>
+      <PageHeader
+        title="Users"
+        description={
+          <>
+            View and manage users. Write actions require{' '}
+            <code>dashboard.users.write</code>.
+          </>
+        }
+        liveConnected={wsConnected}
+      />
 
-      {error && (
-        <Alert
-          severity="error"
-          sx={{ mb: 2 }}
-          onClose={() => setMutationError(null)}
-        >
-          {error}
-        </Alert>
+      {error != null && (
+        <ErrorAlert
+          message={error}
+          onClose={() => {
+            runWithAppRuntime(
+              runtime,
+              Effect.gen(function* () {
+                yield* runStreamInto(refreshEffect, setListStateAsEffect)
+                yield* setAddStateAsEffect(idle())
+                yield* setUpdateStateAsEffect(idle())
+                yield* setDeleteStateAsEffect(idle())
+              }),
+            )
+          }}
+        />
       )}
 
-      <Paper sx={{ p: 2, mb: 2 }}>
-        <Typography variant="subtitle2" gutterBottom>
-          Filters
-        </Typography>
-        <Box
-          sx={{
-            display: 'flex',
-            flexWrap: 'wrap',
-            gap: 2,
-            alignItems: 'flex-end',
-          }}
-        >
-          <TextField
-            label="Email"
-            type="search"
-            size="small"
-            value={filterEmail}
-            onChange={(e) => setFilterEmail(e.target.value)}
-            placeholder="Search by email"
-            sx={{ minWidth: 220 }}
-          />
-          <FormControl size="small" sx={{ minWidth: 180 }}>
-            <InputLabel>Organization</InputLabel>
-            <Select
-              label="Organization"
-              value={filterOrgId}
-              onChange={(e) => setFilterOrgId(e.target.value)}
-            >
-              <MenuItem value="">All</MenuItem>
-              {organizations.map((org) => (
-                <MenuItem key={org.id} value={org.id}>
-                  {org.name}
-                </MenuItem>
-              ))}
-            </Select>
-          </FormControl>
-          <FormControl size="small" sx={{ minWidth: 120 }}>
-            <InputLabel>Role</InputLabel>
-            <Select
-              label="Role"
-              value={filterRole}
-              onChange={(e) => setFilterRole(e.target.value)}
-            >
-              <MenuItem value="">All</MenuItem>
-              {FILTER_ROLES.map((r) => (
-                <MenuItem key={r} value={r}>
-                  {r}
-                </MenuItem>
-              ))}
-            </Select>
-          </FormControl>
-          <FormControl size="small" sx={{ minWidth: 100 }}>
-            <InputLabel>Active</InputLabel>
-            <Select
-              label="Active"
-              value={filterActive}
-              onChange={(e) =>
-                setFilterActive(e.target.value as '' | 'yes' | 'no')
-              }
-            >
-              <MenuItem value="">All</MenuItem>
-              <MenuItem value="yes">Yes</MenuItem>
-              <MenuItem value="no">No</MenuItem>
-            </Select>
-          </FormControl>
-          <FormControl size="small" sx={{ minWidth: 100 }}>
-            <InputLabel>Admin</InputLabel>
-            <Select
-              label="Admin"
-              value={filterAdmin}
-              onChange={(e) =>
-                setFilterAdmin(e.target.value as '' | 'yes' | 'no')
-              }
-            >
-              <MenuItem value="">All</MenuItem>
-              <MenuItem value="yes">Yes</MenuItem>
-              <MenuItem value="no">No</MenuItem>
-            </Select>
-          </FormControl>
-        </Box>
-      </Paper>
+      <UsersFilters
+        filterEmail={filterEmail}
+        filterOrgId={filterOrgId}
+        filterRole={filterRole}
+        filterActive={filterActive}
+        filterAdmin={filterAdmin}
+        organizations={organizations}
+        roleOptions={FILTER_ROLES}
+        onFilterEmailChange={setFilterEmail}
+        onFilterOrgIdChange={setFilterOrgId}
+        onFilterRoleChange={setFilterRole}
+        onFilterActiveChange={setFilterActive}
+        onFilterAdminChange={setFilterAdmin}
+      />
 
       {canWrite && (
         <Box sx={{ mb: 2 }}>
@@ -394,9 +381,7 @@ export default function UsersPage() {
       )}
 
       {loading ? (
-        <Box sx={{ display: 'flex', justifyContent: 'center', py: 4 }}>
-          <CircularProgress />
-        </Box>
+        <LoadingSpinner />
       ) : (
         <TableContainer component={Paper}>
           <Table size="small" aria-label="Users">
@@ -412,45 +397,21 @@ export default function UsersPage() {
             </TableHead>
             <TableBody>
               {filteredUsers.length === 0 ? (
-                <TableRow>
-                  <TableCell colSpan={canWrite ? 6 : 5} align="center">
-                    {users.length === 0
-                      ? 'No users.'
-                      : 'No users match the filters.'}
-                  </TableCell>
-                </TableRow>
+                <TableEmptyRow colSpan={canWrite ? 6 : 5}>
+                  {users.length === 0
+                    ? 'No users.'
+                    : 'No users match the filters.'}
+                </TableEmptyRow>
               ) : (
                 filteredUsers.map((user) => (
-                  <TableRow key={user.id}>
-                    <TableCell sx={{ fontWeight: 500 }}>{user.email}</TableCell>
-                    <TableCell sx={{ maxWidth: 280 }}>
-                      {membershipsSummary(user.memberships)}
-                    </TableCell>
-                    <TableCell>{user.is_active ? 'Yes' : 'No'}</TableCell>
-                    <TableCell>{user.is_admin ? 'Yes' : 'No'}</TableCell>
-                    <TableCell sx={{ whiteSpace: 'nowrap' }}>
-                      {formatDate(user.created_at)}
-                    </TableCell>
-                    {canWrite && (
-                      <TableCell align="right">
-                        <IconButton
-                          size="small"
-                          aria-label="Edit"
-                          onClick={() => openEdit(user)}
-                        >
-                          <EditIcon />
-                        </IconButton>
-                        <IconButton
-                          size="small"
-                          aria-label="Delete"
-                          onClick={() => handleDelete(user.id)}
-                          disabled={deletingId === user.id}
-                        >
-                          <DeleteIcon />
-                        </IconButton>
-                      </TableCell>
-                    )}
-                  </TableRow>
+                  <UserTableRow
+                    key={user.id}
+                    user={user}
+                    canWrite={canWrite}
+                    onEdit={(u) => openEdit(u as User)}
+                    onDelete={handleDelete}
+                    isDeleting={deleting && deletingId === user.id}
+                  />
                 ))
               )}
             </TableBody>

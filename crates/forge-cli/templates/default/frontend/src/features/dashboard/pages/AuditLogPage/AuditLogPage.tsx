@@ -1,14 +1,18 @@
-import { useCallback, useEffect, useState } from 'react'
-import { useEffectRuntime } from '../../../../lib/react-effect'
+import { useEffect, useState } from 'react'
+import {
+  useEffectRuntime,
+  useEffectState,
+  useRunEffect,
+  streamWithPendingState,
+  runStreamInto,
+  type AsyncState,
+  idle,
+  isSuccess,
+  isFailure,
+  isPending,
+} from '../../../../lib/react-effect'
 import { runWithAppRuntime, type AppServices } from '../../../../lib/appLayer'
-import Typography from '@mui/material/Typography'
-import Box from '@mui/material/Box'
-import Button from '@mui/material/Button'
-import TextField from '@mui/material/TextField'
-import FormControl from '@mui/material/FormControl'
-import InputLabel from '@mui/material/InputLabel'
-import MenuItem from '@mui/material/MenuItem'
-import Select from '@mui/material/Select'
+import { Effect } from 'effect'
 import Table from '@mui/material/Table'
 import TableBody from '@mui/material/TableBody'
 import TableCell from '@mui/material/TableCell'
@@ -16,27 +20,43 @@ import TableContainer from '@mui/material/TableContainer'
 import TableHead from '@mui/material/TableHead'
 import TableRow from '@mui/material/TableRow'
 import Paper from '@mui/material/Paper'
-import Alert from '@mui/material/Alert'
-import CircularProgress from '@mui/material/CircularProgress'
 import TablePagination from '@mui/material/TablePagination'
-import Chip from '@mui/material/Chip'
-import { useLiveUpdates } from '@/context/LiveWs'
-import { useTablePaginationDefaults } from '@/hooks/useTablePaginationDefaults'
+import PageHeader from '../../../../components/PageHeader'
+import TableEmptyRow from '../../../../components/TableEmptyRow'
+import AuditLogFilters from '../../components/AuditLogFilters'
+import AuditLogTableRow from '../../components/AuditLogTableRow'
+import ErrorAlert from '../../../../components/ErrorAlert'
+import LoadingSpinner from '../../../../components/LoadingSpinner'
+import { useLiveRefreshTrigger } from '../../../../hooks/useLiveRefreshTrigger'
+import { useTablePaginationDefaults } from '../../../../hooks/useTablePaginationDefaults'
 import {
   fetchAuditLogEffect,
   type AuditLogEntry as ApiAuditLogEntry,
 } from '../../../../effects/dashboard'
 
-const OUTCOMES = ['success', 'failure', 'allowed', 'denied'] as const
-const EVENT_KINDS = ['auth', 'authz', 'mutation', 'custom'] as const
-const ACTIONS = ['read', 'create', 'update', 'delete', 'manage'] as const
+type AuditLogResult = { entries: ApiAuditLogEntry[]; total: number }
+type ListState = AsyncState<AuditLogResult, Error>
 
 export default function AuditLogPage() {
   const { runtime } = useEffectRuntime<AppServices>()
-  const [entries, setEntries] = useState<ApiAuditLogEntry[]>([])
-  const [total, setTotal] = useState(0)
-  const [loading, setLoading] = useState(true)
-  const [error, setError] = useState<string | null>(null)
+  const { trigger: liveRefreshTrigger, connected: wsConnected } =
+    useLiveRefreshTrigger('audit-log')
+
+  const [listState, , setListStateAsEffect] = useEffectState<ListState, never, never>(
+    idle<AuditLogResult, Error>(),
+  )
+
+  const entries = isSuccess(listState) ? listState.value.entries : []
+  const total = isSuccess(listState) ? listState.value.total : 0
+  const loading = isPending(listState)
+  const error: Error | null = isFailure(listState) ? listState.error : null
+  const errorMessage =
+    error instanceof Error
+      ? error.message
+      : error != null
+        ? String(error)
+        : null
+
   const { defaultRowsPerPage, rowsPerPageOptions } =
     useTablePaginationDefaults()
   const [page, setPage] = useState(0)
@@ -47,28 +67,10 @@ export default function AuditLogPage() {
   const [eventKind, setEventKind] = useState('')
   const [action, setAction] = useState('')
   const [reason, setReason] = useState('')
-  const { connected: wsConnected } = useLiveUpdates('audit-log', (data) => {
-    if (
-      data &&
-      typeof data === 'object' &&
-      'type' in data &&
-      (data as { type: string }).type === 'audit_log' &&
-      'entry' in data
-    ) {
-      setEntries((prev) => [
-        (data as { entry: ApiAuditLogEntry }).entry,
-        ...prev,
-      ])
-      setTotal((prev) => prev + 1)
-    }
-  })
 
-  const fetchData = useCallback(() => {
-    setError(null)
-    setLoading(true)
-    runWithAppRuntime(
-      runtime,
-      fetchAuditLogEffect({
+  const listEffect: Effect.Effect<AuditLogResult, Error, AppServices> =
+    Effect.gen(function* () {
+      return yield* fetchAuditLogEffect({
         limit: rowsPerPage,
         offset: page * rowsPerPage,
         from: from || undefined,
@@ -77,23 +79,26 @@ export default function AuditLogPage() {
         event_kind: eventKind || undefined,
         action: action || undefined,
         reason: reason.trim() || undefined,
-      }),
-    )
-      .then(({ entries: e, total: t }) => {
-        setEntries(e)
-        setTotal(t)
       })
-      .catch((e) => {
-        setError(e instanceof Error ? e.message : 'Failed to load audit log.')
-        setEntries([])
-        setTotal(0)
-      })
-      .finally(() => setLoading(false))
-  }, [runtime, page, rowsPerPage, from, to, outcome, eventKind, action, reason])
+    })
 
-  useEffect(() => {
-    fetchData()
-  }, [fetchData])
+  const refreshStream = streamWithPendingState(listEffect)
+  const refreshEffect = Effect.gen(function* () {
+    yield* runStreamInto(refreshStream, setListStateAsEffect)
+  })
+
+  useRunEffect(refreshEffect, [
+    liveRefreshTrigger,
+    page,
+    rowsPerPage,
+    from,
+    to,
+    outcome,
+    eventKind,
+    action,
+    reason,
+    setListStateAsEffect,
+  ])
 
   // Sync rowsPerPage when breakpoint default changes (e.g. window resize)
   useEffect(() => {
@@ -124,127 +129,42 @@ export default function AuditLogPage() {
     setPage(0)
   }
 
-  const formatDate = (s: string) => {
-    try {
-      const d = new Date(s)
-      return Number.isNaN(d.getTime()) ? s : d.toLocaleString()
-    } catch {
-      return s
-    }
-  }
-
   return (
     <>
-      <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 0 }}>
-        <Typography variant="h4" component="h1" gutterBottom sx={{ mb: 0 }}>
-          Audit log
-        </Typography>
-        {wsConnected && <Chip label="Live" color="success" size="small" />}
-      </Box>
-      <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
-        Read-only list of audit events. Use filters to narrow results.
-      </Typography>
+      <PageHeader
+        title="Audit log"
+        description="Read-only list of audit events. Use filters to narrow results."
+        liveConnected={wsConnected}
+      />
 
-      <Paper sx={{ p: 2, mb: 2 }}>
-        <Typography variant="subtitle2" gutterBottom>
-          Filters
-        </Typography>
-        <Box
-          sx={{
-            display: 'flex',
-            flexWrap: 'wrap',
-            gap: 2,
-            alignItems: 'flex-end',
+      <AuditLogFilters
+        from={from}
+        to={to}
+        outcome={outcome}
+        eventKind={eventKind}
+        action={action}
+        reason={reason}
+        onFromChange={setFrom}
+        onToChange={setTo}
+        onOutcomeChange={setOutcome}
+        onEventKindChange={setEventKind}
+        onActionChange={setAction}
+        onReasonChange={setReason}
+        onApply={handleApplyFilters}
+        onReset={handleResetFilters}
+      />
+
+      {errorMessage != null && (
+        <ErrorAlert
+          message={errorMessage}
+          onClose={() => {
+            runWithAppRuntime(runtime, refreshEffect)
           }}
-        >
-          <TextField
-            label="From (date)"
-            type="date"
-            size="small"
-            value={from}
-            onChange={(e) => setFrom(e.target.value)}
-            InputLabelProps={{ shrink: true }}
-            sx={{ minWidth: 140 }}
-          />
-          <TextField
-            label="To (date)"
-            type="date"
-            size="small"
-            value={to}
-            onChange={(e) => setTo(e.target.value)}
-            InputLabelProps={{ shrink: true }}
-            sx={{ minWidth: 140 }}
-          />
-          <FormControl size="small" sx={{ minWidth: 120 }}>
-            <InputLabel>Outcome</InputLabel>
-            <Select
-              value={outcome}
-              label="Outcome"
-              onChange={(e) => setOutcome(e.target.value)}
-            >
-              <MenuItem value="">All</MenuItem>
-              {OUTCOMES.map((o) => (
-                <MenuItem key={o} value={o}>
-                  {o}
-                </MenuItem>
-              ))}
-            </Select>
-          </FormControl>
-          <FormControl size="small" sx={{ minWidth: 120 }}>
-            <InputLabel>Event kind</InputLabel>
-            <Select
-              value={eventKind}
-              label="Event kind"
-              onChange={(e) => setEventKind(e.target.value)}
-            >
-              <MenuItem value="">All</MenuItem>
-              {EVENT_KINDS.map((k) => (
-                <MenuItem key={k} value={k}>
-                  {k}
-                </MenuItem>
-              ))}
-            </Select>
-          </FormControl>
-          <FormControl size="small" sx={{ minWidth: 100 }}>
-            <InputLabel>Action</InputLabel>
-            <Select
-              value={action}
-              label="Action"
-              onChange={(e) => setAction(e.target.value)}
-            >
-              <MenuItem value="">All</MenuItem>
-              {ACTIONS.map((a) => (
-                <MenuItem key={a} value={a}>
-                  {a}
-                </MenuItem>
-              ))}
-            </Select>
-          </FormControl>
-          <TextField
-            label="Reason contains"
-            size="small"
-            value={reason}
-            onChange={(e) => setReason(e.target.value)}
-            placeholder="Search in reason"
-            sx={{ minWidth: 160 }}
-          />
-          <Button variant="contained" onClick={handleApplyFilters}>
-            Apply
-          </Button>
-          <Button onClick={handleResetFilters}>Reset</Button>
-        </Box>
-      </Paper>
-
-      {error && (
-        <Alert severity="error" sx={{ mb: 2 }}>
-          {error}
-        </Alert>
+        />
       )}
 
       {loading ? (
-        <Box sx={{ display: 'flex', justifyContent: 'center', py: 4 }}>
-          <CircularProgress />
-        </Box>
+        <LoadingSpinner />
       ) : (
         <>
           <TableContainer component={Paper}>
@@ -262,39 +182,10 @@ export default function AuditLogPage() {
               </TableHead>
               <TableBody>
                 {entries.length === 0 ? (
-                  <TableRow>
-                    <TableCell colSpan={7} align="center">
-                      No entries
-                    </TableCell>
-                  </TableRow>
+                  <TableEmptyRow colSpan={7}>No entries</TableEmptyRow>
                 ) : (
                   entries.map((row) => (
-                    <TableRow key={row.id}>
-                      <TableCell sx={{ whiteSpace: 'nowrap' }}>
-                        {formatDate(row.occurred_at)}
-                      </TableCell>
-                      <TableCell
-                        sx={{
-                          fontFamily: 'monospace',
-                          fontSize: '0.75rem',
-                        }}
-                      >
-                        {row.actor_id.slice(0, 8)}…
-                      </TableCell>
-                      <TableCell>{row.event_kind}</TableCell>
-                      <TableCell>{row.action}</TableCell>
-                      <TableCell>{row.resource_type}</TableCell>
-                      <TableCell>{row.outcome}</TableCell>
-                      <TableCell
-                        sx={{
-                          maxWidth: 200,
-                          overflow: 'hidden',
-                          textOverflow: 'ellipsis',
-                        }}
-                      >
-                        {row.reason ?? '—'}
-                      </TableCell>
-                    </TableRow>
+                    <AuditLogTableRow key={row.id} entry={row} />
                   ))
                 )}
               </TableBody>

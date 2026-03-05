@@ -14,9 +14,7 @@
  */
 
 import { Context, Effect } from 'effect'
-import type { Organization } from '../domain'
-
-export { Organization } from '../domain'
+import type { Organization } from '../domain/Organization'
 
 /**
  * Organizations service interface.

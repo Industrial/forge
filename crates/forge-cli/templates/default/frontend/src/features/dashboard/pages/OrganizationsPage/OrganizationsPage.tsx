@@ -36,7 +36,8 @@ import {
 } from '../../../../lib/react-effect'
 import { runWithAppRuntime, type AppServices } from '../../../../lib/appLayer'
 import { Effect } from 'effect'
-import { Organizations, type Organization } from '../../services/Organizations'
+import { Organizations } from '../../services/Organizations'
+import type { Organization } from '../../domain/Organization'
 
 const ORG_WRITE = 'dashboard.organizations.write'
 
@@ -48,7 +49,7 @@ const listEffect: Effect.Effect<readonly Organization[], Error, AppServices> =
 
 type ListState = AsyncState<readonly Organization[], Error>
 
-type OrganizationFormProps = {
+export type OrganizationFormProps = {
   mode: 'add' | 'edit'
   name: string
   slug: string
