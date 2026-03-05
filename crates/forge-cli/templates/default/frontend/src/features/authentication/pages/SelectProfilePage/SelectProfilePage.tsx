@@ -20,7 +20,7 @@ import {
   isSuccess,
   isPending,
   isFailure,
-} from '../../../../lib/react-effect'
+} from 'react-effect-hooks'
 import { runWithAppRuntime, type AppServices } from '../../../../lib/appLayer'
 
 type SetProfileState = AsyncState<void, Error>

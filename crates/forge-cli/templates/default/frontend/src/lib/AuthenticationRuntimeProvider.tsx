@@ -1,6 +1,6 @@
 import { Effect, Layer, Runtime } from 'effect'
 import { type ReactNode, useEffect, useMemo, useState } from 'react'
-import { EffectRuntimeProvider } from './react-effect'
+import { EffectRuntimeProvider } from 'react-effect-hooks'
 import type { HttpClientWithAuthConfig } from './httpClientWithAuth'
 import { AppLayer, runWithAppRuntime, type AppServices } from './appLayer'
 import { AuthenticationStore } from '../features/authentication/services/AuthenticationStore'

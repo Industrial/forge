@@ -41,7 +41,7 @@ import {
   isSuccess,
   isFailure,
   isPending,
-} from '../../../../lib/react-effect'
+} from 'react-effect-hooks'
 import { effectSchemaResolver } from '../../../../lib/effectSchemaResolver'
 import {
   userAddFormSchemaStrict,

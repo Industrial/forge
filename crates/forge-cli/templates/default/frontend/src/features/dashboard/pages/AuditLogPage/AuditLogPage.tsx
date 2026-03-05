@@ -10,7 +10,7 @@ import {
   isSuccess,
   isFailure,
   isPending,
-} from '../../../../lib/react-effect'
+} from 'react-effect-hooks'
 import { runWithAppRuntime, type AppServices } from '../../../../lib/appLayer'
 import { Effect } from 'effect'
 import Table from '@mui/material/Table'

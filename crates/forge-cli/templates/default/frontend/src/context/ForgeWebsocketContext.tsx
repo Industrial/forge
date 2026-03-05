@@ -7,7 +7,7 @@ import React, {
   useState,
 } from 'react'
 import { Effect } from 'effect'
-import { useEffectRuntime } from '../lib/react-effect'
+import { useEffectRuntime } from 'react-effect-hooks'
 import { runWithAppRuntime, type AppServices } from '../lib/appLayer'
 import {
   ForgeWebsocket,

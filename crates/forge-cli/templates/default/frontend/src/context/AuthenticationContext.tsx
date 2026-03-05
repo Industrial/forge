@@ -8,7 +8,7 @@ import { AuthenticationError } from '../features/authentication/domain/Authentic
 import { AuthenticationApi } from '../features/authentication/services/AuthenticationApi'
 import { AuthenticationStore } from '../features/authentication/services/AuthenticationStore'
 import { useAuthenticationState } from '../features/authentication/hooks/useAuthentication'
-import { useEffectRuntime } from '../lib/react-effect'
+import { useEffectRuntime } from 'react-effect-hooks'
 import type { AppServices } from '../lib/appLayer'
 
 /**

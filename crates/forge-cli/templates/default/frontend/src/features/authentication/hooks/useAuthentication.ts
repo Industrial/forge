@@ -10,7 +10,7 @@ import { useCallback, useEffect, useState } from 'react'
 import type { AuthenticationError } from '../domain/AuthenticationError'
 import type { AuthenticationStateSnapshot } from '../domain/AuthenticationStateSnapshot'
 import { AuthenticationStore } from '../services/AuthenticationStore'
-import { useEffectRuntime } from '../../../lib/react-effect'
+import { useEffectRuntime } from 'react-effect-hooks'
 import { runWithAppRuntime, type AppServices } from '../../../lib/appLayer'
 
 const getStateEffect = Effect.gen(function* () {
