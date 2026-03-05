@@ -1,6 +1,8 @@
 import React from 'react'
 import { Navigate, useLocation } from 'react-router-dom'
+import Box from '@mui/material/Box'
 import { useAuthentication } from '../context/AuthenticationContext'
+import LoadingSpinner from './LoadingSpinner'
 
 type GuestRouteProps = { children: React.ReactNode }
 
@@ -14,7 +16,11 @@ export default function GuestRoute({ children }: GuestRouteProps) {
   const location = useLocation()
 
   if (loading) {
-    return null
+    return (
+      <Box sx={{ display: 'flex', justifyContent: 'center', alignItems: 'center', flex: 1, minHeight: '40vh' }}>
+        <LoadingSpinner />
+      </Box>
+    )
   }
 
   if (user != null) {

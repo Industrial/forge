@@ -1,6 +1,7 @@
 import { Effect, Layer, Runtime } from 'effect'
 import { type ReactNode, useEffect, useMemo, useRef, useState } from 'react'
 import { EffectRuntimeProvider, useRunEffect } from 'react-effect-hooks'
+import FullPageLoader from '../components/FullPageLoader'
 import type { HttpClientWithAuthConfig } from './httpClientWithAuth'
 import { AppLayer, runWithAppRuntime, type AppServices } from './appLayer'
 import { AuthenticationStore } from '../features/authentication/services/AuthenticationStore'
@@ -98,6 +99,7 @@ export function AuthenticationRuntimeProvider({
 
     return () => {
       cancelled = true
+      inFlightKeyRef.current = null
     }
   }, [config.baseUrl, config.token, config.organizationId, config.roleId])
 
@@ -137,7 +139,7 @@ export function AuthenticationRuntimeProvider({
   useRunEffect(connectEffect, [runtime, config.token], runtime)
 
   if (runtime == null) {
-    return null
+    return <FullPageLoader />
   }
   return (
     <EffectRuntimeProvider runtime={runtime}>{children}</EffectRuntimeProvider>

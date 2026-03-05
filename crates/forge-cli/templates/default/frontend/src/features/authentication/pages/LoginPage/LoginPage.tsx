@@ -1,5 +1,5 @@
 import { useForm, Controller } from 'react-hook-form'
-import { Link as RouterLink, useLocation } from 'react-router-dom'
+import { Link as RouterLink, useLocation, useNavigate } from 'react-router-dom'
 import { Schema } from 'effect'
 import Alert from '@mui/material/Alert'
 import Box from '@mui/material/Box'
@@ -13,19 +13,15 @@ import {
   AuthenticationApi,
   type LoginResult,
 } from '../../services/AuthenticationApi'
-import type { AuthenticationError } from '../../domain/AuthenticationError'
 import { AuthenticationStore } from '../../services/AuthenticationStore'
 import { useAuthentication } from '../../../../context/AuthenticationContext'
 import {
   useEffectState,
-  useRunEffect,
   useEffectRuntime,
-  useNavigateEffect,
   streamWithPendingState,
   runStreamInto,
   type AsyncState,
   idle,
-  isSuccess,
   isPending,
   isFailure,
 } from 'react-effect-hooks'
@@ -40,9 +36,9 @@ type LoginState = AsyncState<LoginResult, Error>
 
 export default function LoginPage() {
   const location = useLocation()
-  const navigateEffect = useNavigateEffect()
+  const navigate = useNavigate()
   const { runtime } = useEffectRuntime<AppServices>()
-  const { fetchMeEffect } = useAuthentication()
+  const { fetchMe } = useAuthentication()
 
   const from =
     (location.state as { from?: { pathname: string } } | null)?.from
@@ -81,35 +77,15 @@ export default function LoginPage() {
         loginEffect(data.email, data.password),
       )
       const effect = runStreamInto(stream, setSubmitStateAsEffect)
-      runWithAppRuntime(runtime, effect).catch((err) => {
-        console.error('Login failed:', err)
-      })
+      runWithAppRuntime(runtime, effect)
+        .then(() => fetchMe())
+        .then(() => navigate(from, { replace: true }))
+        .catch((err) => {
+          console.error('Login failed:', err)
+        })
     },
-    [runtime, loginEffect, setSubmitStateAsEffect],
+    [runtime, loginEffect, setSubmitStateAsEffect, fetchMe, navigate, from],
   )
-
-  const successEffect: Effect.Effect<void, AuthenticationError, AppServices> =
-    Effect.gen(
-    function* () {
-      if (!isSuccess(submitState)) return
-      const r = submitState.value
-      // Refresh auth context (store + React state via flushSync) so ProtectedRoute sees the new user
-      yield* fetchMeEffect()
-      if (r.needs_profile_select === true) {
-        yield* navigateEffect('/authentication/select-profile', { replace: true })
-      } else {
-        yield* navigateEffect(from, { replace: true })
-      }
-      yield* setSubmitStateAsEffect(idle<LoginResult, Error>())
-    },
-  )
-  useRunEffect(successEffect, [
-    submitState,
-    navigateEffect,
-    from,
-    fetchMeEffect,
-    setSubmitStateAsEffect,
-  ])
 
   const submitting = isPending(submitState)
   const errorMessage =
