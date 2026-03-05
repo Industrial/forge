@@ -3,7 +3,7 @@
  * Used by AuthenticationRuntimeProvider to build the single runtime for the app.
  */
 import type { HttpClient } from '@effect/platform'
-import { Effect, Layer, Runtime } from 'effect'
+import { Effect, Layer, Logger, LogLevel, Runtime } from 'effect'
 import type { HttpClientWithAuthConfig } from './httpClientWithAuth'
 import { AuthenticationFeatureLayer } from '../features/authentication/layer'
 import type { AuditLogService } from '../features/dashboard/services/AuditLog'
@@ -59,9 +59,17 @@ export function runWithAppRuntime<A, E, R extends AppServices>(
 }
 
 /**
+ * Logger layer: minimum level Trace so Effect.logTrace and Effect.logDebug are emitted.
+ * Merged into the app runtime so service instrumentation is visible. The default logger
+ * in Effect should output to the environment (e.g. browser console when run in the app).
+ */
+const LoggerLayer = Logger.minimumLogLevel(LogLevel.Trace)
+
+/**
  * Builds the full app layer: AuthenticationFeatureLayer (HttpClient + AuthenticationStore),
  * WebsocketLive, ForgeWebsocketLive, and OrganizationsLive. ForgeWebsocketLive and
  * OrganizationsLive receive their dependencies from the base layer.
+ * Includes Logger at Trace level so instrumentation logs are visible.
  */
 export const AppLayer = (config: HttpClientWithAuthConfig) => {
   const base = Layer.mergeAll(
@@ -77,5 +85,5 @@ export const AppLayer = (config: HttpClientWithAuthConfig) => {
     UsersLive,
     DashboardLive,
   ).pipe(Layer.provide(base))
-  return Layer.mergeAll(base, dashboardServices)
+  return Layer.mergeAll(base, dashboardServices, LoggerLayer)
 }
