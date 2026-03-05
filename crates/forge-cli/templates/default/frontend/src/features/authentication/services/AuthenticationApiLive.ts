@@ -20,6 +20,8 @@ export const AuthenticationApiLive = Layer.effect(
 
     const login: AuthenticationApiService['login'] = (email, password) =>
       Effect.gen(function* () {
+        yield* Effect.logTrace('AuthenticationApiLive.login')
+        yield* Effect.logDebug(`login: email=${email}`)
         const response = yield* client.execute(
           HttpClientRequest.post('/api/auth/login').pipe(
             HttpClientRequest.bodyUnsafeJson({ email, password }),
@@ -39,14 +41,18 @@ export const AuthenticationApiLive = Layer.effect(
         if (typeof data.token !== 'string') {
           return yield* Effect.fail(new Error('Invalid response from server.'))
         }
-        return {
+        const result = {
           token: data.token,
           needs_profile_select: data.needs_profile_select,
         } as LoginResult
+        yield* Effect.logDebug(`login result: needs_profile_select=${result.needs_profile_select}`)
+        return result
       })
 
     const register: AuthenticationApiService['register'] = (email, password) =>
       Effect.gen(function* () {
+        yield* Effect.logTrace('AuthenticationApiLive.register')
+        yield* Effect.logDebug(`register: email=${email}`)
         const response = yield* client.execute(
           HttpClientRequest.post('/api/auth/register').pipe(
             HttpClientRequest.bodyUnsafeJson({ email, password }),
@@ -56,6 +62,7 @@ export const AuthenticationApiLive = Layer.effect(
         if (response.status < 200 || response.status >= 300) {
           return yield* Effect.fail(new Error(parseError(body)))
         }
+        yield* Effect.logDebug('register: success')
       })
 
     const setProfile: AuthenticationApiService['setProfile'] = (
@@ -63,6 +70,8 @@ export const AuthenticationApiLive = Layer.effect(
       roleId,
     ) =>
       Effect.gen(function* () {
+        yield* Effect.logTrace('AuthenticationApiLive.setProfile')
+        yield* Effect.logDebug(`setProfile: orgId=${orgId}, roleId=${roleId ?? 'undefined'}`)
         const response = yield* client.execute(
           HttpClientRequest.post('/api/auth/set-profile').pipe(
             HttpClientRequest.bodyUnsafeJson({
@@ -75,6 +84,7 @@ export const AuthenticationApiLive = Layer.effect(
           const body = yield* response.json
           return yield* Effect.fail(new Error(parseError(body)))
         }
+        yield* Effect.logDebug('setProfile: success')
       })
 
     return { login, register, setProfile }

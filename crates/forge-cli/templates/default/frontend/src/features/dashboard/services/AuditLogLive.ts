@@ -22,6 +22,10 @@ const AuditLogLive = Layer.effect(
 
     const list: AuditLogService['list'] = (params: AuditLogListParams) =>
       Effect.gen(function* () {
+        yield* Effect.logTrace('AuditLogLive.list')
+        yield* Effect.logDebug(
+          `AuditLogLive.list: limit=${params.limit}, offset=${params.offset}, from=${params.from ?? 'undefined'}, to=${params.to ?? 'undefined'}`,
+        )
         const search = new URLSearchParams()
         search.set('limit', String(params.limit))
         search.set('offset', String(params.offset))
@@ -79,6 +83,9 @@ const AuditLogLive = Layer.effect(
           entries,
           total: data.total ?? 0,
         }
+        yield* Effect.logDebug(
+          `AuditLogLive.list: entries=${result.entries.length}, total=${result.total}`,
+        )
         return result
       })
 

@@ -33,6 +33,10 @@ export type AuthenticationState = {
   loading: boolean
   /** Re-fetch user/profiles/permissions. Pass a token (e.g. from login) to set it and then fetch. */
   fetchMe: (tokenOverride?: string | null) => Promise<void>
+  /** Effect that runs fetchMe then refreshes React state; use in Effect.gen for composition. */
+  fetchMeEffect: (
+    tokenOverride?: string | null,
+  ) => Effect.Effect<void, AuthenticationError, AppServices>
   logout: () => Promise<void>
   setCurrentScope: (
     orgId: string,
@@ -112,6 +116,14 @@ export function AuthenticationProvider({
     [runThenRefresh],
   )
 
+  const fetchMeEffectForContext = useCallback(
+    (tokenOverride?: string | null) =>
+      fetchMeEffect(tokenOverride).pipe(
+        Effect.andThen(() => Effect.promise(() => refresh())),
+      ),
+    [refresh],
+  )
+
   const logout = useCallback(async () => {
     await runThenRefresh(logoutEffect)
   }, [runThenRefresh])
@@ -170,11 +182,21 @@ export function AuthenticationProvider({
       needs_profile_select: state?.needs_profile_select ?? false,
       loading: isPending,
       fetchMe,
+      fetchMeEffect: fetchMeEffectForContext,
       logout,
       setCurrentScope,
       switchProfile,
     }),
-    [state, isPending, setToken, fetchMe, logout, setCurrentScope, switchProfile],
+    [
+      state,
+      isPending,
+      setToken,
+      fetchMe,
+      fetchMeEffectForContext,
+      logout,
+      setCurrentScope,
+      switchProfile,
+    ],
   )
 
   return (

@@ -22,6 +22,7 @@ const UsersLive = Layer.effect(
 
     const list: UsersService['list'] = () =>
       Effect.gen(function* () {
+        yield* Effect.logTrace('UsersLive.list')
         const response = yield* client.execute(
           HttpClientRequest.get('/api/dashboard/users'),
         )
@@ -54,7 +55,7 @@ const UsersLive = Layer.effect(
           }>
         }
         const raw = data.users ?? []
-        return raw.map(
+        const result = raw.map(
           (u) =>
             new User({
               id: u.id,
@@ -72,10 +73,14 @@ const UsersLive = Layer.effect(
               ),
             }),
         ) as readonly User[]
+        yield* Effect.logDebug(`UsersLive.list: count=${result.length}`)
+        return result
       })
 
     const create: UsersService['create'] = (body) =>
       Effect.gen(function* () {
+        yield* Effect.logTrace('UsersLive.create')
+        yield* Effect.logDebug(`UsersLive.create: email=${body.email}, org_id=${body.org_id}`)
         const request = HttpClientRequest.post('/api/dashboard/users').pipe(
           HttpClientRequest.bodyUnsafeJson({
             ...body,
@@ -92,10 +97,13 @@ const UsersLive = Layer.effect(
         if (response.status < 200 || response.status >= 300) {
           return yield* Effect.fail(new Error(parseError(resBody)))
         }
+        yield* Effect.logDebug('UsersLive.create: success')
       })
 
     const update: UsersService['update'] = (body) =>
       Effect.gen(function* () {
+        yield* Effect.logTrace('UsersLive.update')
+        yield* Effect.logDebug(`UsersLive.update: id=${body.id}`)
         const response = yield* client.execute(
           HttpClientRequest.patch('/api/dashboard/users').pipe(
             HttpClientRequest.bodyUnsafeJson(body),
@@ -110,10 +118,13 @@ const UsersLive = Layer.effect(
         if (response.status < 200 || response.status >= 300) {
           return yield* Effect.fail(new Error(parseError(resBody)))
         }
+        yield* Effect.logDebug('UsersLive.update: success')
       })
 
     const del: UsersService['delete'] = (id: string) =>
       Effect.gen(function* () {
+        yield* Effect.logTrace('UsersLive.delete')
+        yield* Effect.logDebug(`UsersLive.delete: id=${id}`)
         const response = yield* client.execute(
           HttpClientRequest.del('/api/dashboard/users').pipe(
             HttpClientRequest.bodyUnsafeJson({ id }),
@@ -128,6 +139,7 @@ const UsersLive = Layer.effect(
         if (response.status < 200 || response.status >= 300) {
           return yield* Effect.fail(new Error(parseError(resBody)))
         }
+        yield* Effect.logDebug('UsersLive.delete: success')
       })
 
     return {

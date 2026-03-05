@@ -22,6 +22,7 @@ const PermissionsLive = Layer.effect(
 
     const getData: PermissionsService['getData'] = () =>
       Effect.gen(function* () {
+        yield* Effect.logTrace('PermissionsLive.getData')
         const [assignRes, permRes] = yield* Effect.all([
           client.execute(HttpClientRequest.get('/api/dashboard/role-permissions')),
           client.execute(HttpClientRequest.get('/api/dashboard/permissions')),
@@ -52,13 +53,21 @@ const PermissionsLive = Layer.effect(
           ) as readonly Assignment[]
           const permissions =
             (permBody as { permissions?: string[] }).permissions ?? []
-          return { assignments, permissions }
+          const result = { assignments, permissions }
+          yield* Effect.logDebug(
+            `PermissionsLive.getData: assignments=${result.assignments.length}, permissions=${result.permissions.length}`,
+          )
+          return result
         }
         return yield* Effect.fail(new Error('Failed to load data.'))
       })
 
     const add: PermissionsService['add'] = (body) =>
       Effect.gen(function* () {
+        yield* Effect.logTrace('PermissionsLive.add')
+        yield* Effect.logDebug(
+          `PermissionsLive.add: scope=${body.scope}, role_name=${body.role_name}, permission_key=${body.permission_key}`,
+        )
         const req = HttpClientRequest.post('/api/dashboard/role-permissions').pipe(
           HttpClientRequest.bodyUnsafeJson(body),
         )
@@ -72,10 +81,15 @@ const PermissionsLive = Layer.effect(
         if (response.status < 200 || response.status >= 300) {
           return yield* Effect.fail(new Error(parseErr(resBody)))
         }
+        yield* Effect.logDebug('PermissionsLive.add: success')
       })
 
     const del: PermissionsService['delete'] = (body) =>
       Effect.gen(function* () {
+        yield* Effect.logTrace('PermissionsLive.delete')
+        yield* Effect.logDebug(
+          `PermissionsLive.delete: scope=${body.scope}, role_name=${body.role_name}, permission_key=${body.permission_key}`,
+        )
         const req = HttpClientRequest.del('/api/dashboard/role-permissions').pipe(
           HttpClientRequest.bodyUnsafeJson(body),
         )
@@ -89,6 +103,7 @@ const PermissionsLive = Layer.effect(
         if (response.status < 200 || response.status >= 300) {
           return yield* Effect.fail(new Error(parseErr(resBody)))
         }
+        yield* Effect.logDebug('PermissionsLive.delete: success')
       })
 
     return {

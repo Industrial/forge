@@ -1,5 +1,5 @@
 import { useForm, Controller } from 'react-hook-form'
-import { Link as RouterLink, useNavigate, useLocation } from 'react-router-dom'
+import { Link as RouterLink, useLocation } from 'react-router-dom'
 import { Schema } from 'effect'
 import Alert from '@mui/material/Alert'
 import Box from '@mui/material/Box'
@@ -13,12 +13,14 @@ import {
   AuthenticationApi,
   type LoginResult,
 } from '../../services/AuthenticationApi'
+import type { AuthenticationError } from '../../domain/AuthenticationError'
 import { AuthenticationStore } from '../../services/AuthenticationStore'
 import { useAuthentication } from '../../../../context/AuthenticationContext'
 import {
   useEffectState,
   useRunEffect,
   useEffectRuntime,
+  useNavigateEffect,
   streamWithPendingState,
   runStreamInto,
   type AsyncState,
@@ -37,10 +39,10 @@ import {
 type LoginState = AsyncState<LoginResult, Error>
 
 export default function LoginPage() {
-  const navigate = useNavigate()
   const location = useLocation()
+  const navigateEffect = useNavigateEffect()
   const { runtime } = useEffectRuntime<AppServices>()
-  const { fetchMe } = useAuthentication()
+  const { fetchMeEffect } = useAuthentication()
 
   const from =
     (location.state as { from?: { pathname: string } } | null)?.from
@@ -86,27 +88,26 @@ export default function LoginPage() {
     [runtime, loginEffect, setSubmitStateAsEffect],
   )
 
-  const successEffect: Effect.Effect<void, never, AppServices> = Effect.gen(
+  const successEffect: Effect.Effect<void, AuthenticationError, AppServices> =
+    Effect.gen(
     function* () {
       if (!isSuccess(submitState)) return
       const r = submitState.value
-      // Refresh auth context so ProtectedRoute sees the new user before we navigate
-      yield* Effect.promise(() => fetchMe())
-      yield* Effect.sync(() => {
-        if (r.needs_profile_select === true) {
-          navigate('/authentication/select-profile', { replace: true })
-        } else {
-          navigate(from, { replace: true })
-        }
-      })
+      // Refresh auth context (store + React state via flushSync) so ProtectedRoute sees the new user
+      yield* fetchMeEffect()
+      if (r.needs_profile_select === true) {
+        yield* navigateEffect('/authentication/select-profile', { replace: true })
+      } else {
+        yield* navigateEffect(from, { replace: true })
+      }
       yield* setSubmitStateAsEffect(idle<LoginResult, Error>())
     },
   )
   useRunEffect(successEffect, [
     submitState,
-    navigate,
+    navigateEffect,
     from,
-    fetchMe,
+    fetchMeEffect,
     setSubmitStateAsEffect,
   ])
 

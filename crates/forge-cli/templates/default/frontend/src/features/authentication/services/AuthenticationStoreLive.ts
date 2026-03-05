@@ -134,20 +134,36 @@ export const AuthenticationStoreLive = Layer.effect(
     const store: AuthenticationStoreService = {
       getToken: () =>
         Effect.gen(function* () {
+          yield* Effect.logTrace('AuthenticationStoreLive.getToken')
           const s = yield* Ref.get(ref)
+          yield* Effect.logDebug(`getToken result: hasToken=${s.token != null}`)
           return s.token
         }),
 
       setToken: (token) =>
         Effect.gen(function* () {
+          yield* Effect.logTrace('AuthenticationStoreLive.setToken')
+          yield* Effect.logDebug(`setToken: hasToken=${token != null}`)
           yield* Ref.update(ref, (s) => new AuthenticationStateSnapshot({ ...s, token }))
           yield* persistToken(token)
         }),
 
-      getState: () => Ref.get(ref),
+      getState: () =>
+        Effect.gen(function* () {
+          yield* Effect.logTrace('AuthenticationStoreLive.getState')
+          const s = yield* Ref.get(ref)
+          yield* Effect.logDebug(
+            `getState: user=${s.user?.email ?? 'null'}, needs_profile_select=${s.needs_profile_select}`,
+          )
+          return s
+        }),
 
       fetchMe: (tokenOverride) =>
         Effect.gen(function* () {
+          yield* Effect.logTrace('AuthenticationStoreLive.fetchMe')
+          yield* Effect.logDebug(
+            `fetchMe: tokenOverride=${tokenOverride != null ? 'provided' : 'none'}`,
+          )
           let token: string | null
           if (tokenOverride !== undefined && tokenOverride !== null) {
             token = tokenOverride
@@ -161,6 +177,7 @@ export const AuthenticationStoreLive = Layer.effect(
             token = s.token
           }
           if (!token) {
+            yield* Effect.logDebug('fetchMe: no token, resetting state')
             yield* Ref.set(ref, initialSnapshot())
             return
           }
@@ -171,6 +188,7 @@ export const AuthenticationStoreLive = Layer.effect(
           const body = yield* response.json
           const ok = response.status >= 200 && response.status < 300
           if (!ok) {
+            yield* Effect.logDebug(`fetchMe: non-ok status=${response.status}, resetting state`)
             yield* persistToken(null)
             yield* Ref.set(ref, initialSnapshot())
             return
@@ -191,6 +209,9 @@ export const AuthenticationStoreLive = Layer.effect(
               needs_profile_select: parsed.needs_profile_select,
             }),
           )
+          yield* Effect.logDebug(
+            `fetchMe: success user=${user?.email ?? 'null'}, needs_profile_select=${parsed.needs_profile_select}`,
+          )
         }).pipe(
           Effect.catchAll((e) =>
             Effect.fail(
@@ -204,6 +225,7 @@ export const AuthenticationStoreLive = Layer.effect(
 
       logout: () =>
         Effect.gen(function* () {
+          yield* Effect.logTrace('AuthenticationStoreLive.logout')
           yield* Ref.set(ref, initialSnapshot())
           yield* persistToken(null)
           yield* persistScope(null, null, null)
@@ -211,6 +233,8 @@ export const AuthenticationStoreLive = Layer.effect(
 
       setScope: (orgId, roleId, roleName) =>
         Effect.gen(function* () {
+          yield* Effect.logTrace('AuthenticationStoreLive.setScope')
+          yield* Effect.logDebug(`setScope: orgId=${orgId}, roleId=${roleId}, roleName=${roleName}`)
           yield* Ref.update(
             ref,
             (s) =>

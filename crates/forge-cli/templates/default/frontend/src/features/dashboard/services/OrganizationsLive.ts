@@ -25,6 +25,7 @@ const OrganizationsLive = Layer.effect(
 
     const list: OrganizationsService['list'] = () =>
       Effect.gen(function* () {
+        yield* Effect.logTrace('OrganizationsLive.list')
         const response = yield* client.execute(
           HttpClientRequest.get('/api/organizations'),
         )
@@ -48,7 +49,7 @@ const OrganizationsLive = Layer.effect(
           }>
         }
         const raw = data.organizations ?? []
-        return raw.map(
+        const result = raw.map(
           (o) =>
             new Organization({
               id: o.id,
@@ -58,10 +59,14 @@ const OrganizationsLive = Layer.effect(
               updated_at: o.updated_at,
             }),
         ) as readonly Organization[]
+        yield* Effect.logDebug(`OrganizationsLive.list: count=${result.length}`)
+        return result
       })
 
     const create: OrganizationsService['create'] = (body) =>
       Effect.gen(function* () {
+        yield* Effect.logTrace('OrganizationsLive.create')
+        yield* Effect.logDebug(`OrganizationsLive.create: name=${body.name}, slug=${body.slug ?? 'undefined'}`)
         const response = yield* client.execute(
           HttpClientRequest.post('/api/organizations').pipe(
             HttpClientRequest.bodyUnsafeJson(body),
@@ -76,11 +81,14 @@ const OrganizationsLive = Layer.effect(
         if (response.status < 200 || response.status >= 300) {
           return yield* Effect.fail(new Error(parseError(resBody)))
         }
+        yield* Effect.logDebug('OrganizationsLive.create: success')
       })
 
     const update: OrganizationsService['update'] = (body) =>
       Effect.gen(function* () {
+        yield* Effect.logTrace('OrganizationsLive.update')
         const { id, ...rest } = body
+        yield* Effect.logDebug(`OrganizationsLive.update: id=${id}`)
         const response = yield* client.execute(
           HttpClientRequest.patch(
             `/api/organizations/${encodeURIComponent(id)}`,
@@ -98,10 +106,13 @@ const OrganizationsLive = Layer.effect(
         if (response.status < 200 || response.status >= 300) {
           return yield* Effect.fail(new Error(parseError(resBody)))
         }
+        yield* Effect.logDebug('OrganizationsLive.update: success')
       })
 
     const del: OrganizationsService['delete'] = (id) =>
       Effect.gen(function* () {
+        yield* Effect.logTrace('OrganizationsLive.delete')
+        yield* Effect.logDebug(`OrganizationsLive.delete: id=${id}`)
         const response = yield* client.execute(
           HttpClientRequest.del(`/api/organizations/${encodeURIComponent(id)}`),
         )
@@ -117,6 +128,7 @@ const OrganizationsLive = Layer.effect(
         if (response.status < 200 || response.status >= 300) {
           return yield* Effect.fail(new Error(parseError(resBody)))
         }
+        yield* Effect.logDebug('OrganizationsLive.delete: success')
       })
 
     return {

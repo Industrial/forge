@@ -23,6 +23,7 @@ const DashboardLive = Layer.effect(
 
     const getOrganizations: DashboardService['getOrganizations'] = () =>
       Effect.gen(function* () {
+        yield* Effect.logTrace('DashboardLive.getOrganizations')
         const response = yield* client.execute(
           HttpClientRequest.get('/api/dashboard/organizations'),
         )
@@ -40,7 +41,7 @@ const DashboardLive = Layer.effect(
           }>
         }
         const raw = data.organizations ?? []
-        return raw.map(
+        const result = raw.map(
           (o) =>
             new Organization({
               id: o.id,
@@ -50,10 +51,14 @@ const DashboardLive = Layer.effect(
               updated_at: o.updated_at,
             }),
         ) as readonly Organization[]
+        yield* Effect.logDebug(`DashboardLive.getOrganizations: count=${result.length}`)
+        return result
       })
 
     const getRolesByOrg: DashboardService['getRolesByOrg'] = (orgId: string) =>
       Effect.gen(function* () {
+        yield* Effect.logTrace('DashboardLive.getRolesByOrg')
+        yield* Effect.logDebug(`DashboardLive.getRolesByOrg: orgId=${orgId}`)
         if (!orgId) return [] as readonly DashboardRole[]
         const url = `/api/dashboard/roles?org_id=${encodeURIComponent(orgId)}`
         const response = yield* client.execute(HttpClientRequest.get(url))
@@ -65,7 +70,7 @@ const DashboardLive = Layer.effect(
           roles?: Array<{ id: string; name: string; display_name: string | null }>
         }
         const raw = data.roles ?? []
-        return raw.map(
+        const result = raw.map(
           (r) =>
             new DashboardRole({
               id: r.id,
@@ -73,6 +78,8 @@ const DashboardLive = Layer.effect(
               display_name: r.display_name,
             }),
         ) as readonly DashboardRole[]
+        yield* Effect.logDebug(`DashboardLive.getRolesByOrg: count=${result.length}`)
+        return result
       })
 
     return {

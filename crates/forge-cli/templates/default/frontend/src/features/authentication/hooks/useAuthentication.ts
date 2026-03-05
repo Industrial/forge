@@ -7,6 +7,7 @@
  */
 import { Effect } from 'effect'
 import { useCallback, useEffect, useState } from 'react'
+import { flushSync } from 'react-dom'
 import type { AuthenticationError } from '../domain/AuthenticationError'
 import type { AuthenticationStateSnapshot } from '../domain/AuthenticationStateSnapshot'
 import { AuthenticationStore } from '../services/AuthenticationStore'
@@ -40,13 +41,17 @@ export function useAuthenticationState(): UseAuthenticationStateResult {
     setError(null)
     return runWithAppRuntime(runtime, getStateEffect)
       .then((snapshot: AuthenticationStateSnapshot) => {
-        setState(snapshot)
-        setIsPending(false)
+        flushSync(() => {
+          setState(snapshot)
+          setIsPending(false)
+        })
       })
       .catch((e: unknown) => {
-        setError(e as AuthenticationError)
-        setState(null)
-        setIsPending(false)
+        flushSync(() => {
+          setError(e as AuthenticationError)
+          setState(null)
+          setIsPending(false)
+        })
       }) as Promise<void>
   }, [runtime])
 

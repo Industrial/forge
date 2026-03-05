@@ -23,6 +23,7 @@ const RolesLive = Layer.effect(
 
     const list: RolesService['list'] = () =>
       Effect.gen(function* () {
+        yield* Effect.logTrace('RolesLive.list')
         const response = yield* client.execute(
           HttpClientRequest.get('/api/dashboard/roles'),
         )
@@ -46,7 +47,7 @@ const RolesLive = Layer.effect(
           }>
         }
         const raw = data.roles ?? []
-        return raw.map(
+        const result = raw.map(
           (r) =>
             new Role({
               id: r.id,
@@ -57,10 +58,14 @@ const RolesLive = Layer.effect(
               updated_at: r.updated_at,
             }),
         ) as readonly Role[]
+        yield* Effect.logDebug(`RolesLive.list: count=${result.length}`)
+        return result
       })
 
     const listByOrg: RolesService['listByOrg'] = (orgId: string) =>
       Effect.gen(function* () {
+        yield* Effect.logTrace('RolesLive.listByOrg')
+        yield* Effect.logDebug(`RolesLive.listByOrg: orgId=${orgId}`)
         if (!orgId) return [] as readonly DashboardRole[]
         const url = `/api/dashboard/roles?org_id=${encodeURIComponent(orgId)}`
         const response = yield* client.execute(HttpClientRequest.get(url))
@@ -72,7 +77,7 @@ const RolesLive = Layer.effect(
           roles?: Array<{ id: string; name: string; display_name: string | null }>
         }
         const raw = data.roles ?? []
-        return raw.map(
+        const result = raw.map(
           (r) =>
             new DashboardRole({
               id: r.id,
@@ -80,10 +85,14 @@ const RolesLive = Layer.effect(
               display_name: r.display_name,
             }),
         ) as readonly DashboardRole[]
+        yield* Effect.logDebug(`RolesLive.listByOrg: count=${result.length}`)
+        return result
       })
 
     const create: RolesService['create'] = (body) =>
       Effect.gen(function* () {
+        yield* Effect.logTrace('RolesLive.create')
+        yield* Effect.logDebug(`RolesLive.create: org_id=${body.org_id}, name=${body.name}`)
         const response = yield* client.execute(
           HttpClientRequest.post('/api/dashboard/roles').pipe(
             HttpClientRequest.bodyUnsafeJson(body),
@@ -98,10 +107,13 @@ const RolesLive = Layer.effect(
         if (response.status < 200 || response.status >= 300) {
           return yield* Effect.fail(new Error(parseErr(resBody)))
         }
+        yield* Effect.logDebug('RolesLive.create: success')
       })
 
     const update: RolesService['update'] = (body) =>
       Effect.gen(function* () {
+        yield* Effect.logTrace('RolesLive.update')
+        yield* Effect.logDebug(`RolesLive.update: id=${body.id}`)
         const response = yield* client.execute(
           HttpClientRequest.patch('/api/dashboard/roles').pipe(
             HttpClientRequest.bodyUnsafeJson(body),
@@ -116,10 +128,13 @@ const RolesLive = Layer.effect(
         if (response.status < 200 || response.status >= 300) {
           return yield* Effect.fail(new Error(parseErr(resBody)))
         }
+        yield* Effect.logDebug('RolesLive.update: success')
       })
 
     const del: RolesService['delete'] = (id: string) =>
       Effect.gen(function* () {
+        yield* Effect.logTrace('RolesLive.delete')
+        yield* Effect.logDebug(`RolesLive.delete: id=${id}`)
         const response = yield* client.execute(
           HttpClientRequest.del('/api/dashboard/roles').pipe(
             HttpClientRequest.bodyUnsafeJson({ id }),
@@ -134,6 +149,7 @@ const RolesLive = Layer.effect(
         if (response.status < 200 || response.status >= 300) {
           return yield* Effect.fail(new Error(parseErr(resBody)))
         }
+        yield* Effect.logDebug('RolesLive.delete: success')
       })
 
     return {
