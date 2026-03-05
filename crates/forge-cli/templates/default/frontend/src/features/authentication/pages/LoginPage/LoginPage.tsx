@@ -79,7 +79,26 @@ export default function LoginPage() {
       const effect = runStreamInto(stream, setSubmitStateAsEffect)
       runWithAppRuntime(runtime, effect)
         .then(() => fetchMe())
-        .then(() => navigate(from, { replace: true }))
+        .then(() =>
+          runWithAppRuntime(
+            runtime,
+            Effect.gen(function* () {
+              const store = yield* AuthenticationStore
+              const state = yield* store.getState()
+              return state.needs_profile_select
+            }),
+          ),
+        )
+        .then((needs_profile_select) => {
+          if (needs_profile_select === true) {
+            navigate('/authentication/select-profile', {
+              replace: true,
+              state: { from: { pathname: from } },
+            })
+          } else {
+            navigate(from, { replace: true })
+          }
+        })
         .catch((err) => {
           console.error('Login failed:', err)
         })

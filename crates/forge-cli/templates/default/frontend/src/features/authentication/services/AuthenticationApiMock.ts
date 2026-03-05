@@ -18,8 +18,6 @@ export interface AuthenticationApiMockOptions {
   readonly failLogin?: boolean
   /** If true, register() fails with an error. */
   readonly failRegister?: boolean
-  /** If true, setProfile() fails with an error. */
-  readonly failSetProfile?: boolean
 }
 
 const defaultLoginResult: LoginResult = {
@@ -42,11 +40,6 @@ export function makeAuthenticationApiMock(
     register: (_email: string, _password: string) =>
       options.failRegister
         ? Effect.fail(new Error('Mock register failed.'))
-        : Effect.void,
-
-    setProfile: (_orgId: string, _roleId?: string) =>
-      options.failSetProfile
-        ? Effect.fail(new Error('Mock setProfile failed.'))
         : Effect.void,
   }
 }

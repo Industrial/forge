@@ -1,11 +1,11 @@
 /**
  * Dashboard feature layer.
  *
- * Provides {@link HttpClient} (with auth: baseUrl and auth headers) and
- * {@link AuthenticationStore} for dashboard and users. Call with config at app
- * root (e.g. baseUrl and token/org/role from auth state) to build the layer.
+ * Provides {@link HttpClient} (with auth: baseUrl and request-time auth/scope) and
+ * {@link AuthenticationStore}. Call with config at app root (baseUrl).
  */
 import { Layer } from 'effect'
+import { AuthStateRefLayer } from '../../lib/authStateRef'
 import {
   httpClientWithAuthLayer,
   type HttpClientWithAuthConfig,
@@ -14,12 +14,18 @@ import { AuthenticationStoreLive } from '../authentication/services/Authenticati
 
 /**
  * Builds the dashboard feature layer: HttpClient (with auth) + AuthenticationStore.
- * Supply config when composing at app root so the HTTP client has baseUrl and auth headers.
+ * Supply config when composing at app root; token/scope are read at request time from AuthStateRef.
  */
 export const DashboardFeatureLayer = (config: HttpClientWithAuthConfig) => {
-  const httpLayer = httpClientWithAuthLayer(config)
+  const authRefLayer = AuthStateRefLayer
+  const httpLayer = httpClientWithAuthLayer(config.baseUrl).pipe(
+    Layer.provide(authRefLayer),
+  )
   return Layer.merge(
     httpLayer,
-    AuthenticationStoreLive.pipe(Layer.provide(httpLayer)),
+    AuthenticationStoreLive.pipe(
+      Layer.provide(httpLayer),
+      Layer.provide(authRefLayer),
+    ),
   )
 }

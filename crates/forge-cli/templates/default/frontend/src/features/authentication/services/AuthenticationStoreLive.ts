@@ -1,5 +1,6 @@
 import { HttpClient, HttpClientRequest } from '@effect/platform'
 import { Effect, Layer, Ref } from 'effect'
+import { AuthStateRef } from '../../../lib/authStateRef'
 import type { AuthenticationStoreService } from './AuthenticationStore'
 import { AuthenticationStore } from './AuthenticationStore'
 import { AuthenticationError } from '../domain/AuthenticationError'
@@ -8,6 +9,11 @@ import { AuthenticationUser } from '../domain/AuthenticationUser'
 import { Flash } from '../domain/Flash'
 import { Profile } from '../domain/Profile'
 
+/**
+ * Client-only scope persistence (no server-side scope session).
+ * Scope and token are sent on every request via headers; backend derives scope from
+ * X-Organization-Id / X-Role-Id only. See docs/technical-choices/01-scoped-session-and-profile-selection.md §1.
+ */
 const STORAGE_KEYS = {
   token: 'token',
   currentOrgId: 'currentOrgId',
@@ -108,14 +114,23 @@ function initialSnapshot(): AuthenticationStateSnapshot {
 
 /**
  * Live implementation of AuthenticationStore: state in a Ref, persist token/scope to localStorage,
- * fetchMe via HttpClient GET /api/auth/me.
- * Layer requires HttpClient (e.g. from httpClientWithAuthLayer with baseUrl; token/scope can be updated by this service).
+ * fetchMe via HttpClient GET /api/auth/me. Syncs token/scope to AuthStateRef so the HTTP layer
+ * can inject them at request time (single runtime, no rebuild on scope switch).
+ * Layer requires HttpClient and AuthStateRef.
  */
 export const AuthenticationStoreLive = Layer.effect(
   AuthenticationStore,
   Effect.gen(function* () {
     const client = yield* HttpClient.HttpClient
+    const authStateRef = yield* AuthStateRef
     const ref = yield* Ref.make(initialSnapshot())
+
+    const syncToAuthStateRef = (s: AuthenticationStateSnapshot) => {
+      authStateRef.current.token = s.token
+      authStateRef.current.organizationId = s.currentOrgId
+      authStateRef.current.roleId = s.currentRoleId
+    }
+    syncToAuthStateRef(initialSnapshot())
 
     const persistToken = (token: string | null) =>
       Effect.sync(() => writeStorage(STORAGE_KEYS.token, token))
@@ -144,7 +159,11 @@ export const AuthenticationStoreLive = Layer.effect(
         Effect.gen(function* () {
           yield* Effect.logTrace('AuthenticationStoreLive.setToken')
           yield* Effect.logDebug(`setToken: hasToken=${token != null}`)
-          yield* Ref.update(ref, (s) => new AuthenticationStateSnapshot({ ...s, token }))
+          yield* Ref.update(ref, (s) => {
+            const next = new AuthenticationStateSnapshot({ ...s, token })
+            syncToAuthStateRef(next)
+            return next
+          })
           yield* persistToken(token)
         }),
 
@@ -167,10 +186,11 @@ export const AuthenticationStoreLive = Layer.effect(
           let token: string | null
           if (tokenOverride !== undefined && tokenOverride !== null) {
             token = tokenOverride
-            yield* Ref.update(
-              ref,
-              (s) => new AuthenticationStateSnapshot({ ...s, token }),
-            )
+            yield* Ref.update(ref, (s) => {
+              const next = new AuthenticationStateSnapshot({ ...s, token })
+              syncToAuthStateRef(next)
+              return next
+            })
             yield* persistToken(token)
           } else {
             const s = yield* Ref.get(ref)
@@ -178,7 +198,9 @@ export const AuthenticationStoreLive = Layer.effect(
           }
           if (!token) {
             yield* Effect.logDebug('fetchMe: no token, resetting state')
-            yield* Ref.set(ref, initialSnapshot())
+            const empty = initialSnapshot()
+            syncToAuthStateRef(empty)
+            yield* Ref.set(ref, empty)
             return
           }
           const req = HttpClientRequest.get('/api/auth/me').pipe(
@@ -190,7 +212,9 @@ export const AuthenticationStoreLive = Layer.effect(
           if (!ok) {
             yield* Effect.logDebug(`fetchMe: non-ok status=${response.status}, resetting state`)
             yield* persistToken(null)
-            yield* Ref.set(ref, initialSnapshot())
+            const empty = initialSnapshot()
+            syncToAuthStateRef(empty)
+            yield* Ref.set(ref, empty)
             return
           }
           const parsed = parseMeResponse(body)
@@ -198,17 +222,16 @@ export const AuthenticationStoreLive = Layer.effect(
             ? new AuthenticationUser({ ...parsed.user, token })
             : null
           const current = yield* Ref.get(ref)
-          yield* Ref.set(
-            ref,
-            new AuthenticationStateSnapshot({
-              ...current,
-              user,
-              profiles: parsed.profiles,
-              permissions: parsed.permissions,
-              flash: parsed.flash,
-              needs_profile_select: parsed.needs_profile_select,
-            }),
-          )
+          const next = new AuthenticationStateSnapshot({
+            ...current,
+            user,
+            profiles: parsed.profiles,
+            permissions: parsed.permissions,
+            flash: parsed.flash,
+            needs_profile_select: parsed.needs_profile_select,
+          })
+          syncToAuthStateRef(next)
+          yield* Ref.set(ref, next)
           yield* Effect.logDebug(
             `fetchMe: success user=${user?.email ?? 'null'}, needs_profile_select=${parsed.needs_profile_select}`,
           )
@@ -226,7 +249,9 @@ export const AuthenticationStoreLive = Layer.effect(
       logout: () =>
         Effect.gen(function* () {
           yield* Effect.logTrace('AuthenticationStoreLive.logout')
-          yield* Ref.set(ref, initialSnapshot())
+          const empty = initialSnapshot()
+          syncToAuthStateRef(empty)
+          yield* Ref.set(ref, empty)
           yield* persistToken(null)
           yield* persistScope(null, null, null)
         }),
@@ -235,16 +260,16 @@ export const AuthenticationStoreLive = Layer.effect(
         Effect.gen(function* () {
           yield* Effect.logTrace('AuthenticationStoreLive.setScope')
           yield* Effect.logDebug(`setScope: orgId=${orgId}, roleId=${roleId}, roleName=${roleName}`)
-          yield* Ref.update(
-            ref,
-            (s) =>
-              new AuthenticationStateSnapshot({
-                ...s,
-                currentOrgId: orgId,
-                currentRoleId: roleId,
-                currentRoleName: roleName,
-              }),
-          )
+          yield* Ref.update(ref, (s) => {
+            const next = new AuthenticationStateSnapshot({
+              ...s,
+              currentOrgId: orgId,
+              currentRoleId: roleId,
+              currentRoleName: roleName,
+            })
+            syncToAuthStateRef(next)
+            return next
+          })
           yield* persistScope(orgId, roleId, roleName)
         }),
     }

@@ -27,7 +27,7 @@ use db::models::{
 };
 
 use crate::handlers::auth::{ScopeFromHeaders, has_global_scope, resolve_permissions};
-use crate::permissions::DASHBOARD_PERMISSIONS;
+use crate::permissions::{entity_action_key, permission_equivalents, DASHBOARD_PERMISSIONS};
 use crate::scoped_query::{WithScope, user_find_scoped};
 
 const PERMISSION_READ: &str = "dashboard.permissions.read";
@@ -40,20 +40,28 @@ const PERMISSION_USERS_WRITE: &str = "dashboard.users.write";
 const PERMISSION_ROLES_READ: &str = "dashboard.roles.read";
 const PERMISSION_ROLES_WRITE: &str = "dashboard.roles.write";
 
+/// Entity-based permission check (§2, §7): exact or equivalent match, or all.read for *.read, or all.write for *.create|update|delete.
 pub(crate) fn has_permission(permissions: &[String], key: &str) -> bool {
-  if permissions.iter().any(|p| p == key) {
+  let equivs = permission_equivalents(key);
+  let exact = if equivs.is_empty() {
+    permissions.iter().any(|p| p == key)
+  } else {
+    permissions.iter().any(|p| equivs.contains(&p.as_str()))
+  };
+  if exact {
     return true;
   }
-  if key.ends_with(".read") && permissions.iter().any(|p| p == "all.read") {
-    return true;
+  if key.ends_with(".read") || equivs.iter().any(|e| e.ends_with(".read")) {
+    if permissions.iter().any(|p| p == "all.read") {
+      return true;
+    }
   }
-  if key.ends_with(".write") && permissions.iter().any(|p| p == "all.write") {
-    return true;
-  }
-  if key == "dashboard"
-    && (permissions.iter().any(|p| p == "all.read") || permissions.iter().any(|p| p == "all.write"))
+  if key.ends_with(".write") || key.ends_with(".create") || key.ends_with(".update") || key.ends_with(".delete")
+    || equivs.iter().any(|e| e.ends_with(".write") || e.ends_with(".create"))
   {
-    return true;
+    if permissions.iter().any(|p| p == "all.write") {
+      return true;
+    }
   }
   false
 }
@@ -69,23 +77,57 @@ async fn require_permission(
   if has_permission(&permissions, permission) {
     return None;
   }
-  Some(
-    (
-      StatusCode::FORBIDDEN,
-      Json(serde_json::json!({ "error": "Forbidden" })),
-    )
-      .into_response(),
-  )
+  Some(forbidden_response())
 }
 
-/// GET /api/dashboard/permissions — list known permission keys (code-defined). Requires dashboard.permissions.read.
+/// §9: 403 Forbidden with clear message when permission is missing.
+fn forbidden_response() -> Response {
+  (
+    StatusCode::FORBIDDEN,
+    Json(serde_json::json!({
+      "error": "Forbidden",
+      "message": "Insufficient permissions"
+    })),
+  )
+    .into_response()
+}
+
+/// §5: Dashboard access = has at least one permission in scope (no separate "dashboard" key).
+/// Returns Some(403) if the user has no resolved permissions.
+async fn require_any_permission(
+  user: &user::Model,
+  db: &DbConnection,
+  scope: Option<&forge_auth::RequestScope>,
+) -> Option<Response> {
+  let permissions = resolve_permissions(db, user, scope).await;
+  if permissions.is_empty() {
+    return Some(forbidden_response());
+  }
+  None
+}
+
+/// §6: Single authorization rule — require the corresponding entity.action in scope.
+/// List/get → entity.read, create → entity.create, update → entity.update, delete → entity.delete.
+pub(crate) async fn require_entity_permission(
+  user: &user::Model,
+  db: &DbConnection,
+  scope: Option<&forge_auth::RequestScope>,
+  entity: &str,
+  action: &str,
+) -> Option<Response> {
+  let key = entity_action_key(entity, action);
+  require_permission(user, db, &key, scope).await
+}
+
+/// GET /api/dashboard/permissions — list known permission keys (code-defined). Requires permission.read (§6).
 pub async fn list_permissions(
   ScopeFromHeaders(scope): ScopeFromHeaders,
   auth: RequireAuth<Backend, user::Model>,
   State(db): State<DbConnection>,
 ) -> Result<impl IntoResponse, ForgeError> {
   let user = &auth.0;
-  if let Some(resp) = require_permission(&user, &db, PERMISSION_READ, Some(&scope)).await {
+  if let Some(resp) = require_entity_permission(&user, &db, Some(&scope), "permission", "read").await
+  {
     return Ok(resp);
   }
   let list: Vec<&str> = DASHBOARD_PERMISSIONS.to_vec();
@@ -135,7 +177,7 @@ pub async fn list_tasks(
   Extension(task_state): Extension<std::sync::Arc<crate::tasks::TaskState>>,
 ) -> Result<impl IntoResponse, ForgeError> {
   let user = &auth.0;
-  if let Some(resp) = require_permission(&user, &db, "dashboard", Some(&scope)).await {
+  if let Some(resp) = require_any_permission(&user, &db, Some(&scope)).await {
     return Ok(resp);
   }
   let tasks = task_state.store.read().await.clone();
@@ -289,13 +331,14 @@ pub async fn add_role_permission(
     );
   }
   if !DASHBOARD_PERMISSIONS.contains(&permission_key) {
-    return Ok(
-      (
-        StatusCode::UNPROCESSABLE_ENTITY,
-        Json(serde_json::json!({ "error": "invalid permission_key" })),
-      )
-        .into_response(),
-    );
+    return Ok((
+      StatusCode::UNPROCESSABLE_ENTITY,
+      Json(serde_json::json!({
+        "error": "invalid permission_key",
+        "message": "Permission key is not in the allowed set (entity.action or all.read / all.write)"
+      })),
+    )
+      .into_response());
   }
   let global_perm = has_global_scope(&db, &user, PERMISSION_WRITE).await;
   let org_id_opt = if global_perm {
@@ -1431,18 +1474,26 @@ mod tests {
 
   #[test]
   fn has_permission_true_when_key_in_list() {
-    let perms = vec![
-      "a".to_string(),
-      "dashboard.read".to_string(),
-      "b".to_string(),
-    ];
-    assert!(has_permission(&perms, "dashboard.read"));
+    let perms = vec!["a".to_string(), "user.read".to_string(), "b".to_string()];
+    assert!(has_permission(&perms, "user.read"));
+  }
+
+  #[test]
+  fn has_permission_true_when_all_read_grants_entity_read() {
+    let perms = vec!["all.read".to_string()];
+    assert!(has_permission(&perms, "user.read"));
+  }
+
+  #[test]
+  fn has_permission_true_when_all_write_grants_entity_create() {
+    let perms = vec!["all.write".to_string()];
+    assert!(has_permission(&perms, "user.create"));
   }
 
   #[test]
   fn has_permission_false_when_key_missing() {
     let perms = vec!["a".to_string(), "b".to_string()];
-    assert!(!has_permission(&perms, "dashboard.read"));
+    assert!(!has_permission(&perms, "user.read"));
   }
 
   #[test]

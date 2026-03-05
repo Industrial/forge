@@ -71,7 +71,10 @@ async fn require_org_permission_or_global(
   Some(
     (
       StatusCode::FORBIDDEN,
-      Json(serde_json::json!({ "error": "Forbidden" })),
+      Json(serde_json::json!({
+        "error": "Forbidden",
+        "message": "Insufficient permissions"
+      })),
     )
       .into_response(),
   )
@@ -2161,7 +2164,10 @@ pub async fn add_org_role_permission(
     return Ok(
       (
         StatusCode::UNPROCESSABLE_ENTITY,
-        Json(serde_json::json!({ "error": "invalid permission_key" })),
+        Json(serde_json::json!({
+          "error": "invalid permission_key",
+          "message": "Permission key is not in the allowed set (entity.action or all.read / all.write)"
+        })),
       )
         .into_response(),
     );

@@ -1,11 +1,18 @@
-import React, { createContext, useCallback, useContext, useMemo } from 'react'
+import React, {
+  createContext,
+  useCallback,
+  useContext,
+  useEffect,
+  useMemo,
+} from 'react'
+import { useNavigate } from 'react-router-dom'
 import { Effect } from 'effect'
 import { runWithAppRuntime } from '../lib/appLayer'
+import { on401HandlerRef } from '../lib/authStateRef'
 import type { AuthenticationUser } from '../features/authentication/domain/AuthenticationUser'
 import type { Flash } from '../features/authentication/domain/Flash'
 import type { Profile } from '../features/authentication/domain/Profile'
 import { AuthenticationError } from '../features/authentication/domain/AuthenticationError'
-import { AuthenticationApi } from '../features/authentication/services/AuthenticationApi'
 import { AuthenticationStore } from '../features/authentication/services/AuthenticationStore'
 import { useAuthenticationState } from '../features/authentication/hooks/useAuthentication'
 import { useEffectRuntime } from 'react-effect-hooks'
@@ -33,6 +40,8 @@ export type AuthenticationState = {
   loading: boolean
   /** Re-fetch user/profiles/permissions. Pass a token (e.g. from login) to set it and then fetch. */
   fetchMe: (tokenOverride?: string | null) => Promise<void>
+  /** Re-read auth state from store (e.g. after auto-select scope). */
+  refresh: () => Promise<void>
   /** Effect that runs fetchMe then refreshes React state; use in Effect.gen for composition. */
   fetchMeEffect: (
     tokenOverride?: string | null,
@@ -43,8 +52,12 @@ export type AuthenticationState = {
     roleId: string,
     roleName: string,
   ) => Promise<void>
-  /** Call API to set profile (org/role) then refresh state. Use from navbar to switch profile. */
-  switchProfile: (orgId: string, roleId?: string) => Promise<void>
+  /** Set scope (org/role) client-side and refetch /api/auth/me. Use from navbar to switch scope. */
+  switchScope: (
+    orgId: string,
+    roleId: string,
+    roleName: string,
+  ) => Promise<void>
 }
 
 const AuthenticationContext = createContext<AuthenticationState | null>(null)
@@ -82,12 +95,27 @@ const setTokenEffect = (token: string | null) =>
     yield* store.setToken(token)
   })
 
-const switchProfileEffect = (orgId: string, roleId?: string) =>
+const switchScopeEffect = (
+  orgId: string,
+  roleId: string,
+  roleName: string,
+) =>
   Effect.gen(function* () {
-    const api = yield* AuthenticationApi
     const store = yield* AuthenticationStore
-    yield* api.setProfile(orgId, roleId)
-    yield* store.fetchMe()
+    const prev = yield* store.getState()
+    yield* store.setScope(orgId, roleId, roleName)
+    yield* store.fetchMe().pipe(
+      Effect.catchAll((e) =>
+        Effect.gen(function* () {
+          yield* store.setScope(
+            prev.currentOrgId ?? '',
+            prev.currentRoleId ?? '',
+            prev.currentRoleName ?? '',
+          )
+          return yield* Effect.fail(e)
+        }),
+      ),
+    )
   })
 
 /**
@@ -99,8 +127,20 @@ export function AuthenticationProvider({
 }: {
   children: React.ReactNode
 }) {
+  const navigate = useNavigate()
   const { state, refresh, isPending } = useAuthenticationState()
   const { runtime } = useEffectRuntime<AppServices>()
+
+  useEffect(() => {
+    on401HandlerRef.current = () => {
+      runWithAppRuntime(runtime, logoutEffect)
+        .then(refresh)
+        .then(() => navigate('/authentication/login', { replace: true }))
+    }
+    return () => {
+      on401HandlerRef.current = () => {}
+    }
+  }, [runtime, refresh, navigate])
 
   const runThenRefresh = useCallback(
     <R extends AppServices>(effect: Effect.Effect<void, AuthenticationError, R>) => {
@@ -142,9 +182,12 @@ export function AuthenticationProvider({
     [runThenRefresh],
   )
 
-  const switchProfile = useCallback(
-    async (orgId: string, roleId?: string) => {
-      await runWithAppRuntime(runtime, switchProfileEffect(orgId, roleId))
+  const switchScope = useCallback(
+    async (orgId: string, roleId: string, roleName: string) => {
+      await runWithAppRuntime(
+        runtime,
+        switchScopeEffect(orgId, roleId, roleName),
+      )
       refresh()
     },
     [runtime, refresh],
@@ -182,20 +225,22 @@ export function AuthenticationProvider({
       needs_profile_select: state?.needs_profile_select ?? false,
       loading: isPending,
       fetchMe,
+      refresh,
       fetchMeEffect: fetchMeEffectForContext,
       logout,
       setCurrentScope,
-      switchProfile,
+      switchScope,
     }),
     [
       state,
       isPending,
       setToken,
       fetchMe,
+      refresh,
       fetchMeEffectForContext,
       logout,
       setCurrentScope,
-      switchProfile,
+      switchScope,
     ],
   )
 

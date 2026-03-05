@@ -65,29 +65,7 @@ export const AuthenticationApiLive = Layer.effect(
         yield* Effect.logDebug('register: success')
       })
 
-    const setProfile: AuthenticationApiService['setProfile'] = (
-      orgId,
-      roleId,
-    ) =>
-      Effect.gen(function* () {
-        yield* Effect.logTrace('AuthenticationApiLive.setProfile')
-        yield* Effect.logDebug(`setProfile: orgId=${orgId}, roleId=${roleId ?? 'undefined'}`)
-        const response = yield* client.execute(
-          HttpClientRequest.post('/api/auth/set-profile').pipe(
-            HttpClientRequest.bodyUnsafeJson({
-              org_id: orgId,
-              role_id: roleId ?? undefined,
-            }),
-          ),
-        )
-        if (response.status < 200 || response.status >= 300) {
-          const body = yield* response.json
-          return yield* Effect.fail(new Error(parseError(body)))
-        }
-        yield* Effect.logDebug('setProfile: success')
-      })
-
-    return { login, register, setProfile }
+    return { login, register }
   }),
 )
 

@@ -1,4 +1,4 @@
-import { Navigate, useNavigate } from 'react-router-dom'
+import { Navigate, useLocation, useNavigate } from 'react-router-dom'
 import Box from '@mui/material/Box'
 import Card from '@mui/material/Card'
 import CardActionArea from '@mui/material/CardActionArea'
@@ -6,7 +6,6 @@ import CardContent from '@mui/material/CardContent'
 import Typography from '@mui/material/Typography'
 import { Effect } from 'effect'
 import { useCallback } from 'react'
-import { AuthenticationApi } from '../../services/AuthenticationApi'
 import { AuthenticationStore } from '../../services/AuthenticationStore'
 import { useAuthenticationState } from '../../hooks/useAuthentication'
 import {
@@ -27,8 +26,12 @@ type SetProfileState = AsyncState<void, Error>
 
 export default function SelectProfilePage() {
   const navigate = useNavigate()
+  const location = useLocation()
   const { runtime } = useEffectRuntime<AppServices>()
   const { state: authState, isPending: loading } = useAuthenticationState()
+  const from =
+    (location.state as { from?: { pathname: string } } | null)?.from
+      ?.pathname ?? '/dashboard'
 
   const [submitState, , setSubmitStateAsEffect] = useEffectState<
     SetProfileState,
@@ -36,34 +39,51 @@ export default function SelectProfilePage() {
     never
   >(idle())
 
-  const setProfileEffect = useCallback(
-    (orgId: string, roleId?: string): Effect.Effect<void, Error, AppServices> =>
+  const setScopeEffect = useCallback(
+    (
+      orgId: string,
+      roleId: string,
+      roleName: string,
+    ): Effect.Effect<void, Error, AppServices> =>
       Effect.gen(function* () {
-        const api = yield* AuthenticationApi
         const store = yield* AuthenticationStore
-        yield* api.setProfile(orgId, roleId)
-        yield* store.fetchMe()
+        const prev = yield* store.getState()
+        yield* store.setScope(orgId, roleId, roleName)
+        yield* store.fetchMe().pipe(
+          Effect.catchAll((e) =>
+            Effect.gen(function* () {
+              yield* store.setScope(
+                prev.currentOrgId ?? '',
+                prev.currentRoleId ?? '',
+                prev.currentRoleName ?? '',
+              )
+              return yield* Effect.fail(e)
+            }),
+          ),
+        )
       }),
     [],
   )
 
-  const handleSelectProfile = useCallback(
-    (orgId: string, roleId?: string) => {
-      const stream = streamWithPendingState(setProfileEffect(orgId, roleId))
+  const handleSelectScope = useCallback(
+    (orgId: string, roleId: string, roleName: string) => {
+      const stream = streamWithPendingState(
+        setScopeEffect(orgId, roleId, roleName),
+      )
       const effect = runStreamInto(stream, setSubmitStateAsEffect)
       runWithAppRuntime(runtime, effect).catch(() => {})
     },
-    [runtime, setProfileEffect, setSubmitStateAsEffect],
+    [runtime, setScopeEffect, setSubmitStateAsEffect],
   )
 
   const successEffect: Effect.Effect<void, never, AppServices> = Effect.gen(
     function* () {
       if (!isSuccess(submitState)) return
-      yield* Effect.sync(() => navigate('/dashboard', { replace: true }))
+      yield* Effect.sync(() => navigate(from, { replace: true }))
       yield* setSubmitStateAsEffect(idle<void, Error>())
     },
   )
-  useRunEffect(successEffect, [submitState, navigate, setSubmitStateAsEffect])
+  useRunEffect(successEffect, [submitState, navigate, from, setSubmitStateAsEffect])
 
   const user = authState?.user ?? null
   const profiles = authState?.profiles ?? []
@@ -79,7 +99,7 @@ export default function SelectProfilePage() {
     )
   }
   if (!loading && user != null && !needs_profile_select) {
-    return <Navigate to="/dashboard" replace />
+    return <Navigate to={from} replace />
   }
 
   const submitting = isPending(submitState)
@@ -124,7 +144,13 @@ export default function SelectProfilePage() {
         {profiles.map((p) => (
           <Card key={p.org_id + (p.role_id ?? p.role)} variant="outlined">
             <CardActionArea
-              onClick={() => handleSelectProfile(p.org_id, p.role_id)}
+              onClick={() =>
+                handleSelectScope(
+                  p.org_id,
+                  p.role_id ?? '',
+                  p.role ?? '',
+                )
+              }
               disabled={submitting}
               data-testid={`profile-${p.org_name}-${p.role}`}
             >

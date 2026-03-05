@@ -134,10 +134,7 @@ function App() {
                     path="organizations"
                     element={
                       <DashboardPermissionGuard
-                        permission={[
-                          'dashboard.organizations.read',
-                          'dashboard.organizations.write',
-                        ]}
+                        permission={['organization.read', 'organization.create']}
                       >
                         <OrganizationsPage />
                       </DashboardPermissionGuard>
@@ -147,10 +144,7 @@ function App() {
                     path="users"
                     element={
                       <DashboardPermissionGuard
-                        permission={[
-                          'dashboard.users.read',
-                          'dashboard.users.write',
-                        ]}
+                        permission={['user.read', 'user.create']}
                       >
                         <UsersPage />
                       </DashboardPermissionGuard>
@@ -160,10 +154,7 @@ function App() {
                     path="roles"
                     element={
                       <DashboardPermissionGuard
-                        permission={[
-                          'dashboard.roles.read',
-                          'dashboard.roles.write',
-                        ]}
+                        permission={['role.read', 'role.create']}
                       >
                         <RolesPage />
                       </DashboardPermissionGuard>
@@ -173,10 +164,7 @@ function App() {
                     path="roles-and-permissions"
                     element={
                       <DashboardPermissionGuard
-                        permission={[
-                          'dashboard.permissions.read',
-                          'dashboard.permissions.write',
-                        ]}
+                        permission={['permission.read', 'permission.create']}
                       >
                         <PermissionsPage />
                       </DashboardPermissionGuard>
@@ -185,7 +173,7 @@ function App() {
                   <Route
                     path="audit-log"
                     element={
-                      <DashboardPermissionGuard permission="dashboard.audit.read">
+                      <DashboardPermissionGuard permission="audit.read">
                         <AuditLogPage />
                       </DashboardPermissionGuard>
                     }

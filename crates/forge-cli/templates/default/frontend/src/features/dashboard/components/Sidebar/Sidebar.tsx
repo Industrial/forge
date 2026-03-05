@@ -16,7 +16,7 @@ import History from '@mui/icons-material/History'
 import { useAuthentication } from '../../../../context/AuthenticationContext'
 import { hasPermission } from '../../../../lib/permissions'
 
-/** Show nav item if user has any of these permissions (.read = view, .write = modify). */
+/** §7: Entity-based permissions. Show nav item if user has any of these (read or write for section). */
 const NAV_ITEMS = [
   {
     to: '/dashboard',
@@ -30,38 +30,35 @@ const NAV_ITEMS = [
     label: 'Organizations',
     end: false,
     icon: Business,
-    permissions: [
-      'dashboard.organizations.read',
-      'dashboard.organizations.write',
-    ],
+    permissions: ['organization.read', 'organization.create'],
   },
   {
     to: '/dashboard/users',
     label: 'Users',
     end: false,
     icon: People,
-    permissions: ['dashboard.users.read', 'dashboard.users.write'],
+    permissions: ['user.read', 'user.create'],
   },
   {
     to: '/dashboard/roles',
     label: 'Roles',
     end: false,
     icon: Badge,
-    permissions: ['dashboard.roles.read', 'dashboard.roles.write'],
+    permissions: ['role.read', 'role.create'],
   },
   {
     to: '/dashboard/roles-and-permissions',
     label: 'Permissions',
     end: false,
     icon: Lock,
-    permissions: ['dashboard.permissions.read', 'dashboard.permissions.write'],
+    permissions: ['permission.read', 'permission.create'],
   },
   {
     to: '/dashboard/audit-log',
     label: 'Audit log',
     end: false,
     icon: History,
-    permissions: ['dashboard.audit.read'],
+    permissions: ['audit.read'],
   },
 ] as const
 

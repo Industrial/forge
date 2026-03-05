@@ -1,6 +1,7 @@
 /**
- * AuthenticationApi service: HTTP calls for login, register, set-profile.
- * Used by LoginPage, RegisterPage, SelectProfilePage. No auth header required for login/register.
+ * AuthenticationApi service: HTTP calls for login and register.
+ * Scope is set client-side only (AuthenticationStore.setScope + fetchMe); no set-scope endpoint.
+ * Used by LoginPage, RegisterPage. No auth header required for login/register.
  */
 
 import { Context, Effect } from 'effect'
@@ -18,10 +19,6 @@ export interface AuthenticationApiService {
   readonly register: (
     email: string,
     password: string,
-  ) => Effect.Effect<void, Error, never>
-  readonly setProfile: (
-    orgId: string,
-    roleId?: string,
   ) => Effect.Effect<void, Error, never>
 }
 

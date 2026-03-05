@@ -111,8 +111,13 @@ pub async fn has_global_scope(db: &DbConnection, user: &user::Model, permission_
   if keys.contains(permission_key) {
     return true;
   }
+  // §2: all.read grants any <entity>.read; all.write grants any <entity>.create|update|delete
   let is_read = permission_key == "all.read" || permission_key.ends_with(".read");
-  let is_write = permission_key == "all.write" || permission_key.ends_with(".write");
+  let is_write = permission_key == "all.write"
+    || permission_key.ends_with(".write")
+    || permission_key.ends_with(".create")
+    || permission_key.ends_with(".update")
+    || permission_key.ends_with(".delete");
   (is_read && keys.contains("all.read")) || (is_write && keys.contains("all.write"))
 }
 

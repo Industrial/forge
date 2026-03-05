@@ -20,10 +20,6 @@ function getInitialConfig(): HttpClientWithAuthConfig {
   }
 }
 
-function configKey(c: HttpClientWithAuthConfig): string {
-  return `${c.baseUrl}|${c.token ?? ''}|${c.organizationId ?? ''}|${c.roleId ?? ''}`
-}
-
 export interface AuthenticationRuntimeProviderProps {
   /**
    * Optional config for HttpClient + auth. If omitted, baseUrl and token/org/role
@@ -55,7 +51,7 @@ export function AuthenticationRuntimeProvider({
   const inFlightKeyRef = useRef<string | null>(null)
 
   useEffect(() => {
-    const key = configKey(config)
+    const key = config.baseUrl
     const cached = cacheRef.current
     if (cached?.key === key) {
       setRuntime(cached.runtime)
@@ -82,7 +78,7 @@ export function AuthenticationRuntimeProvider({
         ? runWithAppRuntime(r, rehydrateEffect).then(() => r)
         : Promise.resolve(r)
 
-    Effect.runPromise(program)
+    Effect.runPromise(program as Effect.Effect<Runtime.Runtime<AppServices>, unknown, never>)
       .then((r) => rehydrate(r as Runtime.Runtime<AppServices>))
       .then((r) => {
         if (cancelled) {
@@ -101,7 +97,7 @@ export function AuthenticationRuntimeProvider({
       cancelled = true
       inFlightKeyRef.current = null
     }
-  }, [config.baseUrl, config.token, config.organizationId, config.roleId])
+  }, [config.baseUrl])
 
   const connectEffect = useMemo(
     () =>
