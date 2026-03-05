@@ -3,18 +3,12 @@ import TableRow from '@mui/material/TableRow'
 import IconButton from '@mui/material/IconButton'
 import EditIcon from '@mui/icons-material/Edit'
 import DeleteIcon from '@mui/icons-material/Delete'
-
-export type RoleRow = {
-  id: string
-  org_id: string
-  name: string
-  display_name: string | null
-}
+import type { Role } from '../domain/Role'
 
 export type RoleTableRowProps = {
-  role: RoleRow
+  role: Role
   orgName: string
-  onEdit: (role: RoleRow) => void
+  onEdit: (role: Role) => void
   onDelete: (id: string) => void
   isDeleting: boolean
 }

@@ -30,17 +30,15 @@ import ErrorAlert from '../../../../components/ErrorAlert'
 import LoadingSpinner from '../../../../components/LoadingSpinner'
 import { useLiveRefreshTrigger } from '../../../../hooks/useLiveRefreshTrigger'
 import { useTablePaginationDefaults } from '../../../../hooks/useTablePaginationDefaults'
+import type { Assignment } from '../../domain/Assignment'
 import {
-  fetchPermissionsDataEffect,
-  addPermissionAssignmentEffect,
-  deletePermissionAssignmentEffect,
-  type Assignment,
-} from '../../../../effects/dashboard'
+  Permissions as PermissionsService,
+  type PermissionsData,
+} from '../../services/Permissions'
 
 const ORG_ROLES = ['owner', 'admin', 'editor', 'viewer'] as const
 const GLOBAL_ROLES = ['platform_admin'] as const
 
-type PermissionsData = { assignments: Assignment[]; permissions: string[] }
 type ListState = AsyncState<PermissionsData, Error>
 
 export default function PermissionsPage() {
@@ -86,7 +84,11 @@ export default function PermissionsPage() {
   const adding = isPending(addState)
   const deleting = isPending(deleteState)
 
-  const refreshStream = streamWithPendingState(fetchPermissionsDataEffect)
+  const getDataEffect = Effect.gen(function* () {
+    const permissions = yield* PermissionsService
+    return yield* permissions.getData()
+  })
+  const refreshStream = streamWithPendingState(getDataEffect)
   const refreshEffect = Effect.gen(function* () {
     yield* runStreamInto(refreshStream, setListStateAsEffect)
   })
@@ -136,12 +138,13 @@ export default function PermissionsPage() {
   const handleAdd = () => {
     if (!addScope || !addRole || !addPermission) return
     const addThenList = Effect.gen(function* () {
-      yield* addPermissionAssignmentEffect({
+      const permissions = yield* PermissionsService
+      yield* permissions.add({
         scope: addScope,
         role_name: addRole,
         permission_key: addPermission,
       })
-      return yield* fetchPermissionsDataEffect
+      return yield* permissions.getData()
     })
     runWithAppRuntime(
       runtime,
@@ -155,13 +158,14 @@ export default function PermissionsPage() {
     )
     setDeletingKey(key)
     const deleteThenList = Effect.gen(function* () {
-      yield* deletePermissionAssignmentEffect({
+      const permissions = yield* PermissionsService
+      yield* permissions.delete({
         scope: a.scope,
         role_name: a.role_name,
         permission_key: a.permission_key,
         org_id: a.org_id,
       })
-      return yield* fetchPermissionsDataEffect
+      return yield* permissions.getData()
     })
     runWithAppRuntime(
       runtime,

@@ -5,6 +5,7 @@ import type { AuthenticationUser } from '../features/authentication/domain/Authe
 import type { Flash } from '../features/authentication/domain/Flash'
 import type { Profile } from '../features/authentication/domain/Profile'
 import { AuthenticationError } from '../features/authentication/domain/AuthenticationError'
+import { AuthenticationApi } from '../features/authentication/services/AuthenticationApi'
 import { AuthenticationStore } from '../features/authentication/services/AuthenticationStore'
 import { useAuthenticationState } from '../features/authentication/hooks/useAuthentication'
 import { useEffectRuntime } from '../lib/react-effect'
@@ -38,6 +39,8 @@ export type AuthenticationState = {
     roleId: string,
     roleName: string,
   ) => Promise<void>
+  /** Call API to set profile (org/role) then refresh state. Use from navbar to switch profile. */
+  switchProfile: (orgId: string, roleId?: string) => Promise<void>
 }
 
 const AuthenticationContext = createContext<AuthenticationState | null>(null)
@@ -73,6 +76,14 @@ const setTokenEffect = (token: string | null) =>
   Effect.gen(function* () {
     const store = yield* AuthenticationStore
     yield* store.setToken(token)
+  })
+
+const switchProfileEffect = (orgId: string, roleId?: string) =>
+  Effect.gen(function* () {
+    const api = yield* AuthenticationApi
+    const store = yield* AuthenticationStore
+    yield* api.setProfile(orgId, roleId)
+    yield* store.fetchMe()
   })
 
 /**
@@ -119,6 +130,14 @@ export function AuthenticationProvider({
     [runThenRefresh],
   )
 
+  const switchProfile = useCallback(
+    async (orgId: string, roleId?: string) => {
+      await runWithAppRuntime(runtime, switchProfileEffect(orgId, roleId))
+      refresh()
+    },
+    [runtime, refresh],
+  )
+
   const value = useMemo<AuthenticationState>(
     () => ({
       user: state?.user ?? null,
@@ -153,8 +172,9 @@ export function AuthenticationProvider({
       fetchMe,
       logout,
       setCurrentScope,
+      switchProfile,
     }),
-    [state, isPending, setToken, fetchMe, logout, setCurrentScope],
+    [state, isPending, setToken, fetchMe, logout, setCurrentScope, switchProfile],
   )
 
   return (

@@ -71,7 +71,7 @@ export default function Navbar({
   onOpenSidebar,
 }: NavbarProps) {
   const navigate = useNavigate()
-  const { user, profiles, permissions, refresh } = useSession()
+  const { user, profiles, permissions, logout, switchProfile } = useSession()
   const canAccessDashboard = permissions.includes('dashboard')
   const [anchorEl, setAnchorEl] = useState<null | HTMLElement>(null)
   const open = Boolean(anchorEl)
@@ -88,25 +88,12 @@ export default function Navbar({
   }
   const handleSwitchProfile = async (orgId: string, roleId?: string) => {
     handleClose()
-    try {
-      await fetch('/api/auth/switch-profile', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        credentials: 'include',
-        body: JSON.stringify({ org_id: orgId, role_id: roleId ?? undefined }),
-      })
-    } finally {
-      await refresh()
-    }
+    await switchProfile(orgId, roleId)
   }
   const handleLogout = async () => {
     handleClose()
-    try {
-      await fetch('/api/auth/logout', { credentials: 'include' })
-    } finally {
-      await refresh()
-      navigate('/login', { replace: true })
-    }
+    await logout()
+    navigate('/login', { replace: true })
   }
 
   return (

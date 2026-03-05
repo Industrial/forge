@@ -50,19 +50,11 @@ import {
   type UserEditFormValues,
 } from '../../../../schemas/userFormSchemas'
 import type { AppServices } from '../../../../lib/appLayer'
-import type { User } from '../../../../effects/users'
-import {
-  fetchUsersEffect,
-  createUserEffect,
-  updateUserEffect,
-  deleteUserEffect,
-} from '../../../../effects/users'
-import {
-  fetchOrganizationsEffect,
-  fetchRolesEffect,
-  type Organization as ApiOrganization,
-  type DashboardRole,
-} from '../../../../effects/dashboard'
+import type { User } from '../../domain/User'
+import type { Organization } from '../../domain/Organization'
+import type { DashboardRole } from '../../domain/DashboardRole'
+import { Users } from '../../services/Users'
+import { Dashboard } from '../../services/Dashboard'
 
 const USERS_READ = 'dashboard.users.read'
 const USERS_WRITE = 'dashboard.users.write'
@@ -76,21 +68,21 @@ export default function UsersPage() {
     useLiveRefreshTrigger('users')
 
   const [listState, setListState, setListStateAsEffect] = useEffectState<
-    AsyncState<User[], Error>
+    AsyncState<readonly User[], Error>
   >(idle())
   const [addState, _setAddState, setAddStateAsEffect] = useEffectState<
-    AsyncState<User[], Error>
+    AsyncState<readonly User[], Error>
   >(idle())
   const [updateState, _setUpdateState, setUpdateStateAsEffect] = useEffectState<
-    AsyncState<User[], Error>
+    AsyncState<readonly User[], Error>
   >(idle())
   const [deleteState, _setDeleteState, setDeleteStateAsEffect] = useEffectState<
-    AsyncState<User[], Error>
+    AsyncState<readonly User[], Error>
   >(idle())
   const [orgListState, setOrgListState, setOrgListStateAsEffect] =
-    useEffectState<AsyncState<ApiOrganization[], Error>>(idle())
+    useEffectState<AsyncState<readonly Organization[], Error>>(idle())
   const [orgRoles, _setOrgRoles, setOrgRolesAsEffect] =
-    useEffectState<DashboardRole[]>([])
+    useEffectState<readonly DashboardRole[]>([])
 
   const [addDialogOpen, setAddDialogOpen] = useState(false)
   const [filterEmail, setFilterEmail] = useState('')
@@ -102,16 +94,16 @@ export default function UsersPage() {
   const [deletingId, setDeletingId] = useState<string | null>(null)
 
   const users =
-    listState._tag === 'success' ? listState.value : []
+    listState._tag === 'success' ? [...listState.value] : []
   const organizations =
-    orgListState._tag === 'success' ? orgListState.value : []
+    orgListState._tag === 'success' ? [...orgListState.value] : []
   const loading = isPending(listState)
   const adding = isPending(addState)
   const saving = isPending(updateState)
   const deleting = isPending(deleteState)
   const errorMessage =
     [listState, addState, updateState, deleteState]
-      .filter((s): s is AsyncState<User[], Error> & { _tag: 'failure' } =>
+      .filter((s): s is AsyncState<readonly User[], Error> & { _tag: 'failure' } =>
         isFailure(s),
       )[0]?.error?.message ?? null
   const error = errorMessage != null ? errorMessage : null
@@ -138,8 +130,12 @@ export default function UsersPage() {
 
   const addFormOrgId = addForm.watch('orgId')
 
+  const listUsersEffect = Effect.gen(function* () {
+    const users = yield* Users
+    return yield* users.list()
+  })
   const refreshEffect = streamWithPendingState(
-    canRead ? fetchUsersEffect : Effect.succeed([] as User[]),
+    canRead ? listUsersEffect : Effect.succeed([] as User[]),
   )
   useRunEffect(
     canRead
@@ -148,10 +144,14 @@ export default function UsersPage() {
     [liveRefreshTrigger, setListStateAsEffect, canRead],
   )
 
+  const listOrgsEffect = Effect.gen(function* () {
+    const dashboard = yield* Dashboard
+    return yield* dashboard.getOrganizations()
+  })
   useRunEffect(
     canRead
       ? runStreamInto(
-          streamWithPendingState(fetchOrganizationsEffect),
+          streamWithPendingState(listOrgsEffect),
           setOrgListStateAsEffect,
         )
       : Effect.sync(() => setOrgListState(idle())),
@@ -161,7 +161,8 @@ export default function UsersPage() {
   useRunEffect(
     addFormOrgId
       ? Effect.gen(function* () {
-          const roles = yield* fetchRolesEffect(addFormOrgId)
+          const dashboard = yield* Dashboard
+          const roles = yield* dashboard.getRolesByOrg(addFormOrgId)
           yield* setOrgRolesAsEffect(roles)
         })
       : setOrgRolesAsEffect([]),
@@ -178,13 +179,14 @@ export default function UsersPage() {
 
   const createThenList = (data: UserAddFormValuesStrict) =>
     Effect.gen(function* () {
-      yield* createUserEffect({
+      const users = yield* Users
+      yield* users.create({
         email: data.email,
         password: data.password,
         org_id: data.orgId,
         role_ids: [...data.roleIds],
       })
-      return yield* fetchUsersEffect
+      return yield* users.list()
     })
 
   const handleAdd = (data: UserAddFormValuesStrict) => {
@@ -204,13 +206,14 @@ export default function UsersPage() {
 
   const updateThenList = (data: UserEditFormValues) =>
     Effect.gen(function* () {
-      if (!editUser) return yield* fetchUsersEffect
-      yield* updateUserEffect({
+      const users = yield* Users
+      if (!editUser) return yield* users.list()
+      yield* users.update({
         id: editUser.id,
         email: data.email.trim() || undefined,
         is_active: data.active,
       })
-      return yield* fetchUsersEffect
+      return yield* users.list()
     })
 
   const handleSaveEdit = (data: UserEditFormValues) => {
@@ -226,8 +229,9 @@ export default function UsersPage() {
 
   const deleteThenList = (id: string) =>
     Effect.gen(function* () {
-      yield* deleteUserEffect(id)
-      return yield* fetchUsersEffect
+      const users = yield* Users
+      yield* users.delete(id)
+      return yield* users.list()
     })
 
   const handleDelete = (id: string) => {

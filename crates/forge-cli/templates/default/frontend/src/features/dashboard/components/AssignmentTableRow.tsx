@@ -2,17 +2,11 @@ import TableCell from '@mui/material/TableCell'
 import TableRow from '@mui/material/TableRow'
 import IconButton from '@mui/material/IconButton'
 import DeleteIcon from '@mui/icons-material/Delete'
-
-export type AssignmentRow = {
-  scope: string
-  role_name: string
-  permission_key: string
-  org_id?: string | null
-}
+import type { Assignment } from '../domain/Assignment'
 
 export type AssignmentTableRowProps = {
-  assignment: AssignmentRow
-  onDelete: (assignment: AssignmentRow) => void
+  assignment: Assignment
+  onDelete: (assignment: Assignment) => void
   isDeleting: boolean
 }
 

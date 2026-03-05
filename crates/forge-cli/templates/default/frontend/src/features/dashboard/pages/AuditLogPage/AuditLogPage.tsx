@@ -29,12 +29,9 @@ import ErrorAlert from '../../../../components/ErrorAlert'
 import LoadingSpinner from '../../../../components/LoadingSpinner'
 import { useLiveRefreshTrigger } from '../../../../hooks/useLiveRefreshTrigger'
 import { useTablePaginationDefaults } from '../../../../hooks/useTablePaginationDefaults'
-import {
-  fetchAuditLogEffect,
-  type AuditLogEntry as ApiAuditLogEntry,
-} from '../../../../effects/dashboard'
+import type { AuditLogResult } from '../../services/AuditLog'
+import { AuditLog as AuditLogService } from '../../services/AuditLog'
 
-type AuditLogResult = { entries: ApiAuditLogEntry[]; total: number }
 type ListState = AsyncState<AuditLogResult, Error>
 
 export default function AuditLogPage() {
@@ -70,7 +67,8 @@ export default function AuditLogPage() {
 
   const listEffect: Effect.Effect<AuditLogResult, Error, AppServices> =
     Effect.gen(function* () {
-      return yield* fetchAuditLogEffect({
+      const auditLog = yield* AuditLogService
+      return yield* auditLog.list({
         limit: rowsPerPage,
         offset: page * rowsPerPage,
         from: from || undefined,

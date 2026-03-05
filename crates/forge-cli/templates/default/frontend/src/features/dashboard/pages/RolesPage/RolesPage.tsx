@@ -36,17 +36,12 @@ import PageHeader from '../../../../components/PageHeader'
 import ErrorAlert from '../../../../components/ErrorAlert'
 import LoadingSpinner from '../../../../components/LoadingSpinner'
 import { useLiveRefreshTrigger } from '../../../../hooks/useLiveRefreshTrigger'
-import {
-  fetchRolesListEffect,
-  fetchOrganizationsEffect,
-  createRoleEffect,
-  updateRoleEffect,
-  deleteRoleEffect,
-  type Role,
-  type Organization as ApiOrganization,
-} from '../../../../effects/dashboard'
+import type { Role } from '../../domain/Role'
+import type { Organization } from '../../domain/Organization'
+import { Roles as RolesService } from '../../services/Roles'
+import { Dashboard } from '../../services/Dashboard'
 
-type ListState = AsyncState<Role[], Error>
+type ListState = AsyncState<readonly Role[], Error>
 
 export default function RolesPage() {
   const { runtime } = useEffectRuntime<AppServices>()
@@ -65,13 +60,13 @@ export default function RolesPage() {
     useEffectState<ListState, never, never>(idle<Role[], Error>())
 
   const [orgListState, , setOrgListStateAsEffect] = useEffectState<
-    AsyncState<ApiOrganization[], Error>,
+    AsyncState<readonly Organization[], Error>,
     never,
     never
-  >(idle<ApiOrganization[], Error>())
+  >(idle<readonly Organization[], Error>())
 
-  const roles = isSuccess(listState) ? listState.value : []
-  const organizations = isSuccess(orgListState) ? orgListState.value : []
+  const roles = isSuccess(listState) ? [...listState.value] : []
+  const organizations = isSuccess(orgListState) ? [...orgListState.value] : []
   const loading = isPending(listState)
   const error: Error | null = isFailure(listState)
     ? listState.error
@@ -102,14 +97,22 @@ export default function RolesPage() {
   const saving = isPending(updateState)
   const deleting = isPending(deleteState)
 
-  const refreshStream = streamWithPendingState(fetchRolesListEffect)
+  const listRolesEffect = Effect.gen(function* () {
+    const roles = yield* RolesService
+    return yield* roles.list()
+  })
+  const refreshStream = streamWithPendingState(listRolesEffect)
   const refreshEffect = Effect.gen(function* () {
     yield* runStreamInto(refreshStream, setListStateAsEffect)
   })
 
   useRunEffect(refreshEffect, [liveRefreshTrigger, setListStateAsEffect])
 
-  const orgsStream = streamWithPendingState(fetchOrganizationsEffect)
+  const listOrgsEffect = Effect.gen(function* () {
+    const dashboard = yield* Dashboard
+    return yield* dashboard.getOrganizations()
+  })
+  const orgsStream = streamWithPendingState(listOrgsEffect)
   const orgsEffect = Effect.gen(function* () {
     yield* runStreamInto(orgsStream, setOrgListStateAsEffect)
   })
@@ -159,12 +162,13 @@ export default function RolesPage() {
     if (!name) return
     const orgId = addOrgId || (organizations[0]?.id ?? '')
     const addThenList = Effect.gen(function* () {
-      yield* createRoleEffect({
+      const roles = yield* RolesService
+      yield* roles.create({
         name,
         display_name: addDisplayName.trim() || undefined,
         org_id: orgId,
       })
-      return yield* fetchRolesListEffect
+      return yield* roles.list()
     })
     runWithAppRuntime(
       runtime,
@@ -181,12 +185,13 @@ export default function RolesPage() {
   const handleSaveEdit = () => {
     if (!editRole) return
     const updateThenList = Effect.gen(function* () {
-      yield* updateRoleEffect({
+      const roles = yield* RolesService
+      yield* roles.update({
         id: editRole.id,
         name: editName.trim() || undefined,
         display_name: editDisplayName.trim() || undefined,
       })
-      return yield* fetchRolesListEffect
+      return yield* roles.list()
     })
     runWithAppRuntime(
       runtime,
@@ -200,8 +205,9 @@ export default function RolesPage() {
   const handleDelete = (id: string) => {
     setDeletingId(id)
     const deleteThenList = Effect.gen(function* () {
-      yield* deleteRoleEffect(id)
-      return yield* fetchRolesListEffect
+      const roles = yield* RolesService
+      yield* roles.delete(id)
+      return yield* roles.list()
     })
     runWithAppRuntime(
       runtime,
