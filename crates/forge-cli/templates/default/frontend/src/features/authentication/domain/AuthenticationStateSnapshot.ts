@@ -1,5 +1,5 @@
 import { Data } from 'effect'
-import type { AuthUser } from './AuthUser'
+import type { AuthenticationUser } from './AuthenticationUser'
 import type { Flash } from './Flash'
 import type { Profile } from './Profile'
 
@@ -11,8 +11,8 @@ import type { Profile } from './Profile'
  * `getState()` to read the current snapshot. When `needs_profile_select` is
  * true, the app should redirect to profile-select before the dashboard.
  */
-export class AuthStateSnapshot extends Data.TaggedClass('AuthStateSnapshot')<{
-  readonly user: AuthUser | null
+export class AuthenticationStateSnapshot extends Data.TaggedClass('AuthenticationStateSnapshot')<{
+  readonly user: AuthenticationUser | null
   readonly profiles: readonly Profile[]
   readonly permissions: readonly string[]
   readonly flash: Flash | null

@@ -1,14 +1,12 @@
 import { HttpClient, HttpClientRequest } from '@effect/platform'
 import { Effect, Layer, Ref } from 'effect'
 import type { AuthenticationStoreService } from './AuthenticationStore'
-import {
-  AuthError,
-  AuthStateSnapshot,
-  AuthUser,
-  AuthenticationStore,
-  Flash,
-  Profile,
-} from './AuthenticationStore'
+import { AuthenticationStore } from './AuthenticationStore'
+import { AuthenticationError } from '../domain/AuthenticationError'
+import { AuthenticationStateSnapshot } from '../domain/AuthenticationStateSnapshot'
+import { AuthenticationUser } from '../domain/AuthenticationUser'
+import { Flash } from '../domain/Flash'
+import { Profile } from '../domain/Profile'
 
 const STORAGE_KEYS = {
   token: 'token',
@@ -37,7 +35,7 @@ function writeStorage(key: string, value: string | null): void {
 }
 
 function parseMeResponse(data: unknown): {
-  user: AuthUser | null
+  user: AuthenticationUser | null
   profiles: Profile[]
   permissions: string[]
   flash: Flash | null
@@ -55,7 +53,7 @@ function parseMeResponse(data: unknown): {
   const d = data as Record<string, unknown>
   const user =
     d.user && typeof d.user === 'object' && d.user !== null
-      ? new AuthUser({
+      ? new AuthenticationUser({
           id: String((d.user as Record<string, unknown>).id ?? ''),
           email: String((d.user as Record<string, unknown>).email ?? ''),
           token: '', // caller (fetchMe) sets token from request
@@ -93,9 +91,9 @@ function parseMeResponse(data: unknown): {
   }
 }
 
-function initialSnapshot(): AuthStateSnapshot {
+function initialSnapshot(): AuthenticationStateSnapshot {
   const token = readStorage(STORAGE_KEYS.token)
-  return new AuthStateSnapshot({
+  return new AuthenticationStateSnapshot({
     user: null,
     profiles: [],
     permissions: [],
@@ -142,7 +140,7 @@ export const AuthenticationStoreLive = Layer.effect(
 
       setToken: (token) =>
         Effect.gen(function* () {
-          yield* Ref.update(ref, (s) => new AuthStateSnapshot({ ...s, token }))
+          yield* Ref.update(ref, (s) => new AuthenticationStateSnapshot({ ...s, token }))
           yield* persistToken(token)
         }),
 
@@ -155,7 +153,7 @@ export const AuthenticationStoreLive = Layer.effect(
             token = tokenOverride
             yield* Ref.update(
               ref,
-              (s) => new AuthStateSnapshot({ ...s, token }),
+              (s) => new AuthenticationStateSnapshot({ ...s, token }),
             )
             yield* persistToken(token)
           } else {
@@ -178,13 +176,13 @@ export const AuthenticationStoreLive = Layer.effect(
             return
           }
           const parsed = parseMeResponse(body)
-          const user: AuthUser | null = parsed.user
-            ? new AuthUser({ ...parsed.user, token })
+          const user: AuthenticationUser | null = parsed.user
+            ? new AuthenticationUser({ ...parsed.user, token })
             : null
           const current = yield* Ref.get(ref)
           yield* Ref.set(
             ref,
-            new AuthStateSnapshot({
+            new AuthenticationStateSnapshot({
               ...current,
               user,
               profiles: parsed.profiles,
@@ -196,7 +194,7 @@ export const AuthenticationStoreLive = Layer.effect(
         }).pipe(
           Effect.catchAll((e) =>
             Effect.fail(
-              new AuthError({
+              new AuthenticationError({
                 message: e instanceof Error ? e.message : 'fetchMe failed',
                 cause: e,
               }),
@@ -216,7 +214,7 @@ export const AuthenticationStoreLive = Layer.effect(
           yield* Ref.update(
             ref,
             (s) =>
-              new AuthStateSnapshot({
+              new AuthenticationStateSnapshot({
                 ...s,
                 currentOrgId: orgId,
                 currentRoleId: roleId,

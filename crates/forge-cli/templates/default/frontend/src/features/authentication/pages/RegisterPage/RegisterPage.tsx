@@ -1,4 +1,3 @@
-import { useState } from 'react'
 import { useForm, Controller } from 'react-hook-form'
 import { Link as RouterLink, useNavigate } from 'react-router-dom'
 import { Schema } from 'effect'
@@ -8,16 +7,39 @@ import Button from '@mui/material/Button'
 import Link from '@mui/material/Link'
 import TextField from '@mui/material/TextField'
 import Typography from '@mui/material/Typography'
+import { Effect } from 'effect'
+import { useCallback } from 'react'
+import { AuthenticationApi } from '../../services/AuthenticationApi'
+import {
+  useEffectState,
+  useRunEffect,
+  useEffectRuntime,
+  streamWithPendingState,
+  runStreamInto,
+  type AsyncState,
+  idle,
+  isSuccess,
+  isPending,
+  isFailure,
+} from '../../../../lib/react-effect'
+import { runWithAppRuntime, type AppServices } from '../../../../lib/appLayer'
 import { effectSchemaResolver } from '../../../../lib/effectSchemaResolver'
 import {
   registerFormSchema,
   type RegisterFormValues,
 } from '../../../../schemas/userFormSchemas'
 
+type RegisterState = AsyncState<void, Error>
+
 export default function RegisterPage() {
   const navigate = useNavigate()
-  const [error, setError] = useState<string | null>(null)
-  const [submitting, setSubmitting] = useState(false)
+  const { runtime } = useEffectRuntime<AppServices>()
+
+  const [submitState, , setSubmitStateAsEffect] = useEffectState<
+    RegisterState,
+    never,
+    never
+  >(idle())
 
   const form = useForm<RegisterFormValues>({
     resolver: effectSchemaResolver(
@@ -27,32 +49,42 @@ export default function RegisterPage() {
     mode: 'onChange',
   })
 
-  async function handleSubmit(data: RegisterFormValues) {
-    setSubmitting(true)
-    setError(null)
-    try {
-      const res = await fetch('/api/auth/register', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        credentials: 'include',
-        body: JSON.stringify({ email: data.email, password: data.password }),
-      })
-      const resData = await res.json().catch(() => ({}))
-      if (res.ok) {
-        navigate('/login', { replace: true })
-        return
-      }
-      setError(
-        typeof resData?.error === 'string'
-          ? resData.error
-          : 'Registration failed. Please try again.',
+  const registerEffect = useCallback(
+    (email: string, password: string): Effect.Effect<void, Error, AppServices> =>
+      Effect.gen(function* () {
+        const api = yield* AuthenticationApi
+        yield* api.register(email, password)
+      }),
+    [],
+  )
+
+  const handleSubmit = useCallback(
+    (data: RegisterFormValues) => {
+      const stream = streamWithPendingState(
+        registerEffect(data.email, data.password),
       )
-    } catch {
-      setError('Something went wrong. Please try again.')
-    } finally {
-      setSubmitting(false)
-    }
-  }
+      const effect = runStreamInto(stream, setSubmitStateAsEffect)
+      runWithAppRuntime(runtime, effect).catch(() => {})
+    },
+    [runtime, registerEffect, setSubmitStateAsEffect],
+  )
+
+  const successEffect: Effect.Effect<void, never, AppServices> = Effect.gen(
+    function* () {
+      if (!isSuccess(submitState)) return
+      yield* Effect.sync(() => navigate('/login', { replace: true }))
+      yield* setSubmitStateAsEffect(idle<void, Error>())
+    },
+  )
+  useRunEffect(successEffect, [submitState, navigate, setSubmitStateAsEffect])
+
+  const submitting = isPending(submitState)
+  const errorMessage =
+    isFailure(submitState) && submitState.error
+      ? submitState.error instanceof Error
+        ? submitState.error.message
+        : String(submitState.error)
+      : null
 
   return (
     <>
@@ -65,10 +97,10 @@ export default function RegisterPage() {
           data-testid="register-form"
         >
           <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
-            {error != null && (
+            {errorMessage != null && (
               <Alert severity="error" data-testid="register-error">
                 <Typography variant="subtitle2">Registration failed</Typography>
-                {error}
+                {errorMessage}
               </Alert>
             )}
             <Controller

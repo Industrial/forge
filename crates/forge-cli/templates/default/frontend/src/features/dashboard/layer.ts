@@ -10,7 +10,7 @@ import {
   httpClientWithAuthLayer,
   type HttpClientWithAuthConfig,
 } from '../../lib/httpClientWithAuth'
-import { AuthenticationStoreLive } from '../../services/AuthenticationStoreLive'
+import { AuthenticationStoreLive } from '../authentication/services/AuthenticationStoreLive'
 
 /**
  * Builds the dashboard feature layer: HttpClient (with auth) + AuthenticationStore.

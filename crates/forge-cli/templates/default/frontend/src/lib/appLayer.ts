@@ -18,7 +18,8 @@ import type { RolesService } from '../features/dashboard/services/Roles'
 import { RolesLive } from '../features/dashboard/services/RolesLive'
 import type { UsersService } from '../features/dashboard/services/Users'
 import { UsersLive } from '../features/dashboard/services/UsersLive'
-import type { AuthenticationStoreService } from '../services/AuthenticationStore'
+import type { AuthenticationApiService } from '../features/authentication/services/AuthenticationApi'
+import type { AuthenticationStoreService } from '../features/authentication/services/AuthenticationStore'
 import { ForgeWebsocketLive } from '../services/ForgeWebsocketLive'
 import type { ForgeWebsocketService } from '../services/ForgeWebsocket'
 import type { WebsocketService } from '../services/Websocket'
@@ -32,6 +33,7 @@ import { WebsocketLive } from '../services/WebsocketLive'
 export type AppServices =
   | HttpClient.HttpClient
   | AuthenticationStoreService
+  | AuthenticationApiService
   | WebsocketService
   | ForgeWebsocketService
   | OrganizationsService

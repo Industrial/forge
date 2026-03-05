@@ -4,9 +4,9 @@ import Typography from '@mui/material/Typography'
 import React from 'react'
 import { useSession } from '../../../../context/Session'
 
-type AuthLayoutProps = { children: React.ReactNode }
+type AuthenticationLayoutProps = { children: React.ReactNode }
 
-export default function AuthenticationLayout({ children }: AuthLayoutProps) {
+export default function AuthenticationLayout({ children }: AuthenticationLayoutProps) {
   const { flash } = useSession()
 
   return (

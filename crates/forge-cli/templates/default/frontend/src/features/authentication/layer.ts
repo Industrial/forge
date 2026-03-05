@@ -10,18 +10,23 @@ import {
   httpClientWithAuthLayer,
   type HttpClientWithAuthConfig,
 } from '../../lib/httpClientWithAuth'
-import { AuthenticationStoreLive } from '../../services/AuthenticationStoreLive'
+import { AuthenticationApiLive } from './services/AuthenticationApiLive'
+import { AuthenticationStoreLive } from './services/AuthenticationStoreLive'
 
 /**
- * Builds the authentication feature layer: HttpClient (with auth) + AuthenticationStore.
+ * Builds the authentication feature layer: HttpClient (with auth), AuthenticationStore, AuthenticationApi.
  * Supply config when composing at app root (e.g. baseUrl and token/org/role).
  */
 export const AuthenticationFeatureLayer = (
   config: HttpClientWithAuthConfig,
 ) => {
   const httpLayer = httpClientWithAuthLayer(config)
-  return Layer.merge(
+  const withHttp = Layer.merge(
     httpLayer,
     AuthenticationStoreLive.pipe(Layer.provide(httpLayer)),
+  )
+  return Layer.merge(
+    withHttp,
+    AuthenticationApiLive.pipe(Layer.provide(httpLayer)),
   )
 }

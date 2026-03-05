@@ -1,12 +1,10 @@
 import { Effect, Layer } from 'effect'
 import type { AuthenticationStoreService } from './AuthenticationStore'
-import {
-  AuthStateSnapshot,
-  AuthUser,
-  AuthenticationStore,
-  Flash,
-  Profile,
-} from './AuthenticationStore'
+import { AuthenticationStore } from './AuthenticationStore'
+import { AuthenticationStateSnapshot } from '../domain/AuthenticationStateSnapshot'
+import { AuthenticationUser } from '../domain/AuthenticationUser'
+import { Flash } from '../domain/Flash'
+import { Profile } from '../domain/Profile'
 
 /**
  * Options for creating a mock AuthenticationStore (e.g. for tests).
@@ -14,11 +12,11 @@ import {
  */
 export interface AuthenticationStoreMockOptions {
   /** Initial state returned by getState and used by getToken. Defaults to empty/logged-out. */
-  readonly initialState?: Partial<AuthStateSnapshot>
+  readonly initialState?: Partial<AuthenticationStateSnapshot>
 }
 
 type MutableSnapshot = {
-  user: AuthUser | null
+  user: AuthenticationUser | null
   profiles: Profile[]
   permissions: string[]
   flash: Flash | null
@@ -29,8 +27,8 @@ type MutableSnapshot = {
   needs_profile_select: boolean
 }
 
-function toSnapshot(s: MutableSnapshot): AuthStateSnapshot {
-  return new AuthStateSnapshot({
+function toSnapshot(s: MutableSnapshot): AuthenticationStateSnapshot {
+  return new AuthenticationStateSnapshot({
     ...s,
     user: s.user,
     profiles: s.profiles.map((p) =>
@@ -68,9 +66,9 @@ function makeAuthenticationStoreMock(
       state.user =
         i.user === null
           ? null
-          : i.user instanceof AuthUser
+          : i.user instanceof AuthenticationUser
             ? i.user
-            : new AuthUser(i.user)
+            : new AuthenticationUser(i.user)
     if (i.profiles !== undefined) state.profiles = [...i.profiles]
     if (i.permissions !== undefined) state.permissions = [...i.permissions]
     if (i.flash !== undefined)

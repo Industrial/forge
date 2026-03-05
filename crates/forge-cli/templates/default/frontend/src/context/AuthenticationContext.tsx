@@ -1,19 +1,21 @@
 import React, { createContext, useCallback, useContext, useMemo } from 'react'
 import { Effect } from 'effect'
 import { runWithAppRuntime } from '../lib/appLayer'
-import type { AuthUser, Flash, Profile } from '../domain'
-import { AuthError } from '../domain'
-import { AuthenticationStore } from '../services/AuthenticationStore'
-import { useAuthenticationState } from '../hooks/useAuthentication'
+import type { AuthenticationUser } from '../features/authentication/domain/AuthenticationUser'
+import type { Flash } from '../features/authentication/domain/Flash'
+import type { Profile } from '../features/authentication/domain/Profile'
+import { AuthenticationError } from '../features/authentication/domain/AuthenticationError'
+import { AuthenticationStore } from '../features/authentication/services/AuthenticationStore'
+import { useAuthenticationState } from '../features/authentication/hooks/useAuthentication'
 import { useEffectRuntime } from '../lib/react-effect'
 import type { AppServices } from '../lib/appLayer'
 
 /**
  * Context value: snapshot data + loading + imperative methods.
- * Data shape matches AuthStateSnapshot from domain; methods and loading are context-specific.
+ * Data shape matches AuthenticationStateSnapshot from domain; methods and loading are context-specific.
  */
 export type AuthenticationState = {
-  user: AuthUser | null
+  user: AuthenticationUser | null
   profiles: Profile[]
   permissions: string[]
   flash: Flash | null
@@ -86,7 +88,7 @@ export function AuthenticationProvider({
   const { runtime } = useEffectRuntime<AppServices>()
 
   const runThenRefresh = useCallback(
-    <R extends AppServices>(effect: Effect.Effect<void, AuthError, R>) => {
+    <R extends AppServices>(effect: Effect.Effect<void, AuthenticationError, R>) => {
       return runWithAppRuntime(runtime, effect).then(refresh)
     },
     [runtime, refresh],

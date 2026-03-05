@@ -3,7 +3,7 @@ import { type ReactNode, useEffect, useMemo, useState } from 'react'
 import { EffectRuntimeProvider } from './react-effect'
 import type { HttpClientWithAuthConfig } from './httpClientWithAuth'
 import { AppLayer, runWithAppRuntime, type AppServices } from './appLayer'
-import { AuthenticationStore } from '../services/AuthenticationStore'
+import { AuthenticationStore } from '../features/authentication/services/AuthenticationStore'
 import { Websocket } from '../services/Websocket'
 import { getWsUrl } from '../utils/ws'
 

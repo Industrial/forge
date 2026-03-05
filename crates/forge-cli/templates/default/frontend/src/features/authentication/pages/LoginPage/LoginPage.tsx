@@ -1,4 +1,3 @@
-import { useState } from 'react'
 import { useForm, Controller } from 'react-hook-form'
 import { Link as RouterLink, useNavigate, useLocation } from 'react-router-dom'
 import { Schema } from 'effect'
@@ -8,23 +7,48 @@ import Button from '@mui/material/Button'
 import Link from '@mui/material/Link'
 import TextField from '@mui/material/TextField'
 import Typography from '@mui/material/Typography'
-import { useSession } from '../../../../context/Session'
+import { Effect } from 'effect'
+import { useCallback } from 'react'
+import {
+  AuthenticationApi,
+  type LoginResult,
+} from '../../services/AuthenticationApi'
+import { AuthenticationStore } from '../../services/AuthenticationStore'
+import {
+  useEffectState,
+  useRunEffect,
+  useEffectRuntime,
+  streamWithPendingState,
+  runStreamInto,
+  type AsyncState,
+  idle,
+  isSuccess,
+  isPending,
+  isFailure,
+} from '../../../../lib/react-effect'
+import { runWithAppRuntime, type AppServices } from '../../../../lib/appLayer'
 import { effectSchemaResolver } from '../../../../lib/effectSchemaResolver'
 import {
   loginFormSchema,
   type LoginFormValues,
 } from '../../../../schemas/userFormSchemas'
 
+type LoginState = AsyncState<LoginResult, Error>
+
 export default function LoginPage() {
   const navigate = useNavigate()
   const location = useLocation()
-  const { refresh } = useSession()
-  const [error, setError] = useState<string | null>(null)
-  const [submitting, setSubmitting] = useState(false)
+  const { runtime } = useEffectRuntime<AppServices>()
 
   const from =
     (location.state as { from?: { pathname: string } } | null)?.from
       ?.pathname ?? '/dashboard'
+
+  const [submitState, , setSubmitStateAsEffect] = useEffectState<
+    LoginState,
+    never,
+    never
+  >(idle())
 
   const form = useForm<LoginFormValues>({
     resolver: effectSchemaResolver(
@@ -34,37 +58,58 @@ export default function LoginPage() {
     mode: 'onChange',
   })
 
-  async function handleSubmit(data: LoginFormValues) {
-    setSubmitting(true)
-    setError(null)
-    try {
-      const res = await fetch('/api/auth/login', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        credentials: 'include',
-        body: JSON.stringify({ email: data.email, password: data.password }),
-      })
-      const resData = await res.json().catch(() => ({}))
-      if (res.ok && typeof resData.token === 'string') {
-        await refresh(resData.token)
-        if (resData.needs_profile_select === true) {
+  const loginEffect = useCallback(
+    (email: string, password: string): Effect.Effect<LoginResult, Error, AppServices> =>
+      Effect.gen(function* () {
+        const api = yield* AuthenticationApi
+        const store = yield* AuthenticationStore
+        const result = yield* api.login(email, password)
+        yield* store.setToken(result.token)
+        yield* store.fetchMe(result.token)
+        return result
+      }),
+    [],
+  )
+
+  const handleSubmit = useCallback(
+    (data: LoginFormValues) => {
+      const stream = streamWithPendingState(
+        loginEffect(data.email, data.password),
+      )
+      const effect = runStreamInto(stream, setSubmitStateAsEffect)
+      runWithAppRuntime(runtime, effect).catch(() => {})
+    },
+    [runtime, loginEffect, setSubmitStateAsEffect],
+  )
+
+  const successEffect: Effect.Effect<void, never, AppServices> = Effect.gen(
+    function* () {
+      if (!isSuccess(submitState)) return
+      const r = submitState.value
+      yield* Effect.sync(() => {
+        if (r.needs_profile_select === true) {
           navigate('/select-profile', { replace: true })
         } else {
           navigate(from, { replace: true })
         }
-        return
-      }
-      setError(
-        typeof resData?.error === 'string'
-          ? resData.error
-          : 'Invalid email or password',
-      )
-    } catch {
-      setError('Something went wrong. Please try again.')
-    } finally {
-      setSubmitting(false)
-    }
-  }
+      })
+      yield* setSubmitStateAsEffect(idle<LoginResult, Error>())
+    },
+  )
+  useRunEffect(successEffect, [
+    submitState,
+    navigate,
+    from,
+    setSubmitStateAsEffect,
+  ])
+
+  const submitting = isPending(submitState)
+  const errorMessage =
+    isFailure(submitState) && submitState.error
+      ? submitState.error instanceof Error
+        ? submitState.error.message
+        : String(submitState.error)
+      : null
 
   return (
     <>
@@ -77,10 +122,10 @@ export default function LoginPage() {
           data-testid="login-form"
         >
           <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
-            {error != null && (
+            {errorMessage != null && (
               <Alert severity="error" data-testid="login-error">
                 <Typography variant="subtitle2">Login failed</Typography>
-                {error}
+                {errorMessage}
               </Alert>
             )}
             <Controller
