@@ -9,23 +9,24 @@ import TableHead from '@mui/material/TableHead'
 import TableRow from '@mui/material/TableRow'
 import Paper from '@mui/material/Paper'
 import AddIcon from '@mui/icons-material/Add'
-import useTheme from '@mui/material/styles/useTheme'
 import FormDialog from '../../../../components/FormDialog'
 import LoadingSpinner from '../../../../components/LoadingSpinner'
 import EmptyState from '../../../../components/EmptyState'
 import PageHeader from '../../../../components/PageHeader'
 import ErrorAlert from '../../../../components/ErrorAlert'
-import useMediaQuery from '@mui/material/useMediaQuery'
+import { useLiveRefreshTrigger } from '../../../../hooks/useLiveRefreshTrigger'
+import { usePermission } from '../../../../hooks/usePermission'
+import { useIsMobile } from '../../../../hooks/useIsMobile'
 import OrganizationsFilters from '../../components/OrganizationsFilters'
 import OrganizationCard from '../../components/OrganizationCard'
 import OrganizationTableRow from '../../components/OrganizationTableRow'
-import { useAuthentication } from '../../../../context/AuthenticationContext'
-import { useLiveUpdates } from '../../../../context/LiveWs'
+import { useOrganizationsFilter } from '../../hooks/useOrganizationsFilter'
 import {
   useEffectState,
   useRunEffect,
   useEffectRuntime,
   streamWithPendingState,
+  runStreamInto,
   type AsyncState,
   idle,
   success as asyncSuccess,
@@ -34,7 +35,7 @@ import {
   isPending,
 } from '../../../../lib/react-effect'
 import { runWithAppRuntime, type AppServices } from '../../../../lib/appLayer'
-import { Effect, Stream } from 'effect'
+import { Effect } from 'effect'
 import { Organizations, type Organization } from '../../services/Organizations'
 
 const ORG_WRITE = 'dashboard.organizations.write'
@@ -99,14 +100,10 @@ function OrganizationForm({
 }
 
 export default function OrganizationsPage() {
-  const theme = useTheme()
-  const isMobile = useMediaQuery(theme.breakpoints.down('md'))
-  const { permissions } = useAuthentication()
-  const canWrite = permissions.includes(ORG_WRITE)
-  const [liveRefreshTrigger, setLiveRefreshTrigger] = useEffectState(0)
-  const { connected: wsConnected } = useLiveUpdates('organizations', () => {
-    setLiveRefreshTrigger((n) => n + 1)
-  })
+  const isMobile = useIsMobile()
+  const canWrite = usePermission(ORG_WRITE)
+  const { trigger: liveRefreshTrigger, connected: wsConnected } =
+    useLiveRefreshTrigger('organizations')
 
   const { runtime } = useEffectRuntime<AppServices>()
 
@@ -150,11 +147,8 @@ export default function OrganizationsPage() {
           ? deleteState.error
           : null
 
-  /** Run a stream and push each emission into a state setter. */
-  const runStreamInto = (
-    stream: Stream.Stream<ListState, never, AppServices>,
-    setState: (s: ListState) => Effect.Effect<void, never, never>,
-  ) => Stream.runForEach(stream, setState)
+  const [filters, setFilters, filteredOrganizations] =
+    useOrganizationsFilter(organizations)
 
   const refreshStream = streamWithPendingState(listEffect)
   const refreshEffect = Effect.gen(function* () {
@@ -165,8 +159,6 @@ export default function OrganizationsPage() {
     useEffectState(false)
   const [addName, setAddName, setAddNameAsEffect] = useEffectState('')
   const [addSlug, setAddSlug, setAddSlugAsEffect] = useEffectState('')
-  const [filterName, setFilterName] = useEffectState('')
-  const [filterSlug, setFilterSlug] = useEffectState('')
   const [editOrg, setEditOrg, setEditOrgAsEffect] =
     useEffectState<Organization | null>(null)
   const [editName, setEditName] = useEffectState('')
@@ -178,16 +170,6 @@ export default function OrganizationsPage() {
   const isAdding = isPending(createState)
   const isSaving = isPending(updateState)
   const isDeleting = (id: string) => isPending(deleteState) && deletingId === id
-
-  const filteredOrganizations = organizations.filter((org) => {
-    const nameMatch =
-      !filterName.trim() ||
-      org.name.toLowerCase().includes(filterName.trim().toLowerCase())
-    const slugMatch =
-      !filterSlug.trim() ||
-      org.slug.toLowerCase().includes(filterSlug.trim().toLowerCase())
-    return nameMatch && slugMatch
-  })
 
   const errorMessage =
     error instanceof Error
@@ -343,10 +325,14 @@ export default function OrganizationsPage() {
       )}
 
       <OrganizationsFilters
-        filterName={filterName}
-        filterSlug={filterSlug}
-        onFilterNameChange={setFilterName}
-        onFilterSlugChange={setFilterSlug}
+        filterName={filters.filterName}
+        filterSlug={filters.filterSlug}
+        onFilterNameChange={(value) =>
+          setFilters((prev) => ({ ...prev, filterName: value }))
+        }
+        onFilterSlugChange={(value) =>
+          setFilters((prev) => ({ ...prev, filterSlug: value }))
+        }
       />
 
       {canWrite && (

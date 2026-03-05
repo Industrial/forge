@@ -35,3 +35,4 @@ export {
   isFailure,
 } from './AsyncState'
 export { streamWithPendingState } from './streamWithPendingState'
+export { runStreamInto } from './runStreamInto'
