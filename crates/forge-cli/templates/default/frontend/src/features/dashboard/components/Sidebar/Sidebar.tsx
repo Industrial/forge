@@ -13,7 +13,7 @@ import People from '@mui/icons-material/People'
 import Badge from '@mui/icons-material/Badge'
 import Lock from '@mui/icons-material/Lock'
 import History from '@mui/icons-material/History'
-import { useSession } from '../../../../context/Session'
+import { useAuthentication } from '../../../../context/AuthenticationContext'
 
 /** Show nav item if user has any of these permissions (.read = view, .write = modify). */
 const NAV_ITEMS = [
@@ -83,7 +83,7 @@ export default function Sidebar({
   fullWidth = false,
 }: SidebarProps) {
   const width = fullWidth ? '100%' : expanded ? 240 : 72
-  const { permissions } = useSession()
+  const { permissions } = useAuthentication()
   const navItems = NAV_ITEMS.filter((item) =>
     item.permissions.some((p) => permissions.includes(p)),
   )

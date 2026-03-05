@@ -1,6 +1,6 @@
 import React from 'react'
 import { Navigate } from 'react-router-dom'
-import { useSession } from '../context/Session'
+import { useAuthentication } from '../../../context/AuthenticationContext'
 
 type DashboardProfileGuardProps = { children: React.ReactNode }
 
@@ -11,7 +11,7 @@ type DashboardProfileGuardProps = { children: React.ReactNode }
 export default function DashboardProfileGuard({
   children,
 }: DashboardProfileGuardProps) {
-  const { user, needs_profile_select, loading } = useSession()
+  const { user, needs_profile_select, loading } = useAuthentication()
 
   if (loading) return null
   if (user == null) return null // ProtectedRoute handles unauthenticated

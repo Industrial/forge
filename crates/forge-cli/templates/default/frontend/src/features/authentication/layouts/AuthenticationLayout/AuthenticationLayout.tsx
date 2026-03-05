@@ -2,12 +2,12 @@ import Alert from '@mui/material/Alert'
 import Box from '@mui/material/Box'
 import Typography from '@mui/material/Typography'
 import React from 'react'
-import { useSession } from '../../../../context/Session'
+import { useAuthentication } from '../../../../context/AuthenticationContext'
 
 type AuthenticationLayoutProps = { children: React.ReactNode }
 
 export default function AuthenticationLayout({ children }: AuthenticationLayoutProps) {
-  const { flash } = useSession()
+  const { flash } = useAuthentication()
 
   return (
     <Box

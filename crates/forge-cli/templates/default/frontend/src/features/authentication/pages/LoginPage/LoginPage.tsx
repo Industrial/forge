@@ -14,6 +14,7 @@ import {
   type LoginResult,
 } from '../../services/AuthenticationApi'
 import { AuthenticationStore } from '../../services/AuthenticationStore'
+import { useAuthentication } from '../../../../context/AuthenticationContext'
 import {
   useEffectState,
   useRunEffect,
@@ -39,6 +40,7 @@ export default function LoginPage() {
   const navigate = useNavigate()
   const location = useLocation()
   const { runtime } = useEffectRuntime<AppServices>()
+  const { fetchMe } = useAuthentication()
 
   const from =
     (location.state as { from?: { pathname: string } } | null)?.from
@@ -77,7 +79,9 @@ export default function LoginPage() {
         loginEffect(data.email, data.password),
       )
       const effect = runStreamInto(stream, setSubmitStateAsEffect)
-      runWithAppRuntime(runtime, effect).catch(() => {})
+      runWithAppRuntime(runtime, effect).catch((err) => {
+        console.error('Login failed:', err)
+      })
     },
     [runtime, loginEffect, setSubmitStateAsEffect],
   )
@@ -86,6 +90,8 @@ export default function LoginPage() {
     function* () {
       if (!isSuccess(submitState)) return
       const r = submitState.value
+      // Refresh auth context so ProtectedRoute sees the new user before we navigate
+      yield* Effect.promise(() => fetchMe())
       yield* Effect.sync(() => {
         if (r.needs_profile_select === true) {
           navigate('/select-profile', { replace: true })
@@ -100,6 +106,7 @@ export default function LoginPage() {
     submitState,
     navigate,
     from,
+    fetchMe,
     setSubmitStateAsEffect,
   ])
 

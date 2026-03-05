@@ -109,6 +109,46 @@ pub async fn create_organization_impl(
   Ok(id)
 }
 
+/// Idempotent: find organization by slug or create. For use in seeds and get-or-create flows.
+pub async fn ensure_organization_impl(
+  db: &DbConnection,
+  payload: &CreateOrganizationBody,
+) -> Result<Uuid, ForgeError> {
+  let name = payload.name.trim();
+  if name.is_empty() {
+    return Err(ForgeError::Generic("name is required".into()));
+  }
+  let slug = payload
+    .slug
+    .as_deref()
+    .map(|s| s.trim())
+    .filter(|s| !s.is_empty())
+    .map(String::from)
+    .unwrap_or_else(|| slug_from_name(name));
+  if let Some(org) = organization::Entity::find()
+    .filter(organization::Column::Slug.eq(&slug))
+    .one(db)
+    .await
+    .map_err(|e| ForgeError::Generic(e.to_string()))?
+  {
+    return Ok(org.id);
+  }
+  let now = chrono::Utc::now().naive_utc();
+  let id = Uuid::new_v4();
+  organization::Entity::insert(organization::ActiveModel {
+    id: Set(id),
+    name: Set(name.to_string()),
+    slug: Set(slug),
+    created_at: Set(now),
+    updated_at: Set(now),
+    ..Default::default()
+  })
+  .exec(db)
+  .await
+  .map_err(|e| ForgeError::Generic(e.to_string()))?;
+  Ok(id)
+}
+
 pub async fn create_org_role_impl(
   db: &DbConnection,
   org_id: Uuid,
@@ -127,6 +167,48 @@ pub async fn create_org_role_impl(
     .is_some()
   {
     return Err(ForgeError::Generic("Role name exists".into()));
+  }
+  let now = chrono::Utc::now().naive_utc();
+  let id = Uuid::new_v4();
+  let display_name = payload
+    .display_name
+    .as_ref()
+    .map(|s| s.trim())
+    .filter(|s| !s.is_empty())
+    .map(String::from);
+  org_role::Entity::insert(org_role::ActiveModel {
+    id: Set(id),
+    org_id: Set(org_id),
+    name: Set(name.to_string()),
+    display_name: Set(display_name),
+    created_at: Set(now),
+    updated_at: Set(now),
+    ..Default::default()
+  })
+  .exec(db)
+  .await
+  .map_err(|e| ForgeError::Generic(e.to_string()))?;
+  Ok(id)
+}
+
+/// Idempotent: find org role by (org_id, name) or create. For use in seeds.
+pub async fn ensure_org_role_impl(
+  db: &DbConnection,
+  org_id: Uuid,
+  payload: &CreateOrgRoleBody,
+) -> Result<Uuid, ForgeError> {
+  let name = payload.name.trim();
+  if name.is_empty() {
+    return Err(ForgeError::Generic("name is required".into()));
+  }
+  if let Some(role) = org_role::Entity::find()
+    .filter(org_role::Column::OrgId.eq(org_id))
+    .filter(org_role::Column::Name.eq(name))
+    .one(db)
+    .await
+    .map_err(|e| ForgeError::Generic(e.to_string()))?
+  {
+    return Ok(role.id);
   }
   let now = chrono::Utc::now().naive_utc();
   let id = Uuid::new_v4();
@@ -269,6 +351,115 @@ pub async fn add_org_user_impl(
     .map_err(|e| ForgeError::Generic(e.to_string()))?;
   }
   Ok((user_id, created))
+}
+
+/// Idempotent: get or create user by email, ensure membership in org. Returns (user_id, created_user).
+/// For use in seeds. If user exists, ensures membership for org_id; does not update password.
+pub async fn ensure_org_user_impl(
+  db: &DbConnection,
+  org_id: Uuid,
+  email: &str,
+  password: &str,
+) -> Result<(Uuid, bool), ForgeError> {
+  let email = email.trim();
+  if !email.contains('@') || password.len() < 8 {
+    return Err(ForgeError::Generic(
+      "email and password (min 8 chars) required".into(),
+    ));
+  }
+  let existing_user = user::Entity::find()
+    .filter(user::Column::Email.eq(email))
+    .one(db)
+    .await
+    .map_err(|e| ForgeError::Generic(e.to_string()))?;
+  let (user_id, created) = match existing_user {
+    Some(u) => {
+      let membership_exists = membership::Entity::find()
+        .filter(membership::Column::UserId.eq(u.id))
+        .filter(membership::Column::OrgId.eq(org_id))
+        .one(db)
+        .await
+        .map_err(|e| ForgeError::Generic(e.to_string()))?;
+      if membership_exists.is_none() {
+        let now = chrono::Utc::now().naive_utc();
+        membership::Entity::insert(membership::ActiveModel {
+          id: Set(Uuid::new_v4()),
+          user_id: Set(u.id),
+          org_id: Set(org_id),
+          created_at: Set(now),
+          updated_at: Set(now),
+          ..Default::default()
+        })
+        .exec(db)
+        .await
+        .map_err(|e| ForgeError::Generic(e.to_string()))?;
+      }
+      (u.id, false)
+    }
+    None => {
+      let now = chrono::Utc::now().naive_utc();
+      let user_id = Uuid::new_v4();
+      let hash = hash_password(password).map_err(|e| ForgeError::Generic(e.to_string()))?;
+      user::Entity::insert(user::ActiveModel {
+        id: Set(user_id),
+        email: Set(email.to_string()),
+        password_hash: Set(hash),
+        is_active: Set(true),
+        is_admin: Set(false),
+        current_org_id: Set(Some(org_id)),
+        current_role: Set(None),
+        created_at: Set(now),
+        updated_at: Set(now),
+        ..Default::default()
+      })
+      .exec(db)
+      .await
+      .map_err(|e| ForgeError::Generic(e.to_string()))?;
+      membership::Entity::insert(membership::ActiveModel {
+        id: Set(Uuid::new_v4()),
+        user_id: Set(user_id),
+        org_id: Set(org_id),
+        created_at: Set(now),
+        updated_at: Set(now),
+        ..Default::default()
+      })
+      .exec(db)
+      .await
+      .map_err(|e| ForgeError::Generic(e.to_string()))?;
+      (user_id, true)
+    }
+  };
+  Ok((user_id, created))
+}
+
+/// Idempotent: ensure user is a member of org (insert membership if missing). For use in seeds.
+pub async fn ensure_org_membership_impl(
+  db: &DbConnection,
+  org_id: Uuid,
+  user_id: Uuid,
+) -> Result<(), ForgeError> {
+  let exists = membership::Entity::find()
+    .filter(membership::Column::UserId.eq(user_id))
+    .filter(membership::Column::OrgId.eq(org_id))
+    .one(db)
+    .await
+    .map_err(|e| ForgeError::Generic(e.to_string()))?;
+  if exists.is_some() {
+    return Ok(());
+  }
+  let now = chrono::Utc::now().naive_utc();
+  membership::Entity::insert(membership::ActiveModel {
+    id: Set(Uuid::new_v4()),
+    user_id: Set(user_id),
+    org_id: Set(org_id),
+    created_at: Set(now),
+    updated_at: Set(now),
+    ..Default::default()
+  })
+  .exec(db)
+  .await
+  .map_err(|e| ForgeError::Generic(e.to_string()))?;
+  Ok(())
 }
 
 pub async fn add_org_user_roles_impl(

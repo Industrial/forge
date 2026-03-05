@@ -15,7 +15,7 @@ import Person from '@mui/icons-material/Person'
 import Logout from '@mui/icons-material/Logout'
 import Business from '@mui/icons-material/Business'
 import { useNavigate } from 'react-router-dom'
-import { useSession } from '../context/Session'
+import { useAuthentication } from '../context/AuthenticationContext'
 
 type NavbarProps = {
   appName?: string
@@ -71,7 +71,8 @@ export default function Navbar({
   onOpenSidebar,
 }: NavbarProps) {
   const navigate = useNavigate()
-  const { user, profiles, permissions, logout, switchProfile } = useSession()
+  const { user, profiles, permissions, logout, switchProfile } =
+    useAuthentication()
   const canAccessDashboard = permissions.includes('dashboard')
   const [anchorEl, setAnchorEl] = useState<null | HTMLElement>(null)
   const open = Boolean(anchorEl)

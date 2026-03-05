@@ -53,6 +53,15 @@ pub async fn seed_role_permissions_for_org<C: sea_orm::ConnectionTrait>(
       _ => continue,
     };
     for key in keys {
+      let exists = crate::models::role_permission::Entity::find()
+        .filter(crate::models::role_permission::Column::OrgId.eq(Some(org_id)))
+        .filter(crate::models::role_permission::Column::RoleName.eq(&role.name))
+        .filter(crate::models::role_permission::Column::PermissionKey.eq(*key))
+        .one(db)
+        .await?;
+      if exists.is_some() {
+        continue;
+      }
       let id = uuid::Uuid::new_v4();
       let row = crate::models::role_permission::ActiveModel {
         id: Set(id),

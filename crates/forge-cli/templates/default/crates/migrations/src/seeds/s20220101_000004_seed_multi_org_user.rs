@@ -4,7 +4,7 @@ use forge_db::DbConnection;
 use sea_orm::{ColumnTrait, EntityTrait, QueryFilter};
 
 use app::handlers::rest::{
-  AddOrgUserBody, add_org_user_impl, add_org_user_roles_impl, list_org_roles_impl,
+  add_org_user_roles_impl, ensure_org_membership_impl, ensure_org_user_impl, list_org_roles_impl,
 };
 use db::models::organization;
 
@@ -36,33 +36,17 @@ pub async fn seed(db: &DbConnection) -> Result<(), Box<dyn std::error::Error + S
     .get("viewer")
     .ok_or("CoolOrg missing viewer role")?;
 
-  let (user_id, _) = add_org_user_impl(
-    db,
-    default_org.id,
-    &AddOrgUserBody {
-      user_id: None,
-      email: Some(MULTI_EMAIL.to_string()),
-      password: Some(SEED_PASSWORD.to_string()),
-    },
-  )
-  .await
-  .map_err(|e| e.to_string())?;
+  let (user_id, _) = ensure_org_user_impl(db, default_org.id, MULTI_EMAIL, SEED_PASSWORD)
+    .await
+    .map_err(|e| e.to_string())?;
 
   add_org_user_roles_impl(db, default_org.id, user_id, &[*editor_role_id])
     .await
     .map_err(|e| e.to_string())?;
 
-  add_org_user_impl(
-    db,
-    coolorg_org.id,
-    &AddOrgUserBody {
-      user_id: Some(user_id),
-      email: None,
-      password: None,
-    },
-  )
-  .await
-  .map_err(|e| e.to_string())?;
+  ensure_org_membership_impl(db, coolorg_org.id, user_id)
+    .await
+    .map_err(|e| e.to_string())?;
 
   add_org_user_roles_impl(db, coolorg_org.id, user_id, &[*viewer_role_id])
     .await

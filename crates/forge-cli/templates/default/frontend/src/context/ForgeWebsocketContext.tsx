@@ -9,29 +9,32 @@ import React, {
 import { Effect } from 'effect'
 import { useEffectRuntime } from '../lib/react-effect'
 import { runWithAppRuntime, type AppServices } from '../lib/appLayer'
-import { ForgeWebsocket } from '../services/ForgeWebsocket'
+import {
+  ForgeWebsocket,
+  type ForgeWebsocketKey,
+} from '../services/ForgeWebsocket'
 
-/** Keys used to dispatch live updates (maps message type/resource to listener key). */
-export type LiveUpdateKey =
-  | 'audit-log'
-  | 'users'
-  | 'roles'
-  | 'role_permissions'
-  | 'organizations'
+export type { ForgeWebsocketKey }
 
 type Listener = (data: unknown) => void
 
-type LiveWsContextValue = {
+type ForgeWebsocketContextValue = {
   connected: boolean
   /** Subscribe to live updates for a key. Listener receives the parsed message. Returns unsubscribe. */
-  subscribe: (key: LiveUpdateKey, listener: Listener) => () => void
+  subscribe: (key: ForgeWebsocketKey, listener: Listener) => () => void
 }
 
-const LiveWsContext = createContext<LiveWsContextValue | null>(null)
+const ForgeWebsocketContext = createContext<ForgeWebsocketContextValue | null>(
+  null,
+)
 
-export function useLiveWs(): LiveWsContextValue {
-  const ctx = useContext(LiveWsContext)
-  if (!ctx) throw new Error('useLiveWs must be used within LiveWsProvider')
+export function useForgeWebsocketContext(): ForgeWebsocketContextValue {
+  const ctx = useContext(ForgeWebsocketContext)
+  if (!ctx) {
+    throw new Error(
+      'useForgeWebsocketContext must be used within ForgeWebsocketProvider',
+    )
+  }
   return ctx
 }
 
@@ -40,10 +43,10 @@ export function useLiveWs(): LiveWsContextValue {
  * (e.g. LiveEvent or resource_changed). Use to refetch or update state.
  */
 export function useLiveUpdates(
-  key: LiveUpdateKey,
+  key: ForgeWebsocketKey,
   onUpdate: (data: unknown) => void,
 ): { connected: boolean } {
-  const { connected, subscribe } = useLiveWs()
+  const { connected, subscribe } = useForgeWebsocketContext()
   const onUpdateRef = useRef(onUpdate)
   onUpdateRef.current = onUpdate
   useEffect(() => {
@@ -56,10 +59,14 @@ export function useLiveUpdates(
 const POLL_INTERVAL_MS = 2000
 
 /**
- * LiveWs provider backed by the Effect runtime's ForgeWebsocket service.
+ * ForgeWebsocket provider backed by the Effect runtime's ForgeWebsocket service.
  * Must be used inside AuthenticationRuntimeProvider so the runtime includes Websocket + ForgeWebsocket.
  */
-export function LiveWsProvider({ children }: { children: React.ReactNode }) {
+export function ForgeWebsocketProvider({
+  children,
+}: {
+  children: React.ReactNode
+}) {
   const { runtime } = useEffectRuntime<AppServices>()
   const [connected, setConnected] = useState(false)
 
@@ -81,7 +88,7 @@ export function LiveWsProvider({ children }: { children: React.ReactNode }) {
   }, [runtime])
 
   const subscribe = useCallback(
-    (key: LiveUpdateKey, listener: Listener) => {
+    (key: ForgeWebsocketKey, listener: Listener) => {
       if (runtime == null) return () => {}
       const state: { unsub: (() => void) | null; cancelled: boolean } = {
         unsub: null,
@@ -108,12 +115,14 @@ export function LiveWsProvider({ children }: { children: React.ReactNode }) {
     [runtime],
   )
 
-  const value: LiveWsContextValue = React.useMemo(
+  const value: ForgeWebsocketContextValue = React.useMemo(
     () => ({ connected, subscribe }),
     [connected, subscribe],
   )
 
   return (
-    <LiveWsContext.Provider value={value}>{children}</LiveWsContext.Provider>
+    <ForgeWebsocketContext.Provider value={value}>
+      {children}
+    </ForgeWebsocketContext.Provider>
   )
 }

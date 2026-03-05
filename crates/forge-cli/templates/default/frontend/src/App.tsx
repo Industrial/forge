@@ -4,14 +4,14 @@ import { createTheme, ThemeProvider } from '@mui/material/styles'
 import CssBaseline from '@mui/material/CssBaseline'
 import Box from '@mui/material/Box'
 import { AuthenticationRuntimeProvider } from './lib/AuthenticationRuntimeProvider'
-import { LiveWsProvider } from './context/LiveWs'
-import { SessionProvider } from './context/Session'
+import { ForgeWebsocketProvider } from './context/ForgeWebsocketContext'
+import { AuthenticationProvider } from './context/AuthenticationContext'
 import Layout from './layouts/Layout'
 import DashboardLayout from './features/dashboard/layouts/DashboardLayout/DashboardLayout'
 import AuthenticationLayout from './features/authentication/layouts/AuthenticationLayout/AuthenticationLayout'
 import ProtectedRoute from './components/ProtectedRoute'
-import DashboardProfileGuard from './components/DashboardProfileGuard'
-import DashboardPermissionGuard from './components/DashboardPermissionGuard'
+import DashboardProfileGuard from './features/dashboard/components/DashboardProfileGuard'
+import DashboardPermissionGuard from './features/dashboard/components/DashboardPermissionGuard'
 import LoginPage from './features/authentication/pages/LoginPage/LoginPage'
 import SelectProfilePage from './features/authentication/pages/SelectProfilePage/SelectProfilePage'
 import RegisterPage from './features/authentication/pages/RegisterPage/RegisterPage'
@@ -52,8 +52,8 @@ function App() {
 
   return (
     <AuthenticationRuntimeProvider>
-      <SessionProvider>
-        <LiveWsProvider>
+      <AuthenticationProvider>
+        <ForgeWebsocketProvider>
           <ThemeProvider theme={theme}>
             <CssBaseline />
             <Box
@@ -196,8 +196,8 @@ function App() {
               </Routes>
             </Box>
           </ThemeProvider>
-        </LiveWsProvider>
-      </SessionProvider>
+        </ForgeWebsocketProvider>
+      </AuthenticationProvider>
     </AuthenticationRuntimeProvider>
   )
 }

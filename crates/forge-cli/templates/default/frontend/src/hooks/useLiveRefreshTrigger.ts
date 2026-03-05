@@ -1,6 +1,8 @@
 import { useState } from 'react'
-import { useLiveUpdates } from '../context/LiveWs'
-import type { LiveUpdateKey } from '../context/LiveWs'
+import {
+  useLiveUpdates,
+  type ForgeWebsocketKey,
+} from '../context/ForgeWebsocketContext'
 
 /**
  * Subscribes to live updates for a channel and exposes a trigger value that
@@ -8,7 +10,7 @@ import type { LiveUpdateKey } from '../context/LiveWs'
  * effects (e.g. refetch) when live data arrives.
  */
 export function useLiveRefreshTrigger(
-  channel: LiveUpdateKey,
+  channel: ForgeWebsocketKey,
 ): { trigger: number; connected: boolean } {
   const [trigger, setTrigger] = useState(0)
   const { connected } = useLiveUpdates(channel, () => {

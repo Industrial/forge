@@ -1,6 +1,6 @@
 import React from 'react'
 import { Navigate } from 'react-router-dom'
-import { useSession } from '../context/Session'
+import { useAuthentication } from '../../../context/AuthenticationContext'
 
 type DashboardPermissionGuardProps = {
   /** Single permission or list; access allowed if user has any of them (e.g. .read or .write). */
@@ -24,7 +24,7 @@ export default function DashboardPermissionGuard({
   permission,
   children,
 }: DashboardPermissionGuardProps) {
-  const { permissions, loading } = useSession()
+  const { permissions, loading } = useAuthentication()
 
   if (loading) {
     return null
