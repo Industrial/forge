@@ -8,7 +8,7 @@
 
 export function hasPermission(
   userPermissions: string[],
-  required: string | string[],
+  required: string | readonly string[],
 ): boolean {
   const list = Array.isArray(required) ? required : [required]
   const perms = new Set(userPermissions)
