@@ -16,6 +16,7 @@ import Logout from '@mui/icons-material/Logout'
 import Business from '@mui/icons-material/Business'
 import { useNavigate } from 'react-router-dom'
 import { useAuthentication } from '../context/AuthenticationContext'
+import { hasPermission } from '../lib/permissions'
 
 type NavbarProps = {
   appName?: string
@@ -73,11 +74,7 @@ export default function Navbar({
   const navigate = useNavigate()
   const { user, profiles, permissions, logout, switchProfile } =
     useAuthentication()
-  const canAccessDashboard =
-    permissions.includes('dashboard') ||
-    permissions.includes('all.read') ||
-    permissions.includes('all.write') ||
-    permissions.some((p) => p.startsWith('dashboard.'))
+  const canAccessDashboard = hasPermission(permissions, 'dashboard')
   const [anchorEl, setAnchorEl] = useState<null | HTMLElement>(null)
   const open = Boolean(anchorEl)
 

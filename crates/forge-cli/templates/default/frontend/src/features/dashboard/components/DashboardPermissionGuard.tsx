@@ -1,19 +1,12 @@
 import React from 'react'
 import { Navigate } from 'react-router-dom'
 import { useAuthentication } from '../../../context/AuthenticationContext'
+import { hasPermission } from '../../../lib/permissions'
 
 type DashboardPermissionGuardProps = {
   /** Single permission or list; access allowed if user has any of them (e.g. .read or .write). */
   permission: string | string[]
   children: React.ReactNode
-}
-
-function hasAny(
-  userPermissions: string[],
-  required: string | string[],
-): boolean {
-  const list = Array.isArray(required) ? required : [required]
-  return list.some((p) => userPermissions.includes(p))
 }
 
 /**
@@ -30,7 +23,7 @@ export default function DashboardPermissionGuard({
     return null
   }
 
-  if (!hasAny(permissions, permission)) {
+  if (!hasPermission(permissions, permission)) {
     const to =
       (Array.isArray(permission) ? permission[0] : permission) === 'dashboard'
         ? '/'
