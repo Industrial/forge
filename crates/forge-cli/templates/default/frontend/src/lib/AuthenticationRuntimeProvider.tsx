@@ -45,15 +45,23 @@ export function AuthenticationRuntimeProvider({
 
   useEffect(() => {
     const layer = AppLayer(config)
-    const program = Effect.scoped(
-      Effect.gen(function* () {
-        return yield* Layer.toRuntime(layer)
-      }),
-    )
-    // Layer.toRuntime infers a union type; we know AppLayer provides exactly AppServices
-    Effect.runPromise(program).then((r) =>
-      setRuntime(r as Runtime.Runtime<AppServices>),
-    )
+    const program = Effect.scoped(Layer.toRuntime(layer))
+    // Rehydrate: after building the runtime, if we have a token, run fetchMe so the store
+    // has user/profile. Run with the new runtime (AuthenticationStore is only available there).
+    const rehydrate = (r: Runtime.Runtime<AppServices>) =>
+      config.token
+        ? runWithAppRuntime(
+            r,
+            Effect.gen(function* () {
+              const store = yield* AuthenticationStore
+              yield* store.fetchMe(config.token!)
+            }),
+          ).then(() => r)
+        : Promise.resolve(r)
+
+    Effect.runPromise(program)
+      .then((r) => rehydrate(r as Runtime.Runtime<AppServices>))
+      .then((r) => setRuntime(r))
   }, [config.baseUrl, config.token, config.organizationId, config.roleId])
 
   // Connect WebSocket when runtime is ready and user has a token
