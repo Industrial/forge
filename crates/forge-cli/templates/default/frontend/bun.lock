@@ -13,7 +13,7 @@
         "effect": "^3.11.0",
         "react": "^18.2.0",
         "react-dom": "^18.2.0",
-        "react-effect-hooks": "^0.3.0",
+        "react-effect-hooks": "^0.4.0",
         "react-hook-form": "^7.53.0",
         "react-router-dom": "^7.0.0",
       },
@@ -589,7 +589,7 @@
 
     "react-dom": ["react-dom@18.3.1", "", { "dependencies": { "loose-envify": "^1.1.0", "scheduler": "^0.23.2" }, "peerDependencies": { "react": "^18.3.1" } }, "sha512-5m4nQKp+rZRb09LNH59GM4BxTh9251/ylbKIbpe7TpGxfJ+9kv6BLkLBXIjjspbgbnIBNqlI23tRnTWT0snUIw=="],
 
-    "react-effect-hooks": ["react-effect-hooks@0.3.0", "", { "peerDependencies": { "effect": ">=3.0.0", "react": ">=18.0.0", "react-router-dom": ">=6.0.0" } }, "sha512-8lQF1bfS2IyNvWztgUGZQz667BJCb8sC1putA+8CSf21zTcnz1mUEtFRBE3KOV9QQskvP9CaIKYZ9nmhM82QDA=="],
+    "react-effect-hooks": ["react-effect-hooks@0.4.0", "", { "peerDependencies": { "effect": ">=3.0.0", "react": ">=18.0.0", "react-router-dom": ">=6.0.0" } }, "sha512-+LlFxSjMETHCtPXV+CfUB8C+qDHiog+y5knr5wNxtCZbMA+0Tu/mtCzqINqIolIp0zXxVGLyZcVqHSgbzSnAvg=="],
 
     "react-hook-form": ["react-hook-form@7.71.2", "", { "peerDependencies": { "react": "^16.8.0 || ^17 || ^18 || ^19" } }, "sha512-1CHvcDYzuRUNOflt4MOq3ZM46AronNJtQ1S7tnX6YN4y72qhgiUItpacZUAQ0TyWYci3yz1X+rXaSxiuEm86PA=="],
 

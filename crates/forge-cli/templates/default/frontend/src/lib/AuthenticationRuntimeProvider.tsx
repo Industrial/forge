@@ -1,6 +1,6 @@
 import { Effect, Layer, Runtime } from 'effect'
-import { type ReactNode, useEffect, useMemo, useState } from 'react'
-import { EffectRuntimeProvider } from 'react-effect-hooks'
+import { type ReactNode, useEffect, useMemo, useRef, useState } from 'react'
+import { EffectRuntimeProvider, useRunEffect } from 'react-effect-hooks'
 import type { HttpClientWithAuthConfig } from './httpClientWithAuth'
 import { AppLayer, runWithAppRuntime, type AppServices } from './appLayer'
 import { AuthenticationStore } from '../features/authentication/services/AuthenticationStore'
@@ -19,6 +19,10 @@ function getInitialConfig(): HttpClientWithAuthConfig {
   }
 }
 
+function configKey(c: HttpClientWithAuthConfig): string {
+  return `${c.baseUrl}|${c.token ?? ''}|${c.organizationId ?? ''}|${c.roleId ?? ''}`
+}
+
 export interface AuthenticationRuntimeProviderProps {
   /**
    * Optional config for HttpClient + auth. If omitted, baseUrl and token/org/role
@@ -31,7 +35,8 @@ export interface AuthenticationRuntimeProviderProps {
 
 /**
  * Builds the Effect runtime with AppLayer (Auth + Websocket + ForgeWebsocket)
- * and provides it via EffectRuntimeProvider. Connects the WebSocket when the user has a token.
+ * and provides it via EffectRuntimeProvider. Rehydrates auth when a token exists;
+ * connects the WebSocket when the user has a token.
  */
 export function AuthenticationRuntimeProvider({
   config: configProp,
@@ -42,43 +47,94 @@ export function AuthenticationRuntimeProvider({
   const [runtime, setRuntime] = useState<Runtime.Runtime<AppServices> | null>(
     null,
   )
+  const cacheRef = useRef<{
+    key: string
+    runtime: Runtime.Runtime<AppServices>
+  } | null>(null)
+  const inFlightKeyRef = useRef<string | null>(null)
 
   useEffect(() => {
+    const key = configKey(config)
+    const cached = cacheRef.current
+    if (cached?.key === key) {
+      setRuntime(cached.runtime)
+      return
+    }
+    if (inFlightKeyRef.current === key) {
+      return
+    }
+    inFlightKeyRef.current = key
+    let cancelled = false
+
     const layer = AppLayer(config)
     const program = Effect.scoped(Layer.toRuntime(layer))
-    // Rehydrate: after building the runtime, if we have a token, run fetchMe so the store
-    // has user/profile. Run with the new runtime (AuthenticationStore is only available there).
+    const rehydrateEffect = Effect.gen(function* () {
+      yield* Effect.logTrace('AuthenticationRuntimeProvider: rehydrate')
+      const store = yield* AuthenticationStore
+      yield* store.fetchMe(config.token!)
+      yield* Effect.logDebug(
+        `AuthenticationRuntimeProvider: rehydrate done (token=${config.token != null})`,
+      )
+    })
     const rehydrate = (r: Runtime.Runtime<AppServices>) =>
       config.token
-        ? runWithAppRuntime(
-            r,
-            Effect.gen(function* () {
-              const store = yield* AuthenticationStore
-              yield* store.fetchMe(config.token!)
-            }),
-          ).then(() => r)
+        ? runWithAppRuntime(r, rehydrateEffect).then(() => r)
         : Promise.resolve(r)
 
     Effect.runPromise(program)
       .then((r) => rehydrate(r as Runtime.Runtime<AppServices>))
-      .then((r) => setRuntime(r))
+      .then((r) => {
+        if (cancelled) {
+          inFlightKeyRef.current = null
+          return
+        }
+        cacheRef.current = { key, runtime: r }
+        inFlightKeyRef.current = null
+        setRuntime(r)
+      })
+      .catch(() => {
+        inFlightKeyRef.current = null
+      })
+
+    return () => {
+      cancelled = true
+    }
   }, [config.baseUrl, config.token, config.organizationId, config.roleId])
 
-  // Connect WebSocket when runtime is ready and user has a token
-  useEffect(() => {
-    if (runtime == null || !config.token) return
-    const connectEffect = Effect.gen(function* () {
-      const store = yield* AuthenticationStore
-      const state = yield* store.getState()
-      if (state.token) {
-        const ws = yield* Websocket
-        yield* ws.connect(getWebsocketUrl(state.token))
-      }
-    })
-    runWithAppRuntime(runtime, connectEffect).catch(() => {
-      // Connection may fail (e.g. no backend); ignore
-    })
-  }, [runtime, config.token])
+  const connectEffect = useMemo(
+    () =>
+      Effect.gen(function* () {
+        yield* Effect.logTrace(
+          'AuthenticationRuntimeProvider: WebSocket connect check',
+        )
+        const store = yield* AuthenticationStore
+        const state = yield* store.getState()
+        if (state.token) {
+          yield* Effect.logDebug(
+            'AuthenticationRuntimeProvider: connecting WebSocket (has token)',
+          )
+          const ws = yield* Websocket
+          yield* ws.connect(getWebsocketUrl(state.token))
+          yield* Effect.logDebug(
+            'AuthenticationRuntimeProvider: WebSocket connect started',
+          )
+        } else {
+          yield* Effect.logDebug(
+            'AuthenticationRuntimeProvider: skip WebSocket (no token)',
+          )
+        }
+      }).pipe(
+        Effect.catchAll((e) =>
+          Effect.logWarning(
+            'AuthenticationRuntimeProvider: WebSocket connect failed',
+            e,
+          ),
+        ),
+      ),
+    [],
+  )
+
+  useRunEffect(connectEffect, [runtime, config.token], runtime)
 
   if (runtime == null) {
     return null
