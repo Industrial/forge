@@ -73,7 +73,11 @@ export default function Navbar({
   const navigate = useNavigate()
   const { user, profiles, permissions, logout, switchProfile } =
     useAuthentication()
-  const canAccessDashboard = permissions.includes('dashboard')
+  const canAccessDashboard =
+    permissions.includes('dashboard') ||
+    permissions.includes('all.read') ||
+    permissions.includes('all.write') ||
+    permissions.some((p) => p.startsWith('dashboard.'))
   const [anchorEl, setAnchorEl] = useState<null | HTMLElement>(null)
   const open = Boolean(anchorEl)
 
