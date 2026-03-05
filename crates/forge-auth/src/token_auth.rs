@@ -158,7 +158,9 @@ where
     let mut inner = self.inner.clone();
 
     Box::pin(async move {
-      if let Some(token) = extract_bearer(req.headers().get(AUTHORIZATION))
+      let token = extract_bearer(req.headers().get(AUTHORIZATION))
+        .or_else(|| extract_token_from_query(req.uri().query()));
+      if let Some(token) = token
         && let Some(user_id) = lookup(db.clone(), token).await
         && let Ok(Some(user)) = backend.get_user(&user_id).await
       {
@@ -176,6 +178,19 @@ pub(crate) fn extract_bearer(value: Option<&axum::http::HeaderValue>) -> Option<
   let v = value?.to_str().ok()?;
   let prefix = "Bearer ";
   v.strip_prefix(prefix).map(|s| s.trim().to_string())
+}
+
+/// Extracts the `token` query parameter. Used for WebSocket upgrade requests where the browser
+/// cannot set the Authorization header.
+pub(crate) fn extract_token_from_query(query: Option<&str>) -> Option<String> {
+  let query = query?;
+  for pair in query.split('&') {
+    let (key, value) = pair.split_once('=')?;
+    if key == "token" && !value.is_empty() {
+      return Some(value.to_string());
+    }
+  }
+  None
 }
 
 /// Extractor: current user from token (request extension set by [TokenAuthLayer]).
@@ -232,11 +247,11 @@ where
 
 #[cfg(test)]
 mod tests {
-  use super::extract_bearer;
+  use super::{extract_bearer, extract_token_from_query};
   use axum::http::Extensions;
   use axum::http::HeaderValue;
-  use axum_login::AuthUser; // Added AuthUser import for the test
-  use uuid::Uuid; // Added Extensions import for the test
+  use axum_login::AuthUser;
+  use uuid::Uuid;
 
   // A mock user for testing purposes
   #[derive(Clone, Debug)]
@@ -254,6 +269,55 @@ mod tests {
       &self.session_auth_hash_val
     }
   }
+
+  // --- extract_token_from_query (WebSocket auth via query string) ---
+
+  #[test]
+  fn extract_token_from_query_none_for_no_query() {
+    assert_eq!(extract_token_from_query(None), None);
+  }
+
+  #[test]
+  fn extract_token_from_query_none_for_empty_query() {
+    assert_eq!(extract_token_from_query(Some("")), None);
+  }
+
+  #[test]
+  fn extract_token_from_query_some_for_single_param() {
+    assert_eq!(
+      extract_token_from_query(Some("token=forge_abc123")),
+      Some("forge_abc123".to_string())
+    );
+  }
+
+  #[test]
+  fn extract_token_from_query_some_for_multiple_params() {
+    assert_eq!(
+      extract_token_from_query(Some("foo=bar&token=my-secret&baz=quux")),
+      Some("my-secret".to_string())
+    );
+  }
+
+  #[test]
+  fn extract_token_from_query_none_for_empty_value() {
+    assert_eq!(extract_token_from_query(Some("token=")), None);
+  }
+
+  #[test]
+  fn extract_token_from_query_none_when_token_key_absent() {
+    assert_eq!(extract_token_from_query(Some("other=value")), None);
+  }
+
+  #[test]
+  fn extract_token_from_query_decodes_value_as_opaque() {
+    // We do not percent-decode; token is used as-is (typical tokens have no reserved chars)
+    assert_eq!(
+      extract_token_from_query(Some("token=forge_xyz")),
+      Some("forge_xyz".to_string())
+    );
+  }
+
+  // --- extract_bearer ---
 
   #[test]
   fn extract_bearer_none_for_no_header() {

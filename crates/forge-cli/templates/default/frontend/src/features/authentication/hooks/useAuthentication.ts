@@ -21,8 +21,8 @@ const getStateEffect = Effect.gen(function* () {
 export interface UseAuthenticationStateResult {
   /** Current auth snapshot, or null before first load or on error. */
   state: AuthenticationStateSnapshot | null
-  /** Re-run getState (e.g. after login, logout, setScope). */
-  refresh: () => void
+  /** Re-run getState (e.g. after login, logout, setScope). Resolves when React state has been updated. */
+  refresh: () => Promise<void>
   /** True while the getState effect is running. */
   isPending: boolean
   /** Last error from getState, if any. */
@@ -35,10 +35,10 @@ export function useAuthenticationState(): UseAuthenticationStateResult {
   const [isPending, setIsPending] = useState(true)
   const [error, setError] = useState<AuthenticationError | null>(null)
 
-  const runGetState = useCallback(() => {
+  const runGetState = useCallback((): Promise<void> => {
     setIsPending(true)
     setError(null)
-    runWithAppRuntime(runtime, getStateEffect)
+    return runWithAppRuntime(runtime, getStateEffect)
       .then((snapshot: AuthenticationStateSnapshot) => {
         setState(snapshot)
         setIsPending(false)
@@ -47,7 +47,7 @@ export function useAuthenticationState(): UseAuthenticationStateResult {
         setError(e as AuthenticationError)
         setState(null)
         setIsPending(false)
-      })
+      }) as Promise<void>
   }, [runtime])
 
   useEffect(() => {

@@ -4,37 +4,32 @@ import { Websocket, WebsocketError } from './Websocket'
 
 /**
  * Returns the WebSocket URL for the app's /ws endpoint.
- * In dev (Vite), uses VITE_BACKEND_URL so the socket connects directly to the backend.
- * In production, uses the same origin as the page.
+ * Always uses the same origin as the page so in dev Vite can proxy /ws to the backend.
+ * Pass the auth token so the backend can authenticate the upgrade (browsers cannot set
+ * Authorization on WebSocket; backend accepts token from query string).
  */
-export function getWsUrl(): string {
+export function getWebsocketUrl(token: string | null | undefined): string {
   if (typeof window === 'undefined') return 'ws://localhost/ws'
-  const backendUrl = import.meta.env.VITE_BACKEND_URL as string | undefined
-  if (import.meta.env.DEV && backendUrl) {
-    try {
-      const url = new URL(backendUrl)
-      url.protocol = url.protocol === 'https:' ? 'wss:' : 'ws:'
-      url.pathname = '/ws'
-      return url.toString()
-    } catch {
-      // fall through to same-origin
-    }
-  }
   const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:'
-  return `${protocol}//${window.location.host}/ws`
+  const base = `${protocol}//${window.location.host}/ws`
+  if (token && token.length > 0) {
+    const encoded = encodeURIComponent(token)
+    return `${base}?token=${encoded}`
+  }
+  return base
 }
 
 const WS_DEBUG_KEY = 'forge_ws_debug'
 
-function isWsDebugEnabled(): boolean {
+function isWebsocketDebugEnabled(): boolean {
   if (typeof window === 'undefined') return false
   return (
     import.meta.env.DEV || window.localStorage.getItem(WS_DEBUG_KEY) === '1'
   )
 }
 
-function attachWsDebugLogging(ws: WebSocket): void {
-  if (!isWsDebugEnabled()) return
+function attachWebsocketDebugLogging(ws: WebSocket): void {
+  if (!isWebsocketDebugEnabled()) return
   const originalSend = ws.send.bind(ws)
   ws.send = function (data: string | ArrayBufferLike | Blob) {
     try {
@@ -84,7 +79,7 @@ export const WebsocketLive = Layer.effect(
 
           yield* Ref.set(statusRef, 'connecting')
           const ws = new WebSocket(url)
-          attachWsDebugLogging(ws)
+          attachWebsocketDebugLogging(ws)
           yield* Ref.set(wsRef, ws)
 
           yield* Effect.async<void, WebsocketError>((resume) => {

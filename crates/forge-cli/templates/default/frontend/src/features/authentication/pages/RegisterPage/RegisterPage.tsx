@@ -72,7 +72,7 @@ export default function RegisterPage() {
   const successEffect: Effect.Effect<void, never, AppServices> = Effect.gen(
     function* () {
       if (!isSuccess(submitState)) return
-      yield* Effect.sync(() => navigate('/login', { replace: true }))
+      yield* Effect.sync(() => navigate('/authentication/login', { replace: true }))
       yield* setSubmitStateAsEffect(idle<void, Error>())
     },
   )
@@ -155,7 +155,7 @@ export default function RegisterPage() {
           </Box>
         </form>
         <Typography variant="body2" textAlign="center">
-          <Link component={RouterLink} to="/login" variant="body2">
+          <Link component={RouterLink} to="/authentication/login" variant="body2">
             Already have an account? Log in
           </Link>
         </Typography>

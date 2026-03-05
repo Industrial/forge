@@ -5,7 +5,7 @@ import type { HttpClientWithAuthConfig } from './httpClientWithAuth'
 import { AppLayer, runWithAppRuntime, type AppServices } from './appLayer'
 import { AuthenticationStore } from '../features/authentication/services/AuthenticationStore'
 import { Websocket } from '../services/Websocket'
-import { getWsUrl } from '../services/WebsocketLive'
+import { getWebsocketUrl } from '../services/WebsocketLive'
 
 function getInitialConfig(): HttpClientWithAuthConfig {
   if (typeof window === 'undefined') {
@@ -64,7 +64,7 @@ export function AuthenticationRuntimeProvider({
       const state = yield* store.getState()
       if (state.token) {
         const ws = yield* Websocket
-        yield* ws.connect(getWsUrl())
+        yield* ws.connect(getWebsocketUrl(state.token))
       }
     })
     runWithAppRuntime(runtime, connectEffect).catch(() => {

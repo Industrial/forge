@@ -94,7 +94,7 @@ export default function Navbar({
   const handleLogout = async () => {
     handleClose()
     await logout()
-    navigate('/login', { replace: true })
+    navigate('/authentication/login', { replace: true })
   }
 
   return (

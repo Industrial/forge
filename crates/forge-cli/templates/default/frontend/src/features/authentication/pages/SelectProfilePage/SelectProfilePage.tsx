@@ -72,7 +72,7 @@ export default function SelectProfilePage() {
   if (!loading && user == null) {
     return (
       <Navigate
-        to="/login"
+        to="/authentication/login"
         replace
         state={{ from: { pathname: '/dashboard' } }}
       />

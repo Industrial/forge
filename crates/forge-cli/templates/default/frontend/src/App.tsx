@@ -10,7 +10,9 @@ import Layout from './layouts/Layout'
 import DashboardLayout from './features/dashboard/layouts/DashboardLayout/DashboardLayout'
 import AuthenticationLayout from './features/authentication/layouts/AuthenticationLayout/AuthenticationLayout'
 import ProtectedRoute from './components/ProtectedRoute'
+import GuestRoute from './components/GuestRoute'
 import DashboardProfileGuard from './features/dashboard/components/DashboardProfileGuard'
+import SelectProfileOnlyGuard from './features/authentication/components/SelectProfileOnlyGuard'
 import DashboardPermissionGuard from './features/dashboard/components/DashboardPermissionGuard'
 import LoginPage from './features/authentication/pages/LoginPage/LoginPage'
 import SelectProfilePage from './features/authentication/pages/SelectProfilePage/SelectProfilePage'
@@ -67,28 +69,34 @@ function App() {
             >
               <Routes>
                 <Route
-                  path="/login"
+                  path="/authentication/login"
                   element={
-                    <AuthenticationLayout>
-                      <LoginPage />
-                    </AuthenticationLayout>
+                    <GuestRoute>
+                      <AuthenticationLayout>
+                        <LoginPage />
+                      </AuthenticationLayout>
+                    </GuestRoute>
                   }
                 />
                 <Route
-                  path="/register"
+                  path="/authentication/register"
                   element={
-                    <AuthenticationLayout>
-                      <RegisterPage />
-                    </AuthenticationLayout>
+                    <GuestRoute>
+                      <AuthenticationLayout>
+                        <RegisterPage />
+                      </AuthenticationLayout>
+                    </GuestRoute>
                   }
                 />
                 <Route
-                  path="/select-profile"
+                  path="/authentication/select-profile"
                   element={
                     <ProtectedRoute>
-                      <AuthenticationLayout>
-                        <SelectProfilePage />
-                      </AuthenticationLayout>
+                      <SelectProfileOnlyGuard>
+                        <AuthenticationLayout>
+                          <SelectProfilePage />
+                        </AuthenticationLayout>
+                      </SelectProfileOnlyGuard>
                     </ProtectedRoute>
                   }
                 />

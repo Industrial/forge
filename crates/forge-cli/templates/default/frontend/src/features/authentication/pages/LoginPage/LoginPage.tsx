@@ -94,7 +94,7 @@ export default function LoginPage() {
       yield* Effect.promise(() => fetchMe())
       yield* Effect.sync(() => {
         if (r.needs_profile_select === true) {
-          navigate('/select-profile', { replace: true })
+          navigate('/authentication/select-profile', { replace: true })
         } else {
           navigate(from, { replace: true })
         }
@@ -186,7 +186,7 @@ export default function LoginPage() {
           </Box>
         </form>
         <Typography variant="body2" textAlign="center">
-          <Link component={RouterLink} to="/register" variant="body2">
+          <Link component={RouterLink} to="/authentication/register" variant="body2">
             Don&apos;t have an account? Create an Account
           </Link>
         </Typography>
