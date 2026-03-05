@@ -4,6 +4,8 @@ This document records technical decisions for the eighth deliverable (subscripti
 
 **Epic reference:** [08_subscriptions-to-queries](../deliverables/08_subscriptions-to-queries.md)
 
+**Implementation:** Subscribe RPC parses and validates params (filter, sort, order, offset, limit) as **ListQuerySpec** per model using `effective_filter_fields` and `effective_sort_fields`; invalid params → 400. The structured spec is stored in `SubscriptionMeta.params` (JSON-serialized ListQuerySpec) for use by Epic 9 matching.
+
 ---
 
 ## 1. Subscribe to a query (same spec as list)

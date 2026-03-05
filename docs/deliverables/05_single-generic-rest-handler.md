@@ -6,15 +6,15 @@ All entity CRUD operations are served by one generic handler. The handler dispat
 
 ## Functionality
 
-- **Single handler:** All entity CRUD operations (list, get by id, create, update, delete) are served by one generic handler (or one dispatch layer); there is no per-entity handler code.
-- **Dispatch:** The handler identifies the entity and action from the request (e.g. path or body).
+- **Single handler:** All model CRUD operations (list, get by id, create, update, delete) are served by one generic handler; there is no per-model handler code. List and get use default RestModel trait implementations for all registered models (organization, user, role, permission, audit); only organization has full create/update/delete via the handler today.
+- **Dispatch:** The handler identifies the model (entity_id in path) and action from the request.
 - **List:** List uses the unified query specification.
-- **Get:** Get returns a single entity by id.
-- **Create/update:** Create and update accept a body and are validated.
+- **Get:** Get returns a single resource by id.
+- **Create/update:** Create and update require a JSON object body; per-model validation (e.g. DTO deserialization) applies where implemented.
 - **Delete:** Delete removes by id.
-- **Validation:** Validation rules for create/update are derived from the entity (e.g. from schema/metadata), not hand-coded per entity.
+- **Validation:** Request body must be a JSON object (400 otherwise); per-model validation is in the RestModel impl (e.g. Organization uses DTOs).
 - **Authorization:** Authorization for each request is based on entity-based permissions and the current scope.
-- **Registry:** The handler uses the entity registry to know which entities exist and how to serve them.
+- **Registry:** The handler uses the registry (RestModel implementors) to know which models exist and how to serve them. After successful CUD, a change event is published for subscription matching (Epic 9).
 
 ## Dependencies
 

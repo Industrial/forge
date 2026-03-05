@@ -2,14 +2,14 @@
 
 ## Summary
 
-When entity data changes, the system determines which active subscriptions’ result sets are affected and delivers updates only to those subscribers. Matching and delivery are designed to scale and not block the write path.
+When model data changes, the handler publishes a change event; a background worker runs scope-aware matching and delivers invalidation hints only to affected subscribers. The write path does not block on matching or delivery.
 
 ## Functionality
 
-- **Matching:** When entity data changes, the system determines which active subscriptions’ result sets are affected by that change.
-- **Targeted delivery:** Only those subscribers receive an update (or an invalidation hint); others do not.
-- **Non-blocking:** Matching and delivery are designed so that the write path (persisting the change) is not blocked by subscription logic.
-- **Scalability:** The mechanism scales with the number of subscriptions and the rate of changes (e.g. via separate processing or dedicated components, without prescribing technology).
+- **Matching:** When model data changes, the generic handler publishes a change event. A background worker runs scope-aware matching (subscriptions_affected_by) to determine which active subscriptions are affected.
+- **Targeted delivery:** For each affected subscription id, the worker sends an invalidation hint; only those subscribers receive an update.
+- **Non-blocking:** The write path publishes the change event and returns; matching and delivery run in a spawned worker (spawn_change_worker), so the write path is not blocked.
+- **Scalability:** In-process broadcast and worker today; subscription store and delivery can be moved to a cache layer and out-of-process worker per technical-choices.
 
 ## Dependencies
 

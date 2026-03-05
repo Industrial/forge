@@ -6,14 +6,14 @@ This document records technical decisions for the fifth deliverable (single gene
 
 **Migration:** For how to migrate from legacy routes (`/api/users`, `/api/organizations`, etc.) to the generic handler or keep both, see [Migration path: legacy routes → generic entity handler](../migration-legacy-routes-to-generic-entity-handler.md).
 
-**Implementation (trait-based):** The generic handler lives in `handlers/generic_entity.rs`. It performs auth, scope, and query-spec parsing, then calls into the **registry** module (`registry.rs`). The registry dispatches by `entity_id` to the appropriate **RestEntity** implementor (one type per entity in `entities/`). Each implementor defines metadata (entity_id, filter/sort/response fields, display name, supported_actions) and implements list, get, create, update, delete. Only entities that implement the trait and are wired in the registry are served; unknown entity_id → 404.
+**Implementation (trait-based):** The generic handler lives in `handlers/generic_entity.rs`. It performs auth, scope, and query-spec parsing, then calls into the **registry** module (`db/src/registry.rs`). The registry dispatches by **model_id** (path param `entity_id`) to the appropriate **RestModel** implementor (in `db/src/models/`). Each model defines metadata (model_id, filter/sort/response fields, display name, supported_actions) and required hooks (row_to_json, apply_filter, default_sort, apply_sort); **list** and **get** use default trait implementations; **create**, **update**, **delete** can be overridden (e.g. Organization) or return "not supported" (user, role, permission, audit). The generic handler serves all registered models (organization, user, role, permission, audit); only organization has full CUD via the handler today. Request body for create/update must be a JSON object (400 otherwise). After successful CUD, a **change event** is published (Epic 9). Unknown entity_id → 404.
 
 ---
 
 ## 1. Single handler, dispatch by entity and action
 
 - **Choice:** All entity CRUD is served by **one** generic handler (or one dispatch layer). The handler identifies the **entity** (e.g. from path or body) and the **action** (list, get, create, update, delete), looks up the entity in the registry, and runs the same logic for every entity. There is no per-entity handler code.
-- **Implication:** Routing maps a small set of path patterns (or one pattern with entity as a parameter) to this handler. **In the trait-based implementation:** the handler calls `registry::is_known_entity(entity_id)` for 404, then `registry::list_entities`, `registry::get_entity`, `registry::create_entity`, `registry::update_entity`, or `registry::delete_entity`, which dispatch by match on `entity_id` to the corresponding `RestEntity` impl.
+- **Implication:** Routing maps a small set of path patterns (or one pattern with entity_id as a parameter) to this handler. **In the trait-based implementation:** the handler calls `registry::is_known_model(entity_id)` for 404, then `registry::list_models`, `registry::get_model`, `registry::create_model`, `registry::update_model`, or `registry::delete_model`, which dispatch by match on model_id to the corresponding `RestModel` impl.
 
 ---
 

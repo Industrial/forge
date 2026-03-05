@@ -4,6 +4,8 @@ This document records technical decisions for the ninth deliverable (subscriptio
 
 **Epic reference:** [09_subscription-matching-and-delivery](../deliverables/09_subscription-matching-and-delivery.md)
 
+**Implementation:** After create/update/delete, the generic handler calls `SubscriptionStore::publish_change(ChangeEvent { model_id, resource_id, action, organization_id })` (fire-and-forget). A **change worker** is spawned at startup (`SubscriptionStore::spawn_change_worker()`) and receives change events; for each event it calls `notify_affected_by(event)`, which uses **subscriptions_affected_by(event)** (scope-aware: same model_id, and org match or platform-level) then **send_invalidation** for each affected subscription id. Wired in `build_router_for_test` and in `server/main.rs`.
+
 ---
 
 ## 1. Use existing worker / Task system

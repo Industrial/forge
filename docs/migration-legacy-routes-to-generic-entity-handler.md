@@ -1,6 +1,6 @@
 # Migration path: legacy routes → generic entity handler
 
-This document describes the relationship between **legacy** REST routes (`/api/users`, `/api/organizations`, dashboard routes) and the **generic entity handler** (`/api/entities/:entity_id`), and how to migrate or keep legacy routes as official.
+This document describes the relationship between **legacy** REST routes (`/api/users`, `/api/organizations`, dashboard routes) and the **generic handler** (`/api/entities/:entity_id`, backed by the model registry and RestModel trait in the db crate), and how to migrate or keep legacy routes as official.
 
 **Related:** [02-entity-based-permissions](technical-choices/02-entity-based-permissions.md), [03-entity-registry](technical-choices/03-entity-registry.md), [05-single-generic-rest-handler](technical-choices/05-single-generic-rest-handler.md).
 
@@ -30,7 +30,7 @@ This document describes the relationship between **legacy** REST routes (`/api/u
 
 Scope is applied via `X-Organization-Id` and `X-Role-Id`; with scope, org-scoped permissions apply; without, global permissions (e.g. `dashboard.users.read`) are required where applicable.
 
-**ListQuerySpec:** Legacy list routes do **not** accept the unified query spec (filter, sort, offset, limit). They return the full scoped list with no pagination or filter/sort params. For filter/sort/pagination, use the generic entity API `GET /api/entities/{entity_id}` with query params (see [04-unified-query-specification](technical-choices/04-unified-query-specification.md)). Where the generic handler does not yet implement list for an entity (e.g. user), the legacy route is the only option and returns all scoped rows.
+**ListQuerySpec:** Legacy list routes do **not** accept the unified query spec (filter, sort, offset, limit). They return the full scoped list with no pagination or filter/sort params. For filter/sort/pagination, use the generic entity API `GET /api/entities/{entity_id}` with query params (see [04-unified-query-specification](technical-choices/04-unified-query-specification.md)). The generic handler implements list and get for all registered models (organization, user, role, permission, audit).
 
 ### 1.2 Generic entity routes
 
@@ -39,9 +39,9 @@ Scope is applied via `X-Organization-Id` and `X-Role-Id`; with scope, org-scoped
 | `/api/entities/{entity_id}` | GET, POST | `{entity_id}.read` / `.create` | List (with filter/sort/pagination) or create. |
 | `/api/entities/{entity_id}/{id}` | GET, PATCH, DELETE | `{entity_id}.read` / `.update` / `.delete` | Get, update, or delete by id. |
 
-- **entity_id** is the registry id (e.g. `user`, `organization`, `role`, `permission`, `audit`). Unknown entity_id → 404.
+- **entity_id** is the model id from the registry (e.g. `user`, `organization`, `role`, `permission`, `audit`). Unknown entity_id → 404.
 - Authz uses entity-based permissions (§2) and the same scope-from-headers contract.
-- List supports the unified query spec (filter, sort, offset, limit) per Epic 4; expand/include are rejected with 400.
+- List and get work for all registered models; create/update/delete are fully implemented only for **organization** (user, role, permission, audit return "not supported" for CUD). List supports the unified query spec (filter, sort, offset, limit) per Epic 4; expand/include are rejected with 400. After successful CUD, a change event is published for subscription matching.
 
 ---
 
@@ -74,21 +74,21 @@ Where a **simple CRUD** operation exists on a single entity table, the generic r
 | Legacy | Generic equivalent | Notes |
 |--------|--------------------|--------|
 | `GET /api/users` | `GET /api/entities/user` | Add scope headers; use query params for filter/sort/pagination. |
-| `GET /api/users/{id}` | `GET /api/entities/user/{id}` | When generic handler implements user get. |
-| `POST /api/users` | `POST /api/entities/user` | When generic handler implements user create. |
-| `PATCH /api/users/{id}` | `PATCH /api/entities/user/{id}` | When generic handler implements user update. |
-| `DELETE /api/users/{id}` | `DELETE /api/entities/user/{id}` | When generic handler implements user delete. |
+| `GET /api/users/{id}` | `GET /api/entities/user/{id}` | Same data. |
+| `POST /api/users` | `POST /api/entities/user` | Not supported via generic handler; use legacy or dedicated API. |
+| `PATCH /api/users/{id}` | `PATCH /api/entities/user/{id}` | Not supported via generic handler; use legacy. |
+| `DELETE /api/users/{id}` | `DELETE /api/entities/user/{id}` | Not supported via generic handler; use legacy. |
 | `GET /api/organizations` | `GET /api/entities/organization` | Same data; filter/sort/pagination via query spec. |
 | `GET /api/organizations/{id}` | `GET /api/entities/organization/{id}` | Same. |
 | `POST /api/organizations` | `POST /api/entities/organization` | Same. |
 | `PATCH /api/organizations/{id}` | `PATCH /api/entities/organization/{id}` | Same. |
 | `DELETE /api/organizations/{id}` | `DELETE /api/entities/organization/{id}` | Same. |
 | `GET /api/organizations/{id}/roles` | `GET /api/entities/role?filter=[{"field":"org_id","operator":"eq","value":"<id>"}]` | Filter by org_id. |
-| (roles by id) | `GET /api/entities/role/{id}` etc. | When generic handler implements role CRUD. |
-| `GET /api/audit-log` | `GET /api/entities/audit` | When generic handler implements audit list (read-only). |
-| `GET /api/audit-log/{id}` | `GET /api/entities/audit/{id}` | When generic handler implements audit get. |
+| (roles by id) | `GET /api/entities/role/{id}` | Get supported; create/update/delete not supported via generic handler. |
+| `GET /api/audit-log` | `GET /api/entities/audit` | Same data (read-only). |
+| `GET /api/audit-log/{id}` | `GET /api/entities/audit/{id}` | Same data. |
 
-Implementation status of the generic handler is code-defined; the table above describes the **intended** mapping. Today, the generic handler fully implements CRUD for `organization`; other entities may be list-only or not yet wired.
+Implementation status: the generic handler implements **list** and **get** for all registered models. **Create, update, delete** are fully implemented only for `organization`; for `user`, `role`, `permission`, and `audit`, CUD over the generic handler returns "not supported" (use legacy or dedicated APIs for those). RPC entity.create, entity.update, entity.delete are implemented and delegate to the same handler.
 
 ### 3.2 No direct generic equivalent (keep legacy or add dedicated APIs)
 

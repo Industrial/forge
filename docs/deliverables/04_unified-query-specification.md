@@ -8,7 +8,7 @@ Every list operation for an entity accepts one and the same kind of query specif
 
 - **Single contract:** Every “list” operation for an entity accepts one and the same kind of query specification.
 - **Components:** The specification includes: which rows to return (filter), in what order (sort), and which slice to return (pagination).
-- **Consistency:** Filter, sort, and pagination are defined in a consistent way for all entities; per-entity configuration only restricts which fields may be used for filter/sort.
+- **Consistency:** Filter, sort, and pagination are defined in a consistent way for all models (entities); per-model configuration (RestModel filter_fields, sort_fields) only restricts which fields may be used for filter/sort.
 - **Reuse:** The same query specification is used everywhere list-style data is requested (one-shot list, and later subscriptions).
 - **Bounded:** The specification is explicit and bounded (no arbitrary graph traversal or unbounded depth).
 

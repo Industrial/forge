@@ -4,7 +4,7 @@ This document records technical decisions for the third deliverable (entity regi
 
 **Epic reference:** [03_entity-registry](../deliverables/03_entity-registry.md)
 
-**Implementation (trait-based):** The registry is implemented via the **RestEntity** trait and a single **registry** module (`registry.rs`). Entities that are served by the generic handler implement `RestEntity` (metadata + list/get/create/update/delete). The registry module re-exports those types and provides dispatch by `entity_id` (match on string → call the corresponding impl). There is no separate metadata struct; the trait is the single source of truth for id, filter/sort/response columns, display name, and supported actions.
+**Implementation (trait-based):** The registry is implemented via the **RestModel** trait and a single **registry** module (`db/src/registry.rs`). Models served by the generic handler implement `RestModel` (metadata + list/get/create/update/delete; list and get have default trait implementations; create/update/delete can be overridden or return "not supported"). The registry re-exports model types from `db/src/models/` and provides dispatch by **model_id** (e.g. `organization`, `user`, `role`, `permission`, `audit`). The API path remains `/api/entities/:entity_id` where `entity_id` is the model id. The trait is the single source of truth for model_id, filter/sort/response columns, display name, and supported actions.
 
 ---
 
@@ -17,8 +17,8 @@ This document records technical decisions for the third deliverable (entity regi
 
 ## 2. Entity identifier convention
 
-- **Choice:** The stable identifier for an entity is a **lowercase, snake_case** string (e.g. `user`, `org_role`, `organization`). It is used consistently in: permission keys (`<entity>.<action>`), API paths or request parameters (e.g. `/api/entities/user` or `entity=user`), and any client or config that refers to the entity. No mixed casing or alternate spellings in the same system.
-- **Implication:** The registry keys (or primary id) use this convention. SeaORM or other internal model names may differ (e.g. `User` in code); the registry maps the public snake_case id to the internal model or table. This keeps URLs, permission keys, and docs consistent.
+- **Choice:** The stable identifier for a model (exposed as **entity_id** in the API) is a **lowercase, snake_case** string (e.g. `user`, `org_role`, `organization`). It is used consistently in: permission keys (`<entity>.<action>`), API paths (e.g. `/api/entities/:entity_id`), and RPC params. No mixed casing or alternate spellings in the same system.
+- **Implication:** The registry uses this as **model_id**. SeaORM model/entity names may differ (e.g. `User` in code); the registry maps the public snake_case id to the internal model. This keeps URLs, permission keys, and docs consistent.
 
 ---
 
@@ -27,11 +27,11 @@ This document records technical decisions for the third deliverable (entity regi
 - **Choice:** Each entity in the registry has at least:
   - **id:** The stable identifier (snake_case, see §2).
   - **supported_actions:** Which of `create`, `read`, `update`, `delete` are supported for this entity. Default is all four unless specified otherwise (e.g. an audit log might be read-only).
-- **Choice (optional metadata):** The registry may also hold, per entity:
-  - **allowed_filter_fields:** Which fields may be used in the unified query spec for filtering (Epic 4). If absent, **derived from the entity’s model/schema** (e.g. all columns, or all non-sensitive columns).
-  - **allowed_sort_fields:** Which fields may be used for sorting. If absent, **derived from the entity’s model/schema** in the same way.
-  - **display_name** (or equivalent): For UI only; not used for auth or API contract.
-- **Implication:** The generic handler (Epic 5) and query layer (Epic 4) read this metadata to validate requests and to build queries. Validation rules for create/update (e.g. required fields, types) are not required in the registry for Epic 3; they can be derived from the model/schema (Epic 5) or added later.
+- **Choice (optional metadata):** The registry may also hold, per model:
+  - **allowed_filter_fields** (effective_filter_fields): Which fields may be used in the unified query spec for filtering (Epic 4). Defined on the RestModel trait.
+  - **allowed_sort_fields** (effective_sort_fields): Which fields may be used for sorting. Defined on the RestModel trait.
+  - **display_name**: For UI only; not used for auth or API contract.
+- **Implication:** The generic handler (Epic 5) and query layer (Epic 4) read this metadata to validate requests and to build queries. Validation rules for create/update are implemented per model (e.g. DTO deserialization); the generic handler also requires the request body to be a JSON object (400 otherwise).
 
 ---
 
@@ -39,7 +39,7 @@ This document records technical decisions for the third deliverable (entity regi
 
 - **Choice:** The registry is **populated at application startup** (or first use). It is **read-only at runtime**: no API or admin action can add or remove entities during a running session. Adding or removing an entity is a **deployment-time** change (e.g. update code, then deploy or restart). This matches “create entities, migrations, maybe seeds and you’re good to go” without requiring runtime admin UI for the registry.
 - **Choice (storage):** The registry is **code-defined**: a list or map in code (e.g. one entry per entity) built at application startup. No config file or database table for the registry itself; adding an entity is done by adding a registration in code (alongside the persistence layer and migrations).
-- **Implication:** The registry is an in-memory structure built from code at startup. No need for concurrent updates or versioning at runtime. In the trait-based implementation, the "registry" is the `registry.rs` module: it re-exports RestEntity implementors and contains a match on `entity_id` for dispatch. Developers add entities by implementing `RestEntity` in `entities/<name>.rs` and adding the corresponding re-export and match arms in `registry.rs`.
+- **Implication:** The registry is an in-memory structure built from code at startup. No need for concurrent updates or versioning at runtime. In the trait-based implementation, the "registry" is `db/src/registry.rs`: it re-exports RestModel implementors from `db/src/models/` and dispatches by `model_id`. Developers add models by implementing `RestModel` in the corresponding model file (e.g. `db/src/models/organization.rs`) and adding the re-export and match arms in `registry.rs`.
 
 ---
 
@@ -60,7 +60,7 @@ This document records technical decisions for the third deliverable (entity regi
 ## 7. Minimal onboarding (no codegen)
 
 - **Choice:** Adding a new entity to the system requires: (1) defining the persistence (e.g. SeaORM model and migration), (2) **registering** the entity in the registry (one entry: id, supported_actions, and optional metadata). No generated per-entity handler code; no separate step to “add permissions” or “expose in API” beyond registration.
-- **Implication:** In the trait-based implementation, adding an entity requires (1) SeaORM model and migration, (2) a type that implements the `RestEntity` trait (in `app/src/entities/<name>.rs`) defining metadata and list/get/create/update/delete behaviour, (3) re-exporting that type in `registry.rs` and adding match arms for dispatch and metadata helpers. The generic handler and permissions then pick the entity up automatically.
+- **Implication:** In the trait-based implementation, adding a model requires (1) SeaORM entity and migration in `db`, (2) implementing the `RestModel` trait on the model type (in `db/src/models/<name>.rs`) with metadata and the required hooks (row_to_json, apply_filter, default_sort, apply_sort); list and get use default trait implementations; create/update/delete can use defaults ("not supported") or be overridden, (3) re-exporting the type in `registry.rs` and adding match arms for dispatch. The generic handler and permissions then pick the model up automatically.
 
 ---
 
@@ -83,12 +83,12 @@ This document records technical decisions for the third deliverable (entity regi
 | Topic | Choice |
 |-------|--------|
 | Registry count | Single registry; source of truth for permissions, API, and (later) subscriptions. |
-| Entity id | Lowercase snake_case; used in permissions, API, and registry. |
+| Model id | Lowercase snake_case; used in permissions, API path as entity_id, and registry. |
 | Metadata | At least id + supported_actions; optional filter/sort allowlists, display_name. |
 | Registry storage | Code-defined; list or map in code, built at startup. |
 | Mutability | Read-only at runtime; populated at startup; changes are deployment-time. |
 | Persistence | Every entity backed by one persistence abstraction (e.g. SeaORM); no virtual entities in Epic 3. |
 | Permission keys | Derived from registry (four actions per entity + all.read, all.write). |
 | Filter/sort default | When not in registry, derive from entity’s model/schema. |
-| Onboarding | Entity = persistence + one registry entry; no codegen, no per-entity handlers. |
+| Onboarding | Model = persistence + RestModel impl + registry entry; no codegen, no per-model handler code. |
 | Unknown entity | 404 (or 400) when entity id is not in registry. |

@@ -12,13 +12,13 @@ Epic 10 does **not** introduce new subsystems or new technical mechanisms. All b
 
 - **Epic 1:** Scoped session and profile selection (client scope, zero-trust, forced profile selection for multi-org).
 - **Epic 2:** Entity-based permissions (`<entity>.<action>`, scope-aware).
-- **Epic 3:** Entity registry (code-defined, metadata, filter/sort from model).
+- **Epic 3:** Model registry (RestModel trait, db crate; entity_id in API; filter/sort from model).
 - **Epic 4:** Unified query specification (filter, sort, pagination; scope separate).
-- **Epic 5:** Single generic REST handler (entity + action + query spec; authz per request).
+- **Epic 5:** Single generic REST handler (model dispatch; list/get default for all; CUD for organization; change events after CUD).
 - **Epic 6:** No embedded relations (IDs only; expand/include → 400).
 - **Epic 7:** RPC parity with REST (HTTP/2, per-request identity/scope, same transport for subscribe).
 - **Epic 8:** Subscriptions to queries (subscribe/unsubscribe RPC; invalidation over HTTP/2 stream).
-- **Epic 9:** Subscription matching and delivery (worker + cache; scope-aware; in-process delivery for now).
+- **Epic 9:** Subscription matching and delivery (change events, subscriptions_affected_by, notify_affected_by, spawn_change_worker; scope-aware; in-process for now).
 
 Epic 10 is the **integration and validation** epic: one consistent model, authorization on every path, no leakage, and the full path working together.
 

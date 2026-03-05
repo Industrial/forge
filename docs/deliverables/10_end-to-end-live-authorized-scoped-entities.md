@@ -9,7 +9,7 @@ Entities are readable and writable via REST and RPC, and subscribable via the sa
 - **Unified model:** Entities are readable and writable via REST and RPC, and subscribable via the same query specification, with one consistent model of scope and entity permissions.
 - **Authorization everywhere:** Every operation (REST, RPC, or subscription) is authorized using entity-based permissions and the current session scope.
 - **No leakage:** A subscriber receives updates only for entities and rows they are permitted to read in that scope; no updates are delivered for data the subscriber is not allowed to read.
-- **Complete path:** The full path is in place: scoped session, entity registry, entity permissions, unified query spec, generic REST handler, no embedded relations, RPC parity, query subscriptions, and subscription matching/delivery—all working together for live, authorized, scoped entities.
+- **Complete path:** The full path is in place: scoped session, model registry (entity_id in API), entity permissions, unified query spec, generic REST handler (list/get for all models; CUD for organization), no embedded relations, RPC parity (entity.list/get/create/update/delete), query subscriptions (params validated per model), and subscription matching/delivery (change events, scope-aware matching, worker)—all working together for live, authorized, scoped entities.
 
 ## Rollout & documentation
 

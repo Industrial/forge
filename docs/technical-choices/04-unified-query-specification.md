@@ -19,16 +19,16 @@ This document records technical decisions for the fourth deliverable (unified qu
 
 - **Choice:** Filter is expressed as a structured set of conditions. Each condition is: **field** + **operator** + **value** (or no value for `is_null`). The exact wire format (query string vs JSON body) is implementation-defined; the logical structure is:
   - **Operators:** `eq`, `ne`, `gt`, `gte`, `lt`, `lte`, `in`, `contains`, `starts_with`, `ends_with`, `is_null`.
-  - **Field:** Must be one of the entity’s allowed filter fields (from registry or derived from model).
+  - **Field:** Must be one of the model's allowed filter fields (effective_filter_fields from registry).
   - **Value:** Type-appropriate; for `in`, a list of values; for `is_null`, no value or a boolean.
-- **Implication:** The handler (and later subscription matcher) validates that the field is in the entity’s allowed filter set and that the operator is supported for that field type. Unknown or disallowed field → 400 or 422 with a clear error.
+- **Implication:** The handler (and later subscription matcher) validates that the field is in the model's allowed filter set (effective_filter_fields) and that the operator is supported for that field type. Unknown or disallowed field → 400 or 422 with a clear error.
 
 ---
 
 ## 3. Sort: single key for now
 
 - **Choice:** Sort is specified by **one** sort key (field + direction). Direction is `asc` or `desc`. Multi-sort may be added later; for this epic, one key only.
-- **Implication:** The sort field must be one of the entity’s allowed sort fields (from registry or derived). Invalid or disallowed field → 400 or 422. When sort is omitted, the server may use a default (e.g. primary key or `created_at`); the default is implementation-defined but must be documented or stable.
+- **Implication:** The sort field must be one of the model's allowed sort fields (effective_sort_fields from registry). Invalid or disallowed field → 400 or 422. When sort is omitted, the server uses the model's default_sort (RestModel trait). ListQuerySpec is serializable and stored in subscription params for matching.
 
 ---
 

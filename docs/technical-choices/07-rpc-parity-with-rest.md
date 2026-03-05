@@ -4,6 +4,8 @@ This document records technical decisions for the seventh deliverable (RPC parit
 
 **Epic reference:** [07_rpc-parity-with-rest](../deliverables/07_rpc-parity-with-rest.md)
 
+**Implementation:** RPC methods `entity.list`, `entity.get`, `entity.create`, `entity.update`, `entity.delete` are implemented in `handlers/rpc.rs`. They delegate to the same registry functions as the generic REST handler (`list_models`, `get_model`, `create_model`, `update_model`, `delete_model`). Create requires `params.body`; update/delete require `params.id` and (for update) `params.body`. Subscribe (Epic 8) validates params as ListQuerySpec per model before storing the subscription.
+
 ---
 
 ## 1. Same operations on both transports

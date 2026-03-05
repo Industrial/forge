@@ -2,7 +2,7 @@
 
 ## Summary
 
-Clients can subscribe to a query (entity + filter + sort + pagination) and receive updates when the result set of that query changes. Subscriptions are authorized and scoped.
+Clients can subscribe to a query (model/entity_id + filter + sort + pagination) and receive updates when the result set of that query changes. Params are validated as ListQuerySpec per model; the structured spec is stored for matching. Subscriptions are authorized and scoped.
 
 ## Functionality
 
