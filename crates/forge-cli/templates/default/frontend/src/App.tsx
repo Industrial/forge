@@ -23,7 +23,6 @@ import RolesPage from './features/dashboard/pages/RolesPage/RolesPage'
 import PermissionsPage from './features/dashboard/pages/PermissionsPage/PermissionsPage'
 import AuditLogPage from './features/dashboard/pages/AuditLogPage/AuditLogPage'
 import ProfilePage from './features/profile/pages/ProfilePage/ProfilePage'
-import WebsocketsDemoPage from './features/websockets-demo/pages/WebsocketsDemoPage/WebsocketsDemoPage'
 
 const STORAGE_KEY = 'mui-color-scheme'
 
@@ -93,7 +92,6 @@ function App() {
                     </ProtectedRoute>
                   }
                 />
-                <Route path="/ws-demo" element={<WebsocketsDemoPage />} />
                 <Route
                   path="/"
                   element={
