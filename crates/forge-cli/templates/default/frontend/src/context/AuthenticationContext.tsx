@@ -8,10 +8,10 @@ import React, {
 import { useNavigate } from 'react-router-dom'
 import { Effect } from 'effect'
 import { runWithAppRuntime } from '../lib/appLayer'
-import { on401HandlerRef } from '../lib/authStateRef'
+import { on401HandlerRef, onScopeRequiredRef } from '../lib/authStateRef'
 import type { AuthenticationUser } from '../features/authentication/domain/AuthenticationUser'
 import type { Flash } from '../features/authentication/domain/Flash'
-import type { Profile } from '../features/authentication/domain/Profile'
+import type { Scope } from '../features/authentication/domain/Scope'
 import { AuthenticationError } from '../features/authentication/domain/AuthenticationError'
 import { AuthenticationStore } from '../features/authentication/services/AuthenticationStore'
 import { useAuthenticationState } from '../features/authentication/hooks/useAuthentication'
@@ -24,7 +24,7 @@ import type { AppServices } from '../lib/appLayer'
  */
 export type AuthenticationState = {
   user: AuthenticationUser | null
-  profiles: Profile[]
+  scopes: Scope[]
   permissions: string[]
   flash: Flash | null
   token: string | null
@@ -35,10 +35,10 @@ export type AuthenticationState = {
   setCurrentRoleId: (roleId: string | null) => void
   currentRoleName: string | null
   setCurrentRoleName: (roleName: string | null) => void
-  /** When true, redirect to /select-profile before dashboard. */
-  needs_profile_select: boolean
+  /** When true, redirect to scope selection before dashboard. */
+  needs_scope_select: boolean
   loading: boolean
-  /** Re-fetch user/profiles/permissions. Pass a token (e.g. from login) to set it and then fetch. */
+  /** Re-fetch user/scopes/permissions. Pass a token (e.g. from login) to set it and then fetch. */
   fetchMe: (tokenOverride?: string | null) => Promise<void>
   /** Re-read auth state from store (e.g. after auto-select scope). */
   refresh: () => Promise<void>
@@ -137,8 +137,12 @@ export function AuthenticationProvider({
         .then(refresh)
         .then(() => navigate('/authentication/login', { replace: true }))
     }
+    onScopeRequiredRef.current = () => {
+      navigate('/authentication/select-scope', { replace: true })
+    }
     return () => {
       on401HandlerRef.current = () => {}
+      onScopeRequiredRef.current = () => {}
     }
   }, [runtime, refresh, navigate])
 
@@ -196,7 +200,7 @@ export function AuthenticationProvider({
   const value = useMemo<AuthenticationState>(
     () => ({
       user: state?.user ?? null,
-      profiles: state?.profiles != null ? [...state.profiles] : [],
+      scopes: state?.scopes != null ? [...state.scopes] : [],
       permissions: state?.permissions != null ? [...state.permissions] : [],
       flash: state?.flash ?? null,
       token: state?.token ?? null,
@@ -222,7 +226,7 @@ export function AuthenticationProvider({
           state?.currentRoleId ?? '',
           roleName ?? '',
         ),
-      needs_profile_select: state?.needs_profile_select ?? false,
+      needs_scope_select: state?.needs_scope_select ?? false,
       loading: isPending,
       fetchMe,
       refresh,

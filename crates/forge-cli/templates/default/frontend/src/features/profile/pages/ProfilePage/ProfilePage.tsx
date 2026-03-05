@@ -4,12 +4,12 @@ import Typography from '@mui/material/Typography'
 import PageHeader from '../../../../components/PageHeader'
 import { useAuthentication } from '../../../../context/AuthenticationContext'
 
-export default function ProfilePage() {
+export default function ScopePage() {
   const { user, logout, loading } = useAuthentication()
 
   return (
     <>
-      <PageHeader title="Profile" />
+      <PageHeader title="Scope" />
       {user != null && (
         <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1 }}>
           <Typography color="text.secondary">

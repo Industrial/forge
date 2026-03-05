@@ -85,13 +85,13 @@ export default function LoginPage() {
             Effect.gen(function* () {
               const store = yield* AuthenticationStore
               const state = yield* store.getState()
-              return state.needs_profile_select
+              return state.needs_scope_select
             }),
           ),
         )
-        .then((needs_profile_select) => {
-          if (needs_profile_select === true) {
-            navigate('/authentication/select-profile', {
+        .then((needs_scope_select) => {
+          if (needs_scope_select === true) {
+            navigate('/authentication/select-scope', {
               replace: true,
               state: { from: { pathname: from } },
             })

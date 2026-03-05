@@ -29,7 +29,7 @@ use db::models::{
   user_org_role,
 };
 
-pub use crate::permissions::DASHBOARD_PERMISSIONS;
+pub use crate::permissions::dashboard_permissions;
 
 /// Resolves the list of permission keys for the current user from org-scoped and global-scope role_permission.
 /// Uses scope (X-Organization-Id, X-Role-Id) when provided; otherwise only global-scope permissions are included.

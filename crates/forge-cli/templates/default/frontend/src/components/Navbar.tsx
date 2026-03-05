@@ -72,7 +72,7 @@ export default function Navbar({
   onOpenSidebar,
 }: NavbarProps) {
   const navigate = useNavigate()
-  const { user, profiles, permissions, logout, switchScope } =
+  const { user, scopes, permissions, logout, switchScope } =
     useAuthentication()
   const canAccessDashboard = hasPermission(permissions, 'dashboard')
   const [anchorEl, setAnchorEl] = useState<null | HTMLElement>(null)
@@ -84,9 +84,9 @@ export default function Navbar({
   const handleClose = () => {
     setAnchorEl(null)
   }
-  const handleProfile = () => {
+  const handleScope = () => {
     handleClose()
-    navigate('/profile')
+    navigate('/scope')
   }
   const handleSwitchScope = async (
     orgId: string,
@@ -171,14 +171,14 @@ export default function Navbar({
           transformOrigin={{ vertical: 'top', horizontal: 'right' }}
           slotProps={{ paper: { sx: { minWidth: 220 } } }}
         >
-          <MenuItem onClick={handleProfile}>
+          <MenuItem onClick={handleScope}>
             <ListItemIcon>
               <Person fontSize="small" />
             </ListItemIcon>
-            Profile
+            Scope
           </MenuItem>
           <Divider />
-          {profiles.map((p) => (
+          {scopes.map((p) => (
             <MenuItem
               key={p.role_id ?? p.org_id}
               onClick={() =>

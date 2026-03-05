@@ -4,6 +4,8 @@ This document records technical decisions for the fourth deliverable (unified qu
 
 **Epic reference:** [04_unified-query-specification](../deliverables/04_unified-query-specification.md)
 
+**Legacy routes:** The unified query spec applies to the generic entity API (`GET /api/entities/{entity_id}`). Legacy dashboard list routes (e.g. `GET /api/users`, `GET /api/organizations`) do not accept filter/sort/pagination; they use their own pattern (full scoped list). See [migration-legacy-routes-to-generic-entity-handler](../migration-legacy-routes-to-generic-entity-handler.md).
+
 ---
 
 ## 1. Single contract for REST and WebSocket

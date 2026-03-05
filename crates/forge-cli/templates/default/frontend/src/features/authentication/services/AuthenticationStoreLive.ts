@@ -7,7 +7,7 @@ import { AuthenticationError } from '../domain/AuthenticationError'
 import { AuthenticationStateSnapshot } from '../domain/AuthenticationStateSnapshot'
 import { AuthenticationUser } from '../domain/AuthenticationUser'
 import { Flash } from '../domain/Flash'
-import { Profile } from '../domain/Profile'
+import { Scope } from '../domain/Scope'
 
 /**
  * Client-only scope persistence (no server-side scope session).
@@ -40,20 +40,21 @@ function writeStorage(key: string, value: string | null): void {
   }
 }
 
+/** API returns "profiles" and "needs_profile_select"; we map to scope terminology. */
 function parseMeResponse(data: unknown): {
   user: AuthenticationUser | null
-  profiles: Profile[]
+  scopes: Scope[]
   permissions: string[]
   flash: Flash | null
-  needs_profile_select: boolean
+  needs_scope_select: boolean
 } {
   if (!data || typeof data !== 'object') {
     return {
       user: null,
-      profiles: [],
+      scopes: [],
       permissions: [],
       flash: null,
-      needs_profile_select: false,
+      needs_scope_select: false,
     }
   }
   const d = data as Record<string, unknown>
@@ -65,10 +66,10 @@ function parseMeResponse(data: unknown): {
           token: '', // caller (fetchMe) sets token from request
         })
       : null
-  const profiles: Profile[] = Array.isArray(d.profiles)
+  const scopes: Scope[] = Array.isArray(d.profiles)
     ? (d.profiles as Record<string, unknown>[]).map(
         (p) =>
-          new Profile({
+          new Scope({
             org_id: String(p.org_id ?? ''),
             org_name: String(p.org_name ?? ''),
             role_id: p.role_id != null ? String(p.role_id) : undefined,
@@ -87,13 +88,13 @@ function parseMeResponse(data: unknown): {
       (d.flash as Record<string, unknown>).error != null)
       ? new Flash(d.flash as { message?: string; error?: string })
       : null
-  const needs_profile_select = Boolean(d.needs_profile_select)
+  const needs_scope_select = Boolean(d.needs_profile_select)
   return {
     user,
-    profiles,
+    scopes,
     permissions,
     flash,
-    needs_profile_select,
+    needs_scope_select,
   }
 }
 
@@ -101,14 +102,14 @@ function initialSnapshot(): AuthenticationStateSnapshot {
   const token = readStorage(STORAGE_KEYS.token)
   return new AuthenticationStateSnapshot({
     user: null,
-    profiles: [],
+    scopes: [],
     permissions: [],
     flash: null,
     token,
     currentOrgId: readStorage(STORAGE_KEYS.currentOrgId),
     currentRoleId: readStorage(STORAGE_KEYS.currentRoleId),
     currentRoleName: readStorage(STORAGE_KEYS.currentRoleName),
-    needs_profile_select: false,
+    needs_scope_select: false,
   })
 }
 
@@ -129,6 +130,7 @@ export const AuthenticationStoreLive = Layer.effect(
       authStateRef.current.token = s.token
       authStateRef.current.organizationId = s.currentOrgId
       authStateRef.current.roleId = s.currentRoleId
+      authStateRef.current.needs_scope_select = s.needs_scope_select
     }
     syncToAuthStateRef(initialSnapshot())
 
@@ -172,7 +174,7 @@ export const AuthenticationStoreLive = Layer.effect(
           yield* Effect.logTrace('AuthenticationStoreLive.getState')
           const s = yield* Ref.get(ref)
           yield* Effect.logDebug(
-            `getState: user=${s.user?.email ?? 'null'}, needs_profile_select=${s.needs_profile_select}`,
+            `getState: user=${s.user?.email ?? 'null'}, needs_scope_select=${s.needs_scope_select}`,
           )
           return s
         }),
@@ -225,15 +227,15 @@ export const AuthenticationStoreLive = Layer.effect(
           const next = new AuthenticationStateSnapshot({
             ...current,
             user,
-            profiles: parsed.profiles,
+            scopes: parsed.scopes,
             permissions: parsed.permissions,
             flash: parsed.flash,
-            needs_profile_select: parsed.needs_profile_select,
+            needs_scope_select: parsed.needs_scope_select,
           })
           syncToAuthStateRef(next)
           yield* Ref.set(ref, next)
           yield* Effect.logDebug(
-            `fetchMe: success user=${user?.email ?? 'null'}, needs_profile_select=${parsed.needs_profile_select}`,
+            `fetchMe: success user=${user?.email ?? 'null'}, needs_scope_select=${parsed.needs_scope_select}`,
           )
         }).pipe(
           Effect.catchAll((e) =>

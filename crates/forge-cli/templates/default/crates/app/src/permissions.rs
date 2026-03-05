@@ -1,37 +1,23 @@
 //! Entity-based permission keys per docs/technical-choices/02-entity-based-permissions.md.
 //! Format: `<entity>.<action>` with action in {create, read, update, delete}.
-//! Wildcards: all.read (grants every entity.read), all.write (grants every entity.create/update/delete).
-//! Allowed keys are derived from the entity set (§4).
+//! Wildcards: all.read / all.write. Allowed keys derived from entity registry (Epic 3, §6).
 
-/// Entity identifiers (lowercase). Epic 3 will replace with entity registry.
-pub const ENTITIES: &[&str] = &[
-  "organization",
-  "user",
-  "role",
-  "permission",
-  "audit",
-];
-
-/// Allowed actions per entity (§1).
-pub const ENTITY_ACTIONS: &[&str] = &["create", "read", "update", "delete"];
+use crate::entity_registry;
 
 /// Wildcard keys retained for resolution (§2).
 pub const ALL_READ: &str = "all.read";
 pub const ALL_WRITE: &str = "all.write";
 
-/// Returns the full list of allowed permission keys: four per entity plus all.read, all.write (§4).
-pub fn allowed_permission_keys() -> Vec<String> {
-  let mut keys: Vec<String> = ENTITIES
-    .iter()
-    .flat_map(|entity| {
-      ENTITY_ACTIONS
-        .iter()
-        .map(move |action| format!("{}.{}", entity, action))
-    })
-    .collect();
-  keys.push(ALL_READ.to_string());
-  keys.push(ALL_WRITE.to_string());
-  keys
+/// Allowed permission keys derived from the entity registry (§6). Use for validation and listing.
+#[inline]
+pub fn allowed_permission_keys() -> &'static [&'static str] {
+  entity_registry::allowed_permission_keys()
+}
+
+/// Legacy name: returns the same slice as [allowed_permission_keys]. Use for handlers during migration.
+#[inline]
+pub fn dashboard_permissions() -> &'static [&'static str] {
+  entity_registry::allowed_permission_keys()
 }
 
 /// Builds a permission key `<entity>.<action>`.
@@ -39,36 +25,6 @@ pub fn allowed_permission_keys() -> Vec<String> {
 pub fn entity_action_key(entity: &str, action: &str) -> String {
   format!("{}.{}", entity, action)
 }
-
-/// All allowed permission keys as a static list for validation and listing.
-/// Derived from ENTITIES × ENTITY_ACTIONS + all.read, all.write.
-pub static ALLOWED_PERMISSION_KEYS: &[&str] = &[
-  "organization.create",
-  "organization.read",
-  "organization.update",
-  "organization.delete",
-  "user.create",
-  "user.read",
-  "user.update",
-  "user.delete",
-  "role.create",
-  "role.read",
-  "role.update",
-  "role.delete",
-  "permission.create",
-  "permission.read",
-  "permission.update",
-  "permission.delete",
-  "audit.create",
-  "audit.read",
-  "audit.update",
-  "audit.delete",
-  ALL_READ,
-  ALL_WRITE,
-];
-
-/// Legacy alias for ALLOWED_PERMISSION_KEYS (entity-based keys). Used by handlers during migration.
-pub const DASHBOARD_PERMISSIONS: &[&str] = ALLOWED_PERMISSION_KEYS;
 
 /// Legacy dashboard.* key equivalence for migration (§8). Returns keys to check (entity + legacy).
 /// Empty slice means caller should use exact match only (key itself).

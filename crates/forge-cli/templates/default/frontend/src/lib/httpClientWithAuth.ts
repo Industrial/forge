@@ -2,10 +2,24 @@ import {
   FetchHttpClient,
   HttpClient,
   HttpClientRequest,
-  HttpClientResponse,
 } from '@effect/platform'
 import { Effect, Layer } from 'effect'
-import { AuthStateRef, on401HandlerRef } from './authStateRef'
+import {
+  AuthStateRef,
+  on401HandlerRef,
+  onScopeRequiredRef,
+} from './authStateRef'
+
+/** Path prefixes that require scope (X-Organization-Id, X-Role-Id). Epic 1. */
+const SCOPED_PATH_PREFIXES = ['/api/entities', '/api/dashboard', '/api/org']
+function isScopedPath(url: string): boolean {
+  try {
+    const path = new URL(url, 'http://x').pathname
+    return SCOPED_PATH_PREFIXES.some((p) => path.startsWith(p))
+  } catch {
+    return false
+  }
+}
 
 /**
  * Config for app bootstrap: base URL only. Token and scope are read at request time
@@ -55,16 +69,30 @@ export const httpClientWithAuthLayer = (baseUrl: string) =>
         }
         return r
       })
-      return {
+      const client = {
         ...withAuth,
         execute: (req: HttpClientRequest.HttpClientRequest) =>
-          withAuth.execute(req).pipe(
-            Effect.tap((res: HttpClientResponse.HttpClientResponse) =>
-              res.status === 401
-                ? Effect.sync(() => on401HandlerRef.current())
-                : Effect.void,
-            ),
-          ),
+          Effect.gen(function* () {
+            const c = authStateRef.current
+            const url = (req as unknown as { url: string }).url
+            if (
+              isScopedPath(url) &&
+              c.token != null &&
+              c.needs_scope_select &&
+              (c.organizationId == null || c.roleId == null)
+            ) {
+              onScopeRequiredRef.current()
+              return yield* Effect.fail(
+                new Error('Scope required; select a scope before using this feature'),
+              )
+            }
+            const res = yield* withAuth.execute(req)
+            if (res.status === 401) {
+              on401HandlerRef.current()
+            }
+            return res
+          }),
       }
+      return client as typeof base
     }),
   ).pipe(Layer.provide(FetchHttpClient.layer))

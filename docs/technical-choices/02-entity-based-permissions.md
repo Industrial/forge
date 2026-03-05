@@ -67,7 +67,7 @@ This document records technical decisions for the second deliverable (entity-bas
 ## 8. Migration from current dashboard.* keys
 
 - **Choice:** The **canonical** format is `<entity>.<action>`. Existing data and code that use `dashboard.*` and `dashboard` are migrated or mapped in a separate migration step (data migration and/or backward-compatibility layer). This document does not prescribe the exact migration strategy (e.g. big-bang vs phased, or mapping table); it only fixes that the target model is entity-based and that the system must not rely on dashboard-style keys once migration is complete.
-- **Implication:** Epic 2 implementation can introduce the new resolution and check logic and the new key derivation from entities; the migration of existing `role_permission` rows and of UI/API that still reference old keys is a follow-up. During a transition, both key styles may be supported for resolution if needed; the technical choice is that the **target** is entity-only (plus all.read / all.write).
+- **Implication:** Epic 2 implementation can introduce the new resolution and check logic and the new key derivation from entities; the migration of existing `role_permission` rows and of UI/API that still reference old keys is a follow-up. During a transition, both key styles may be supported for resolution if needed; the technical choice is that the **target** is entity-only (plus all.read / all.write). For migrating **legacy REST routes** (e.g. `/api/users`, `/api/organizations`) to the generic entity handler, see [Migration path: legacy routes → generic entity handler](../migration-legacy-routes-to-generic-entity-handler.md).
 
 ---
 

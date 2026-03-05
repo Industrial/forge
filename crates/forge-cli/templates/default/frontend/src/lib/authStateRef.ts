@@ -11,6 +11,8 @@ export interface AuthStateRef {
     token: string | null
     organizationId: string | null
     roleId: string | null
+    /** When true, scoped API calls must be blocked until user selects scope (Epic 1). */
+    needs_scope_select: boolean
   }
 }
 
@@ -23,6 +25,7 @@ export const AuthStateRefLayer = Layer.sync(AuthStateRef, () => ({
     token: null,
     organizationId: null,
     roleId: null,
+    needs_scope_select: false,
   },
 }))
 
@@ -31,3 +34,10 @@ export const AuthStateRefLayer = Layer.sync(AuthStateRef, () => ({
  * to clear session and redirect to login. See technical-choices §7.2.
  */
 export const on401HandlerRef: { current: () => void } = { current: () => {} }
+
+/**
+ * Callback run when a scoped API is called but scope is required and not set
+ * (e.g. needs_scope_select and no org/role). Set by app to redirect to
+ * scope selection. Epic 1: explicit scope guard before API calls.
+ */
+export const onScopeRequiredRef: { current: () => void } = { current: () => {} }

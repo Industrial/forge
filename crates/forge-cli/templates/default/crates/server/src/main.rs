@@ -47,7 +47,8 @@ async fn main() -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
   let api_router = router
     .with_state(db_conn.clone())
     .layer(axum::extract::Extension(db_conn.clone()))
-    .layer(axum::extract::Extension(task_state.clone()));
+    .layer(axum::extract::Extension(task_state.clone()))
+    .layer(axum::extract::Extension(app::subscriptions::SubscriptionStore::new()));
 
   let mut router = api_router;
 

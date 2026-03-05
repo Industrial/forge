@@ -8,17 +8,17 @@ import { runWithAppRuntime, type AppServices } from '../../../lib/appLayer'
 import Box from '@mui/material/Box'
 import LoadingSpinner from '../../../components/LoadingSpinner'
 
-type DashboardProfileGuardProps = { children: React.ReactNode }
+type DashboardScopeGuardProps = { children: React.ReactNode }
 
 /**
  * When the user is logged in but needs scope: redirects to scope selection, or
  * auto-selects the single scope so single-org users do not see the selection screen (§7.5).
  * Use inside ProtectedRoute so it only runs for authenticated users.
  */
-export default function DashboardProfileGuard({
+export default function DashboardScopeGuard({
   children,
-}: DashboardProfileGuardProps) {
-  const { user, needs_profile_select, profiles, loading, refresh } =
+}: DashboardScopeGuardProps) {
+  const { user, needs_scope_select, scopes, loading, refresh } =
     useAuthentication()
   const { runtime } = useEffectRuntime<AppServices>()
   const [autoSelecting, setAutoSelecting] = useState(false)
@@ -27,11 +27,11 @@ export default function DashboardProfileGuard({
     if (
       !loading &&
       user != null &&
-      needs_profile_select &&
-      profiles.length === 1 &&
+      needs_scope_select &&
+      scopes.length === 1 &&
       !autoSelecting
     ) {
-      const p = profiles[0]
+      const p = scopes[0]
       const orgId = p.org_id
       const roleId = p.role_id ?? ''
       const roleName = p.role ?? ''
@@ -50,8 +50,8 @@ export default function DashboardProfileGuard({
   }, [
     loading,
     user,
-    needs_profile_select,
-    profiles,
+    needs_scope_select,
+    scopes,
     runtime,
     autoSelecting,
     refresh,
@@ -73,8 +73,8 @@ export default function DashboardProfileGuard({
     )
   }
   if (user == null) return null // ProtectedRoute handles unauthenticated
-  if (needs_profile_select) {
-    return <Navigate to="/authentication/select-profile" replace />
+  if (needs_scope_select) {
+    return <Navigate to="/authentication/select-scope" replace />
   }
   return <>{children}</>
 }

@@ -2,7 +2,7 @@
  * AuthenticationStore service.
  *
  * Provides the Effect service interface for authentication state: token, user,
- * profiles, permissions, and current org/role scope. All methods return
+ * scopes, permissions, and current org/role scope. All methods return
  * `Effect<A, AuthenticationError, never>` (no requirement leakage); the Live
  * implementation uses HttpClient internally for `fetchMe`.
  *
@@ -17,7 +17,7 @@ import type { AuthenticationStateSnapshot } from '../domain/AuthenticationStateS
 /**
  * AuthenticationStore service interface.
  *
- * Manages auth state (token, user, profiles, permissions, scope) and
+ * Manages auth state (token, user, scopes, permissions, scope) and
  * persistence (e.g. localStorage in the Live impl). All methods return
  * `Effect<A, AuthenticationError, never>` so callers do not need to provide any
  * requirements; the Live layer supplies HttpClient for `fetchMe` internally.
@@ -25,7 +25,7 @@ import type { AuthenticationStateSnapshot } from '../domain/AuthenticationStateS
  * @remarks
  * - **getToken / setToken**: Read or write the bearer token (and persist in Live).
  * - **getState**: Current snapshot for UI; re-run after login, logout, or setScope.
- * - **fetchMe**: Call `/api/auth/me`, update internal state; use `tokenOverride` to set token then fetch (e.g. after login).
+ * - **fetchMe**: Call `/api/auth/me`, update internal state (user, scopes, permissions, needs_scope_select); use `tokenOverride` to set token then fetch (e.g. after login).
  * - **logout**: Clear token and scope; no API call.
  * - **setScope**: Set current org/role for the session (used for X-Organization-Id / X-Role-Id); does not call the API.
  */
@@ -39,7 +39,7 @@ export interface AuthenticationStoreService {
   /** Returns a read-only snapshot of the current auth state. */
   readonly getState: () => Effect.Effect<AuthenticationStateSnapshot, AuthenticationError, never>
   /**
-   * Fetches `/api/auth/me` and updates internal state (user, profiles, permissions, needs_profile_select).
+   * Fetches `/api/auth/me` and updates internal state (user, scopes, permissions, needs_scope_select).
    * If `tokenOverride` is provided, sets the token first then fetches (e.g. after login).
    */
   readonly fetchMe: (

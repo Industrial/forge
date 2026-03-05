@@ -1,6 +1,23 @@
+use crate::entity_metadata::{EntityMetadata, ACTIONS};
 use forge_auth::AuthzContext;
 use sea_orm::entity::prelude::*;
 use serde::{Deserialize, Serialize};
+
+/// Allowed filter/sort columns. Response columns (allow-list) exclude password_hash; defined below.
+const FILTER_SORT_COLUMNS: &[&str] = &["id", "email", "is_active", "created_at", "updated_at"];
+/// Columns returned for list/get (allow-list; never include password_hash).
+const RESPONSE_COLUMNS: &[&str] = &["id", "email", "is_active", "created_at", "updated_at"];
+
+/// Entity metadata: API id, actions, display name, filter/sort/response columns. Defined alongside the model (Option A).
+pub const ENTITY_METADATA: EntityMetadata = EntityMetadata {
+  id: "user",
+  supported_actions: ACTIONS,
+  display_name: Some("User"),
+  allowed_filter_fields: Some(FILTER_SORT_COLUMNS),
+  allowed_sort_fields: Some(FILTER_SORT_COLUMNS),
+  response_columns_allow: Some(RESPONSE_COLUMNS),
+  response_columns_exclude: None,
+};
 
 #[derive(Clone, Debug, PartialEq, DeriveEntityModel, Serialize, Deserialize)]
 #[sea_orm(table_name = "user")]

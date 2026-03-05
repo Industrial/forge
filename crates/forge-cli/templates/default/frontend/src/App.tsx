@@ -11,11 +11,11 @@ import DashboardLayout from './features/dashboard/layouts/DashboardLayout/Dashbo
 import AuthenticationLayout from './features/authentication/layouts/AuthenticationLayout/AuthenticationLayout'
 import ProtectedRoute from './components/ProtectedRoute'
 import GuestRoute from './components/GuestRoute'
-import DashboardProfileGuard from './features/dashboard/components/DashboardProfileGuard'
-import SelectProfileOnlyGuard from './features/authentication/components/SelectProfileOnlyGuard'
+import DashboardScopeGuard from './features/dashboard/components/DashboardScopeGuard'
+import SelectScopeOnlyGuard from './features/authentication/components/SelectScopeOnlyGuard'
 import DashboardPermissionGuard from './features/dashboard/components/DashboardPermissionGuard'
 import LoginPage from './features/authentication/pages/LoginPage/LoginPage'
-import SelectProfilePage from './features/authentication/pages/SelectProfilePage/SelectProfilePage'
+import SelectScopePage from './features/authentication/pages/SelectScopePage/SelectScopePage'
 import RegisterPage from './features/authentication/pages/RegisterPage/RegisterPage'
 import HomePage from './features/home/pages/HomePage/HomePage'
 import DashboardPage from './features/dashboard/pages/DashboardPage/DashboardPage'
@@ -24,7 +24,7 @@ import UsersPage from './features/dashboard/pages/UsersPage/UsersPage'
 import RolesPage from './features/dashboard/pages/RolesPage/RolesPage'
 import PermissionsPage from './features/dashboard/pages/PermissionsPage/PermissionsPage'
 import AuditLogPage from './features/dashboard/pages/AuditLogPage/AuditLogPage'
-import ProfilePage from './features/profile/pages/ProfilePage/ProfilePage'
+import ScopePage from './features/profile/pages/ProfilePage/ProfilePage'
 
 const STORAGE_KEY = 'mui-color-scheme'
 
@@ -89,14 +89,14 @@ function App() {
                   }
                 />
                 <Route
-                  path="/authentication/select-profile"
+                  path="/authentication/select-scope"
                   element={
                     <ProtectedRoute>
-                      <SelectProfileOnlyGuard>
+                      <SelectScopeOnlyGuard>
                         <AuthenticationLayout>
-                          <SelectProfilePage />
+                          <SelectScopePage />
                         </AuthenticationLayout>
-                      </SelectProfileOnlyGuard>
+                      </SelectScopeOnlyGuard>
                     </ProtectedRoute>
                   }
                 />
@@ -114,11 +114,11 @@ function App() {
                   path="/dashboard"
                   element={
                     <ProtectedRoute>
-                      <DashboardProfileGuard>
+                      <DashboardScopeGuard>
                         <DashboardLayout {...layoutProps}>
                           <Outlet />
                         </DashboardLayout>
-                      </DashboardProfileGuard>
+                      </DashboardScopeGuard>
                     </ProtectedRoute>
                   }
                 >
@@ -180,11 +180,11 @@ function App() {
                   />
                 </Route>
                 <Route
-                  path="/profile"
+                  path="/scope"
                   element={
                     <ProtectedRoute>
                       <Layout {...layoutProps}>
-                        <ProfilePage />
+                        <ScopePage />
                       </Layout>
                     </ProtectedRoute>
                   }

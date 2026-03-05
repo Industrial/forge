@@ -4,6 +4,8 @@ This document records technical decisions for the fifth deliverable (single gene
 
 **Epic reference:** [05_single-generic-rest-handler](../deliverables/05_single-generic-rest-handler.md)
 
+**Migration:** For how to migrate from legacy routes (`/api/users`, `/api/organizations`, etc.) to the generic handler or keep both, see [Migration path: legacy routes → generic entity handler](../migration-legacy-routes-to-generic-entity-handler.md).
+
 ---
 
 ## 1. Single handler, dispatch by entity and action

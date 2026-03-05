@@ -27,7 +27,11 @@ use db::models::{
 };
 
 use crate::handlers::auth::{ScopeFromHeaders, has_global_scope, resolve_permissions};
-use crate::permissions::{entity_action_key, permission_equivalents, DASHBOARD_PERMISSIONS};
+use crate::handlers::generic_entity::{parse_list_query_spec, ListQueryParams};
+use crate::permissions::{dashboard_permissions, entity_action_key, permission_equivalents};
+use crate::query_spec::{
+  FilterCond, FilterOperator, SortDirection, validate_filter_cond, validate_sort_field,
+};
 use crate::scoped_query::{WithScope, user_find_scoped};
 
 const PERMISSION_READ: &str = "dashboard.permissions.read";
@@ -130,7 +134,7 @@ pub async fn list_permissions(
   {
     return Ok(resp);
   }
-  let list: Vec<&str> = DASHBOARD_PERMISSIONS.to_vec();
+  let list: Vec<&str> = dashboard_permissions().to_vec();
   Ok(Json(serde_json::json!({ "permissions": list })).into_response())
 }
 
@@ -330,7 +334,7 @@ pub async fn add_role_permission(
         .into_response(),
     );
   }
-  if !DASHBOARD_PERMISSIONS.contains(&permission_key) {
+  if !dashboard_permissions().contains(&permission_key) {
     return Ok((
       StatusCode::UNPROCESSABLE_ENTITY,
       Json(serde_json::json!({
@@ -1072,111 +1076,270 @@ pub async fn delete_organization(
   Ok(Json(serde_json::json!({ "ok": true })).into_response())
 }
 
+/// Allowed filter/sort fields for dashboard users list (ListQuerySpec).
+const DASHBOARD_USERS_FILTER_SORT_FIELDS: &[&str] =
+  &["id", "email", "is_active", "is_admin", "created_at", "updated_at"];
+
+fn apply_user_filter(
+  select: sea_orm::Select<user::Entity>,
+  cond: &FilterCond,
+) -> sea_orm::Select<user::Entity> {
+  match cond.field.as_str() {
+    "id" => {
+      let parse_uuid = |j: &serde_json::Value| j.as_str().and_then(|s| Uuid::parse_str(s).ok());
+      match cond.operator {
+        FilterOperator::Eq => {
+          if let Some(v) = cond.value.as_ref().and_then(parse_uuid) {
+            select.filter(user::Column::Id.eq(v))
+          } else {
+            select
+          }
+        }
+        FilterOperator::Ne => {
+          if let Some(v) = cond.value.as_ref().and_then(parse_uuid) {
+            select.filter(user::Column::Id.ne(v))
+          } else {
+            select
+          }
+        }
+        FilterOperator::In => {
+          if let Some(serde_json::Value::Array(arr)) = cond.value.as_ref() {
+            let vals: Vec<Uuid> = arr.iter().filter_map(parse_uuid).collect();
+            if vals.is_empty() {
+              select.filter(user::Column::Id.eq(Uuid::nil()))
+            } else {
+              select.filter(user::Column::Id.is_in(vals))
+            }
+          } else {
+            select
+          }
+        }
+        FilterOperator::IsNull => select.filter(user::Column::Id.is_null()),
+        _ => select,
+      }
+    }
+    "email" => match cond.operator {
+      FilterOperator::Eq => {
+        if let Some(serde_json::Value::String(s)) = cond.value.as_ref() {
+          select.filter(user::Column::Email.eq(s.as_str()))
+        } else {
+          select
+        }
+      }
+      FilterOperator::Ne => {
+        if let Some(serde_json::Value::String(s)) = cond.value.as_ref() {
+          select.filter(user::Column::Email.ne(s.as_str()))
+        } else {
+          select
+        }
+      }
+      FilterOperator::Contains => {
+        if let Some(serde_json::Value::String(s)) = cond.value.as_ref() {
+          select.filter(user::Column::Email.contains(s))
+        } else {
+          select
+        }
+      }
+      FilterOperator::StartsWith => {
+        if let Some(serde_json::Value::String(s)) = cond.value.as_ref() {
+          select.filter(user::Column::Email.starts_with(s))
+        } else {
+          select
+        }
+      }
+      FilterOperator::EndsWith => {
+        if let Some(serde_json::Value::String(s)) = cond.value.as_ref() {
+          select.filter(user::Column::Email.ends_with(s))
+        } else {
+          select
+        }
+      }
+      FilterOperator::In => {
+        if let Some(serde_json::Value::Array(arr)) = cond.value.as_ref() {
+          let strs: Vec<&str> = arr.iter().filter_map(|j| j.as_str()).collect();
+          if strs.is_empty() {
+            select.filter(user::Column::Email.eq(""))
+          } else {
+            select.filter(user::Column::Email.is_in(strs))
+          }
+        } else {
+          select
+        }
+      }
+      FilterOperator::IsNull => select.filter(user::Column::Email.is_null()),
+      _ => select,
+    },
+    "is_active" | "is_admin" => {
+      let col = if cond.field == "is_active" {
+        user::Column::IsActive
+      } else {
+        user::Column::IsAdmin
+      };
+      let parse_bool = |j: &serde_json::Value| j.as_bool();
+      match cond.operator {
+        FilterOperator::Eq => {
+          if let Some(v) = cond.value.as_ref().and_then(parse_bool) {
+            select.filter(col.eq(v))
+          } else {
+            select
+          }
+        }
+        FilterOperator::Ne => {
+          if let Some(v) = cond.value.as_ref().and_then(parse_bool) {
+            select.filter(col.ne(v))
+          } else {
+            select
+          }
+        }
+        FilterOperator::IsNull => select.filter(col.is_null()),
+        _ => select,
+      }
+    }
+    "created_at" | "updated_at" => {
+      let col = if cond.field == "created_at" {
+        user::Column::CreatedAt
+      } else {
+        user::Column::UpdatedAt
+      };
+      let parse_dt = |j: &serde_json::Value| {
+        let s = j.as_str()?;
+        let s_trim = s.trim_end_matches('Z');
+        NaiveDateTime::parse_from_str(s_trim, "%Y-%m-%dT%H:%M:%S%.f")
+          .ok()
+          .or_else(|| NaiveDateTime::parse_from_str(s, "%Y-%m-%d %H:%M:%S").ok())
+      };
+      match cond.operator {
+        FilterOperator::Eq => {
+          if let Some(v) = cond.value.as_ref().and_then(parse_dt) {
+            select.filter(col.eq(v))
+          } else {
+            select
+          }
+        }
+        FilterOperator::Ne => {
+          if let Some(v) = cond.value.as_ref().and_then(parse_dt) {
+            select.filter(col.ne(v))
+          } else {
+            select
+          }
+        }
+        FilterOperator::IsNull => select.filter(col.is_null()),
+        _ => select,
+      }
+    }
+    _ => select,
+  }
+}
+
 /// GET /api/dashboard/users — list users. Requires dashboard.users.read. Global scope: all orgs; else session profile org only.
+/// Query params: filter (JSON array), sort, order, offset, limit (ListQuerySpec). Returns { users, total }.
 pub async fn list_users(
   ScopeFromHeaders(scope): ScopeFromHeaders,
   auth: RequireAuth<Backend, user::Model>,
   State(db): State<DbConnection>,
+  Query(params): Query<ListQueryParams>,
 ) -> Result<impl IntoResponse, ForgeError> {
   let user = &auth.0;
   if let Some(resp) = require_permission(&user, &db, PERMISSION_USERS_READ, Some(&scope)).await {
     return Ok(resp);
   }
+  let spec = match parse_list_query_spec(&params) {
+    Ok(s) => s,
+    Err(msg) => {
+      return Ok(
+        (
+          StatusCode::BAD_REQUEST,
+          Json(serde_json::json!({ "error": "Bad Request", "message": msg })),
+        )
+          .into_response(),
+      );
+    }
+  };
+  for cond in &spec.filter {
+    if let Err(msg) = validate_filter_cond(cond, DASHBOARD_USERS_FILTER_SORT_FIELDS) {
+      return Ok(
+        (
+          StatusCode::BAD_REQUEST,
+          Json(serde_json::json!({ "error": "Bad Request", "message": msg })),
+        )
+          .into_response(),
+      );
+    }
+  }
+  if let Some(ref sort) = spec.sort {
+    if let Err(msg) = validate_sort_field(&sort.field, DASHBOARD_USERS_FILTER_SORT_FIELDS) {
+      return Ok(
+        (
+          StatusCode::BAD_REQUEST,
+          Json(serde_json::json!({ "error": "Bad Request", "message": msg })),
+        )
+          .into_response(),
+      );
+    }
+  }
+
   let scope_opt: Option<&forge_auth::RequestScope> =
     if has_global_scope(&db, &user, PERMISSION_USERS_READ).await {
       None
     } else {
       Some(&scope)
     };
-  let users = user_find_scoped(&db, scope_opt)
-    .await
-    .map_err(|e: sea_orm::DbErr| ForgeError::Generic(e.to_string()))?
-    .all(&db)
+  let mut select = user_find_scoped(&db, scope_opt)
     .await
     .map_err(|e: sea_orm::DbErr| ForgeError::Generic(e.to_string()))?;
-  if users.is_empty() {
-    return Ok(Json(serde_json::json!({ "users": [] })).into_response());
+  for cond in &spec.filter {
+    select = apply_user_filter(select, cond);
   }
-  let user_ids: Vec<Uuid> = users.iter().map(|u| u.id).collect();
-  let all_uors = user_org_role::Entity::find()
-    .with_scope(scope_opt)
-    .filter(user_org_role::Column::UserId.is_in(user_ids))
+  let total = select
+    .clone()
+    .count(&db)
+    .await
+    .map_err(|e: sea_orm::DbErr| ForgeError::Generic(e.to_string()))?;
+  if let Some(ref sort) = spec.sort {
+    let (col, dir) = match sort.field.as_str() {
+      "id" => (user::Column::Id, sort.direction),
+      "email" => (user::Column::Email, sort.direction),
+      "is_active" => (user::Column::IsActive, sort.direction),
+      "is_admin" => (user::Column::IsAdmin, sort.direction),
+      "created_at" => (user::Column::CreatedAt, sort.direction),
+      "updated_at" => (user::Column::UpdatedAt, sort.direction),
+      _ => (user::Column::Email, sort.direction),
+    };
+    select = match dir {
+      SortDirection::Asc => select.order_by_asc(col),
+      SortDirection::Desc => select.order_by_desc(col),
+    };
+  } else {
+    select = select.order_by_asc(user::Column::Email);
+  }
+  let offset = spec.effective_offset();
+  let limit = spec.effective_limit();
+  let users = select
+    .offset(offset)
+    .limit(limit)
     .all(&db)
     .await
     .map_err(|e: sea_orm::DbErr| ForgeError::Generic(e.to_string()))?;
-  let role_ids: Vec<Uuid> = all_uors
-    .iter()
-    .map(|x| x.role_id)
-    .collect::<std::collections::HashSet<_>>()
-    .into_iter()
-    .collect();
-  let roles = if role_ids.is_empty() {
-    vec![]
-  } else {
-    org_role::Entity::find()
-      .filter(org_role::Column::Id.is_in(role_ids))
-      .all(&db)
-      .await
-      .map_err(|e: sea_orm::DbErr| ForgeError::Generic(e.to_string()))?
-  };
-  let role_map: std::collections::HashMap<Uuid, org_role::Model> =
-    roles.into_iter().map(|r| (r.id, r)).collect();
-  let org_ids: Vec<Uuid> = all_uors
-    .iter()
-    .map(|x| x.org_id)
-    .collect::<std::collections::HashSet<_>>()
-    .into_iter()
-    .collect();
-  let orgs = if org_ids.is_empty() {
-    vec![]
-  } else {
-    organization::Entity::find()
-      .filter(organization::Column::Id.is_in(org_ids))
-      .all(&db)
-      .await
-      .map_err(|e: sea_orm::DbErr| ForgeError::Generic(e.to_string()))?
-  };
-  let org_map: std::collections::HashMap<Uuid, organization::Model> =
-    orgs.into_iter().map(|o| (o.id, o)).collect();
+
+  if users.is_empty() {
+    return Ok(
+      Json(serde_json::json!({ "users": [], "total": total })).into_response(),
+    );
+  }
+  // Epic 6: no embedded relations; return only user fields.
   let list: Vec<serde_json::Value> = users
     .into_iter()
     .map(|u| {
-      let uors_for_user: Vec<_> = all_uors.iter().filter(|x| x.user_id == u.id).collect();
-      let mut org_to_roles: std::collections::HashMap<Uuid, Vec<String>> =
-        std::collections::HashMap::new();
-      for x in &uors_for_user {
-        if let Some(role) = role_map.get(&x.role_id) {
-          org_to_roles
-            .entry(x.org_id)
-            .or_default()
-            .push(role.name.clone());
-        }
-      }
-      let mems: Vec<serde_json::Value> = org_to_roles
-        .into_iter()
-        .map(|(org_id, role_names)| {
-          let org_name = org_map
-            .get(&org_id)
-            .map(|o| o.name.clone())
-            .unwrap_or_else(|| "—".to_string());
-          serde_json::json!({
-            "org_id": org_id.to_string(),
-            "org_name": org_name,
-            "roles": role_names,
-          })
-        })
-        .collect();
       serde_json::json!({
         "id": u.id.to_string(),
         "email": u.email,
         "is_active": u.is_active,
         "is_admin": u.is_admin,
         "created_at": u.created_at.format("%Y-%m-%dT%H:%M:%S%.fZ").to_string(),
-        "memberships": mems,
       })
     })
     .collect();
-  Ok(Json(serde_json::json!({ "users": list })).into_response())
+  Ok(Json(serde_json::json!({ "users": list, "total": total })).into_response())
 }
 
 #[derive(Deserialize)]

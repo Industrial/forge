@@ -16,7 +16,7 @@ Open [http://localhost:5173](http://localhost:5173) in your browser.
 ## Structure
 
 - **App** – `ThemeProvider` (light/dark), `CssBaseline`, and routes.
-- **Layout** – Navbar (MUI `AppBar` + `Toolbar`) and main content area for home/profile.
+- **Layout** – Navbar (MUI `AppBar` + `Toolbar`) and main content area for home/scope.
 - **Dashboard** – Dashboard layout with Navbar + collapsible Sidebar + content; routes for Dashboard, Organizations, Users, Permissions.
 - **Auth** – Login and Register pages with MUI form components.
 

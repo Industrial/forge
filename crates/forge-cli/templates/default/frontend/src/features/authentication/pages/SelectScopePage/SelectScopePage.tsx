@@ -22,9 +22,9 @@ import {
 } from 'react-effect-hooks'
 import { runWithAppRuntime, type AppServices } from '../../../../lib/appLayer'
 
-type SetProfileState = AsyncState<void, Error>
+type SetScopeState = AsyncState<void, Error>
 
-export default function SelectProfilePage() {
+export default function SelectScopePage() {
   const navigate = useNavigate()
   const location = useLocation()
   const { runtime } = useEffectRuntime<AppServices>()
@@ -34,7 +34,7 @@ export default function SelectProfilePage() {
       ?.pathname ?? '/dashboard'
 
   const [submitState, , setSubmitStateAsEffect] = useEffectState<
-    SetProfileState,
+    SetScopeState,
     never,
     never
   >(idle())
@@ -86,8 +86,8 @@ export default function SelectProfilePage() {
   useRunEffect(successEffect, [submitState, navigate, from, setSubmitStateAsEffect])
 
   const user = authState?.user ?? null
-  const profiles = authState?.profiles ?? []
-  const needs_profile_select = authState?.needs_profile_select ?? false
+  const scopes = authState?.scopes ?? []
+  const needs_scope_select = authState?.needs_scope_select ?? false
 
   if (!loading && user == null) {
     return (
@@ -98,7 +98,7 @@ export default function SelectProfilePage() {
       />
     )
   }
-  if (!loading && user != null && !needs_profile_select) {
+  if (!loading && user != null && !needs_scope_select) {
     return <Navigate to={from} replace />
   }
 
@@ -110,14 +110,14 @@ export default function SelectProfilePage() {
         : String(submitState.error)
       : null
 
-  if (loading || profiles.length === 0) {
+  if (loading || scopes.length === 0) {
     return (
       <Box sx={{ p: 3 }}>
         <Typography variant="h5" gutterBottom>
-          Select profile
+          Select scope
         </Typography>
         <Typography color="text.secondary">
-          {loading ? 'Loading…' : 'No profiles available.'}
+          {loading ? 'Loading…' : 'No scopes available.'}
         </Typography>
       </Box>
     )
@@ -126,7 +126,7 @@ export default function SelectProfilePage() {
   return (
     <>
       <Typography variant="h4" component="h1" gutterBottom>
-        Select profile
+        Select scope
       </Typography>
       <Typography variant="body1" color="text.secondary" sx={{ mb: 2 }}>
         Choose the organization and role to use for this session.
@@ -135,13 +135,13 @@ export default function SelectProfilePage() {
         <Typography
           color="error"
           sx={{ mb: 2 }}
-          data-testid="profile-select-error"
+          data-testid="scope-select-error"
         >
           {errorMessage}
         </Typography>
       )}
       <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1.5 }}>
-        {profiles.map((p) => (
+        {scopes.map((p) => (
           <Card key={p.org_id + (p.role_id ?? p.role)} variant="outlined">
             <CardActionArea
               onClick={() =>
@@ -152,7 +152,7 @@ export default function SelectProfilePage() {
                 )
               }
               disabled={submitting}
-              data-testid={`profile-${p.org_name}-${p.role}`}
+              data-testid={`scope-${p.org_name}-${p.role}`}
             >
               <CardContent>
                 <Typography variant="subtitle1">

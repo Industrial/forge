@@ -62,6 +62,12 @@ The frontend uses **React Hook Form (RHF)** with **Effect** and **Effect Schema*
 - **Forms**: Use `useForm` with `effectSchemaResolver(schema)` from `src/lib/effectSchemaResolver.ts`. Define schemas in `src/schemas/` (shared fragments in `fragments.ts`, form schemas in `userFormSchemas.ts`). Wire fields with `Controller` and pass `form.handleSubmit(handler)` to submit; the handler receives validated, typed data.
 - **Side effects / API**: Use `runPromise(effect)` from `src/lib/runEffect.ts` to run Effect programs (e.g. `fetchUsersEffect` in `src/effects/users.ts`) from event handlers or `useEffect`, and handle success/error with React state.
 
+## REST API contract
+
+- **Generic entity endpoints**: `GET /api/entities/:entity_id` (list), `GET /api/entities/:entity_id/:id` (get). Entity IDs are defined in the entity registry (e.g. `organization`, `user`, `role`). Unknown `entity_id` → 404.
+- **No embedded relations**: List and get responses return only the requested entity’s columns. **Do not send** `expand`, `include`, or equivalent query parameters; the server responds with **400 Bad Request** and a message that expand/include are not supported. Use separate list/get requests for related data (e.g. filter by foreign key).
+- **RPC (same operations, HTTP/1.1 or HTTP/2)**: `POST /api/rpc` uses a JSON envelope. Request body: `{ "method": "entity.list" | "entity.get" | ..., "entity_id": "<entity>", "params": { "id": "<uuid>" } (optional), "id": <correlation> (optional) }`. Response: `{ "result": ... }` or `{ "error": { "code": number, "message": string } }`; if the request included `id`, it is echoed in the response for correlation. Identity and scope use the same headers as REST (`Authorization`, `X-Organization-Id`, `X-Role-Id`).
+
 ## Integration tests
 
 Backend integration tests live in `crates/app/tests/`. They use a temp config and shared in-memory SQLite, with migrations and seed run. Run them with **single-threaded** execution so the test harness (which sets CWD) does not conflict:

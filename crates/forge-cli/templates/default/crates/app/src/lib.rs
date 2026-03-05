@@ -14,10 +14,13 @@ static BUILD_ROUTER_FOR_TEST_LOCK: std::sync::Mutex<()> = std::sync::Mutex::new(
 use forge_app::App;
 use tempfile::TempDir;
 
+pub mod entity_registry;
 pub mod error;
 pub mod handlers;
 pub mod permissions;
+pub mod query_spec;
 pub mod scoped_query;
+pub mod subscriptions;
 pub mod tasks;
 
 pub use error::Error;
@@ -122,6 +125,28 @@ pub fn make_app(live_backend: Arc<forge_live::InMemoryLiveBackend>) -> App {
     .route(
       "/api/audit-log/{id}",
       axum::routing::get(handlers::rest::get_audit_log),
+    )
+    // Generic entity handler (Epic 5): list, get, create, update, delete
+    .route(
+      "/api/entities/{entity_id}",
+      axum::routing::get(handlers::generic_entity::list_entities)
+        .post(handlers::generic_entity::create_entity),
+    )
+    .route(
+      "/api/entities/{entity_id}/{id}",
+      axum::routing::get(handlers::generic_entity::get_entity_by_id)
+        .patch(handlers::generic_entity::update_entity)
+        .delete(handlers::generic_entity::delete_entity),
+    )
+    // RPC (Epic 7): same entity operations; auth and scope from headers
+    .route(
+      "/api/rpc",
+      axum::routing::post(handlers::rpc::rpc_handler),
+    )
+    // Subscription stream (Epic 8): long-lived HTTP/2 stream (SSE format); server pushes invalidation events
+    .route(
+      "/api/subscriptions/stream",
+      axum::routing::get(handlers::subscription_stream::subscription_stream_handler),
     )
 }
 
@@ -263,7 +288,8 @@ pub async fn build_router_for_test()
   let api_router = router
     .with_state(db_conn.clone())
     .layer(axum::extract::Extension(db_conn))
-    .layer(axum::extract::Extension(task_state));
+    .layer(axum::extract::Extension(task_state))
+    .layer(axum::extract::Extension(subscriptions::SubscriptionStore::new()));
 
   let router = if let Some(cache_layer) = response_cache {
     api_router.layer(cache_layer)

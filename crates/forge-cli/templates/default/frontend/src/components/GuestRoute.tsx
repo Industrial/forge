@@ -12,7 +12,7 @@ type GuestRouteProps = { children: React.ReactNode }
  * Use for login and register pages.
  */
 export default function GuestRoute({ children }: GuestRouteProps) {
-  const { user, loading, needs_profile_select } = useAuthentication()
+  const { user, loading, needs_scope_select } = useAuthentication()
   const location = useLocation()
 
   if (loading) {
@@ -27,10 +27,10 @@ export default function GuestRoute({ children }: GuestRouteProps) {
     const to =
       (location.state as { from?: { pathname: string } } | null)?.from
         ?.pathname ?? '/dashboard'
-    if (needs_profile_select) {
+    if (needs_scope_select) {
       return (
         <Navigate
-          to="/authentication/select-profile"
+          to="/authentication/select-scope"
           state={{ from: { pathname: to } }}
           replace
         />

@@ -1,4 +1,5 @@
 //! REST API: org-scoped routes use [ScopeFromHeaders] (X-Organization-Id, X-Role-Id); others require Bearer where applicable.
+//! Epic 6: list/get responses do not embed relations (e.g. no nested memberships); relations as IDs or separate endpoints.
 
 use crate::Error as ForgeError;
 use axum::Json;
@@ -20,7 +21,7 @@ use crate::handlers::auth::{
   ScopeFromHeaders, get_scope_from_headers_map, has_global_scope, resolve_permissions,
 };
 use crate::handlers::dashboard::has_permission;
-use crate::permissions::DASHBOARD_PERMISSIONS;
+use crate::permissions::dashboard_permissions;
 use crate::scoped_query::{WithScope, user_find_scoped};
 use db::models::{
   audit_log, membership, org_role, organization, role_permission, user, user_org_role,
@@ -32,7 +33,7 @@ use forge_auth::RequestScope;
 pub async fn list_permissions(
   State(_db): State<DbConnection>,
 ) -> Result<impl IntoResponse, ForgeError> {
-  let list: Vec<&str> = DASHBOARD_PERMISSIONS.to_vec();
+  let list: Vec<&str> = dashboard_permissions().to_vec();
   Ok(Json(serde_json::json!({ "permissions": list })).into_response())
 }
 
@@ -529,7 +530,7 @@ pub async fn add_org_role_permission_impl(
     return Err(ForgeError::Generic("Role not in organization".into()));
   }
   let key = permission_key.trim();
-  if !DASHBOARD_PERMISSIONS.contains(&key) {
+  if !dashboard_permissions().contains(&key) {
     return Err(ForgeError::Generic("invalid permission_key".into()));
   }
   let exists = role_permission::Entity::find()
@@ -557,7 +558,9 @@ pub async fn add_org_role_permission_impl(
 }
 
 // ---- Users ----
-/// GET /api/users — with valid scope headers: require org permission and return users in that org; without: require global dashboard.users.read and return all users.
+/// GET /api/users — legacy list: no filter/sort/pagination (ListQuerySpec not supported).
+/// With valid scope headers: require org permission and return users in that org; without: require global dashboard.users.read and return all users.
+/// For filter/sort/pagination use GET /api/entities/user when implemented; see docs/migration-legacy-routes-to-generic-entity-handler.md.
 pub async fn list_users(
   auth: RequireAuth<Backend, user::Model>,
   State(db): State<DbConnection>,
@@ -601,74 +604,16 @@ pub async fn list_users(
     tracing::info!("list_users: users empty, returning empty list");
     return Ok(Json(serde_json::json!({ "users": [] })).into_response());
   }
-  let user_ids: Vec<Uuid> = users.iter().map(|u| u.id).collect();
-  tracing::info!(user_count = user_ids.len(), "list_users: before uors query");
-  let all_uors = user_org_role::Entity::find()
-    .with_scope(scope_opt.as_ref())
-    .filter(user_org_role::Column::UserId.is_in(user_ids))
-    .all(&db)
-    .await
-    .map_err(|e| ForgeError::Generic(e.to_string()))?;
-  tracing::info!(uor_count = all_uors.len(), "list_users: after uors");
-  let role_ids: Vec<Uuid> = all_uors
-    .iter()
-    .map(|x| x.role_id)
-    .collect::<std::collections::HashSet<_>>()
-    .into_iter()
-    .collect();
-  let roles: Vec<org_role::Model> = if role_ids.is_empty() {
-    vec![]
-  } else {
-    org_role::Entity::find()
-      .filter(org_role::Column::Id.is_in(role_ids))
-      .all(&db)
-      .await
-      .map_err(|e| ForgeError::Generic(e.to_string()))?
-  };
-  let org_ids: Vec<Uuid> = all_uors
-    .iter()
-    .map(|x| x.org_id)
-    .collect::<std::collections::HashSet<_>>()
-    .into_iter()
-    .collect();
-  let orgs: Vec<organization::Model> = if org_ids.is_empty() {
-    vec![]
-  } else {
-    organization::Entity::find()
-      .filter(organization::Column::Id.is_in(org_ids))
-      .all(&db)
-      .await
-      .map_err(|e| ForgeError::Generic(e.to_string()))?
-  };
-  tracing::info!("list_users: before building list");
-  let role_map: std::collections::HashMap<Uuid, org_role::Model> =
-    roles.into_iter().map(|r| (r.id, r)).collect();
-  let org_map: std::collections::HashMap<Uuid, organization::Model> =
-    orgs.into_iter().map(|o| (o.id, o)).collect();
+  // Epic 6: no embedded relations; return only user fields. Client gets memberships via separate endpoint if needed.
   let list: Vec<serde_json::Value> = users
     .into_iter()
     .map(|u| {
-      let uors_for_user: Vec<_> = all_uors.iter().filter(|x| x.user_id == u.id).collect();
-      let mut org_to_roles: std::collections::HashMap<Uuid, Vec<String>> = std::collections::HashMap::new();
-      for x in &uors_for_user {
-        if let Some(role) = role_map.get(&x.role_id) {
-          org_to_roles.entry(x.org_id).or_default().push(role.name.clone());
-        }
-      }
-      let mems: Vec<serde_json::Value> = org_to_roles
-        .into_iter()
-        .map(|(org_id, role_names)| {
-          let org_name = org_map.get(&org_id).map(|o| o.name.clone()).unwrap_or_else(|| "—".to_string());
-          serde_json::json!({ "org_id": org_id.to_string(), "org_name": org_name, "roles": role_names })
-        })
-        .collect();
       serde_json::json!({
         "id": u.id.to_string(),
         "email": u.email,
         "is_active": u.is_active,
         "is_admin": u.is_admin,
         "created_at": u.created_at.format("%Y-%m-%dT%H:%M:%S%.fZ").to_string(),
-        "memberships": mems,
       })
     })
     .collect();
@@ -808,14 +753,7 @@ pub async fn create_user(
     .await
     .map_err(|e| ForgeError::Generic(e.to_string()))?;
   }
-  let role_names: Vec<String> = org_role::Entity::find()
-    .filter(org_role::Column::Id.is_in(payload.role_ids.clone()))
-    .all(&db)
-    .await
-    .map_err(|e| ForgeError::Generic(e.to_string()))?
-    .into_iter()
-    .map(|r| r.name)
-    .collect();
+  // Epic 6: no embedded relations in response.
   Ok(
     (
       StatusCode::CREATED,
@@ -825,7 +763,6 @@ pub async fn create_user(
         "is_active": true,
         "is_admin": false,
         "created_at": now.format("%Y-%m-%dT%H:%M:%S%.fZ").to_string(),
-        "memberships": [{ "org_id": org_id.to_string(), "roles": role_names }],
       })),
     )
       .into_response(),
@@ -859,44 +796,7 @@ pub async fn get_user(
         .into_response(),
     );
   };
-  let uors = user_org_role::Entity::find()
-    .filter(user_org_role::Column::UserId.eq(id))
-    .all(&db)
-    .await
-    .map_err(|e| ForgeError::Generic(e.to_string()))?;
-  let role_ids: Vec<Uuid> = uors.iter().map(|x| x.role_id).collect();
-  let roles = org_role::Entity::find()
-    .filter(org_role::Column::Id.is_in(role_ids))
-    .all(&db)
-    .await
-    .map_err(|e| ForgeError::Generic(e.to_string()))?;
-  let org_ids: Vec<Uuid> = uors
-    .iter()
-    .map(|x| x.org_id)
-    .collect::<std::collections::HashSet<_>>()
-    .into_iter()
-    .collect();
-  let orgs = organization::Entity::find()
-    .filter(organization::Column::Id.is_in(org_ids))
-    .all(&db)
-    .await
-    .map_err(|e| ForgeError::Generic(e.to_string()))?;
-  let role_map: std::collections::HashMap<Uuid, _> = roles.into_iter().map(|r| (r.id, r)).collect();
-  let org_map: std::collections::HashMap<Uuid, _> = orgs.into_iter().map(|o| (o.id, o)).collect();
-  let mems: Vec<serde_json::Value> = uors
-    .iter()
-    .map(|x| {
-      let r = role_map
-        .get(&x.role_id)
-        .map(|r| r.name.as_str())
-        .unwrap_or("—");
-      let o = org_map
-        .get(&x.org_id)
-        .map(|o| o.name.as_str())
-        .unwrap_or("—");
-      serde_json::json!({ "org_id": x.org_id.to_string(), "org_name": o, "roles": [r] })
-    })
-    .collect();
+  // Epic 6: no embedded relations; return only user row. Client gets memberships via separate endpoint if needed.
   Ok(
     Json(serde_json::json!({
       "id": u.id.to_string(),
@@ -904,7 +804,6 @@ pub async fn get_user(
       "is_active": u.is_active,
       "is_admin": u.is_admin,
       "created_at": u.created_at.format("%Y-%m-%dT%H:%M:%S%.fZ").to_string(),
-      "memberships": mems,
     }))
     .into_response(),
   )
@@ -1200,6 +1099,41 @@ pub struct UpdateOrganizationBody {
   pub slug: Option<String>,
 }
 
+/// Internal impl: update organization by id; for use from generic entity handler.
+pub async fn update_organization_impl(
+  db: &DbConnection,
+  id: Uuid,
+  payload: &UpdateOrganizationBody,
+) -> Result<organization::Model, ForgeError> {
+  let o = organization::Entity::find_by_id(id)
+    .one(db)
+    .await
+    .map_err(|e| ForgeError::Generic(e.to_string()))?
+    .ok_or_else(|| ForgeError::Generic("Organization not found".into()))?;
+  let mut am: organization::ActiveModel = o.into();
+  if let Some(n) = &payload.name {
+    let t = n.trim();
+    if !t.is_empty() {
+      am.name = Set(t.to_string());
+    }
+  }
+  if let Some(s) = &payload.slug {
+    let t = s.trim();
+    if !t.is_empty() {
+      am.slug = Set(t.to_string());
+    }
+  }
+  am.updated_at = Set(chrono::Utc::now().naive_utc());
+  am.update(db)
+    .await
+    .map_err(|e| ForgeError::Generic(e.to_string()))?;
+  organization::Entity::find_by_id(id)
+    .one(db)
+    .await
+    .map_err(|e| ForgeError::Generic(e.to_string()))?
+    .ok_or_else(|| ForgeError::Generic("Organization not found".into()))
+}
+
 pub async fn update_organization(
   auth: RequireAuth<Backend, user::Model>,
   Path(id): Path<Uuid>,
@@ -1215,33 +1149,7 @@ pub async fn update_organization(
         .into_response(),
     );
   }
-  let o = organization::Entity::find_by_id(id)
-    .one(&db)
-    .await
-    .map_err(|e| ForgeError::Generic(e.to_string()))?
-    .ok_or_else(|| ForgeError::Generic("Organization not found".into()))?;
-  let mut am: organization::ActiveModel = o.into();
-  if let Some(n) = payload.name {
-    let t = n.trim();
-    if !t.is_empty() {
-      am.name = Set(t.to_string());
-    }
-  }
-  if let Some(s) = payload.slug {
-    let t = s.trim();
-    if !t.is_empty() {
-      am.slug = Set(t.to_string());
-    }
-  }
-  am.updated_at = Set(chrono::Utc::now().naive_utc());
-  am.update(&db)
-    .await
-    .map_err(|e| ForgeError::Generic(e.to_string()))?;
-  let updated = organization::Entity::find_by_id(id)
-    .one(&db)
-    .await
-    .map_err(|e| ForgeError::Generic(e.to_string()))?
-    .unwrap();
+  let updated = update_organization_impl(&db, id, &payload).await?;
   Ok(
     Json(serde_json::json!({
       "id": updated.id.to_string(), "name": updated.name, "slug": updated.slug,
@@ -1250,6 +1158,18 @@ pub async fn update_organization(
     }))
     .into_response(),
   )
+}
+
+/// Internal impl: delete organization by id; returns true if deleted, false if not found.
+pub async fn delete_organization_impl(
+  db: &DbConnection,
+  id: Uuid,
+) -> Result<bool, ForgeError> {
+  let r = organization::Entity::delete_by_id(id)
+    .exec(db)
+    .await
+    .map_err(|e| ForgeError::Generic(e.to_string()))?;
+  Ok(r.rows_affected > 0)
 }
 
 pub async fn delete_organization(
@@ -1266,11 +1186,8 @@ pub async fn delete_organization(
         .into_response(),
     );
   }
-  let r = organization::Entity::delete_by_id(id)
-    .exec(&db)
-    .await
-    .map_err(|e| ForgeError::Generic(e.to_string()))?;
-  if r.rows_affected == 0 {
+  let deleted = delete_organization_impl(&db, id).await?;
+  if !deleted {
     return Ok(
       (
         StatusCode::NOT_FOUND,
@@ -2160,7 +2077,7 @@ pub async fn add_org_role_permission(
     );
   };
   let key = payload.permission_key.trim();
-  if !DASHBOARD_PERMISSIONS.contains(&key) {
+  if !dashboard_permissions().contains(&key) {
     return Ok(
       (
         StatusCode::UNPROCESSABLE_ENTITY,

@@ -4,7 +4,7 @@ import { AuthenticationStore } from './AuthenticationStore'
 import { AuthenticationStateSnapshot } from '../domain/AuthenticationStateSnapshot'
 import { AuthenticationUser } from '../domain/AuthenticationUser'
 import { Flash } from '../domain/Flash'
-import { Profile } from '../domain/Profile'
+import { Scope } from '../domain/Scope'
 
 /**
  * Options for creating a mock AuthenticationStore (e.g. for tests).
@@ -17,22 +17,22 @@ export interface AuthenticationStoreMockOptions {
 
 type MutableSnapshot = {
   user: AuthenticationUser | null
-  profiles: Profile[]
+  scopes: Scope[]
   permissions: string[]
   flash: Flash | null
   token: string | null
   currentOrgId: string | null
   currentRoleId: string | null
   currentRoleName: string | null
-  needs_profile_select: boolean
+  needs_scope_select: boolean
 }
 
 function toSnapshot(s: MutableSnapshot): AuthenticationStateSnapshot {
   return new AuthenticationStateSnapshot({
     ...s,
     user: s.user,
-    profiles: s.profiles.map((p) =>
-      p instanceof Profile ? p : new Profile(p),
+    scopes: s.scopes.map((p) =>
+      p instanceof Scope ? p : new Scope(p),
     ),
     flash:
       s.flash != null && !(s.flash instanceof Flash)
@@ -51,14 +51,14 @@ function makeAuthenticationStoreMock(
 ): AuthenticationStoreService {
   const state: MutableSnapshot = {
     user: null,
-    profiles: [],
+    scopes: [],
     permissions: [],
     flash: null,
     token: null,
     currentOrgId: null,
     currentRoleId: null,
     currentRoleName: null,
-    needs_profile_select: false,
+    needs_scope_select: false,
   }
   if (options.initialState) {
     const i = options.initialState
@@ -69,7 +69,7 @@ function makeAuthenticationStoreMock(
           : i.user instanceof AuthenticationUser
             ? i.user
             : new AuthenticationUser(i.user)
-    if (i.profiles !== undefined) state.profiles = [...i.profiles]
+    if (i.scopes !== undefined) state.scopes = [...i.scopes]
     if (i.permissions !== undefined) state.permissions = [...i.permissions]
     if (i.flash !== undefined)
       state.flash =
@@ -83,8 +83,8 @@ function makeAuthenticationStoreMock(
     if (i.currentRoleId !== undefined) state.currentRoleId = i.currentRoleId
     if (i.currentRoleName !== undefined)
       state.currentRoleName = i.currentRoleName
-    if (i.needs_profile_select !== undefined)
-      state.needs_profile_select = i.needs_profile_select
+    if (i.needs_scope_select !== undefined)
+      state.needs_scope_select = i.needs_scope_select
   }
 
   return {
@@ -98,14 +98,14 @@ function makeAuthenticationStoreMock(
     logout: () =>
       Effect.sync(() => {
         state.user = null
-        state.profiles = []
+        state.scopes = []
         state.permissions = []
         state.flash = null
         state.token = null
         state.currentOrgId = null
         state.currentRoleId = null
         state.currentRoleName = null
-        state.needs_profile_select = false
+        state.needs_scope_select = false
       }),
     setScope: (orgId, roleId, roleName) =>
       Effect.sync(() => {
