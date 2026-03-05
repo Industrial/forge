@@ -1,9 +1,12 @@
 use forge_db::DbConnection;
 
 pub mod auth;
-pub mod entity_metadata;
+pub mod model_error;
 pub mod models;
+pub mod organization;
+pub mod query_spec;
 pub mod registry;
+pub mod rest_model;
 
 /// Default permission keys per org role name. Used by [seed_role_permissions_for_org] and by migrations seeds.
 const ORG_OWNER_ADMIN: &[&str] = &[

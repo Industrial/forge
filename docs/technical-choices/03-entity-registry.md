@@ -4,6 +4,8 @@ This document records technical decisions for the third deliverable (entity regi
 
 **Epic reference:** [03_entity-registry](../deliverables/03_entity-registry.md)
 
+**Implementation (trait-based):** The registry is implemented via the **RestEntity** trait and a single **registry** module (`registry.rs`). Entities that are served by the generic handler implement `RestEntity` (metadata + list/get/create/update/delete). The registry module re-exports those types and provides dispatch by `entity_id` (match on string → call the corresponding impl). There is no separate metadata struct; the trait is the single source of truth for id, filter/sort/response columns, display name, and supported actions.
+
 ---
 
 ## 1. Single registry, single source of truth
@@ -37,7 +39,7 @@ This document records technical decisions for the third deliverable (entity regi
 
 - **Choice:** The registry is **populated at application startup** (or first use). It is **read-only at runtime**: no API or admin action can add or remove entities during a running session. Adding or removing an entity is a **deployment-time** change (e.g. update code, then deploy or restart). This matches “create entities, migrations, maybe seeds and you’re good to go” without requiring runtime admin UI for the registry.
 - **Choice (storage):** The registry is **code-defined**: a list or map in code (e.g. one entry per entity) built at application startup. No config file or database table for the registry itself; adding an entity is done by adding a registration in code (alongside the persistence layer and migrations).
-- **Implication:** The registry is an in-memory structure built from code at startup. No need for concurrent updates or versioning at runtime. Developers add entities by editing code (model + migration + one registry entry).
+- **Implication:** The registry is an in-memory structure built from code at startup. No need for concurrent updates or versioning at runtime. In the trait-based implementation, the "registry" is the `registry.rs` module: it re-exports RestEntity implementors and contains a match on `entity_id` for dispatch. Developers add entities by implementing `RestEntity` in `entities/<name>.rs` and adding the corresponding re-export and match arms in `registry.rs`.
 
 ---
 
@@ -58,7 +60,7 @@ This document records technical decisions for the third deliverable (entity regi
 ## 7. Minimal onboarding (no codegen)
 
 - **Choice:** Adding a new entity to the system requires: (1) defining the persistence (e.g. SeaORM model and migration), (2) **registering** the entity in the registry (one entry: id, supported_actions, and optional metadata). No generated per-entity handler code; no separate step to “add permissions” or “expose in API” beyond registration.
-- **Implication:** The registry must be structured so that a single registration step (e.g. one line in a list, one config block, or one row in a table) is sufficient for the entity to appear in permission lists and in the generic API.
+- **Implication:** In the trait-based implementation, adding an entity requires (1) SeaORM model and migration, (2) a type that implements the `RestEntity` trait (in `app/src/entities/<name>.rs`) defining metadata and list/get/create/update/delete behaviour, (3) re-exporting that type in `registry.rs` and adding match arms for dispatch and metadata helpers. The generic handler and permissions then pick the entity up automatically.
 
 ---
 

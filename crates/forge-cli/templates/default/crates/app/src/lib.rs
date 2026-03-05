@@ -14,12 +14,15 @@ static BUILD_ROUTER_FOR_TEST_LOCK: std::sync::Mutex<()> = std::sync::Mutex::new(
 use forge_app::App;
 use tempfile::TempDir;
 
-pub mod entity_registry;
 pub mod error;
 pub mod handlers;
 pub mod permissions;
-pub mod query_spec;
 pub mod scoped_query;
+
+// Rest model trait, query spec, registry, and model implementations live in db crate.
+pub use db::{
+  model_error, organization, query_spec, registry, rest_model,
+};
 pub mod subscriptions;
 pub mod tasks;
 
@@ -285,11 +288,13 @@ pub async fn build_router_for_test()
   }
 
   let task_state = Arc::new(tasks::TaskState::new());
+  let subscription_store = subscriptions::SubscriptionStore::new();
+  subscription_store.spawn_change_worker();
   let api_router = router
     .with_state(db_conn.clone())
     .layer(axum::extract::Extension(db_conn))
     .layer(axum::extract::Extension(task_state))
-    .layer(axum::extract::Extension(subscriptions::SubscriptionStore::new()));
+    .layer(axum::extract::Extension(subscription_store));
 
   let router = if let Some(cache_layer) = response_cache {
     api_router.layer(cache_layer)

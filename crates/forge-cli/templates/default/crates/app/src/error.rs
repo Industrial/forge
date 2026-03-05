@@ -113,3 +113,18 @@ impl From<&str> for Error {
     Error::Generic(msg.to_string())
   }
 }
+
+impl From<db::model_error::ModelError> for Error {
+  fn from(e: db::model_error::ModelError) -> Self {
+    match e {
+      db::model_error::ModelError::UnknownModel => {
+        Error::Auth(StatusCode::NOT_FOUND, "Unknown model".to_string())
+      }
+      db::model_error::ModelError::Validation(msg) => Error::Generic(msg),
+      db::model_error::ModelError::NotFound(msg) => {
+        Error::Auth(StatusCode::NOT_FOUND, msg)
+      }
+      db::model_error::ModelError::Database(err) => Error::Database(err),
+    }
+  }
+}

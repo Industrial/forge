@@ -1,8 +1,10 @@
 //! Unified query specification per docs/technical-choices/04-unified-query-specification.md.
 //! Filter, sort, and pagination types with validation; scope is applied from request context only (§5).
 
+use serde::{Deserialize, Serialize};
+
 /// Filter operators (§2).
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
 pub enum FilterOperator {
   Eq,
   Ne,
@@ -67,7 +69,7 @@ impl FilterOperator {
 }
 
 /// A single filter condition: field + operator + optional value (§2).
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct FilterCond {
   pub field: String,
   pub operator: FilterOperator,
@@ -114,7 +116,7 @@ pub fn validate_filter_cond(cond: &FilterCond, allowed_fields: &[&str]) -> Resul
 }
 
 /// Sort direction (§3).
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Default, Serialize, Deserialize)]
 pub enum SortDirection {
   #[default]
   Asc,
@@ -132,7 +134,7 @@ impl SortDirection {
 }
 
 /// Single sort key: field + direction (§3).
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct SortSpec {
   pub field: String,
   pub direction: SortDirection,
@@ -159,7 +161,7 @@ pub const DEFAULT_LIMIT: u64 = 20;
 pub const MAX_LIMIT: u64 = 100;
 
 /// Offset + limit pagination (§4).
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct OffsetLimit {
   pub offset: u64,
   pub limit: u64,
@@ -186,7 +188,7 @@ pub fn validate_offset_limit(offset: u64, limit: u64) -> Result<OffsetLimit, Str
 }
 
 /// Cursor + limit pagination (§4). Cursor is opaque to the client.
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct CursorLimit {
   pub cursor: Option<String>,
   pub limit: u64,
@@ -217,7 +219,7 @@ pub fn validate_cursor_limit(limit: u64) -> Result<CursorLimit, String> {
 
 /// Query spec for list operations: filter conditions, sort, and pagination.
 /// Scope is NOT part of the spec; it is applied from request context (§5).
-#[derive(Debug, Clone, Default)]
+#[derive(Debug, Clone, Default, Serialize, Deserialize)]
 pub struct ListQuerySpec {
   pub filter: Vec<FilterCond>,
   pub sort: Option<SortSpec>,

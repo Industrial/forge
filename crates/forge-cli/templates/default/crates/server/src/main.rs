@@ -44,11 +44,13 @@ async fn main() -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
     });
   }
 
+  let subscription_store = app::subscriptions::SubscriptionStore::new();
+  subscription_store.spawn_change_worker();
   let api_router = router
     .with_state(db_conn.clone())
     .layer(axum::extract::Extension(db_conn.clone()))
     .layer(axum::extract::Extension(task_state.clone()))
-    .layer(axum::extract::Extension(app::subscriptions::SubscriptionStore::new()));
+    .layer(axum::extract::Extension(subscription_store));
 
   let mut router = api_router;
 

@@ -3,30 +3,26 @@
 //! Epic 6: expand/include rejected with 400; relations as IDs only.
 //! Epic 4: list accepts ListQuerySpec (filter, sort, pagination) via query params.
 
-use axum::extract::{Path, Query, State};
+use axum::extract::{Extension, Path, Query, State};
 use axum::http::StatusCode;
 use axum::response::IntoResponse;
 use axum::Json;
 use db::auth::Backend;
 use forge_auth::token_auth::RequireAuth;
 use forge_db::DbConnection;
-use sea_orm::{EntityTrait, QueryFilter, QueryOrder, QuerySelect};
 use serde::Deserialize;
 use uuid::Uuid;
 
-use crate::entity_registry;
 use crate::handlers::auth::ScopeFromHeaders;
 use crate::handlers::dashboard::require_entity_permission;
-use crate::handlers::rest::{
-  create_organization_impl, delete_organization_impl, update_organization_impl,
-  CreateOrganizationBody, UpdateOrganizationBody,
-};
+use crate::subscriptions::{ChangeEvent, SubscriptionStore};
 use crate::query_spec::{
   FilterOperator, ListQuerySpec, SortDirection, DEFAULT_LIMIT, FilterCond, SortSpec,
   validate_filter_cond, validate_offset_limit, validate_sort_field,
 };
+use crate::registry;
 use crate::Error as ForgeError;
-use db::models::{organization, user};
+use db::models::user;
 
 /// Query params for list: expand/include (rejected), plus filter/sort/pagination (Epic 4).
 #[derive(Debug, Deserialize, Default)]
@@ -126,7 +122,7 @@ pub async fn list_entities(
   if let Some(resp) = reject_expand_include(&params) {
     return Ok(resp);
   }
-  if entity_registry::get_entity(entity_id.as_str()).is_none() {
+  if !registry::is_known_model(entity_id.as_str()) {
     return Ok((
       StatusCode::NOT_FOUND,
       Json(serde_json::json!({
@@ -152,8 +148,8 @@ pub async fn list_entities(
         .into_response());
     }
   };
-  let allowed_filter = entity_registry::effective_filter_fields(entity_id.as_str());
-  let allowed_sort = entity_registry::effective_sort_fields(entity_id.as_str());
+  let allowed_filter = registry::effective_filter_fields(entity_id.as_str());
+  let allowed_sort = registry::effective_sort_fields(entity_id.as_str());
   for cond in &spec.filter {
     if let Err(msg) = validate_filter_cond(cond, allowed_filter) {
       return Ok((
@@ -172,202 +168,21 @@ pub async fn list_entities(
         .into_response());
     }
   }
-  match entity_id.as_str() {
-    "organization" => list_organizations_impl(&db, &spec)
-      .await
-      .map(|v| Json(v).into_response()),
-    _ => Ok((
-      StatusCode::NOT_IMPLEMENTED,
+  match registry::list_models(entity_id.as_str(), &db, &spec)
+    .await
+    .map_err(crate::Error::from)
+  {
+    Ok(v) => Ok(Json(v).into_response()),
+    Err(ForgeError::Auth(StatusCode::NOT_FOUND, _)) => Ok((
+      StatusCode::NOT_FOUND,
       Json(serde_json::json!({
-        "error": "Not Implemented",
-        "message": "List not implemented for this entity"
+        "error": "Not Found",
+        "message": "Unknown entity"
       })),
     )
       .into_response()),
+    Err(e) => Err(e),
   }
-}
-
-fn apply_organization_filter(
-  select: sea_orm::Select<organization::Entity>,
-  cond: &FilterCond,
-) -> sea_orm::Select<organization::Entity> {
-  use sea_orm::ColumnTrait;
-  match cond.field.as_str() {
-    "id" => {
-      let parse_uuid = |j: &serde_json::Value| {
-        j.as_str().and_then(|s| Uuid::parse_str(s).ok())
-      };
-      match cond.operator {
-        FilterOperator::Eq => {
-          if let Some(v) = cond.value.as_ref().and_then(parse_uuid) {
-            select.filter(organization::Column::Id.eq(v))
-          } else {
-            select
-          }
-        }
-        FilterOperator::Ne => {
-          if let Some(v) = cond.value.as_ref().and_then(parse_uuid) {
-            select.filter(organization::Column::Id.ne(v))
-          } else {
-            select
-          }
-        }
-        FilterOperator::In => {
-          if let Some(serde_json::Value::Array(arr)) = cond.value.as_ref() {
-            let vals: Vec<Uuid> = arr.iter().filter_map(parse_uuid).collect();
-            if vals.is_empty() {
-              select.filter(organization::Column::Id.eq(Uuid::nil()))
-            } else {
-              select.filter(organization::Column::Id.is_in(vals))
-            }
-          } else {
-            select
-          }
-        }
-        FilterOperator::IsNull => select.filter(organization::Column::Id.is_null()),
-        _ => select,
-      }
-    }
-    "name" | "slug" => {
-      let col = if cond.field == "name" {
-        organization::Column::Name
-      } else {
-        organization::Column::Slug
-      };
-      match cond.operator {
-        FilterOperator::Eq => {
-          if let Some(serde_json::Value::String(s)) = cond.value.as_ref() {
-            select.filter(col.eq(s.as_str()))
-          } else {
-            select
-          }
-        }
-        FilterOperator::Ne => {
-          if let Some(serde_json::Value::String(s)) = cond.value.as_ref() {
-            select.filter(col.ne(s.as_str()))
-          } else {
-            select
-          }
-        }
-        FilterOperator::Contains => {
-          if let Some(serde_json::Value::String(s)) = cond.value.as_ref() {
-            select.filter(col.contains(s))
-          } else {
-            select
-          }
-        }
-        FilterOperator::StartsWith => {
-          if let Some(serde_json::Value::String(s)) = cond.value.as_ref() {
-            select.filter(col.starts_with(s))
-          } else {
-            select
-          }
-        }
-        FilterOperator::EndsWith => {
-          if let Some(serde_json::Value::String(s)) = cond.value.as_ref() {
-            select.filter(col.ends_with(s))
-          } else {
-            select
-          }
-        }
-        FilterOperator::In => {
-          if let Some(serde_json::Value::Array(arr)) = cond.value.as_ref() {
-            let strs: Vec<&str> = arr.iter().filter_map(|j| j.as_str()).collect();
-            if strs.is_empty() {
-              select.filter(col.eq(""))
-            } else {
-              select.filter(col.is_in(strs))
-            }
-          } else {
-            select
-          }
-        }
-        FilterOperator::IsNull => select.filter(col.is_null()),
-        _ => select,
-      }
-    }
-    "created_at" | "updated_at" => {
-      let col = if cond.field == "created_at" {
-        organization::Column::CreatedAt
-      } else {
-        organization::Column::UpdatedAt
-      };
-      let parse_dt = |j: &serde_json::Value| {
-        let s = j.as_str()?;
-        let s_trim = s.trim_end_matches('Z');
-        chrono::NaiveDateTime::parse_from_str(s_trim, "%Y-%m-%dT%H:%M:%S%.f").ok()
-          .or_else(|| chrono::NaiveDateTime::parse_from_str(s, "%Y-%m-%d %H:%M:%S").ok())
-      };
-      match cond.operator {
-        FilterOperator::Eq => {
-          if let Some(v) = cond.value.as_ref().and_then(parse_dt) {
-            select.filter(col.eq(v))
-          } else {
-            select
-          }
-        }
-        FilterOperator::Ne => {
-          if let Some(v) = cond.value.as_ref().and_then(parse_dt) {
-            select.filter(col.ne(v))
-          } else {
-            select
-          }
-        }
-        FilterOperator::IsNull => select.filter(col.is_null()),
-        _ => select,
-      }
-    }
-    _ => select,
-  }
-}
-
-async fn list_organizations_impl(
-  db: &DbConnection,
-  spec: &ListQuerySpec,
-) -> Result<serde_json::Value, ForgeError> {
-  let mut select = organization::Entity::find();
-  for cond in &spec.filter {
-    select = apply_organization_filter(select, cond);
-  }
-
-  if let Some(ref sort) = spec.sort {
-    let (col, dir) = match sort.field.as_str() {
-      "id" => (organization::Column::Id, sort.direction),
-      "name" => (organization::Column::Name, sort.direction),
-      "slug" => (organization::Column::Slug, sort.direction),
-      "created_at" => (organization::Column::CreatedAt, sort.direction),
-      "updated_at" => (organization::Column::UpdatedAt, sort.direction),
-      _ => (organization::Column::Name, sort.direction),
-    };
-    select = match dir {
-      SortDirection::Asc => select.order_by_asc(col),
-      SortDirection::Desc => select.order_by_desc(col),
-    };
-  } else {
-    select = select.order_by_asc(organization::Column::Name);
-  }
-
-  let offset = spec.effective_offset();
-  let limit = spec.effective_limit();
-  select = select.offset(offset).limit(limit);
-
-  let rows = select
-    .all(db)
-    .await
-    .map_err(|e| ForgeError::Generic(e.to_string()))?;
-  let list: Vec<serde_json::Value> = rows
-    .into_iter()
-    .map(|r| {
-      serde_json::json!({
-        "id": r.id.to_string(),
-        "name": r.name,
-        "slug": r.slug,
-        "created_at": r.created_at.format("%Y-%m-%dT%H:%M:%S%.fZ").to_string(),
-        "updated_at": r.updated_at.format("%Y-%m-%dT%H:%M:%S%.fZ").to_string(),
-      })
-    })
-    .collect();
-  Ok(serde_json::json!({ "data": list }))
 }
 
 /// List entity by id with query spec (filter, sort, pagination). Validates spec against entity allowed fields.
@@ -377,8 +192,8 @@ pub async fn list_entity_with_spec(
   entity_id: &str,
   spec: &ListQuerySpec,
 ) -> Result<serde_json::Value, ForgeError> {
-  let allowed_filter = entity_registry::effective_filter_fields(entity_id);
-  let allowed_sort = entity_registry::effective_sort_fields(entity_id);
+  let allowed_filter = registry::effective_filter_fields(entity_id);
+  let allowed_sort = registry::effective_sort_fields(entity_id);
   for cond in &spec.filter {
     validate_filter_cond(cond, allowed_filter)
       .map_err(|msg| ForgeError::Auth(StatusCode::BAD_REQUEST, msg))?;
@@ -387,10 +202,9 @@ pub async fn list_entity_with_spec(
     validate_sort_field(&sort.field, allowed_sort)
       .map_err(|msg| ForgeError::Auth(StatusCode::BAD_REQUEST, msg))?;
   }
-  match entity_id {
-    "organization" => list_organizations_impl(db, spec).await,
-    _ => Err(ForgeError::Generic("list not implemented for this entity".to_string())),
-  }
+  registry::list_models(entity_id, db, spec)
+    .await
+    .map_err(crate::Error::from)
 }
 
 /// GET /api/entities/:entity_id/:id — get one entity by id. 404 unknown entity or not found. Rejects expand/include (400).
@@ -404,7 +218,7 @@ pub async fn get_entity_by_id(
   if let Some(resp) = reject_expand_include(&params) {
     return Ok(resp);
   }
-  if entity_registry::get_entity(entity_id.as_str()).is_none() {
+  if !registry::is_known_model(entity_id.as_str()) {
     return Ok((
       StatusCode::NOT_FOUND,
       Json(serde_json::json!({
@@ -430,28 +244,59 @@ pub async fn get_entity_by_id(
         .into_response());
     }
   };
-  match entity_id.as_str() {
-    "organization" => get_organization_impl(&db, id).await,
-    _ => Ok((
-      StatusCode::NOT_IMPLEMENTED,
+  match registry::get_model(entity_id.as_str(), &db, id)
+    .await
+    .map_err(crate::Error::from)
+  {
+    Ok(Some(v)) => Ok(Json(v).into_response()),
+    Ok(None) => Ok((
+      StatusCode::NOT_FOUND,
       Json(serde_json::json!({
-        "error": "Not Implemented",
-        "message": "Get not implemented for this entity"
+        "error": "Not Found",
+        "message": "Resource not found"
       })),
     )
       .into_response()),
+    Err(ForgeError::Auth(StatusCode::NOT_FOUND, _)) => Ok((
+      StatusCode::NOT_FOUND,
+      Json(serde_json::json!({
+        "error": "Not Found",
+        "message": "Unknown entity"
+      })),
+    )
+      .into_response()),
+    Err(e) => Err(e),
+  }
+}
+
+/// Reject non-object body for create/update; returns 400 response if invalid.
+fn require_object_body(body: &serde_json::Value) -> Option<axum::response::Response> {
+  if !body.is_object() {
+    Some(
+      (
+        StatusCode::BAD_REQUEST,
+        Json(serde_json::json!({
+          "error": "Bad Request",
+          "message": "Request body must be a JSON object"
+        })),
+      )
+        .into_response(),
+    )
+  } else {
+    None
   }
 }
 
 /// POST /api/entities/:entity_id — create entity. 404 unknown entity; 403 missing entity.create.
 pub async fn create_entity(
   Path(entity_id): Path<String>,
-  ScopeFromHeaders(_scope): ScopeFromHeaders,
+  ScopeFromHeaders(scope): ScopeFromHeaders,
   auth: RequireAuth<Backend, user::Model>,
   State(db): State<DbConnection>,
+  Extension(subscriptions): Extension<SubscriptionStore>,
   Json(body): Json<serde_json::Value>,
 ) -> Result<impl IntoResponse, ForgeError> {
-  if entity_registry::get_entity(entity_id.as_str()).is_none() {
+  if !registry::is_known_model(entity_id.as_str()) {
     return Ok((
       StatusCode::NOT_FOUND,
       Json(serde_json::json!({
@@ -463,56 +308,61 @@ pub async fn create_entity(
   }
   let user = &auth.0;
   if let Some(resp) =
-    require_entity_permission(user, &db, Some(&_scope), entity_id.as_str(), "create").await
+    require_entity_permission(user, &db, Some(&scope), entity_id.as_str(), "create").await
   {
     return Ok(resp);
   }
-  match entity_id.as_str() {
-    "organization" => {
-      let payload: CreateOrganizationBody = match serde_json::from_value(body) {
-        Ok(p) => p,
-        Err(e) => {
-          return Ok((
-            StatusCode::BAD_REQUEST,
-            Json(serde_json::json!({ "error": "Bad Request", "message": e.to_string() })),
-          )
-            .into_response());
-        }
-      };
-      match create_organization_impl(&db, &payload).await {
-        Ok(id) => {
-          let mut resp = get_organization_impl(&db, id).await?;
-          *resp.status_mut() = StatusCode::CREATED;
-          Ok(resp)
-        }
-        Err(ForgeError::Generic(msg)) => Ok((
-          StatusCode::UNPROCESSABLE_ENTITY,
-          Json(serde_json::json!({ "error": "Unprocessable Entity", "message": msg })),
-        )
-          .into_response()),
-        Err(e) => Err(e),
-      }
+  if let Some(resp) = require_object_body(&body) {
+    return Ok(resp);
+  }
+  match registry::create_model(entity_id.as_str(), &db, body)
+    .await
+    .map_err(crate::Error::from)
+  {
+    Ok(id) => {
+      subscriptions.publish_change(ChangeEvent {
+        model_id: entity_id.clone(),
+        resource_id: id,
+        action: "create".to_string(),
+        organization_id: Some(scope.organization_id),
+      });
+      let body = registry::get_model(entity_id.as_str(), &db, id)
+        .await
+        .map_err(crate::Error::from)?
+        .ok_or_else(|| ForgeError::Generic("created resource not found".to_string()))?;
+      Ok((
+        StatusCode::CREATED,
+        Json(body),
+      )
+        .into_response())
     }
-    _ => Ok((
-      StatusCode::NOT_IMPLEMENTED,
+    Err(ForgeError::Auth(StatusCode::NOT_FOUND, _)) => Ok((
+      StatusCode::NOT_FOUND,
       Json(serde_json::json!({
-        "error": "Not Implemented",
-        "message": "Create not implemented for this entity"
+        "error": "Not Found",
+        "message": "Unknown entity"
       })),
     )
       .into_response()),
+    Err(ForgeError::Generic(msg)) => Ok((
+      StatusCode::UNPROCESSABLE_ENTITY,
+      Json(serde_json::json!({ "error": "Unprocessable Entity", "message": msg })),
+    )
+      .into_response()),
+    Err(e) => Err(e),
   }
 }
 
 /// PATCH /api/entities/:entity_id/:id — update entity. 404 unknown entity or not found; 403 missing entity.update.
 pub async fn update_entity(
   Path((entity_id, id_str)): Path<(String, String)>,
-  ScopeFromHeaders(_scope): ScopeFromHeaders,
+  ScopeFromHeaders(scope): ScopeFromHeaders,
   auth: RequireAuth<Backend, user::Model>,
   State(db): State<DbConnection>,
+  Extension(subscriptions): Extension<SubscriptionStore>,
   Json(body): Json<serde_json::Value>,
 ) -> Result<impl IntoResponse, ForgeError> {
-  if entity_registry::get_entity(entity_id.as_str()).is_none() {
+  if !registry::is_known_model(entity_id.as_str()) {
     return Ok((
       StatusCode::NOT_FOUND,
       Json(serde_json::json!({
@@ -524,7 +374,7 @@ pub async fn update_entity(
   }
   let user = &auth.0;
   if let Some(resp) =
-    require_entity_permission(user, &db, Some(&_scope), entity_id.as_str(), "update").await
+    require_entity_permission(user, &db, Some(&scope), entity_id.as_str(), "update").await
   {
     return Ok(resp);
   }
@@ -538,53 +388,48 @@ pub async fn update_entity(
         .into_response());
     }
   };
-  match entity_id.as_str() {
-    "organization" => {
-      let payload: UpdateOrganizationBody = match serde_json::from_value(body) {
-        Ok(p) => p,
-        Err(e) => {
-          return Ok((
-            StatusCode::BAD_REQUEST,
-            Json(serde_json::json!({ "error": "Bad Request", "message": e.to_string() })),
-          )
-            .into_response());
-        }
-      };
-      match update_organization_impl(&db, id, &payload).await {
-        Ok(updated) => Ok(Json(serde_json::json!({
-          "id": updated.id.to_string(),
-          "name": updated.name,
-          "slug": updated.slug,
-          "created_at": updated.created_at.format("%Y-%m-%dT%H:%M:%S%.fZ").to_string(),
-          "updated_at": updated.updated_at.format("%Y-%m-%dT%H:%M:%S%.fZ").to_string(),
-        })).into_response()),
-        Err(ForgeError::Generic(msg)) if msg.contains("not found") => Ok((
-          StatusCode::NOT_FOUND,
-          Json(serde_json::json!({ "error": "Not Found", "message": msg })),
-        )
-          .into_response()),
-        Err(e) => Err(e),
-      }
+  if let Some(resp) = require_object_body(&body) {
+    return Ok(resp);
+  }
+  match registry::update_model(entity_id.as_str(), &db, id, body)
+    .await
+    .map_err(crate::Error::from)
+  {
+    Ok(updated) => {
+      subscriptions.publish_change(ChangeEvent {
+        model_id: entity_id.clone(),
+        resource_id: id,
+        action: "update".to_string(),
+        organization_id: Some(scope.organization_id),
+      });
+      Ok(Json(updated).into_response())
     }
-    _ => Ok((
-      StatusCode::NOT_IMPLEMENTED,
+    Err(ForgeError::Auth(StatusCode::NOT_FOUND, _)) => Ok((
+      StatusCode::NOT_FOUND,
       Json(serde_json::json!({
-        "error": "Not Implemented",
-        "message": "Update not implemented for this entity"
+        "error": "Not Found",
+        "message": "Unknown entity"
       })),
     )
       .into_response()),
+    Err(ForgeError::Generic(msg)) if msg.contains("not found") => Ok((
+      StatusCode::NOT_FOUND,
+      Json(serde_json::json!({ "error": "Not Found", "message": msg })),
+    )
+      .into_response()),
+    Err(e) => Err(e),
   }
 }
 
 /// DELETE /api/entities/:entity_id/:id — delete entity. 404 unknown entity or not found; 403 missing entity.delete.
 pub async fn delete_entity(
   Path((entity_id, id_str)): Path<(String, String)>,
-  ScopeFromHeaders(_scope): ScopeFromHeaders,
+  ScopeFromHeaders(scope): ScopeFromHeaders,
   auth: RequireAuth<Backend, user::Model>,
   State(db): State<DbConnection>,
+  Extension(subscriptions): Extension<SubscriptionStore>,
 ) -> Result<impl IntoResponse, ForgeError> {
-  if entity_registry::get_entity(entity_id.as_str()).is_none() {
+  if !registry::is_known_model(entity_id.as_str()) {
     return Ok((
       StatusCode::NOT_FOUND,
       Json(serde_json::json!({
@@ -596,7 +441,7 @@ pub async fn delete_entity(
   }
   let user = &auth.0;
   if let Some(resp) =
-    require_entity_permission(user, &db, Some(&_scope), entity_id.as_str(), "delete").await
+    require_entity_permission(user, &db, Some(&scope), entity_id.as_str(), "delete").await
   {
     return Ok(resp);
   }
@@ -610,47 +455,33 @@ pub async fn delete_entity(
         .into_response());
     }
   };
-  match entity_id.as_str() {
-    "organization" => match delete_organization_impl(&db, id).await {
-      Ok(true) => Ok(Json(serde_json::json!({ "ok": true })).into_response()),
-      Ok(false) => Ok((
-        StatusCode::NOT_FOUND,
-        Json(serde_json::json!({ "error": "Not Found", "message": "Resource not found" })),
-      )
-        .into_response()),
-      Err(e) => Err(e),
-    },
-    _ => Ok((
-      StatusCode::NOT_IMPLEMENTED,
-      Json(serde_json::json!({
-        "error": "Not Implemented",
-        "message": "Delete not implemented for this entity"
-      })),
-    )
-      .into_response()),
-  }
-}
-
-async fn get_organization_impl(
-  db: &DbConnection,
-  id: Uuid,
-) -> Result<axum::response::Response, ForgeError> {
-  let row = organization::Entity::find_by_id(id)
-    .one(db)
+  match registry::delete_model(entity_id.as_str(), &db, id)
     .await
-    .map_err(|e| ForgeError::Generic(e.to_string()))?;
-  match row {
-    Some(r) => Ok(Json(serde_json::json!({
-      "id": r.id.to_string(),
-      "name": r.name,
-      "slug": r.slug,
-      "created_at": r.created_at.format("%Y-%m-%dT%H:%M:%S%.fZ").to_string(),
-      "updated_at": r.updated_at.format("%Y-%m-%dT%H:%M:%S%.fZ").to_string(),
-    })).into_response()),
-    None => Ok((
+    .map_err(crate::Error::from)
+  {
+    Ok(true) => {
+      subscriptions.publish_change(ChangeEvent {
+        model_id: entity_id.clone(),
+        resource_id: id,
+        action: "delete".to_string(),
+        organization_id: Some(scope.organization_id),
+      });
+      Ok(Json(serde_json::json!({ "ok": true })).into_response())
+    }
+    Ok(false) => Ok((
       StatusCode::NOT_FOUND,
       Json(serde_json::json!({ "error": "Not Found", "message": "Resource not found" })),
     )
       .into_response()),
+    Err(ForgeError::Auth(StatusCode::NOT_FOUND, _)) => Ok((
+      StatusCode::NOT_FOUND,
+      Json(serde_json::json!({
+        "error": "Not Found",
+        "message": "Unknown entity"
+      })),
+    )
+      .into_response()),
+    Err(e) => Err(e),
   }
 }
+

@@ -32,6 +32,7 @@ use crate::permissions::{dashboard_permissions, entity_action_key, permission_eq
 use crate::query_spec::{
   FilterCond, FilterOperator, SortDirection, validate_filter_cond, validate_sort_field,
 };
+use db::organization::{CreateOrganizationBody, create_organization_impl, update_organization_impl, UpdateOrganizationBody as DbUpdateOrganizationBody};
 use crate::scoped_query::{WithScope, user_find_scoped};
 
 const PERMISSION_READ: &str = "dashboard.permissions.read";
@@ -843,30 +844,6 @@ pub async fn delete_role(
   Ok(Json(serde_json::json!({ "ok": true })).into_response())
 }
 
-#[derive(Deserialize)]
-pub struct CreateOrganizationBody {
-  pub name: String,
-  pub slug: Option<String>,
-}
-
-fn slug_from_name(name: &str) -> String {
-  name
-    .to_lowercase()
-    .chars()
-    .map(|c| {
-      if c.is_alphanumeric() || c == ' ' {
-        c
-      } else {
-        '-'
-      }
-    })
-    .collect::<String>()
-    .split_whitespace()
-    .filter(|s| !s.is_empty())
-    .collect::<Vec<_>>()
-    .join("-")
-}
-
 /// POST /api/dashboard/organizations — create organization. Requires dashboard.organizations.write.
 pub async fn create_organization(
   ScopeFromHeaders(scope): ScopeFromHeaders,
@@ -879,39 +856,15 @@ pub async fn create_organization(
   if let Some(resp) = require_permission(&user, &db, PERMISSION_ORGS_WRITE, Some(&scope)).await {
     return Ok(resp);
   }
-  let name = payload.name.trim();
-  if name.is_empty() {
-    return Ok(
-      (
-        StatusCode::UNPROCESSABLE_ENTITY,
-        Json(serde_json::json!({ "error": "name is required" })),
-      )
-        .into_response(),
-    );
-  }
-  let slug: String = match payload
-    .slug
-    .as_deref()
-    .map(|s| s.trim())
-    .filter(|s| !s.is_empty())
-  {
-    Some(s) => s.to_string(),
-    None => slug_from_name(name),
-  };
-  let now = chrono::Utc::now().naive_utc();
-  let id = Uuid::new_v4();
-  let model = organization::ActiveModel {
-    id: Set(id),
-    name: Set(name.to_string()),
-    slug: Set(slug.to_string()),
-    created_at: Set(now),
-    updated_at: Set(now),
-    ..Default::default()
-  };
-  organization::Entity::insert(model)
-    .exec(&db)
+  let id = create_organization_impl(&db, &payload)
     .await
-    .map_err(|e| ForgeError::Generic(e.to_string()))?;
+    .map_err(crate::Error::from)?;
+  let o = organization::Entity::find_by_id(id)
+    .one(&db)
+    .await
+    .map_err(|e| ForgeError::Generic(e.to_string()))?
+    .ok_or_else(|| ForgeError::Generic("created organization not found".into()))?;
+  let now = o.updated_at;
   for &role_name in &["owner", "admin", "editor", "viewer"] {
     let role_id = Uuid::new_v4();
     let r = org_role::ActiveModel {
@@ -948,11 +901,11 @@ pub async fn create_organization(
     (
       StatusCode::CREATED,
       Json(serde_json::json!({
-        "id": id.to_string(),
-        "name": name,
-        "slug": slug,
-        "created_at": now.format("%Y-%m-%dT%H:%M:%S%.fZ").to_string(),
-        "updated_at": now.format("%Y-%m-%dT%H:%M:%S%.fZ").to_string(),
+        "id": o.id.to_string(),
+        "name": o.name,
+        "slug": o.slug,
+        "created_at": o.created_at.format("%Y-%m-%dT%H:%M:%S%.fZ").to_string(),
+        "updated_at": o.updated_at.format("%Y-%m-%dT%H:%M:%S%.fZ").to_string(),
       })),
     )
       .into_response(),
@@ -978,28 +931,13 @@ pub async fn update_organization(
   if let Some(resp) = require_permission(&user, &db, PERMISSION_ORGS_WRITE, Some(&scope)).await {
     return Ok(resp);
   }
-  let org = organization::Entity::find_by_id(payload.id)
-    .one(&db)
+  let db_payload = DbUpdateOrganizationBody {
+    name: payload.name.clone(),
+    slug: payload.slug.clone(),
+  };
+  let updated = update_organization_impl(&db, payload.id, &db_payload)
     .await
-    .map_err(|e| ForgeError::Generic(e.to_string()))?
-    .ok_or_else(|| ForgeError::Generic("Organization not found".into()))?;
-  let mut am: organization::ActiveModel = org.into();
-  if let Some(name) = payload.name {
-    let t = name.trim();
-    if !t.is_empty() {
-      am.name = Set(t.to_string());
-    }
-  }
-  if let Some(slug) = payload.slug {
-    let t = slug.trim();
-    if !t.is_empty() {
-      am.slug = Set(t.to_string());
-    }
-  }
-  am.updated_at = Set(chrono::Utc::now().naive_utc());
-  am.update(&db)
-    .await
-    .map_err(|e| ForgeError::Generic(e.to_string()))?;
+    .map_err(crate::Error::from)?;
   if let Some(ref backend) = live_backend {
     let ch = Channel::raw("organizations");
     let _ = broadcast_to_channel(
@@ -1013,11 +951,6 @@ pub async fn update_organization(
     )
     .await;
   }
-  let updated = organization::Entity::find_by_id(payload.id)
-    .one(&db)
-    .await
-    .map_err(|e| ForgeError::Generic(e.to_string()))?
-    .ok_or_else(|| ForgeError::Generic("Organization not found".into()))?;
   Ok(
     Json(serde_json::json!({
       "id": updated.id.to_string(),

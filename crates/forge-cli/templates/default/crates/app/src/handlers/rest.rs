@@ -26,6 +26,7 @@ use crate::scoped_query::{WithScope, user_find_scoped};
 use db::models::{
   audit_log, membership, org_role, organization, role_permission, user, user_org_role,
 };
+use db::organization::{delete_organization_impl, update_organization_impl, UpdateOrganizationBody};
 use forge_auth::RequestScope;
 
 // ---- Permissions (code-defined keys) ----
@@ -35,24 +36,6 @@ pub async fn list_permissions(
 ) -> Result<impl IntoResponse, ForgeError> {
   let list: Vec<&str> = dashboard_permissions().to_vec();
   Ok(Json(serde_json::json!({ "permissions": list })).into_response())
-}
-
-fn slug_from_name(name: &str) -> String {
-  name
-    .to_lowercase()
-    .chars()
-    .map(|c| {
-      if c.is_alphanumeric() || c == ' ' {
-        c
-      } else {
-        '-'
-      }
-    })
-    .collect::<String>()
-    .split_whitespace()
-    .filter(|s| !s.is_empty())
-    .collect::<Vec<_>>()
-    .join("-")
 }
 
 /// Returns Some(403 response) if the user has neither global nor org-scoped permission.
@@ -81,77 +64,10 @@ async fn require_org_permission_or_global(
   )
 }
 
-// ---- Internal impls: same logic as handlers, callable from seeds (no HTTP) ----
-pub async fn create_organization_impl(
-  db: &DbConnection,
-  payload: &CreateOrganizationBody,
-) -> Result<Uuid, ForgeError> {
-  let name = payload.name.trim();
-  if name.is_empty() {
-    return Err(ForgeError::Generic("name is required".into()));
-  }
-  let slug = payload
-    .slug
-    .as_deref()
-    .map(|s| s.trim())
-    .filter(|s| !s.is_empty())
-    .map(String::from)
-    .unwrap_or_else(|| slug_from_name(name));
-  let now = chrono::Utc::now().naive_utc();
-  let id = Uuid::new_v4();
-  organization::Entity::insert(organization::ActiveModel {
-    id: Set(id),
-    name: Set(name.to_string()),
-    slug: Set(slug),
-    created_at: Set(now),
-    updated_at: Set(now),
-    ..Default::default()
-  })
-  .exec(db)
-  .await
-  .map_err(|e| ForgeError::Generic(e.to_string()))?;
-  Ok(id)
-}
-
-/// Idempotent: find organization by slug or create. For use in seeds and get-or-create flows.
-pub async fn ensure_organization_impl(
-  db: &DbConnection,
-  payload: &CreateOrganizationBody,
-) -> Result<Uuid, ForgeError> {
-  let name = payload.name.trim();
-  if name.is_empty() {
-    return Err(ForgeError::Generic("name is required".into()));
-  }
-  let slug = payload
-    .slug
-    .as_deref()
-    .map(|s| s.trim())
-    .filter(|s| !s.is_empty())
-    .map(String::from)
-    .unwrap_or_else(|| slug_from_name(name));
-  if let Some(org) = organization::Entity::find()
-    .filter(organization::Column::Slug.eq(&slug))
-    .one(db)
-    .await
-    .map_err(|e| ForgeError::Generic(e.to_string()))?
-  {
-    return Ok(org.id);
-  }
-  let now = chrono::Utc::now().naive_utc();
-  let id = Uuid::new_v4();
-  organization::Entity::insert(organization::ActiveModel {
-    id: Set(id),
-    name: Set(name.to_string()),
-    slug: Set(slug),
-    created_at: Set(now),
-    updated_at: Set(now),
-    ..Default::default()
-  })
-  .exec(db)
-  .await
-  .map_err(|e| ForgeError::Generic(e.to_string()))?;
-  Ok(id)
-}
+// Re-export for seeds and legacy callers (impls live in db::organization).
+pub use db::organization::{
+  create_organization_impl, ensure_organization_impl, CreateOrganizationBody,
+};
 
 pub async fn create_org_role_impl(
   db: &DbConnection,
@@ -983,12 +899,6 @@ pub async fn list_organizations(
   Ok(Json(serde_json::json!({ "organizations": list })).into_response())
 }
 
-#[derive(Deserialize)]
-pub struct CreateOrganizationBody {
-  pub name: String,
-  pub slug: Option<String>,
-}
-
 pub async fn create_organization(
   auth: RequireAuth<Backend, user::Model>,
   State(db): State<DbConnection>,
@@ -1003,43 +913,21 @@ pub async fn create_organization(
         .into_response(),
     );
   }
-  let name = payload.name.trim();
-  if name.is_empty() {
-    return Ok(
-      (
-        StatusCode::UNPROCESSABLE_ENTITY,
-        Json(serde_json::json!({ "error": "name is required" })),
-      )
-        .into_response(),
-    );
-  }
-  let slug = payload
-    .slug
-    .as_deref()
-    .map(|s| s.trim())
-    .filter(|s| !s.is_empty())
-    .map(String::from)
-    .unwrap_or_else(|| slug_from_name(name));
-  let now = chrono::Utc::now().naive_utc();
-  let id = Uuid::new_v4();
-  organization::Entity::insert(organization::ActiveModel {
-    id: Set(id),
-    name: Set(name.to_string()),
-    slug: Set(slug.clone()),
-    created_at: Set(now),
-    updated_at: Set(now),
-    ..Default::default()
-  })
-  .exec(&db)
-  .await
-  .map_err(|e| ForgeError::Generic(e.to_string()))?;
+  let id = create_organization_impl(&db, &payload)
+    .await
+    .map_err(crate::Error::from)?;
+  let o = organization::Entity::find_by_id(id)
+    .one(&db)
+    .await
+    .map_err(|e| ForgeError::Generic(e.to_string()))?
+    .ok_or_else(|| ForgeError::Generic("created organization not found".into()))?;
   Ok(
     (
       StatusCode::CREATED,
       Json(serde_json::json!({
-        "id": id.to_string(), "name": name, "slug": slug,
-        "created_at": now.format("%Y-%m-%dT%H:%M:%S%.fZ").to_string(),
-        "updated_at": now.format("%Y-%m-%dT%H:%M:%S%.fZ").to_string(),
+        "id": o.id.to_string(), "name": o.name, "slug": o.slug,
+        "created_at": o.created_at.format("%Y-%m-%dT%H:%M:%S%.fZ").to_string(),
+        "updated_at": o.updated_at.format("%Y-%m-%dT%H:%M:%S%.fZ").to_string(),
       })),
     )
       .into_response(),
@@ -1093,47 +981,6 @@ pub async fn get_organization(
   )
 }
 
-#[derive(Deserialize)]
-pub struct UpdateOrganizationBody {
-  pub name: Option<String>,
-  pub slug: Option<String>,
-}
-
-/// Internal impl: update organization by id; for use from generic entity handler.
-pub async fn update_organization_impl(
-  db: &DbConnection,
-  id: Uuid,
-  payload: &UpdateOrganizationBody,
-) -> Result<organization::Model, ForgeError> {
-  let o = organization::Entity::find_by_id(id)
-    .one(db)
-    .await
-    .map_err(|e| ForgeError::Generic(e.to_string()))?
-    .ok_or_else(|| ForgeError::Generic("Organization not found".into()))?;
-  let mut am: organization::ActiveModel = o.into();
-  if let Some(n) = &payload.name {
-    let t = n.trim();
-    if !t.is_empty() {
-      am.name = Set(t.to_string());
-    }
-  }
-  if let Some(s) = &payload.slug {
-    let t = s.trim();
-    if !t.is_empty() {
-      am.slug = Set(t.to_string());
-    }
-  }
-  am.updated_at = Set(chrono::Utc::now().naive_utc());
-  am.update(db)
-    .await
-    .map_err(|e| ForgeError::Generic(e.to_string()))?;
-  organization::Entity::find_by_id(id)
-    .one(db)
-    .await
-    .map_err(|e| ForgeError::Generic(e.to_string()))?
-    .ok_or_else(|| ForgeError::Generic("Organization not found".into()))
-}
-
 pub async fn update_organization(
   auth: RequireAuth<Backend, user::Model>,
   Path(id): Path<Uuid>,
@@ -1149,7 +996,9 @@ pub async fn update_organization(
         .into_response(),
     );
   }
-  let updated = update_organization_impl(&db, id, &payload).await?;
+  let updated = update_organization_impl(&db, id, &payload)
+    .await
+    .map_err(crate::Error::from)?;
   Ok(
     Json(serde_json::json!({
       "id": updated.id.to_string(), "name": updated.name, "slug": updated.slug,
@@ -1158,18 +1007,6 @@ pub async fn update_organization(
     }))
     .into_response(),
   )
-}
-
-/// Internal impl: delete organization by id; returns true if deleted, false if not found.
-pub async fn delete_organization_impl(
-  db: &DbConnection,
-  id: Uuid,
-) -> Result<bool, ForgeError> {
-  let r = organization::Entity::delete_by_id(id)
-    .exec(db)
-    .await
-    .map_err(|e| ForgeError::Generic(e.to_string()))?;
-  Ok(r.rows_affected > 0)
 }
 
 pub async fn delete_organization(
@@ -1186,7 +1023,7 @@ pub async fn delete_organization(
         .into_response(),
     );
   }
-  let deleted = delete_organization_impl(&db, id).await?;
+  let deleted = delete_organization_impl(&db, id).await.map_err(crate::Error::from)?;
   if !deleted {
     return Ok(
       (
