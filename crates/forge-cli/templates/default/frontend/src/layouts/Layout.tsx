@@ -1,6 +1,7 @@
 import React from 'react'
 import Box from '@mui/material/Box'
 import Navbar from '../components/Navbar'
+import { SubscriptionStreamRunner } from '../components/SubscriptionStreamRunner'
 
 export type LayoutProps = {
   children: React.ReactNode
@@ -24,6 +25,7 @@ export default function Layout({
         flexGrow: 1,
       }}
     >
+      <SubscriptionStreamRunner />
       <Navbar
         appName="App"
         colorScheme={colorScheme}

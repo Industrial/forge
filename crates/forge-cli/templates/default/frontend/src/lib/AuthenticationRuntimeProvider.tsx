@@ -78,7 +78,13 @@ export function AuthenticationRuntimeProvider({
         ? runWithAppRuntime(r, rehydrateEffect).then(() => r)
         : Promise.resolve(r)
 
-    Effect.runPromise(program as Effect.Effect<Runtime.Runtime<AppServices>, unknown, never>)
+    Effect.runPromise(
+      program as unknown as Effect.Effect<
+        Runtime.Runtime<AppServices>,
+        unknown,
+        never
+      >,
+    )
       .then((r) => rehydrate(r as Runtime.Runtime<AppServices>))
       .then((r) => {
         if (cancelled) {

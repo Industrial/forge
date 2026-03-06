@@ -20,7 +20,13 @@ import type { UsersService } from '../features/dashboard/services/Users'
 import { UsersLive } from '../features/dashboard/services/UsersLive'
 import type { AuthenticationApiService } from '../features/authentication/services/AuthenticationApi'
 import type { AuthenticationStoreService } from '../features/authentication/services/AuthenticationStore'
+import type { EntityApiService } from '../services/EntityApi'
+import { EntityApiLive } from '../services/EntityApiLive'
+import type { RpcApiService } from '../services/RpcApi'
+import { RpcApiLive } from '../services/RpcApiLive'
 import { ForgeWebsocketLive } from '../services/ForgeWebsocketLive'
+import type { SubscriptionStreamService } from '../services/SubscriptionStream'
+import { SubscriptionStreamLive } from '../services/SubscriptionStreamLive'
 import type { ForgeWebsocketService } from '../services/ForgeWebsocket'
 import type { WebsocketService } from '../services/Websocket'
 import { WebsocketLive } from '../services/WebsocketLive'
@@ -34,6 +40,9 @@ export type AppServices =
   | HttpClient.HttpClient
   | AuthenticationStoreService
   | AuthenticationApiService
+  | EntityApiService
+  | RpcApiService
+  | SubscriptionStreamService
   | WebsocketService
   | ForgeWebsocketService
   | OrganizationsService
@@ -77,7 +86,12 @@ export const AppLayer = (config: HttpClientWithAuthConfig) => {
     WebsocketLive,
     ForgeWebsocketLive.pipe(Layer.provide(WebsocketLive)),
   )
+  const subscriptionStreamLayer = SubscriptionStreamLive(config.baseUrl).pipe(
+    Layer.provide(base),
+  )
   const dashboardServices = Layer.mergeAll(
+    EntityApiLive,
+    RpcApiLive,
     OrganizationsLive,
     AuditLogLive,
     PermissionsLive,
@@ -85,5 +99,5 @@ export const AppLayer = (config: HttpClientWithAuthConfig) => {
     UsersLive,
     DashboardLive,
   ).pipe(Layer.provide(base))
-  return Layer.mergeAll(base, dashboardServices, LoggerLayer)
+  return Layer.mergeAll(base, dashboardServices, subscriptionStreamLayer, LoggerLayer)
 }

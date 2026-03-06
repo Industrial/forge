@@ -14,6 +14,7 @@ import LoadingSpinner from '../../../../components/LoadingSpinner'
 import EmptyState from '../../../../components/EmptyState'
 import PageHeader from '../../../../components/PageHeader'
 import ErrorAlert from '../../../../components/ErrorAlert'
+import { useEntitySubscription } from '../../../../hooks/useEntitySubscription'
 import { useLiveRefreshTrigger } from '../../../../hooks/useLiveRefreshTrigger'
 import { usePermission } from '../../../../hooks/usePermission'
 import { useIsMobile } from '../../../../hooks/useIsMobile'
@@ -36,15 +37,27 @@ import {
 } from 'react-effect-hooks'
 import { runWithAppRuntime, type AppServices } from '../../../../lib/appLayer'
 import { Effect } from 'effect'
-import { Organizations } from '../../services/Organizations'
-import type { Organization } from '../../domain/Organization'
+import { EntityApi } from '../../../../services/EntityApi'
+import { Organization } from '../../domain/Organization'
 
+const ENTITY_ID = 'organization'
 const ORG_WRITE = 'dashboard.organizations.write'
+
+function toOrganization(r: Record<string, unknown>): Organization {
+  return new Organization({
+    id: String(r.id ?? ''),
+    name: String(r.name ?? ''),
+    slug: String(r.slug ?? ''),
+    created_at: r.created_at != null ? String(r.created_at) : undefined,
+    updated_at: r.updated_at != null ? String(r.updated_at) : undefined,
+  })
+}
 
 const listEffect: Effect.Effect<readonly Organization[], Error, AppServices> =
   Effect.gen(function* () {
-    const orgs = yield* Organizations
-    return yield* orgs.list()
+    const api = yield* EntityApi
+    const res = yield* api.list(ENTITY_ID)
+    return (res.data ?? []).map((r) => toOrganization(r as Record<string, unknown>))
   })
 
 type ListState = AsyncState<readonly Organization[], Error>
@@ -156,6 +169,10 @@ export default function OrganizationsPage() {
     yield* runStreamInto(refreshStream, setListStateAsEffect)
   })
 
+  useEntitySubscription(ENTITY_ID, undefined, () => {
+    runWithAppRuntime(runtime, refreshEffect).catch(() => {})
+  })
+
   const [addDialogOpen, setAddDialogOpen, setAddDialogOpenAsEffect] =
     useEffectState(false)
   const [addName, setAddName, setAddNameAsEffect] = useEffectState('')
@@ -187,9 +204,10 @@ export default function OrganizationsPage() {
       runStreamInto(
         streamWithPendingState(
           Effect.gen(function* () {
-            const orgs = yield* Organizations
-            yield* orgs.create({ name, slug: addSlug.trim() || undefined })
-            return yield* orgs.list()
+            const api = yield* EntityApi
+            yield* api.create(ENTITY_ID, { name, slug: addSlug.trim() || undefined })
+            const res = yield* api.list(ENTITY_ID)
+            return (res.data ?? []).map((r) => toOrganization(r as Record<string, unknown>))
           }),
         ),
         setCreateStateAsEffect,
@@ -210,13 +228,13 @@ export default function OrganizationsPage() {
       runStreamInto(
         streamWithPendingState(
           Effect.gen(function* () {
-            const orgs = yield* Organizations
-            yield* orgs.update({
-              id: editOrg.id,
+            const api = yield* EntityApi
+            yield* api.update(ENTITY_ID, editOrg.id, {
               name: editName.trim() || undefined,
               slug: editSlug.trim() || undefined,
             })
-            return yield* orgs.list()
+            const res = yield* api.list(ENTITY_ID)
+            return (res.data ?? []).map((r) => toOrganization(r as Record<string, unknown>))
           }),
         ),
         setUpdateStateAsEffect,
@@ -231,9 +249,10 @@ export default function OrganizationsPage() {
       runStreamInto(
         streamWithPendingState(
           Effect.gen(function* () {
-            const orgs = yield* Organizations
-            yield* orgs.delete(id)
-            return yield* orgs.list()
+            const api = yield* EntityApi
+            yield* api.delete(ENTITY_ID, id)
+            const res = yield* api.list(ENTITY_ID)
+            return (res.data ?? []).map((r) => toOrganization(r as Record<string, unknown>))
           }),
         ),
         setDeleteStateAsEffect,

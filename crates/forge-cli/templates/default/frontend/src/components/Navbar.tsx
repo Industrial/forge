@@ -16,7 +16,7 @@ import Logout from '@mui/icons-material/Logout'
 import Business from '@mui/icons-material/Business'
 import { useNavigate } from 'react-router-dom'
 import { useAuthentication } from '../context/AuthenticationContext'
-import { hasPermission } from '../lib/permissions'
+import { usePermission } from '../hooks/usePermission'
 
 type NavbarProps = {
   appName?: string
@@ -72,9 +72,15 @@ export default function Navbar({
   onOpenSidebar,
 }: NavbarProps) {
   const navigate = useNavigate()
-  const { user, scopes, permissions, logout, switchScope } =
-    useAuthentication()
-  const canAccessDashboard = hasPermission(permissions, 'dashboard')
+  const {
+    user,
+    scopes,
+    currentOrgId,
+    currentRoleId,
+    logout,
+    switchScope,
+  } = useAuthentication()
+  const canAccessDashboard = usePermission('dashboard')
   const [anchorEl, setAnchorEl] = useState<null | HTMLElement>(null)
   const open = Boolean(anchorEl)
 
@@ -178,25 +184,33 @@ export default function Navbar({
             Scope
           </MenuItem>
           <Divider />
-          {scopes.map((p) => (
-            <MenuItem
-              key={p.role_id ?? p.org_id}
-              onClick={() =>
-                handleSwitchScope(
-                  p.org_id,
-                  p.role_id ?? '',
-                  p.role ?? '',
-                )
-              }
-            >
-              <ListItemIcon>
-                <Business fontSize="small" />
-              </ListItemIcon>
-              <ListItemText
-                primary={`${(p.role ?? '').charAt(0).toUpperCase()}${(p.role ?? '').slice(1)} · ${p.org_name}`}
-              />
-            </MenuItem>
-          ))}
+          {scopes.map((p) => {
+            const isCurrentScope =
+              currentOrgId != null &&
+              currentRoleId != null &&
+              p.org_id === currentOrgId &&
+              (p.role_id ?? '') === currentRoleId
+            return (
+              <MenuItem
+                key={p.role_id ?? p.org_id}
+                selected={isCurrentScope}
+                onClick={() =>
+                  handleSwitchScope(
+                    p.org_id,
+                    p.role_id ?? '',
+                    p.role ?? '',
+                  )
+                }
+              >
+                <ListItemIcon>
+                  <Business fontSize="small" />
+                </ListItemIcon>
+                <ListItemText
+                  primary={`${(p.role ?? '').charAt(0).toUpperCase()}${(p.role ?? '').slice(1)} · ${p.org_name}`}
+                />
+              </MenuItem>
+            )
+          })}
           <Divider />
           <MenuItem onClick={handleLogout}>
             <ListItemIcon>
