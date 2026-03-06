@@ -7,7 +7,7 @@
 import { Effect } from 'effect'
 import { useCallback, useEffect, useState } from 'react'
 import { flushSync } from 'react-dom'
-import type { AuthenticationError } from '../domain/AuthenticationError'
+import type { AuthenticationError } from '../errors/AuthenticationError'
 import type { AuthenticationStateSnapshot } from '../domain/AuthenticationStateSnapshot'
 import { AuthenticationStore } from '../services/AuthenticationStore'
 import { runApp } from '../../../lib/appRuntime'

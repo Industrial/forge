@@ -1,6 +1,3 @@
-import { useForm, Controller } from 'react-hook-form'
-import { Link as RouterLink, useLocation, useNavigate } from 'react-router-dom'
-import { Schema } from 'effect'
 import Alert from '@mui/material/Alert'
 import Box from '@mui/material/Box'
 import Button from '@mui/material/Button'
@@ -8,112 +5,61 @@ import Link from '@mui/material/Link'
 import TextField from '@mui/material/TextField'
 import Typography from '@mui/material/Typography'
 import { Effect } from 'effect'
+import { Link as RouterLink, useNavigate } from 'react-router-dom'
+import { Schema } from 'effect'
 import { useCallback } from 'react'
-import {
-  AuthenticationApi,
-  type LoginResult,
-} from '../../services/AuthenticationApi'
-import { AuthenticationStore } from '../../services/AuthenticationStore'
-import { useAuthentication } from '../../../../context/AuthenticationContext'
-import {
-  useEffectState,
-  streamWithPendingState,
-  runStreamInto,
-  type AsyncState,
-  idle,
-  isPending,
-  isFailure,
-} from 'react-effect-hooks'
-import { runApp } from '../../../../lib/appRuntime'
-import type { AppServices } from '../../../../lib/appLayer'
-import { effectSchemaResolver } from '../../../../lib/effectSchemaResolver'
+import { useForm, Controller } from 'react-hook-form'
+
+import { AppLayer } from '@/lib/appLayer'
+import { AuthenticationApi } from '@/features/authentication/services/AuthenticationApi'
+import { AuthenticationStore } from '@/features/authentication/services/AuthenticationStore'
+import { effectSchemaResolver } from '@/lib/effectSchemaResolver'
 import {
   loginFormSchema,
   type LoginFormValues,
-} from '../../../../schemas/userFormSchemas'
-
-type LoginState = AsyncState<LoginResult, Error>
+} from '@/schemas/userFormSchemas'
 
 export default function LoginPage() {
-  const location = useLocation()
+  console.log('LoginPage')
+
   const navigate = useNavigate()
-  const { fetchMe } = useAuthentication()
-
-  const from =
-    (location.state as { from?: { pathname: string } } | null)?.from
-      ?.pathname ?? '/dashboard'
-
-  const [submitState, , setSubmitStateAsEffect] = useEffectState<
-    LoginState,
-    never,
-    never
-  >(idle())
 
   const form = useForm<LoginFormValues>({
     resolver: effectSchemaResolver(
       loginFormSchema as Schema.Schema<LoginFormValues, unknown, never>,
     ),
-    defaultValues: { email: '', password: '' },
+    defaultValues: {
+      email: '',
+      password: '',
+    },
     mode: 'onChange',
   })
 
-  const loginEffect = useCallback(
-    (
-      email: string,
-      password: string,
-    ): Effect.Effect<LoginResult, Error, AppServices> =>
-      Effect.gen(function* () {
-        const api = yield* AuthenticationApi
-        const store = yield* AuthenticationStore
-        const result = yield* api.login(email, password)
-        yield* store.setToken(result.token)
-        yield* store.fetchMe(result.token)
-        return result
-      }),
-    [],
-  )
-
   const handleSubmit = useCallback(
     (data: LoginFormValues) => {
-      const stream = streamWithPendingState(
-        loginEffect(data.email, data.password),
+      Effect.runPromise(
+        Effect.gen(function* () {
+          const api = yield* AuthenticationApi
+          const store = yield* AuthenticationStore
+          const result = yield* api.login(data.email, data.password)
+          yield* store.setToken(result.token)
+          yield* store.fetchMe(result.token)
+          return result
+        }).pipe(Effect.provide(AppLayer)),
       )
-      const effect = runStreamInto(stream, setSubmitStateAsEffect)
-      runApp(effect)
-        .then(() => fetchMe())
-        .then(() =>
-          runApp(
-            Effect.gen(function* () {
-              const store = yield* AuthenticationStore
-              const state = yield* store.getState()
-              return state.needs_scope_select
-            }),
-          ),
-        )
-        .then((needs_scope_select) => {
-          if (needs_scope_select === true) {
-            navigate('/authentication/select-scope', {
-              replace: true,
-              state: { from: { pathname: from } },
-            })
-          } else {
-            navigate(from, { replace: true })
-          }
-        })
-        .catch((err) => {
-          console.error('Login failed:', err)
-        })
     },
-    [loginEffect, setSubmitStateAsEffect, fetchMe, navigate, from],
+    [navigate],
   )
 
-  const submitting = isPending(submitState)
-  const errorMessage =
-    isFailure(submitState) && submitState.error
-      ? submitState.error instanceof Error
-        ? submitState.error.message
-        : String(submitState.error)
-      : null
+  // const submitting = isPending(submitState)
+  const submitting = false
+  // const errorMessage =
+  //   isFailure(submitState) && submitState.error
+  //     ? submitState.error instanceof Error
+  //       ? submitState.error.message
+  //       : String(submitState.error)
+  //     : null
+  const errorMessage = null
 
   return (
     <>

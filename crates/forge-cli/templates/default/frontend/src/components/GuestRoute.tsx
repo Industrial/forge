@@ -1,52 +1,21 @@
 import React from 'react'
-import { Navigate, useLocation } from 'react-router-dom'
-import Box from '@mui/material/Box'
-import { useAuthentication } from '../context/AuthenticationContext'
-import LoadingSpinner from './LoadingSpinner'
+import { Navigate } from 'react-router-dom'
+import { Option } from 'effect'
 
-type GuestRouteProps = { children: React.ReactNode }
+import { useAuthenticationStateReactiveStore } from '@/features/authentication/stores'
 
-/**
- * Renders children only when the user is not logged in.
- * Redirects to /dashboard (or saved "from" location) when the user is authenticated.
- * Use for login and register pages.
- */
+export type GuestRouteProps = {
+  children: React.ReactNode
+}
+
 export default function GuestRoute({ children }: GuestRouteProps) {
-  console.log('GuestRoute')
+  const authentication = useAuthenticationStateReactiveStore()
+  const isUserAuthenticated = Option.isSome(authentication.user)
 
-  const { user, loading, needs_scope_select } = useAuthentication()
-  const location = useLocation()
+  if (isUserAuthenticated) {
+    console.log('GuestRoute: redirecting to home')
 
-  if (loading) {
-    return (
-      <Box
-        sx={{
-          display: 'flex',
-          justifyContent: 'center',
-          alignItems: 'center',
-          flex: 1,
-          minHeight: '40vh',
-        }}
-      >
-        <LoadingSpinner />
-      </Box>
-    )
-  }
-
-  if (user != null) {
-    const to =
-      (location.state as { from?: { pathname: string } } | null)?.from
-        ?.pathname ?? '/dashboard'
-    if (needs_scope_select) {
-      return (
-        <Navigate
-          to="/authentication/select-scope"
-          state={{ from: { pathname: to } }}
-          replace
-        />
-      )
-    }
-    return <Navigate to={to} replace />
+    return <Navigate to="/" replace />
   }
 
   return <>{children}</>

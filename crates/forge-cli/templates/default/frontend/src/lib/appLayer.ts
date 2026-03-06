@@ -1,48 +1,61 @@
 /**
- * App-wide Effect layer: auth (HttpClient + AuthenticationStore) + Websocket + ForgeWebsocket.
- * Used by AuthenticationRuntimeProvider to build the single runtime for the app.
+ * Application layer for Effect.ts dependency injection.
+ *
+ * @packageDocumentation
+ *
+ * This module defines the single application-wide Effect layer that provides all
+ * runtime services (auth, HTTP, WebSocket, entity/RPC APIs, dashboard services,
+ * and the authentication state reactive store). Use {@link getApplicationLayer}
+ * to obtain the singleton layer; run effects at boundaries with
+ * `Effect.runPromise(effect.pipe(Effect.provide(getApplicationLayer())))`.
+ * Use {@link buildApplicationLayer} in tests or when you need a fresh layer or
+ * custom composition.
  */
-import type { HttpClient } from '@effect/platform'
+import { FetchHttpClient, type HttpClient } from '@effect/platform'
 import { Layer, Logger, LogLevel } from 'effect'
-import { AuthenticationFeatureLayer } from '@/features/authentication/layer'
+
 import type { AuditLogService } from '@/features/dashboard/services/AuditLog'
-import { AuditLogLive } from '@/features/dashboard/services/AuditLogLive'
+import type { Authentication as AuthenticationService } from '@/features/authentication/services/Authentication'
+import type { AuthenticationState } from '@/features/authentication/stores'
 import type { DashboardService } from '@/features/dashboard/services/Dashboard'
-import { DashboardLive } from '@/features/dashboard/services/DashboardLive'
-import type { PermissionsService } from '@/features/dashboard/services/Permissions'
-import { PermissionsLive } from '@/features/dashboard/services/PermissionsLive'
-import type { RolesService } from '@/features/dashboard/services/Roles'
-import { RolesLive } from '@/features/dashboard/services/RolesLive'
-import type { UsersService } from '@/features/dashboard/services/Users'
-import { UsersLive } from '@/features/dashboard/services/UsersLive'
-import type { AuthenticationApiService } from '@/features/authentication/services/AuthenticationApi'
-import type { AuthenticationStoreService } from '@/features/authentication/services/AuthenticationStore'
 import type { EntityApiService } from '@/services/EntityApi'
-import { EntityApiLive } from '@/services/EntityApiLive'
-import type { RpcApiService } from '@/services/RpcApi'
-import { RpcApiLive } from '@/services/RpcApiLive'
-import { ForgeWebsocketLive } from '@/services/ForgeWebsocketLive'
-import type { SubscriptionStreamService } from '@/services/SubscriptionStream'
-import { SubscriptionStreamLive } from '@/services/SubscriptionStreamLive'
 import type { ForgeWebsocketService } from '@/services/ForgeWebsocket'
+import type { PermissionsService } from '@/features/dashboard/services/Permissions'
+import type { ReactiveStore, RunEffect, RunFork } from '@/lib/ReactiveStore'
+import type { RolesService } from '@/features/dashboard/services/Roles'
+import type { RpcApiService } from '@/services/RpcApi'
+import type { UsersService } from '@/features/dashboard/services/Users'
 import type { WebsocketService } from '@/services/Websocket'
+import { AuditLogLive } from '@/features/dashboard/services/AuditLogLive'
+import { AuthenticationLive } from '@/features/authentication/services/AuthenticationLive'
+import { DashboardLive } from '@/features/dashboard/services/DashboardLive'
+import { EntityApiLive } from '@/services/EntityApiLive'
+import { ForgeWebsocketLive } from '@/services/ForgeWebsocketLive'
+import { PermissionsLive } from '@/features/dashboard/services/PermissionsLive'
+import { RolesLive } from '@/features/dashboard/services/RolesLive'
+import { RpcApiLive } from '@/services/RpcApiLive'
+import { UsersLive } from '@/features/dashboard/services/UsersLive'
 import { WebsocketLive } from '@/services/WebsocketLive'
-import { getBaseUrl } from '@/lib/baseUrl'
-import type { AuthenticationStateReactiveStore } from '@/lib/authenticationReactiveStore'
-import { AuthenticationStateReactiveStoreLayer } from '@/lib/authenticationReactiveStore'
+import { useMemo } from 'react'
+import { Effect } from 'effect'
+
+import { getAuthenticationStateStoreLayer } from '@/features/authentication/stores'
 
 /**
- * Union of all service types provided by the app runtime.
- * Matches the type inferred from AppLayer. Use for typing effects and runApp so effects run without casts.
+ * Union of all service types provided by the application layer.
+ *
+ * Includes authentication, HTTP client, entity/RPC APIs, WebSocket services,
+ * dashboard services (audit log, permissions, roles, users, dashboard), and
+ * {@link ReactiveStore}<{@link AuthenticationState}. Including
+ * `ReactiveStore<any>` allows effects that depend on a reactive store (e.g.
+ * from `useReactiveStore`) to type-check when provided
+ * {@link getApplicationLayer}.
  */
 export type AppServices =
-  | AuthenticationStateReactiveStore
+  | AuthenticationService
   | HttpClient.HttpClient
-  | AuthenticationStoreService
-  | AuthenticationApiService
   | EntityApiService
   | RpcApiService
-  | SubscriptionStreamService
   | WebsocketService
   | ForgeWebsocketService
   | AuditLogService
@@ -50,38 +63,114 @@ export type AppServices =
   | RolesService
   | UsersService
   | DashboardService
+  | ReactiveStore<AuthenticationState>
+
+/** Logger layer: sets minimum log level to Trace. */
+const LoggerLayer: Layer.Layer<never, never, never> =
+  Logger.minimumLogLevel(LogLevel.Trace)
 
 /**
- * Logger layer: minimum level Trace so Effect.logTrace and Effect.logDebug are emitted.
- * Merged into the app runtime so service instrumentation is visible. The default logger
- * in Effect should output to the environment (e.g. browser console when run in the app).
+ * Plain HTTP client layer (no auth headers).
+ * Used by {@link AuthenticationLive} and other services that need unauthenticated HTTP.
  */
-const LoggerLayer = Logger.minimumLogLevel(LogLevel.Trace)
+const HttpClientLayer: Layer.Layer<HttpClient.HttpClient, never, never> =
+  FetchHttpClient.layer
 
-const BaseLayer = Layer.mergeAll(
-  AuthenticationFeatureLayer,
-  AuthenticationStateReactiveStoreLayer,
-  WebsocketLive,
-  ForgeWebsocketLive.pipe(Layer.provide(WebsocketLive)),
-)
+/**
+ * Builds the full application layer.
+ *
+ * Composes auth store (from {@link getAuthenticationStateStoreLayer}), HTTP client,
+ * {@link AuthenticationLive}, WebSocket and Forge WebSocket services, dashboard
+ * services (entity API, RPC API, audit log, permissions, roles, users, dashboard),
+ * and logger. The auth store is obtained internally; no arguments are required.
+ * Call this once per application (or per test run) when you need a fresh layer.
+ *
+ * @returns A layer providing all {@link AppServices}. Has no requirements and no
+ *   layer construction errors (`Layer<AppServices, never, never>`).
+ */
+export function buildApplicationLayer() {
+  const authStoreLayer = getAuthenticationStateStoreLayer()
 
-const SubscriptionStreamLayer = SubscriptionStreamLive(getBaseUrl()).pipe(
-  Layer.provide(BaseLayer),
-)
+  const AuthLayer = Layer.mergeAll(
+    authStoreLayer,
+    HttpClientLayer,
+    AuthenticationLive.pipe(
+      Layer.provide(authStoreLayer),
+      Layer.provide(HttpClientLayer),
+    ),
+  )
 
-const DashboardServicesLayer = Layer.mergeAll(
-  EntityApiLive,
-  RpcApiLive,
-  AuditLogLive,
-  PermissionsLive,
-  RolesLive,
-  UsersLive,
-  DashboardLive,
-).pipe(Layer.provide(BaseLayer))
+  const BaseLayer = Layer.mergeAll(
+    AuthLayer,
+    WebsocketLive,
+    ForgeWebsocketLive.pipe(Layer.provide(WebsocketLive)),
+  )
 
-export const AppLayer = Layer.mergeAll(
-  BaseLayer,
-  DashboardServicesLayer,
-  SubscriptionStreamLayer,
-  LoggerLayer,
-)
+  const DashboardServicesLayer = Layer.mergeAll(
+    EntityApiLive,
+    RpcApiLive,
+    AuditLogLive,
+    PermissionsLive,
+    RolesLive,
+    UsersLive,
+    DashboardLive,
+  )
+    .pipe(Layer.provide(BaseLayer))
+
+  const result = Layer.mergeAll(
+    BaseLayer,
+    DashboardServicesLayer,
+    LoggerLayer,
+  )
+
+  return result
+}
+
+/** Cached singleton application layer; built lazily by {@link getApplicationLayer}. */
+let applicationLayer: Layer.Layer<AppServices, never, never> | undefined
+
+/**
+ * Returns the application layer singleton, building it on first call.
+ *
+ * Use this when running effects at boundaries (e.g. in event handlers or
+ * React context): provide the layer so the effect has access to all
+ * {@link AppServices}:
+ *
+ * @example
+ * ```ts
+ * Effect.runPromise(effect.pipe(Effect.provide(getApplicationLayer())))
+ * ```
+ *
+ * @returns The application layer (same instance on every call after the first).
+ */
+export function getApplicationLayer() {
+  if (applicationLayer === undefined) {
+    applicationLayer = buildApplicationLayer()
+  }
+  return applicationLayer
+}
+
+/**
+ * Hook that returns stable {@link RunEffect} and {@link RunFork} functions that
+ * run effects with the application layer provided. Use these when calling
+ * {@link useReactiveStore} so the store subscription runs in the app layer.
+ */
+export function useRunWithAppLayer(): { run: RunEffect; runFork: RunFork } {
+  return useMemo(() => {
+    const layer = getApplicationLayer()
+    // Cast: TypeScript infers Effect<A, E, Exclude<R, AppServices>> after provide;
+    // we assert the layer satisfies R so runPromise/runFork accept it. Callers
+    // should only pass effects whose requirements are in AppServices.
+    // TODO: I'm predicting now that this will become a problem at some point.
+    return {
+      run: <A, E, R>(effect: Effect.Effect<A, E, R>): Promise<A> =>
+        Effect.runPromise(
+          effect.pipe(Effect.provide(layer)) as Effect.Effect<A, E, never>,
+        ),
+      runFork: <A, E, R>(effect: Effect.Effect<A, E, R>) =>
+        Effect.runFork(
+          effect.pipe(Effect.provide(layer)) as Effect.Effect<A, E, never>,
+        ),
+    }
+  }, [])
+}

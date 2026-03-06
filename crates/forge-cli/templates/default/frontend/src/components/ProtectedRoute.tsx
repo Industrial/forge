@@ -1,37 +1,21 @@
 import React from 'react'
-import { Navigate, useLocation } from 'react-router-dom'
-import Box from '@mui/material/Box'
-import { useAuthentication } from '../context/AuthenticationContext'
-import LoadingSpinner from './LoadingSpinner'
+import { Navigate } from 'react-router-dom'
+import { Option } from 'effect'
 
-type ProtectedRouteProps = { children: React.ReactNode }
+import { useAuthenticationStateReactiveStore } from '@/features/authentication/stores'
+
+export type ProtectedRouteProps = {
+  children: React.ReactNode
+}
 
 export default function ProtectedRoute({ children }: ProtectedRouteProps) {
-  console.log('ProtectedRoute')
+  const authentication = useAuthenticationStateReactiveStore()
+  const isUserAuthenticated = Option.isSome(authentication.user)
 
-  const { user, loading } = useAuthentication()
-  const location = useLocation()
+  if (!isUserAuthenticated) {
+    console.log('ProtectedRoute: redirecting to login')
 
-  if (loading) {
-    return (
-      <Box
-        sx={{
-          display: 'flex',
-          justifyContent: 'center',
-          alignItems: 'center',
-          flex: 1,
-          minHeight: '40vh',
-        }}
-      >
-        <LoadingSpinner />
-      </Box>
-    )
-  }
-
-  if (user == null) {
-    return (
-      <Navigate to="/authentication/login" state={{ from: location }} replace />
-    )
+    return <Navigate to="/authentication/login" replace />
   }
 
   return <>{children}</>

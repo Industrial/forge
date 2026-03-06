@@ -1,17 +1,16 @@
-import Alert from '@mui/material/Alert'
 import Box from '@mui/material/Box'
-import Typography from '@mui/material/Typography'
 import React from 'react'
-import { useAuthentication } from '../../../../context/AuthenticationContext'
 
-type AuthenticationLayoutProps = { children: React.ReactNode }
+export type AuthenticationLayoutProps = {
+  children: React.ReactNode
+}
 
 export default function AuthenticationLayout({
   children,
 }: AuthenticationLayoutProps) {
   console.log('AuthenticationLayout')
 
-  const { flash } = useAuthentication()
+  // const { flash } = useAuthentication()
 
   return (
     <Box
@@ -32,7 +31,7 @@ export default function AuthenticationLayout({
           width: '100%',
         }}
       >
-        {(flash?.message ?? flash?.error) != null && (
+        {/* {(flash?.message ?? flash?.error) != null && (
           <>
             {flash?.message != null && (
               <Alert severity="success">{flash.message}</Alert>
@@ -44,7 +43,7 @@ export default function AuthenticationLayout({
               </Alert>
             )}
           </>
-        )}
+        )} */}
         {children}
       </Box>
     </Box>

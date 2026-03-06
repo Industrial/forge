@@ -1,4 +1,3 @@
-import { useState } from 'react'
 import AppBar from '@mui/material/AppBar'
 import Avatar from '@mui/material/Avatar'
 import Box from '@mui/material/Box'
@@ -6,17 +5,17 @@ import Button from '@mui/material/Button'
 import Divider from '@mui/material/Divider'
 import IconButton from '@mui/material/IconButton'
 import ListItemIcon from '@mui/material/ListItemIcon'
-import ListItemText from '@mui/material/ListItemText'
-import Menu from '@mui/material/Menu'
-import MenuItem from '@mui/material/MenuItem'
-import Toolbar from '@mui/material/Toolbar'
-import MenuIcon from '@mui/icons-material/Menu'
-import Person from '@mui/icons-material/Person'
 import Logout from '@mui/icons-material/Logout'
-import Business from '@mui/icons-material/Business'
+import Menu from '@mui/material/Menu'
+import MenuIcon from '@mui/icons-material/Menu'
+import MenuItem from '@mui/material/MenuItem'
+import Person from '@mui/icons-material/Person'
+import Toolbar from '@mui/material/Toolbar'
 import { useNavigate } from 'react-router-dom'
-import { useAuthentication } from '../context/AuthenticationContext'
-import { usePermission } from '../hooks/usePermission'
+import { useState } from 'react'
+
+import { AuthenticationStateReactiveStoreTag, initialAuthenticationState } from '@/features/authentication/stores'
+import { useReactiveStore } from '@/lib/ReactiveStore'
 
 type NavbarProps = {
   appName?: string
@@ -71,34 +70,45 @@ export default function Navbar({
   onToggleTheme,
   onOpenSidebar,
 }: NavbarProps) {
+  console.log('Navbar')
+
   const navigate = useNavigate()
-  const { user, scopes, currentOrgId, currentRoleId, logout, switchScope } =
-    useAuthentication()
-  const canAccessDashboard = usePermission('dashboard')
+
+  const authentication = useReactiveStore(
+    AuthenticationStateReactiveStoreTag,
+    initialAuthenticationState,
+  )
+
+  // const canAccessDashboard = usePermission('dashboard')
+  const canAccessDashboard = false
   const [anchorEl, setAnchorEl] = useState<null | HTMLElement>(null)
   const open = Boolean(anchorEl)
 
   const handleUserClick = (event: React.MouseEvent<HTMLElement>) => {
     setAnchorEl(event.currentTarget)
   }
+
   const handleClose = () => {
     setAnchorEl(null)
   }
+
   const handleScope = () => {
     handleClose()
     navigate('/scope')
   }
+
   const handleSwitchScope = async (
     orgId: string,
     roleId: string,
     roleName: string,
   ) => {
     handleClose()
-    await switchScope(orgId, roleId, roleName)
+    // await switchScope(orgId, roleId, roleName)
   }
+
   const handleLogout = async () => {
     handleClose()
-    await logout()
+    // await logout()
     navigate('/authentication/login', { replace: true })
   }
 
@@ -157,9 +167,9 @@ export default function Navbar({
         >
           <Avatar
             sx={{ width: 32, height: 32, bgcolor: 'primary.main' }}
-            alt={user?.email ?? 'User'}
+            // alt={user?.email ?? 'User'}
           >
-            {user?.email?.charAt(0)?.toUpperCase() ?? 'U'}
+            {/* {user?.email?.charAt(0)?.toUpperCase() ?? 'U'} */}
           </Avatar>
         </IconButton>
         <Menu
@@ -178,7 +188,7 @@ export default function Navbar({
             Scope
           </MenuItem>
           <Divider />
-          {scopes.map((p) => {
+          {/* {scopes.map((p) => {
             const isCurrentScope =
               currentOrgId != null &&
               currentRoleId != null &&
@@ -200,7 +210,7 @@ export default function Navbar({
                 />
               </MenuItem>
             )
-          })}
+          })} */}
           <Divider />
           <MenuItem onClick={handleLogout}>
             <ListItemIcon>
