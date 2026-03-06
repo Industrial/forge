@@ -3,29 +3,15 @@
 
 use crate::Error as ForgeError;
 use axum::Json;
-use axum::extract::{Path, Request, State};
-use axum::http::StatusCode;
+use axum::extract::State;
 use axum::response::IntoResponse;
-use db::auth::Backend;
-use forge_auth::token_auth::{RequireAuth, hash_password};
+use forge_auth::token_auth::hash_password;
 use forge_db::DbConnection;
-use sea_orm::{
-  ActiveModelTrait, ColumnTrait, EntityTrait, PaginatorTrait, QueryFilter, QueryOrder, QuerySelect,
-  Set,
-};
-use serde::Deserialize;
+use sea_orm::{ColumnTrait, EntityTrait, QueryFilter, QueryOrder, Set};
 use uuid::Uuid;
 
-use crate::handlers::auth::{
-  ScopeFromHeaders, get_scope_from_headers_map, has_global_scope, resolve_permissions,
-};
-use crate::handlers::dashboard::has_permission;
 use crate::permissions::dashboard_permissions;
-use crate::scoped_query::{WithScope, user_find_scoped};
-use db::models::{
-  membership, org_role, organization, role_permission, user, user_org_role,
-};
-use forge_auth::RequestScope;
+use db::models::{membership, org_role, role_permission, user, user_org_role};
 
 // ---- Permissions (code-defined keys) ----
 /// GET /api/permissions — list known permission keys (code-defined). Read-only; no auth or scope required.
@@ -36,36 +22,25 @@ pub async fn list_permissions(
   Ok(Json(serde_json::json!({ "permissions": list })).into_response())
 }
 
-/// Returns Some(403 response) if the user has neither global nor org-scoped permission.
-async fn require_org_permission_or_global(
-  db: &DbConnection,
-  user: &user::Model,
-  scope: &RequestScope,
-  permission_key: &str,
-) -> Option<axum::response::Response> {
-  if has_global_scope(db, user, permission_key).await {
-    return None;
-  }
-  let perms = resolve_permissions(db, user, Some(scope)).await;
-  if has_permission(&perms, permission_key) {
-    return None;
-  }
-  Some(
-    (
-      StatusCode::FORBIDDEN,
-      Json(serde_json::json!({
-        "error": "Forbidden",
-        "message": "Insufficient permissions"
-      })),
-    )
-      .into_response(),
-  )
-}
-
 // Re-export for seeds and legacy callers (impls live in db::organization).
 pub use db::organization::{
   create_organization_impl, ensure_organization_impl, CreateOrganizationBody,
 };
+
+/// Body for creating an org role. Used by impls and seeds.
+#[derive(Debug, Clone)]
+pub struct CreateOrgRoleBody {
+  pub name: String,
+  pub display_name: Option<String>,
+}
+
+/// Body for adding a user to an org (user_id or email+password). Used by add_org_user_impl.
+#[derive(Debug, Clone)]
+pub struct AddOrgUserBody {
+  pub user_id: Option<Uuid>,
+  pub email: Option<String>,
+  pub password: Option<String>,
+}
 
 pub async fn create_org_role_impl(
   db: &DbConnection,
@@ -91,8 +66,8 @@ pub async fn create_org_role_impl(
   let display_name = payload
     .display_name
     .as_ref()
-    .map(|s| s.trim())
-    .filter(|s| !s.is_empty())
+    .map(|s: &String| s.trim())
+    .filter(|s: &&str| !s.is_empty())
     .map(String::from);
   org_role::Entity::insert(org_role::ActiveModel {
     id: Set(id),
@@ -133,8 +108,8 @@ pub async fn ensure_org_role_impl(
   let display_name = payload
     .display_name
     .as_ref()
-    .map(|s| s.trim())
-    .filter(|s| !s.is_empty())
+    .map(|s: &String| s.trim())
+    .filter(|s: &&str| !s.is_empty())
     .map(String::from);
   org_role::Entity::insert(org_role::ActiveModel {
     id: Set(id),
@@ -199,7 +174,11 @@ pub async fn add_org_user_impl(
       }
       (uid, false)
     }
-    (None, Some(email), Some(password)) if email.trim().contains('@') && password.len() >= 8 => {
+    (None, Some(email), Some(password)) if {
+      let email: &str = email;
+      let password: &str = password;
+      email.trim().contains('@') && password.len() >= 8
+    } => {
       let email = email.trim();
       if user::Entity::find()
         .filter(user::Column::Email.eq(email))

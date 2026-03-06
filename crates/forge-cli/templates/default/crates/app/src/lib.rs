@@ -63,24 +63,24 @@ pub fn make_app(live_backend: Arc<forge_live::InMemoryLiveBackend>) -> App {
       axum::routing::get(handlers::rest::list_permissions),
     )
     // Generic entity handler (Epic 5): list, get, create, update, delete
-    .route(
+    .route_methods(
       "/api/entities/{entity_id}",
       axum::routing::get(handlers::generic_entity::list_entities)
         .post(handlers::generic_entity::create_entity),
     )
-    .route(
+    .route_methods(
       "/api/entities/{entity_id}/{id}",
       axum::routing::get(handlers::generic_entity::get_entity_by_id)
         .patch(handlers::generic_entity::update_entity)
         .delete(handlers::generic_entity::delete_entity),
     )
     // RPC (Epic 7): same entity operations; auth and scope from headers
-    .route(
+    .route_methods(
       "/api/rpc",
       axum::routing::post(handlers::rpc::rpc_handler),
     )
     // Subscription stream (Epic 8): long-lived HTTP/2 stream (SSE format); server pushes invalidation events
-    .route(
+    .route_methods(
       "/api/subscriptions/stream",
       axum::routing::get(handlers::subscription_stream::subscription_stream_handler),
     )
