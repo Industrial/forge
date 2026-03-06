@@ -27,13 +27,16 @@ use db::models::{
 };
 
 use crate::handlers::auth::{ScopeFromHeaders, has_global_scope, resolve_permissions};
-use crate::handlers::generic_entity::{parse_list_query_spec, ListQueryParams};
+use crate::handlers::generic_entity::{ListQueryParams, parse_list_query_spec};
 use crate::permissions::{dashboard_permissions, entity_action_key, permission_equivalents};
 use crate::query_spec::{
   FilterCond, FilterOperator, SortDirection, validate_filter_cond, validate_sort_field,
 };
-use db::organization::{CreateOrganizationBody, create_organization_impl, update_organization_impl, UpdateOrganizationBody as DbUpdateOrganizationBody};
 use crate::scoped_query::{WithScope, user_find_scoped};
+use db::organization::{
+  CreateOrganizationBody, UpdateOrganizationBody as DbUpdateOrganizationBody,
+  create_organization_impl, update_organization_impl,
+};
 
 const PERMISSION_READ: &str = "dashboard.permissions.read";
 const PERMISSION_WRITE: &str = "dashboard.permissions.write";
@@ -61,8 +64,13 @@ pub(crate) fn has_permission(permissions: &[String], key: &str) -> bool {
       return true;
     }
   }
-  if key.ends_with(".write") || key.ends_with(".create") || key.ends_with(".update") || key.ends_with(".delete")
-    || equivs.iter().any(|e| e.ends_with(".write") || e.ends_with(".create"))
+  if key.ends_with(".write")
+    || key.ends_with(".create")
+    || key.ends_with(".update")
+    || key.ends_with(".delete")
+    || equivs
+      .iter()
+      .any(|e| e.ends_with(".write") || e.ends_with(".create"))
   {
     if permissions.iter().any(|p| p == "all.write") {
       return true;
@@ -131,7 +139,8 @@ pub async fn list_permissions(
   State(db): State<DbConnection>,
 ) -> Result<impl IntoResponse, ForgeError> {
   let user = &auth.0;
-  if let Some(resp) = require_entity_permission(&user, &db, Some(&scope), "permission", "read").await
+  if let Some(resp) =
+    require_entity_permission(&user, &db, Some(&scope), "permission", "read").await
   {
     return Ok(resp);
   }
@@ -1010,8 +1019,14 @@ pub async fn delete_organization(
 }
 
 /// Allowed filter/sort fields for dashboard users list (ListQuerySpec).
-const DASHBOARD_USERS_FILTER_SORT_FIELDS: &[&str] =
-  &["id", "email", "is_active", "is_admin", "created_at", "updated_at"];
+const DASHBOARD_USERS_FILTER_SORT_FIELDS: &[&str] = &[
+  "id",
+  "email",
+  "is_active",
+  "is_admin",
+  "created_at",
+  "updated_at",
+];
 
 fn apply_user_filter(
   select: sea_orm::Select<user::Entity>,
@@ -1255,9 +1270,7 @@ pub async fn list_users(
     .map_err(|e: sea_orm::DbErr| ForgeError::Generic(e.to_string()))?;
 
   if users.is_empty() {
-    return Ok(
-      Json(serde_json::json!({ "users": [], "total": total })).into_response(),
-    );
+    return Ok(Json(serde_json::json!({ "users": [], "total": total })).into_response());
   }
   // Epic 6: no embedded relations; return only user fields.
   let list: Vec<serde_json::Value> = users

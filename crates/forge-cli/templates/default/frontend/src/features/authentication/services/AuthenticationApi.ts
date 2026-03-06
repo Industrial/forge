@@ -22,5 +22,6 @@ export interface AuthenticationApiService {
   ) => Effect.Effect<void, Error, never>
 }
 
-export const AuthenticationApi =
-  Context.GenericTag<AuthenticationApiService>('@forge/AuthenticationApi')
+export const AuthenticationApi = Context.GenericTag<AuthenticationApiService>(
+  '@forge/AuthenticationApi',
+)

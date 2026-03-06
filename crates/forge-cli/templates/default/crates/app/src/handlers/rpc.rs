@@ -1,10 +1,10 @@
 //! RPC endpoint per docs/technical-choices/07-rpc-parity-with-rest.md.
 //! Same entity operations (list, get, create, update, delete) over POST /api/rpc; auth and scope from headers (parity with REST).
 
+use axum::Json;
 use axum::extract::{Extension, State};
 use axum::http::StatusCode;
 use axum::response::IntoResponse;
-use axum::Json;
 use db::auth::Backend;
 use forge_auth::token_auth::RequireAuth;
 use forge_db::DbConnection;
@@ -12,13 +12,15 @@ use serde::Deserialize;
 use serde_json::json;
 use uuid::Uuid;
 
-use crate::handlers::auth::ScopeFromHeaders;
-use crate::registry;
-use crate::handlers::dashboard::require_entity_permission;
-use crate::handlers::generic_entity::{list_entity_with_spec, parse_list_query_spec, ListQueryParams};
-use crate::query_spec::{validate_filter_cond, validate_sort_field};
-use crate::subscriptions::{SubscriptionMeta, SubscriptionStore};
 use crate::Error as ForgeError;
+use crate::handlers::auth::ScopeFromHeaders;
+use crate::handlers::dashboard::require_entity_permission;
+use crate::handlers::generic_entity::{
+  ListQueryParams, list_entity_with_spec, parse_list_query_spec,
+};
+use crate::query_spec::{validate_filter_cond, validate_sort_field};
+use crate::registry;
+use crate::subscriptions::{SubscriptionMeta, SubscriptionStore};
 use db::models::user;
 
 /// Request envelope (Epic 7): method, entity_id, params, optional correlation id.
@@ -84,7 +86,11 @@ pub async fn rpc_handler(
   }
 
   if !registry::is_known_model(entity_id) {
-    return Ok(rpc_error(StatusCode::NOT_FOUND, "Unknown entity", correlation_id));
+    return Ok(rpc_error(
+      StatusCode::NOT_FOUND,
+      "Unknown entity",
+      correlation_id,
+    ));
   }
 
   let (action, required_action) = match method {
@@ -177,7 +183,11 @@ pub async fn rpc_handler(
       };
       rpc_delete(&db, entity_id, id, correlation_id).await
     }
-    _ => Ok(rpc_error(StatusCode::BAD_REQUEST, "invalid method", correlation_id)),
+    _ => Ok(rpc_error(
+      StatusCode::BAD_REQUEST,
+      "invalid method",
+      correlation_id,
+    )),
   }
 }
 
@@ -197,23 +207,29 @@ async fn rpc_subscribe(
     "rpc_subscribe"
   );
   if !registry::is_known_model(&entity_id) {
-    return Ok(rpc_error(StatusCode::NOT_FOUND, "Unknown entity", correlation_id));
+    return Ok(rpc_error(
+      StatusCode::NOT_FOUND,
+      "Unknown entity",
+      correlation_id,
+    ));
   }
-  if let Some(resp) =
-    require_entity_permission(user, _db, Some(scope), &entity_id, "read").await
-  {
+  if let Some(resp) = require_entity_permission(user, _db, Some(scope), &entity_id, "read").await {
     return Ok(resp);
   }
   // Parse and validate params as ListQuerySpec (filter, sort, pagination) per model.
-  let list_params = body.params.as_ref().map(|p| ListQueryParams {
-    expand: None,
-    include: None,
-    filter: p.filter.clone(),
-    sort: p.sort.clone(),
-    order: p.order.clone(),
-    offset: p.offset,
-    limit: p.limit,
-  }).unwrap_or_default();
+  let list_params = body
+    .params
+    .as_ref()
+    .map(|p| ListQueryParams {
+      expand: None,
+      include: None,
+      filter: p.filter.clone(),
+      sort: p.sort.clone(),
+      order: p.order.clone(),
+      offset: p.offset,
+      limit: p.limit,
+    })
+    .unwrap_or_default();
   let spec = match parse_list_query_spec(&list_params) {
     Ok(s) => s,
     Err(msg) => {
@@ -297,7 +313,10 @@ fn rpc_error(
   (status, Json(payload)).into_response()
 }
 
-fn rpc_ok_result(result: serde_json::Value, id: Option<serde_json::Value>) -> axum::response::Response {
+fn rpc_ok_result(
+  result: serde_json::Value,
+  id: Option<serde_json::Value>,
+) -> axum::response::Response {
   let mut payload = serde_json::json!({ "result": result });
   if let Some(id) = id {
     payload["id"] = id;
@@ -323,18 +342,12 @@ async fn rpc_list(
   let spec = match parse_list_query_spec(&list_params) {
     Ok(s) => s,
     Err(msg) => {
-      return Ok(rpc_error(
-        StatusCode::BAD_REQUEST,
-        &msg,
-        correlation_id,
-      ));
+      return Ok(rpc_error(StatusCode::BAD_REQUEST, &msg, correlation_id));
     }
   };
   match list_entity_with_spec(db, entity_id, &spec).await {
     Ok(result) => Ok(rpc_ok_result(result, correlation_id)),
-    Err(ForgeError::Auth(status, msg)) => {
-      Ok(rpc_error(status, &msg, correlation_id))
-    }
+    Err(ForgeError::Auth(status, msg)) => Ok(rpc_error(status, &msg, correlation_id)),
     Err(e) => Ok(rpc_error(
       StatusCode::INTERNAL_SERVER_ERROR,
       &e.to_string(),
@@ -385,21 +398,31 @@ async fn rpc_create(
       correlation_id,
     ));
   }
-  match registry::create_model(entity_id, db, body).await.map_err(crate::Error::from) {
+  match registry::create_model(entity_id, db, body)
+    .await
+    .map_err(crate::Error::from)
+  {
     Ok(id) => {
       // Return created resource (same as REST POST response).
-      match registry::get_model(entity_id, db, id).await.map_err(crate::Error::from) {
+      match registry::get_model(entity_id, db, id)
+        .await
+        .map_err(crate::Error::from)
+      {
         Ok(Some(value)) => Ok(rpc_ok_result(value, correlation_id)),
-        Ok(None) => Ok(rpc_ok_result(json!({ "id": id.to_string() }), correlation_id)),
-        Err(_) => Ok(rpc_ok_result(json!({ "id": id.to_string() }), correlation_id)),
+        Ok(None) => Ok(rpc_ok_result(
+          json!({ "id": id.to_string() }),
+          correlation_id,
+        )),
+        Err(_) => Ok(rpc_ok_result(
+          json!({ "id": id.to_string() }),
+          correlation_id,
+        )),
       }
     }
     Err(ForgeError::Auth(StatusCode::NOT_FOUND, msg)) => {
       Ok(rpc_error(StatusCode::NOT_FOUND, &msg, correlation_id))
     }
-    Err(ForgeError::Generic(msg)) => {
-      Ok(rpc_error(StatusCode::BAD_REQUEST, &msg, correlation_id))
-    }
+    Err(ForgeError::Generic(msg)) => Ok(rpc_error(StatusCode::BAD_REQUEST, &msg, correlation_id)),
     Err(e) => Ok(rpc_error(
       StatusCode::INTERNAL_SERVER_ERROR,
       &e.to_string(),
@@ -430,9 +453,7 @@ async fn rpc_update(
     Err(ForgeError::Auth(StatusCode::NOT_FOUND, msg)) => {
       Ok(rpc_error(StatusCode::NOT_FOUND, &msg, correlation_id))
     }
-    Err(ForgeError::Generic(msg)) => {
-      Ok(rpc_error(StatusCode::BAD_REQUEST, &msg, correlation_id))
-    }
+    Err(ForgeError::Generic(msg)) => Ok(rpc_error(StatusCode::BAD_REQUEST, &msg, correlation_id)),
     Err(e) => Ok(rpc_error(
       StatusCode::INTERNAL_SERVER_ERROR,
       &e.to_string(),
@@ -451,16 +472,11 @@ async fn rpc_delete(
     .await
     .map_err(crate::Error::from)
   {
-    Ok(deleted) => Ok(rpc_ok_result(
-      json!({ "deleted": deleted }),
-      correlation_id,
-    )),
+    Ok(deleted) => Ok(rpc_ok_result(json!({ "deleted": deleted }), correlation_id)),
     Err(ForgeError::Auth(StatusCode::NOT_FOUND, msg)) => {
       Ok(rpc_error(StatusCode::NOT_FOUND, &msg, correlation_id))
     }
-    Err(ForgeError::Generic(msg)) => {
-      Ok(rpc_error(StatusCode::BAD_REQUEST, &msg, correlation_id))
-    }
+    Err(ForgeError::Generic(msg)) => Ok(rpc_error(StatusCode::BAD_REQUEST, &msg, correlation_id)),
     Err(e) => Ok(rpc_error(
       StatusCode::INTERNAL_SERVER_ERROR,
       &e.to_string(),

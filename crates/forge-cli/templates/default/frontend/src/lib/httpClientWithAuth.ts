@@ -28,12 +28,6 @@ function isScopedPath(url: string): boolean {
 export interface HttpClientWithAuthConfig {
   /** Base URL for API requests (e.g. window.location.origin). */
   readonly baseUrl: string
-  /** @deprecated Token is read at request time from AuthStateRef. Kept for rehydration only. */
-  readonly token?: string
-  /** @deprecated Scope is read at request time from AuthStateRef. */
-  readonly organizationId?: string
-  /** @deprecated Scope is read at request time from AuthStateRef. */
-  readonly roleId?: string
 }
 
 /**
@@ -83,7 +77,9 @@ export const httpClientWithAuthLayer = (baseUrl: string) =>
             ) {
               onScopeRequiredRef.current()
               return yield* Effect.fail(
-                new Error('Scope required; select a scope before using this feature'),
+                new Error(
+                  'Scope required; select a scope before using this feature',
+                ),
               )
             }
             const res = yield* withAuth.execute(req)

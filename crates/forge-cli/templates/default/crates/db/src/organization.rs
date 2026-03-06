@@ -1,7 +1,7 @@
 //! Organization CUD and body types. Used by RestModel impl and by app legacy routes.
 
-use serde::Deserialize;
 use sea_orm::{ActiveModelTrait, EntityTrait, Set};
+use serde::Deserialize;
 use uuid::Uuid;
 
 use crate::model_error::ModelError;

@@ -10,16 +10,14 @@ import { useEffect } from 'react'
 import { Effect, Stream } from 'effect'
 import { useAuthentication } from '../context/AuthenticationContext'
 import { trigger } from '../lib/subscriptionRegistry'
-import { runWithAppRuntime, type AppServices } from '../lib/appLayer'
+import { runApp } from '../lib/appRuntime'
 import { SubscriptionStream } from '../services/SubscriptionStream'
-import { useEffectRuntime } from 'react-effect-hooks'
 
 export function SubscriptionStreamRunner() {
   const { token } = useAuthentication()
-  const { runtime } = useEffectRuntime<AppServices>()
 
   useEffect(() => {
-    if (!token || !runtime) return
+    if (!token) return
 
     const program = Effect.gen(function* () {
       const svc = yield* SubscriptionStream
@@ -33,8 +31,8 @@ export function SubscriptionStreamRunner() {
       )
     })
 
-    runWithAppRuntime(runtime, program).catch(() => {})
-  }, [token, runtime])
+    runApp(program)
+  }, [token])
 
   return null
 }

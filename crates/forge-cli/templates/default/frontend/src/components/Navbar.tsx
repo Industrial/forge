@@ -72,14 +72,8 @@ export default function Navbar({
   onOpenSidebar,
 }: NavbarProps) {
   const navigate = useNavigate()
-  const {
-    user,
-    scopes,
-    currentOrgId,
-    currentRoleId,
-    logout,
-    switchScope,
-  } = useAuthentication()
+  const { user, scopes, currentOrgId, currentRoleId, logout, switchScope } =
+    useAuthentication()
   const canAccessDashboard = usePermission('dashboard')
   const [anchorEl, setAnchorEl] = useState<null | HTMLElement>(null)
   const open = Boolean(anchorEl)
@@ -195,11 +189,7 @@ export default function Navbar({
                 key={p.role_id ?? p.org_id}
                 selected={isCurrentScope}
                 onClick={() =>
-                  handleSwitchScope(
-                    p.org_id,
-                    p.role_id ?? '',
-                    p.role ?? '',
-                  )
+                  handleSwitchScope(p.org_id, p.role_id ?? '', p.role ?? '')
                 }
               >
                 <ListItemIcon>

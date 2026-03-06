@@ -1,8 +1,6 @@
 import { useEffect, useState } from 'react'
 import {
-  useEffectRuntime,
   useEffectState,
-  useRunEffect,
   streamWithPendingState,
   runStreamInto,
   type AsyncState,
@@ -12,7 +10,8 @@ import {
   isFailure,
   isPending,
 } from 'react-effect-hooks'
-import { runWithAppRuntime, type AppServices } from '../../../../lib/appLayer'
+import { runApp } from '../../../../lib/appRuntime'
+import type { AppServices } from '../../../../lib/appLayer'
 import { Effect } from 'effect'
 import Table from '@mui/material/Table'
 import TableBody from '@mui/material/TableBody'
@@ -42,18 +41,24 @@ const GLOBAL_ROLES = ['platform_admin'] as const
 type ListState = AsyncState<PermissionsData, Error>
 
 export default function PermissionsPage() {
-  const { runtime } = useEffectRuntime<AppServices>()
   const { trigger: liveRefreshTrigger, connected: wsConnected } =
     useLiveRefreshTrigger('role_permissions')
 
-  const [listState, , setListStateAsEffect] = useEffectState<ListState, never, never>(
-    idle<PermissionsData, Error>(),
-  )
-  const [addState, , setAddStateAsEffect] = useEffectState<ListState, never, never>(
-    idle<PermissionsData, Error>(),
-  )
-  const [deleteState, , setDeleteStateAsEffect] =
-    useEffectState<ListState, never, never>(idle<PermissionsData, Error>())
+  const [listState, , setListStateAsEffect] = useEffectState<
+    ListState,
+    never,
+    never
+  >(idle<PermissionsData, Error>())
+  const [addState, , setAddStateAsEffect] = useEffectState<
+    ListState,
+    never,
+    never
+  >(idle<PermissionsData, Error>())
+  const [deleteState, , setDeleteStateAsEffect] = useEffectState<
+    ListState,
+    never,
+    never
+  >(idle<PermissionsData, Error>())
 
   const assignments = isSuccess(listState) ? listState.value.assignments : []
   const permissions = isSuccess(listState) ? listState.value.permissions : []
@@ -93,28 +98,32 @@ export default function PermissionsPage() {
     yield* runStreamInto(refreshStream, setListStateAsEffect)
   })
 
-  useRunEffect(refreshEffect, [liveRefreshTrigger, setListStateAsEffect])
+  useEffect(() => {
+    runApp(refreshEffect)
+  }, [liveRefreshTrigger, setListStateAsEffect])
 
   // On add success: copy to listState and reset add state
-  useRunEffect(
-    Effect.gen(function* () {
-      if (!isSuccess(addState)) return
-      yield* setListStateAsEffect(asyncSuccess(addState.value))
-      yield* setAddStateAsEffect(idle())
-    }),
-    [addState, setListStateAsEffect, setAddStateAsEffect],
-  )
+  useEffect(() => {
+    if (!isSuccess(addState)) return
+    runApp(
+      Effect.gen(function* () {
+        yield* setListStateAsEffect(asyncSuccess(addState.value))
+        yield* setAddStateAsEffect(idle())
+      }),
+    )
+  }, [addState, setListStateAsEffect, setAddStateAsEffect])
 
   // On delete success: copy to listState, clear deletingKey, reset delete state
-  useRunEffect(
-    Effect.gen(function* () {
-      if (!isSuccess(deleteState)) return
-      yield* setListStateAsEffect(asyncSuccess(deleteState.value))
-      yield* Effect.sync(() => setDeletingKey(null))
-      yield* setDeleteStateAsEffect(idle())
-    }),
-    [deleteState, setListStateAsEffect, setDeleteStateAsEffect],
-  )
+  useEffect(() => {
+    if (!isSuccess(deleteState)) return
+    runApp(
+      Effect.gen(function* () {
+        yield* setListStateAsEffect(asyncSuccess(deleteState.value))
+        yield* Effect.sync(() => setDeletingKey(null))
+        yield* setDeleteStateAsEffect(idle())
+      }),
+    )
+  }, [deleteState, setListStateAsEffect, setDeleteStateAsEffect])
 
   // Sync addPermission when permissions list loads (keep selection valid)
   useEffect(() => {
@@ -146,8 +155,7 @@ export default function PermissionsPage() {
       })
       return yield* permissions.getData()
     })
-    runWithAppRuntime(
-      runtime,
+    runApp(
       runStreamInto(streamWithPendingState(addThenList), setAddStateAsEffect),
     )
   }
@@ -167,8 +175,7 @@ export default function PermissionsPage() {
       })
       return yield* permissions.getData()
     })
-    runWithAppRuntime(
-      runtime,
+    runApp(
       runStreamInto(
         streamWithPendingState(deleteThenList),
         setDeleteStateAsEffect,
@@ -176,8 +183,7 @@ export default function PermissionsPage() {
     )
   }
 
-  const addBarRoles =
-    addScope === 'global' ? [...GLOBAL_ROLES] : [...ORG_ROLES]
+  const addBarRoles = addScope === 'global' ? [...GLOBAL_ROLES] : [...ORG_ROLES]
 
   const handleChangePage = (_: unknown, newPage: number) => {
     setPage(newPage)
@@ -211,7 +217,7 @@ export default function PermissionsPage() {
         <ErrorAlert
           message={errorMessage}
           onClose={() => {
-            runWithAppRuntime(runtime, refreshEffect)
+            runApp(refreshEffect)
           }}
         />
       )}
@@ -247,29 +253,29 @@ export default function PermissionsPage() {
                 </TableRow>
               </TableHead>
               <TableBody>
-                  {paginatedAssignments.length === 0 ? (
-                    <TableEmptyRow colSpan={4}>
-                      No assignments yet. Add one above.
-                    </TableEmptyRow>
-                  ) : (
-                    paginatedAssignments.map((a) => {
-                      const key = [
-                        a.scope,
-                        a.role_name,
-                        a.permission_key,
-                        a.org_id ?? '',
-                      ].join(':')
-                      return (
-                        <AssignmentTableRow
-                          key={key}
-                          assignment={a}
-                          onDelete={handleDelete}
-                          isDeleting={deleting && deletingKey === key}
-                        />
-                      )
-                    })
-                  )}
-                </TableBody>
+                {paginatedAssignments.length === 0 ? (
+                  <TableEmptyRow colSpan={4}>
+                    No assignments yet. Add one above.
+                  </TableEmptyRow>
+                ) : (
+                  paginatedAssignments.map((a) => {
+                    const key = [
+                      a.scope,
+                      a.role_name,
+                      a.permission_key,
+                      a.org_id ?? '',
+                    ].join(':')
+                    return (
+                      <AssignmentTableRow
+                        key={key}
+                        assignment={a}
+                        onDelete={handleDelete}
+                        isDeleting={deleting && deletingKey === key}
+                      />
+                    )
+                  })
+                )}
+              </TableBody>
             </Table>
           </TableContainer>
           <TablePagination

@@ -7,8 +7,7 @@ import React, {
   useState,
 } from 'react'
 import { Effect } from 'effect'
-import { useEffectRuntime } from 'react-effect-hooks'
-import { runWithAppRuntime, type AppServices } from '../lib/appLayer'
+import { runApp } from '../lib/appRuntime'
 import {
   ForgeWebsocket,
   type ForgeWebsocketKey,
@@ -59,15 +58,14 @@ export function useLiveUpdates(
 const POLL_INTERVAL_MS = 2000
 
 /**
- * ForgeWebsocket provider backed by the Effect runtime's ForgeWebsocket service.
- * Must be used inside AuthenticationRuntimeProvider so the runtime includes Websocket + ForgeWebsocket.
+ * ForgeWebsocket provider backed by the app runtime's ForgeWebsocket service.
+ * Must be used inside AuthenticationRuntimeProvider so the app runtime is ready.
  */
 export function ForgeWebsocketProvider({
   children,
 }: {
   children: React.ReactNode
 }) {
-  const { runtime } = useEffectRuntime<AppServices>()
   const [connected, setConnected] = useState(false)
 
   const getConnectedEffect = Effect.gen(function* () {
@@ -76,26 +74,23 @@ export function ForgeWebsocketProvider({
   })
 
   useEffect(() => {
-    if (runtime == null) return
     const updateConnected = () => {
-      runWithAppRuntime(runtime, getConnectedEffect)
+      runApp(getConnectedEffect)
         .then(setConnected)
         .catch(() => setConnected(false))
     }
     updateConnected()
     const id = setInterval(updateConnected, POLL_INTERVAL_MS)
     return () => clearInterval(id)
-  }, [runtime])
+  }, [])
 
   const subscribe = useCallback(
     (key: ForgeWebsocketKey, listener: Listener) => {
-      if (runtime == null) return () => {}
       const state: { unsub: (() => void) | null; cancelled: boolean } = {
         unsub: null,
         cancelled: false,
       }
-      runWithAppRuntime(
-        runtime,
+      runApp(
         Effect.gen(function* () {
           const fw = yield* ForgeWebsocket
           return yield* fw.subscribe(key, listener)
@@ -112,7 +107,7 @@ export function ForgeWebsocketProvider({
         }
       }
     },
-    [runtime],
+    [],
   )
 
   const value: ForgeWebsocketContextValue = React.useMemo(

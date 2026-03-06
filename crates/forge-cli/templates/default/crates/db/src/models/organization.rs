@@ -9,11 +9,11 @@ use uuid::Uuid;
 
 use crate::model_error::ModelError;
 use crate::organization::{
-  create_organization_impl, delete_organization_impl, update_organization_impl,
-  CreateOrganizationBody, UpdateOrganizationBody,
+  CreateOrganizationBody, UpdateOrganizationBody, create_organization_impl,
+  delete_organization_impl, update_organization_impl,
 };
 use crate::query_spec::{FilterCond, FilterOperator, SortDirection, SortSpec};
-use crate::rest_model::{RestModel, REST_ACTIONS};
+use crate::rest_model::{REST_ACTIONS, RestModel};
 
 #[derive(Clone, Debug, PartialEq, DeriveEntityModel, Serialize, Deserialize)]
 #[sea_orm(table_name = "organization")]
@@ -96,10 +96,7 @@ impl RestModel for Organization {
     })
   }
 
-  fn apply_filter(
-    select: sea_orm::Select<Entity>,
-    cond: &FilterCond,
-  ) -> sea_orm::Select<Entity> {
+  fn apply_filter(select: sea_orm::Select<Entity>, cond: &FilterCond) -> sea_orm::Select<Entity> {
     apply_filter(select, cond)
   }
 
@@ -107,10 +104,7 @@ impl RestModel for Organization {
     select.order_by_asc(Column::Name)
   }
 
-  fn apply_sort(
-    select: sea_orm::Select<Entity>,
-    sort: &SortSpec,
-  ) -> sea_orm::Select<Entity> {
+  fn apply_sort(select: sea_orm::Select<Entity>, sort: &SortSpec) -> sea_orm::Select<Entity> {
     let (col, dir) = match sort.field.as_str() {
       "id" => (Column::Id, sort.direction),
       "name" => (Column::Name, sort.direction),
@@ -125,10 +119,7 @@ impl RestModel for Organization {
     }
   }
 
-  async fn create(
-    db: &DbConnection,
-    body: serde_json::Value,
-  ) -> Result<Uuid, ModelError> {
+  async fn create(db: &DbConnection, body: serde_json::Value) -> Result<Uuid, ModelError> {
     let payload: CreateOrganizationBody =
       serde_json::from_value(body).map_err(|e| ModelError::Validation(e.to_string()))?;
     create_organization_impl(db, &payload).await
@@ -150,10 +141,7 @@ impl RestModel for Organization {
   }
 }
 
-fn apply_filter(
-  select: sea_orm::Select<Entity>,
-  cond: &FilterCond,
-) -> sea_orm::Select<Entity> {
+fn apply_filter(select: sea_orm::Select<Entity>, cond: &FilterCond) -> sea_orm::Select<Entity> {
   use sea_orm::ColumnTrait;
   match cond.field.as_str() {
     "id" => {

@@ -7,7 +7,7 @@ import React, {
 } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { Effect } from 'effect'
-import { runWithAppRuntime } from '../lib/appLayer'
+import { runApp } from '../lib/appRuntime'
 import { on401HandlerRef, onScopeRequiredRef } from '../lib/authStateRef'
 import type { AuthenticationUser } from '../features/authentication/domain/AuthenticationUser'
 import type { Flash } from '../features/authentication/domain/Flash'
@@ -15,7 +15,6 @@ import type { Scope } from '../features/authentication/domain/Scope'
 import { AuthenticationError } from '../features/authentication/domain/AuthenticationError'
 import { AuthenticationStore } from '../features/authentication/services/AuthenticationStore'
 import { useAuthenticationState } from '../features/authentication/hooks/useAuthentication'
-import { useEffectRuntime } from 'react-effect-hooks'
 import type { AppServices } from '../lib/appLayer'
 
 /**
@@ -95,11 +94,7 @@ const setTokenEffect = (token: string | null) =>
     yield* store.setToken(token)
   })
 
-const switchScopeEffect = (
-  orgId: string,
-  roleId: string,
-  roleName: string,
-) =>
+const switchScopeEffect = (orgId: string, roleId: string, roleName: string) =>
   Effect.gen(function* () {
     const store = yield* AuthenticationStore
     const prev = yield* store.getState()
@@ -127,30 +122,40 @@ export function AuthenticationProvider({
 }: {
   children: React.ReactNode
 }) {
-  const navigate = useNavigate()
-  const { state, refresh, isPending } = useAuthenticationState()
-  const { runtime } = useEffectRuntime<AppServices>()
+  console.log('AuthenticationProvider')
 
   useEffect(() => {
-    on401HandlerRef.current = () => {
-      runWithAppRuntime(runtime, logoutEffect)
-        .then(refresh)
-        .then(() => navigate('/authentication/login', { replace: true }))
-    }
-    onScopeRequiredRef.current = () => {
-      navigate('/authentication/select-scope', { replace: true })
-    }
-    return () => {
-      on401HandlerRef.current = () => {}
-      onScopeRequiredRef.current = () => {}
-    }
-  }, [runtime, refresh, navigate])
+    Effect.gen(function* () {
+      const store = yield* AuthenticationStore
+      yield* store.fetchMe()
+    })
+  }, [])
+
+  // const navigate = useNavigate()
+  const { state, refresh, isPending } = useAuthenticationState()
+
+  // useEffect(() => {
+  //   on401HandlerRef.current = () => {
+  //     runApp(logoutEffect)
+  //       .then(refresh)
+  //       .then(() => navigate('/authentication/login', { replace: true }))
+  //   }
+  //   onScopeRequiredRef.current = () => {
+  //     navigate('/authentication/select-scope', { replace: true })
+  //   }
+  //   return () => {
+  //     on401HandlerRef.current = () => {}
+  //     onScopeRequiredRef.current = () => {}
+  //   }
+  // }, [refresh, navigate])
 
   const runThenRefresh = useCallback(
-    <R extends AppServices>(effect: Effect.Effect<void, AuthenticationError, R>) => {
-      return runWithAppRuntime(runtime, effect).then(refresh)
+    <R extends AppServices>(
+      effect: Effect.Effect<void, AuthenticationError, R>,
+    ) => {
+      return runApp(effect).then(refresh)
     },
-    [runtime, refresh],
+    [refresh],
   )
 
   const fetchMe = useCallback(
@@ -188,13 +193,10 @@ export function AuthenticationProvider({
 
   const switchScope = useCallback(
     async (orgId: string, roleId: string, roleName: string) => {
-      await runWithAppRuntime(
-        runtime,
-        switchScopeEffect(orgId, roleId, roleName),
-      )
+      await runApp(switchScopeEffect(orgId, roleId, roleName))
       refresh()
     },
-    [runtime, refresh],
+    [refresh],
   )
 
   const value = useMemo<AuthenticationState>(

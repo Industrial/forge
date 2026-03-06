@@ -28,11 +28,9 @@ import LoadingSpinner from '../../../../components/LoadingSpinner'
 import { useLiveRefreshTrigger } from '../../../../hooks/useLiveRefreshTrigger'
 import { usePermission } from '../../../../hooks/usePermission'
 import { Effect, Schema } from 'effect'
-import { runWithAppRuntime } from '../../../../lib/appLayer'
+import { runApp } from '../../../../lib/appRuntime'
 import {
-  useEffectRuntime,
   useEffectState,
-  useRunEffect,
   streamWithPendingState,
   runStreamInto,
   type AsyncState,
@@ -63,7 +61,6 @@ const FILTER_ROLES = ['owner', 'admin', 'editor', 'viewer']
 export default function UsersPage() {
   const canRead = usePermission(USERS_READ)
   const canWrite = usePermission(USERS_WRITE)
-  const { runtime } = useEffectRuntime<AppServices>()
   const { trigger: liveRefreshTrigger, connected: wsConnected } =
     useLiveRefreshTrigger('users')
 
@@ -81,8 +78,9 @@ export default function UsersPage() {
   >(idle())
   const [orgListState, setOrgListState, setOrgListStateAsEffect] =
     useEffectState<AsyncState<readonly Organization[], Error>>(idle())
-  const [orgRoles, _setOrgRoles, setOrgRolesAsEffect] =
-    useEffectState<readonly DashboardRole[]>([])
+  const [orgRoles, _setOrgRoles, setOrgRolesAsEffect] = useEffectState<
+    readonly DashboardRole[]
+  >([])
 
   const [addDialogOpen, setAddDialogOpen] = useState(false)
   const [filterEmail, setFilterEmail] = useState('')
@@ -93,8 +91,7 @@ export default function UsersPage() {
   const [editUser, setEditUser] = useState<User | null>(null)
   const [deletingId, setDeletingId] = useState<string | null>(null)
 
-  const users =
-    listState._tag === 'success' ? [...listState.value] : []
+  const users = listState._tag === 'success' ? [...listState.value] : []
   const organizations =
     orgListState._tag === 'success' ? [...orgListState.value] : []
   const loading = isPending(listState)
@@ -102,10 +99,10 @@ export default function UsersPage() {
   const saving = isPending(updateState)
   const deleting = isPending(deleteState)
   const errorMessage =
-    [listState, addState, updateState, deleteState]
-      .filter((s): s is AsyncState<readonly User[], Error> & { _tag: 'failure' } =>
+    [listState, addState, updateState, deleteState].filter(
+      (s): s is AsyncState<readonly User[], Error> & { _tag: 'failure' } =>
         isFailure(s),
-      )[0]?.error?.message ?? null
+    )[0]?.error?.message ?? null
   const error = errorMessage != null ? errorMessage : null
 
   const addForm = useForm<UserAddFormValuesStrict>({
@@ -137,37 +134,37 @@ export default function UsersPage() {
   const refreshEffect = streamWithPendingState(
     canRead ? listUsersEffect : Effect.succeed([] as User[]),
   )
-  useRunEffect(
-    canRead
+  useEffect(() => {
+    const effect = canRead
       ? runStreamInto(refreshEffect, setListStateAsEffect)
-      : Effect.sync(() => setListState(idle())),
-    [liveRefreshTrigger, setListStateAsEffect, canRead],
-  )
+      : Effect.sync(() => setListState(idle()))
+    runApp(effect)
+  }, [liveRefreshTrigger, setListStateAsEffect, canRead])
 
   const listOrgsEffect = Effect.gen(function* () {
     const dashboard = yield* Dashboard
     return yield* dashboard.getOrganizations()
   })
-  useRunEffect(
-    canRead
+  useEffect(() => {
+    const effect = canRead
       ? runStreamInto(
           streamWithPendingState(listOrgsEffect),
           setOrgListStateAsEffect,
         )
-      : Effect.sync(() => setOrgListState(idle())),
-    [setOrgListStateAsEffect, canRead],
-  )
+      : Effect.sync(() => setOrgListState(idle()))
+    runApp(effect)
+  }, [setOrgListStateAsEffect, canRead])
 
-  useRunEffect(
-    addFormOrgId
+  useEffect(() => {
+    const effect = addFormOrgId
       ? Effect.gen(function* () {
           const dashboard = yield* Dashboard
           const roles = yield* dashboard.getRolesByOrg(addFormOrgId)
           yield* setOrgRolesAsEffect(roles)
         })
-      : setOrgRolesAsEffect([]),
-    [addFormOrgId, setOrgRolesAsEffect],
-  )
+      : setOrgRolesAsEffect([])
+    runApp(effect)
+  }, [addFormOrgId, setOrgRolesAsEffect])
 
   useEffect(() => {
     const current = addForm.getValues('roleIds')
@@ -190,8 +187,7 @@ export default function UsersPage() {
     })
 
   const handleAdd = (data: UserAddFormValuesStrict) => {
-    runWithAppRuntime(
-      runtime,
+    runApp(
       runStreamInto(
         streamWithPendingState(createThenList(data)),
         setAddStateAsEffect,
@@ -218,8 +214,7 @@ export default function UsersPage() {
 
   const handleSaveEdit = (data: UserEditFormValues) => {
     if (!editUser) return
-    runWithAppRuntime(
-      runtime,
+    runApp(
       runStreamInto(
         streamWithPendingState(updateThenList(data)),
         setUpdateStateAsEffect,
@@ -236,8 +231,7 @@ export default function UsersPage() {
 
   const handleDelete = (id: string) => {
     setDeletingId(id)
-    runWithAppRuntime(
-      runtime,
+    runApp(
       runStreamInto(
         streamWithPendingState(deleteThenList(id)),
         setDeleteStateAsEffect,
@@ -245,46 +239,46 @@ export default function UsersPage() {
     )
   }
 
-  useRunEffect(
-    isSuccess(addState)
-      ? Effect.gen(function* () {
-          yield* setListStateAsEffect(asyncSuccess(addState.value))
-          yield* Effect.sync(() => {
-            addForm.reset({
-              email: '',
-              password: '',
-              orgId: organizations[0]?.id ?? '',
-              roleIds: [],
-            })
-            setAddDialogOpen(false)
+  useEffect(() => {
+    if (!isSuccess(addState)) return
+    runApp(
+      Effect.gen(function* () {
+        yield* setListStateAsEffect(asyncSuccess(addState.value))
+        yield* Effect.sync(() => {
+          addForm.reset({
+            email: '',
+            password: '',
+            orgId: organizations[0]?.id ?? '',
+            roleIds: [],
           })
-          yield* setAddStateAsEffect(idle())
+          setAddDialogOpen(false)
         })
-      : Effect.void,
-    [addState],
-  )
+        yield* setAddStateAsEffect(idle())
+      }),
+    )
+  }, [addState])
 
-  useRunEffect(
-    isSuccess(updateState)
-      ? Effect.gen(function* () {
-          yield* setListStateAsEffect(asyncSuccess(updateState.value))
-          yield* Effect.sync(() => setEditUser(null))
-          yield* setUpdateStateAsEffect(idle())
-        })
-      : Effect.void,
-    [updateState],
-  )
+  useEffect(() => {
+    if (!isSuccess(updateState)) return
+    runApp(
+      Effect.gen(function* () {
+        yield* setListStateAsEffect(asyncSuccess(updateState.value))
+        yield* Effect.sync(() => setEditUser(null))
+        yield* setUpdateStateAsEffect(idle())
+      }),
+    )
+  }, [updateState])
 
-  useRunEffect(
-    isSuccess(deleteState)
-      ? Effect.gen(function* () {
-          yield* setListStateAsEffect(asyncSuccess(deleteState.value))
-          yield* Effect.sync(() => setDeletingId(null))
-          yield* setDeleteStateAsEffect(idle())
-        })
-      : Effect.void,
-    [deleteState],
-  )
+  useEffect(() => {
+    if (!isSuccess(deleteState)) return
+    runApp(
+      Effect.gen(function* () {
+        yield* setListStateAsEffect(asyncSuccess(deleteState.value))
+        yield* Effect.sync(() => setDeletingId(null))
+        yield* setDeleteStateAsEffect(idle())
+      }),
+    )
+  }, [deleteState])
 
   const filteredUsers = users.filter((user) => {
     const emailMatch =
@@ -336,8 +330,7 @@ export default function UsersPage() {
         <ErrorAlert
           message={error}
           onClose={() => {
-            runWithAppRuntime(
-              runtime,
+            runApp(
               Effect.gen(function* () {
                 yield* runStreamInto(refreshEffect, setListStateAsEffect)
                 yield* setAddStateAsEffect(idle())

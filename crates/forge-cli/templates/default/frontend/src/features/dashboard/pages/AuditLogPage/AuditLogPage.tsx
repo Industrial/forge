@@ -1,8 +1,6 @@
 import { useEffect, useState } from 'react'
 import {
-  useEffectRuntime,
   useEffectState,
-  useRunEffect,
   streamWithPendingState,
   runStreamInto,
   type AsyncState,
@@ -11,7 +9,8 @@ import {
   isFailure,
   isPending,
 } from 'react-effect-hooks'
-import { runWithAppRuntime, type AppServices } from '../../../../lib/appLayer'
+import { runApp } from '../../../../lib/appRuntime'
+import type { AppServices } from '../../../../lib/appLayer'
 import { Effect } from 'effect'
 import Table from '@mui/material/Table'
 import TableBody from '@mui/material/TableBody'
@@ -35,13 +34,14 @@ import { AuditLog as AuditLogService } from '../../services/AuditLog'
 type ListState = AsyncState<AuditLogResult, Error>
 
 export default function AuditLogPage() {
-  const { runtime } = useEffectRuntime<AppServices>()
   const { trigger: liveRefreshTrigger, connected: wsConnected } =
     useLiveRefreshTrigger('audit-log')
 
-  const [listState, , setListStateAsEffect] = useEffectState<ListState, never, never>(
-    idle<AuditLogResult, Error>(),
-  )
+  const [listState, , setListStateAsEffect] = useEffectState<
+    ListState,
+    never,
+    never
+  >(idle<AuditLogResult, Error>())
 
   const entries = isSuccess(listState) ? listState.value.entries : []
   const total = isSuccess(listState) ? listState.value.total : 0
@@ -85,7 +85,9 @@ export default function AuditLogPage() {
     yield* runStreamInto(refreshStream, setListStateAsEffect)
   })
 
-  useRunEffect(refreshEffect, [
+  useEffect(() => {
+    runApp(refreshEffect)
+  }, [
     liveRefreshTrigger,
     page,
     rowsPerPage,
@@ -156,7 +158,7 @@ export default function AuditLogPage() {
         <ErrorAlert
           message={errorMessage}
           onClose={() => {
-            runWithAppRuntime(runtime, refreshEffect)
+            runApp(refreshEffect)
           }}
         />
       )}

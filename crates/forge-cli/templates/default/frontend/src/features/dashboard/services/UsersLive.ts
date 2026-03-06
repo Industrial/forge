@@ -51,7 +51,11 @@ const UsersLive = Layer.effect(
             is_active: boolean
             is_admin: boolean
             created_at: string
-            memberships?: Array<{ org_id: string; org_name: string; roles: string[] }>
+            memberships?: Array<{
+              org_id: string
+              org_name: string
+              roles: string[]
+            }>
           }>
         }
         const raw = data.users ?? []
@@ -80,7 +84,9 @@ const UsersLive = Layer.effect(
     const create: UsersService['create'] = (body) =>
       Effect.gen(function* () {
         yield* Effect.logTrace('UsersLive.create')
-        yield* Effect.logDebug(`UsersLive.create: email=${body.email}, org_id=${body.org_id}`)
+        yield* Effect.logDebug(
+          `UsersLive.create: email=${body.email}, org_id=${body.org_id}`,
+        )
         const request = HttpClientRequest.post('/api/dashboard/users').pipe(
           HttpClientRequest.bodyUnsafeJson({
             ...body,

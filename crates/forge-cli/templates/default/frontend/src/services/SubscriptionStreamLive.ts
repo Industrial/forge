@@ -65,12 +65,16 @@ export const SubscriptionStreamLive = (baseUrl: string) =>
           yield* Effect.logTrace('SubscriptionStreamLive.openStream')
           const token = authStateRef.current.token
           if (!token) {
-            yield* Effect.logDebug('SubscriptionStreamLive.openStream: no token')
+            yield* Effect.logDebug(
+              'SubscriptionStreamLive.openStream: no token',
+            )
             return yield* Effect.fail(
               new Error('Not authenticated; cannot open subscription stream'),
             )
           }
-          yield* Effect.logDebug(`SubscriptionStreamLive.openStream: url=${baseUrl.replace(/\/$/, '')}/api/subscriptions/stream`)
+          yield* Effect.logDebug(
+            `SubscriptionStreamLive.openStream: url=${baseUrl.replace(/\/$/, '')}/api/subscriptions/stream`,
+          )
           const url = `${baseUrl.replace(/\/$/, '')}/api/subscriptions/stream`
           const res = yield* Effect.tryPromise({
             try: () =>
@@ -87,16 +91,16 @@ export const SubscriptionStreamLive = (baseUrl: string) =>
           }
           const body = res.body
           if (!body) {
-            return yield* Effect.fail(
-              new Error('Subscription stream: no body'),
-            )
+            return yield* Effect.fail(new Error('Subscription stream: no body'))
           }
           const reader = body.getReader()
           const stream = Stream.fromAsyncIterable(
             readSSEEvents(reader),
             (e) => new Error(String(e)),
           )
-          yield* Effect.logDebug('SubscriptionStreamLive.openStream: stream opened')
+          yield* Effect.logDebug(
+            'SubscriptionStreamLive.openStream: stream opened',
+          )
           return stream
         })
 

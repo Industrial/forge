@@ -30,16 +30,10 @@ export default function PageHeader({
         >
           {title}
         </Typography>
-        {liveConnected && (
-          <Chip label="Live" color="success" size="small" />
-        )}
+        {liveConnected && <Chip label="Live" color="success" size="small" />}
       </Box>
       {description != null && (
-        <Typography
-          variant="body2"
-          color="text.secondary"
-          sx={{ mb: 2 }}
-        >
+        <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
           {description}
         </Typography>
       )}

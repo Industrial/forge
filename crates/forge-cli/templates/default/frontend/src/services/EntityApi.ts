@@ -66,6 +66,5 @@ export interface EntityApiService {
  * Use in Effects: yield* EntityApi then yield* api.list('organization', { limit: 10 }).
  * Provide with EntityApiLive (requires HttpClient).
  */
-export const EntityApi = Context.GenericTag<EntityApiService>(
-  '@forge/EntityApi',
-)
+export const EntityApi =
+  Context.GenericTag<EntityApiService>('@forge/EntityApi')

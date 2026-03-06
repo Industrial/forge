@@ -121,9 +121,7 @@ impl From<db::model_error::ModelError> for Error {
         Error::Auth(StatusCode::NOT_FOUND, "Unknown model".to_string())
       }
       db::model_error::ModelError::Validation(msg) => Error::Generic(msg),
-      db::model_error::ModelError::NotFound(msg) => {
-        Error::Auth(StatusCode::NOT_FOUND, msg)
-      }
+      db::model_error::ModelError::NotFound(msg) => Error::Auth(StatusCode::NOT_FOUND, msg),
       db::model_error::ModelError::Database(err) => Error::Database(err),
     }
   }

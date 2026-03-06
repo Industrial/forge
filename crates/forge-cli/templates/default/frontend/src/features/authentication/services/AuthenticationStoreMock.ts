@@ -31,9 +31,7 @@ function toSnapshot(s: MutableSnapshot): AuthenticationStateSnapshot {
   return new AuthenticationStateSnapshot({
     ...s,
     user: s.user,
-    scopes: s.scopes.map((p) =>
-      p instanceof Scope ? p : new Scope(p),
-    ),
+    scopes: s.scopes.map((p) => (p instanceof Scope ? p : new Scope(p))),
     flash:
       s.flash != null && !(s.flash instanceof Flash)
         ? new Flash(s.flash)

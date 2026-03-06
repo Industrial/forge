@@ -26,11 +26,7 @@ export default function RoleTableRow({
       <TableCell sx={{ fontWeight: 500 }}>{role.name}</TableCell>
       <TableCell>{role.display_name ?? '—'}</TableCell>
       <TableCell align="right">
-        <IconButton
-          size="small"
-          aria-label="Edit"
-          onClick={() => onEdit(role)}
-        >
+        <IconButton size="small" aria-label="Edit" onClick={() => onEdit(role)}>
           <EditIcon />
         </IconButton>
         <IconButton

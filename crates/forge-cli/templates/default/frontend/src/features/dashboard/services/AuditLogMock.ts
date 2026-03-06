@@ -5,7 +5,11 @@
 import { Effect, Layer } from 'effect'
 import { AuditLog } from './AuditLog'
 import { AuditLogEntry } from '../domain/AuditLogEntry'
-import type { AuditLogListParams, AuditLogResult, AuditLogService } from './AuditLog'
+import type {
+  AuditLogListParams,
+  AuditLogResult,
+  AuditLogService,
+} from './AuditLog'
 
 /**
  * Creates a mock AuditLog service. Optionally pass initial entries.

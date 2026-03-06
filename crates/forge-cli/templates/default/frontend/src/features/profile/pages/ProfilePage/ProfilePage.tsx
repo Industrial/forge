@@ -12,9 +12,7 @@ export default function ScopePage() {
       <PageHeader title="Scope" />
       {user != null && (
         <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1 }}>
-          <Typography color="text.secondary">
-            Email: {user.email}
-          </Typography>
+          <Typography color="text.secondary">Email: {user.email}</Typography>
           <Box>
             <Button
               type="button"

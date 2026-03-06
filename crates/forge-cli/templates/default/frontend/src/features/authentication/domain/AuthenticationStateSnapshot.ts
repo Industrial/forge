@@ -11,7 +11,9 @@ import type { Scope } from './Scope'
  * `getState()` to read the current snapshot. When `needs_scope_select` is
  * true, the app should redirect to scope selection before the dashboard.
  */
-export class AuthenticationStateSnapshot extends Data.TaggedClass('AuthenticationStateSnapshot')<{
+export class AuthenticationStateSnapshot extends Data.TaggedClass(
+  'AuthenticationStateSnapshot',
+)<{
   readonly user: AuthenticationUser | null
   readonly scopes: readonly Scope[]
   readonly permissions: readonly string[]

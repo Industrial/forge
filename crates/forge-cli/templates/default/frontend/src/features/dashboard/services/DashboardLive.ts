@@ -51,7 +51,9 @@ const DashboardLive = Layer.effect(
               updated_at: o.updated_at,
             }),
         ) as readonly Organization[]
-        yield* Effect.logDebug(`DashboardLive.getOrganizations: count=${result.length}`)
+        yield* Effect.logDebug(
+          `DashboardLive.getOrganizations: count=${result.length}`,
+        )
         return result
       })
 
@@ -67,7 +69,11 @@ const DashboardLive = Layer.effect(
           return [] as readonly DashboardRole[]
         }
         const data = body as {
-          roles?: Array<{ id: string; name: string; display_name: string | null }>
+          roles?: Array<{
+            id: string
+            name: string
+            display_name: string | null
+          }>
         }
         const raw = data.roles ?? []
         const result = raw.map(
@@ -78,7 +84,9 @@ const DashboardLive = Layer.effect(
               display_name: r.display_name,
             }),
         ) as readonly DashboardRole[]
-        yield* Effect.logDebug(`DashboardLive.getRolesByOrg: count=${result.length}`)
+        yield* Effect.logDebug(
+          `DashboardLive.getRolesByOrg: count=${result.length}`,
+        )
         return result
       })
 

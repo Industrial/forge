@@ -24,7 +24,7 @@ pub async fn list_permissions(
 
 // Re-export for seeds and legacy callers (impls live in db::organization).
 pub use db::organization::{
-  create_organization_impl, ensure_organization_impl, CreateOrganizationBody,
+  CreateOrganizationBody, create_organization_impl, ensure_organization_impl,
 };
 
 /// Body for creating an org role. Used by impls and seeds.
@@ -174,11 +174,13 @@ pub async fn add_org_user_impl(
       }
       (uid, false)
     }
-    (None, Some(email), Some(password)) if {
-      let email: &str = email;
-      let password: &str = password;
-      email.trim().contains('@') && password.len() >= 8
-    } => {
+    (None, Some(email), Some(password))
+      if {
+        let email: &str = email;
+        let password: &str = password;
+        email.trim().contains('@') && password.len() >= 8
+      } =>
+    {
       let email = email.trim();
       if user::Entity::find()
         .filter(user::Column::Email.eq(email))
@@ -449,4 +451,3 @@ pub async fn add_org_role_permission_impl(
   }
   Ok(())
 }
-

@@ -18,9 +18,7 @@ function nextId(): string {
 /**
  * Creates a mock Roles service. Optionally pass initial roles.
  */
-export function createRolesMock(
-  initial: readonly Role[] = [],
-): RolesService {
+export function createRolesMock(initial: readonly Role[] = []): RolesService {
   const roles: Role[] = initial.map((r) =>
     r instanceof Role ? r : new Role(r),
   )

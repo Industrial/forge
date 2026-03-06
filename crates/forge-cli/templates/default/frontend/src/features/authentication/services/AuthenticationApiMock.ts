@@ -48,6 +48,5 @@ export function makeAuthenticationApiMock(
  * Layer that provides a mock AuthenticationApi for tests.
  * No dependencies (no HttpClient).
  */
-export const AuthenticationApiMock = (
-  options?: AuthenticationApiMockOptions,
-) => Layer.succeed(AuthenticationApi, makeAuthenticationApiMock(options))
+export const AuthenticationApiMock = (options?: AuthenticationApiMockOptions) =>
+  Layer.succeed(AuthenticationApi, makeAuthenticationApiMock(options))

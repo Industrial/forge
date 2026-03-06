@@ -21,11 +21,7 @@ const spinnerStyle: React.CSSProperties = {
  */
 export default function FullPageLoader(): React.JSX.Element {
   return (
-    <div
-      style={containerStyle}
-      aria-busy
-      aria-label="Loading"
-    >
+    <div style={containerStyle} aria-busy aria-label="Loading">
       <div style={spinnerStyle} />
       <style>{`@keyframes fullPageLoaderSpin { to { transform: rotate(360deg); } }`}</style>
     </div>

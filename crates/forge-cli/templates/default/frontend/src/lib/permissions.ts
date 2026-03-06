@@ -11,9 +11,18 @@
 function equivalents(required: string): readonly string[] {
   const map: Record<string, readonly string[]> = {
     'organization.read': ['organization.read', 'dashboard.organizations.read'],
-    'organization.create': ['organization.create', 'dashboard.organizations.write'],
-    'organization.update': ['organization.update', 'dashboard.organizations.write'],
-    'organization.delete': ['organization.delete', 'dashboard.organizations.write'],
+    'organization.create': [
+      'organization.create',
+      'dashboard.organizations.write',
+    ],
+    'organization.update': [
+      'organization.update',
+      'dashboard.organizations.write',
+    ],
+    'organization.delete': [
+      'organization.delete',
+      'dashboard.organizations.write',
+    ],
     'user.read': ['user.read', 'dashboard.users.read'],
     'user.create': ['user.create', 'dashboard.users.write'],
     'user.update': ['user.update', 'dashboard.users.write'],

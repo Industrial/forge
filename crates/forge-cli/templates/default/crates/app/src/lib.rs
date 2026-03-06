@@ -20,9 +20,7 @@ pub mod permissions;
 pub mod scoped_query;
 
 // Rest model trait, query spec, registry, and model implementations live in db crate.
-pub use db::{
-  model_error, organization, query_spec, registry, rest_model,
-};
+pub use db::{model_error, organization, query_spec, registry, rest_model};
 pub mod subscriptions;
 pub mod tasks;
 
@@ -75,10 +73,7 @@ pub fn make_app(live_backend: Arc<forge_live::InMemoryLiveBackend>) -> App {
         .delete(handlers::generic_entity::delete_entity),
     )
     // RPC (Epic 7): same entity operations; auth and scope from headers
-    .route_methods(
-      "/api/rpc",
-      axum::routing::post(handlers::rpc::rpc_handler),
-    )
+    .route_methods("/api/rpc", axum::routing::post(handlers::rpc::rpc_handler))
     // Subscription stream (Epic 8): long-lived HTTP/2 stream (SSE format); server pushes invalidation events
     .route_methods(
       "/api/subscriptions/stream",

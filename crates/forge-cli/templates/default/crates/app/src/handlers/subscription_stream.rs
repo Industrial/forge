@@ -35,10 +35,7 @@ pub async fn subscription_stream_handler(
     .map(|r: Result<String, Infallible>| r.map(axum::body::Bytes::from));
   let body = Body::from_stream(stream);
   (
-    [(
-      header::CONTENT_TYPE,
-      "text/event-stream; charset=utf-8",
-    )],
+    [(header::CONTENT_TYPE, "text/event-stream; charset=utf-8")],
     body,
   )
     .into_response()

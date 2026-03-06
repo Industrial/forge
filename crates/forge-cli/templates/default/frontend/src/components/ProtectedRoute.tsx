@@ -7,19 +7,31 @@ import LoadingSpinner from './LoadingSpinner'
 type ProtectedRouteProps = { children: React.ReactNode }
 
 export default function ProtectedRoute({ children }: ProtectedRouteProps) {
+  console.log('ProtectedRoute')
+
   const { user, loading } = useAuthentication()
   const location = useLocation()
 
   if (loading) {
     return (
-      <Box sx={{ display: 'flex', justifyContent: 'center', alignItems: 'center', flex: 1, minHeight: '40vh' }}>
+      <Box
+        sx={{
+          display: 'flex',
+          justifyContent: 'center',
+          alignItems: 'center',
+          flex: 1,
+          minHeight: '40vh',
+        }}
+      >
         <LoadingSpinner />
       </Box>
     )
   }
 
   if (user == null) {
-    return <Navigate to="/authentication/login" state={{ from: location }} replace />
+    return (
+      <Navigate to="/authentication/login" state={{ from: location }} replace />
+    )
   }
 
   return <>{children}</>

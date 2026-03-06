@@ -48,7 +48,14 @@ const FILTER_SORT: &[&str] = &[
   "reason",
   "occurred_at",
 ];
-const SORT_FIELDS: &[&str] = &["id", "occurred_at", "event_kind", "actor_id", "action", "resource_type"];
+const SORT_FIELDS: &[&str] = &[
+  "id",
+  "occurred_at",
+  "event_kind",
+  "actor_id",
+  "action",
+  "resource_type",
+];
 
 /// REST resource for the audit_log table; implements [RestModel]. Read-only.
 pub struct Audit;
@@ -116,10 +123,7 @@ impl RestModel for Audit {
     })
   }
 
-  fn apply_filter(
-    select: sea_orm::Select<Entity>,
-    cond: &FilterCond,
-  ) -> sea_orm::Select<Entity> {
+  fn apply_filter(select: sea_orm::Select<Entity>, cond: &FilterCond) -> sea_orm::Select<Entity> {
     apply_filter(select, cond)
   }
 
@@ -127,10 +131,7 @@ impl RestModel for Audit {
     select.order_by_desc(Column::OccurredAt)
   }
 
-  fn apply_sort(
-    select: sea_orm::Select<Entity>,
-    sort: &SortSpec,
-  ) -> sea_orm::Select<Entity> {
+  fn apply_sort(select: sea_orm::Select<Entity>, sort: &SortSpec) -> sea_orm::Select<Entity> {
     let (col, dir) = match sort.field.as_str() {
       "id" => (Column::Id, sort.direction),
       "occurred_at" => (Column::OccurredAt, sort.direction),
@@ -146,10 +147,7 @@ impl RestModel for Audit {
     }
   }
 
-  async fn create(
-    _db: &DbConnection,
-    _body: serde_json::Value,
-  ) -> Result<Uuid, ModelError> {
+  async fn create(_db: &DbConnection, _body: serde_json::Value) -> Result<Uuid, ModelError> {
     Err(ModelError::Validation(
       "audit is read-only; create not supported".to_string(),
     ))
@@ -172,10 +170,7 @@ impl RestModel for Audit {
   }
 }
 
-fn apply_filter(
-  select: sea_orm::Select<Entity>,
-  cond: &FilterCond,
-) -> sea_orm::Select<Entity> {
+fn apply_filter(select: sea_orm::Select<Entity>, cond: &FilterCond) -> sea_orm::Select<Entity> {
   use sea_orm::ColumnTrait;
   match cond.field.as_str() {
     "id" | "actor_id" => {

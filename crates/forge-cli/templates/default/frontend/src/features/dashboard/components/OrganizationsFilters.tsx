@@ -17,21 +17,21 @@ export default function OrganizationsFilters({
   return (
     <FiltersPanel>
       <TextField
-          label="Name"
-          size="small"
-          value={filterName}
-          onChange={(e) => onFilterNameChange(e.target.value)}
-          placeholder="Search by name"
-          sx={{ minWidth: 200 }}
-        />
-        <TextField
-          label="Slug"
-          size="small"
-          value={filterSlug}
-          onChange={(e) => onFilterSlugChange(e.target.value)}
-          placeholder="Search by slug"
-          sx={{ minWidth: 160 }}
-        />
+        label="Name"
+        size="small"
+        value={filterName}
+        onChange={(e) => onFilterNameChange(e.target.value)}
+        placeholder="Search by name"
+        sx={{ minWidth: 200 }}
+      />
+      <TextField
+        label="Slug"
+        size="small"
+        value={filterSlug}
+        onChange={(e) => onFilterSlugChange(e.target.value)}
+        placeholder="Search by slug"
+        sx={{ minWidth: 160 }}
+      />
     </FiltersPanel>
   )
 }

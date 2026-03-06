@@ -35,9 +35,7 @@ pub fn permission_equivalents(key: &str) -> &'static [&'static str] {
       &["organization.create", "dashboard.organizations.write"]
     }
     "user.read" => &["user.read", "dashboard.users.read"],
-    "user.create" | "user.update" | "user.delete" => {
-      &["user.create", "dashboard.users.write"]
-    }
+    "user.create" | "user.update" | "user.delete" => &["user.create", "dashboard.users.write"],
     "role.read" => &["role.read", "dashboard.roles.read"],
     "role.create" | "role.update" | "role.delete" => &["role.create", "dashboard.roles.write"],
     "permission.read" => &["permission.read", "dashboard.permissions.read"],

@@ -22,10 +22,9 @@ import OrganizationsFilters from '../../components/OrganizationsFilters'
 import OrganizationCard from '../../components/OrganizationCard'
 import OrganizationTableRow from '../../components/OrganizationTableRow'
 import { useOrganizationsFilter } from '../../hooks/useOrganizationsFilter'
+import { useEffect } from 'react'
 import {
   useEffectState,
-  useRunEffect,
-  useEffectRuntime,
   streamWithPendingState,
   runStreamInto,
   type AsyncState,
@@ -35,7 +34,8 @@ import {
   isFailure,
   isPending,
 } from 'react-effect-hooks'
-import { runWithAppRuntime, type AppServices } from '../../../../lib/appLayer'
+import { runApp } from '../../../../lib/appRuntime'
+import type { AppServices } from '../../../../lib/appLayer'
 import { Effect } from 'effect'
 import { EntityApi } from '../../../../services/EntityApi'
 import { Organization } from '../../domain/Organization'
@@ -57,7 +57,9 @@ const listEffect: Effect.Effect<readonly Organization[], Error, AppServices> =
   Effect.gen(function* () {
     const api = yield* EntityApi
     const res = yield* api.list(ENTITY_ID)
-    return (res.data ?? []).map((r) => toOrganization(r as Record<string, unknown>))
+    return (res.data ?? []).map((r) =>
+      toOrganization(r as Record<string, unknown>),
+    )
   })
 
 type ListState = AsyncState<readonly Organization[], Error>
@@ -119,8 +121,6 @@ export default function OrganizationsPage() {
   const { trigger: liveRefreshTrigger, connected: wsConnected } =
     useLiveRefreshTrigger('organizations')
 
-  const { runtime } = useEffectRuntime<AppServices>()
-
   /** List state: only updated by refresh stream (and on mutation success we copy new list here). */
   const [listState, , setListStateAsEffect] = useEffectState<
     ListState,
@@ -170,7 +170,7 @@ export default function OrganizationsPage() {
   })
 
   useEntitySubscription(ENTITY_ID, undefined, () => {
-    runWithAppRuntime(runtime, refreshEffect).catch(() => {})
+    runApp(refreshEffect)
   })
 
   const [addDialogOpen, setAddDialogOpen, setAddDialogOpenAsEffect] =
@@ -199,15 +199,19 @@ export default function OrganizationsPage() {
   const handleAdd = () => {
     const name = addName.trim()
     if (!name) return
-    runWithAppRuntime(
-      runtime,
+    runApp(
       runStreamInto(
         streamWithPendingState(
           Effect.gen(function* () {
             const api = yield* EntityApi
-            yield* api.create(ENTITY_ID, { name, slug: addSlug.trim() || undefined })
+            yield* api.create(ENTITY_ID, {
+              name,
+              slug: addSlug.trim() || undefined,
+            })
             const res = yield* api.list(ENTITY_ID)
-            return (res.data ?? []).map((r) => toOrganization(r as Record<string, unknown>))
+            return (res.data ?? []).map((r) =>
+              toOrganization(r as Record<string, unknown>),
+            )
           }),
         ),
         setCreateStateAsEffect,
@@ -223,8 +227,7 @@ export default function OrganizationsPage() {
 
   const handleSaveEdit = () => {
     if (!editOrg) return
-    runWithAppRuntime(
-      runtime,
+    runApp(
       runStreamInto(
         streamWithPendingState(
           Effect.gen(function* () {
@@ -234,7 +237,9 @@ export default function OrganizationsPage() {
               slug: editSlug.trim() || undefined,
             })
             const res = yield* api.list(ENTITY_ID)
-            return (res.data ?? []).map((r) => toOrganization(r as Record<string, unknown>))
+            return (res.data ?? []).map((r) =>
+              toOrganization(r as Record<string, unknown>),
+            )
           }),
         ),
         setUpdateStateAsEffect,
@@ -244,15 +249,16 @@ export default function OrganizationsPage() {
 
   const handleDelete = (id: string) => {
     setDeletingId(id)
-    runWithAppRuntime(
-      runtime,
+    runApp(
       runStreamInto(
         streamWithPendingState(
           Effect.gen(function* () {
             const api = yield* EntityApi
             yield* api.delete(ENTITY_ID, id)
             const res = yield* api.list(ENTITY_ID)
-            return (res.data ?? []).map((r) => toOrganization(r as Record<string, unknown>))
+            return (res.data ?? []).map((r) =>
+              toOrganization(r as Record<string, unknown>),
+            )
           }),
         ),
         setDeleteStateAsEffect,
@@ -261,8 +267,7 @@ export default function OrganizationsPage() {
   }
 
   const handleClearError = () => {
-    runWithAppRuntime(
-      runtime,
+    runApp(
       Effect.gen(function* () {
         yield* setCreateStateAsEffect(idle())
         yield* setUpdateStateAsEffect(idle())
@@ -272,60 +277,70 @@ export default function OrganizationsPage() {
     )
   }
 
-  // Initial load and live-refresh: run stream into listState only
-  useRunEffect(refreshEffect, [liveRefreshTrigger, setListStateAsEffect])
+  // Initial load: run once when page mounts
+  useEffect(() => {
+    runApp(refreshEffect)
+  }, [])
+
+  // Live-refresh: re-run when liveRefreshTrigger fires
+  useEffect(() => {
+    runApp(refreshEffect)
+  }, [liveRefreshTrigger, setListStateAsEffect])
 
   // On create success: copy list to listState, close add dialog, reset create state
-  useRunEffect(
-    Effect.gen(function* () {
-      if (!isSuccess(createState)) return
-      yield* setListStateAsEffect(asyncSuccess(createState.value))
-      yield* setAddDialogOpenAsEffect(false)
-      yield* setAddNameAsEffect('')
-      yield* setAddSlugAsEffect('')
-      yield* setCreateStateAsEffect(idle())
-    }),
-    [
-      createState,
-      setListStateAsEffect,
-      setAddDialogOpenAsEffect,
-      setAddNameAsEffect,
-      setAddSlugAsEffect,
-      setCreateStateAsEffect,
-    ],
-  )
+  useEffect(() => {
+    if (!isSuccess(createState)) return
+    runApp(
+      Effect.gen(function* () {
+        yield* setListStateAsEffect(asyncSuccess(createState.value))
+        yield* setAddDialogOpenAsEffect(false)
+        yield* setAddNameAsEffect('')
+        yield* setAddSlugAsEffect('')
+        yield* setCreateStateAsEffect(idle())
+      }),
+    )
+  }, [
+    createState,
+    setListStateAsEffect,
+    setAddDialogOpenAsEffect,
+    setAddNameAsEffect,
+    setAddSlugAsEffect,
+    setCreateStateAsEffect,
+  ])
 
   // On update success: copy list to listState, close edit dialog, reset update state
-  useRunEffect(
-    Effect.gen(function* () {
-      if (!isSuccess(updateState)) return
-      yield* setListStateAsEffect(asyncSuccess(updateState.value))
-      yield* setEditOrgAsEffect(null)
-      yield* setUpdateStateAsEffect(idle())
-    }),
-    [
-      updateState,
-      setListStateAsEffect,
-      setEditOrgAsEffect,
-      setUpdateStateAsEffect,
-    ],
-  )
+  useEffect(() => {
+    if (!isSuccess(updateState)) return
+    runApp(
+      Effect.gen(function* () {
+        yield* setListStateAsEffect(asyncSuccess(updateState.value))
+        yield* setEditOrgAsEffect(null)
+        yield* setUpdateStateAsEffect(idle())
+      }),
+    )
+  }, [
+    updateState,
+    setListStateAsEffect,
+    setEditOrgAsEffect,
+    setUpdateStateAsEffect,
+  ])
 
   // On delete success: copy list to listState, clear deletingId, reset delete state
-  useRunEffect(
-    Effect.gen(function* () {
-      if (!isSuccess(deleteState)) return
-      yield* setListStateAsEffect(asyncSuccess(deleteState.value))
-      yield* setDeletingIdAsEffect(null)
-      yield* setDeleteStateAsEffect(idle())
-    }),
-    [
-      deleteState,
-      setListStateAsEffect,
-      setDeletingIdAsEffect,
-      setDeleteStateAsEffect,
-    ],
-  )
+  useEffect(() => {
+    if (!isSuccess(deleteState)) return
+    runApp(
+      Effect.gen(function* () {
+        yield* setListStateAsEffect(asyncSuccess(deleteState.value))
+        yield* setDeletingIdAsEffect(null)
+        yield* setDeleteStateAsEffect(idle())
+      }),
+    )
+  }, [
+    deleteState,
+    setListStateAsEffect,
+    setDeletingIdAsEffect,
+    setDeleteStateAsEffect,
+  ])
 
   return (
     <>

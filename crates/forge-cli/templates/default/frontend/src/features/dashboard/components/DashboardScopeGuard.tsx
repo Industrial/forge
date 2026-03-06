@@ -3,8 +3,7 @@ import { Navigate } from 'react-router-dom'
 import { Effect } from 'effect'
 import { useAuthentication } from '../../../context/AuthenticationContext'
 import { AuthenticationStore } from '../../authentication/services/AuthenticationStore'
-import { useEffectRuntime } from 'react-effect-hooks'
-import { runWithAppRuntime, type AppServices } from '../../../lib/appLayer'
+import { runApp } from '../../../lib/appRuntime'
 import Box from '@mui/material/Box'
 import LoadingSpinner from '../../../components/LoadingSpinner'
 
@@ -20,7 +19,6 @@ export default function DashboardScopeGuard({
 }: DashboardScopeGuardProps) {
   const { user, needs_scope_select, scopes, loading, refresh } =
     useAuthentication()
-  const { runtime } = useEffectRuntime<AppServices>()
   const [autoSelecting, setAutoSelecting] = useState(false)
 
   useEffect(() => {
@@ -36,8 +34,7 @@ export default function DashboardScopeGuard({
       const roleId = p.role_id ?? ''
       const roleName = p.role ?? ''
       setAutoSelecting(true)
-      runWithAppRuntime(
-        runtime,
+      runApp(
         Effect.gen(function* () {
           const store = yield* AuthenticationStore
           yield* store.setScope(orgId, roleId, roleName)
@@ -47,15 +44,7 @@ export default function DashboardScopeGuard({
         .then(() => refresh().then(() => setAutoSelecting(false)))
         .catch(() => setAutoSelecting(false))
     }
-  }, [
-    loading,
-    user,
-    needs_scope_select,
-    scopes,
-    runtime,
-    autoSelecting,
-    refresh,
-  ])
+  }, [loading, user, needs_scope_select, scopes, autoSelecting, refresh])
 
   if (loading || autoSelecting) {
     return (

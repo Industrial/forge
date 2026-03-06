@@ -31,6 +31,5 @@ export interface AuditLogService {
   ) => Effect.Effect<AuditLogResult, Error, never>
 }
 
-export const AuditLog = Context.GenericTag<AuditLogService>(
-  'dashboard/AuditLog',
-)
+export const AuditLog =
+  Context.GenericTag<AuditLogService>('dashboard/AuditLog')

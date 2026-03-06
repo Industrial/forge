@@ -17,7 +17,6 @@ import { AuthenticationStore } from '../../services/AuthenticationStore'
 import { useAuthentication } from '../../../../context/AuthenticationContext'
 import {
   useEffectState,
-  useEffectRuntime,
   streamWithPendingState,
   runStreamInto,
   type AsyncState,
@@ -25,7 +24,8 @@ import {
   isPending,
   isFailure,
 } from 'react-effect-hooks'
-import { runWithAppRuntime, type AppServices } from '../../../../lib/appLayer'
+import { runApp } from '../../../../lib/appRuntime'
+import type { AppServices } from '../../../../lib/appLayer'
 import { effectSchemaResolver } from '../../../../lib/effectSchemaResolver'
 import {
   loginFormSchema,
@@ -37,7 +37,6 @@ type LoginState = AsyncState<LoginResult, Error>
 export default function LoginPage() {
   const location = useLocation()
   const navigate = useNavigate()
-  const { runtime } = useEffectRuntime<AppServices>()
   const { fetchMe } = useAuthentication()
 
   const from =
@@ -59,7 +58,10 @@ export default function LoginPage() {
   })
 
   const loginEffect = useCallback(
-    (email: string, password: string): Effect.Effect<LoginResult, Error, AppServices> =>
+    (
+      email: string,
+      password: string,
+    ): Effect.Effect<LoginResult, Error, AppServices> =>
       Effect.gen(function* () {
         const api = yield* AuthenticationApi
         const store = yield* AuthenticationStore
@@ -77,11 +79,10 @@ export default function LoginPage() {
         loginEffect(data.email, data.password),
       )
       const effect = runStreamInto(stream, setSubmitStateAsEffect)
-      runWithAppRuntime(runtime, effect)
+      runApp(effect)
         .then(() => fetchMe())
         .then(() =>
-          runWithAppRuntime(
-            runtime,
+          runApp(
             Effect.gen(function* () {
               const store = yield* AuthenticationStore
               const state = yield* store.getState()
@@ -103,7 +104,7 @@ export default function LoginPage() {
           console.error('Login failed:', err)
         })
     },
-    [runtime, loginEffect, setSubmitStateAsEffect, fetchMe, navigate, from],
+    [loginEffect, setSubmitStateAsEffect, fetchMe, navigate, from],
   )
 
   const submitting = isPending(submitState)
@@ -182,7 +183,11 @@ export default function LoginPage() {
           </Box>
         </form>
         <Typography variant="body2" textAlign="center">
-          <Link component={RouterLink} to="/authentication/register" variant="body2">
+          <Link
+            component={RouterLink}
+            to="/authentication/register"
+            variant="body2"
+          >
             Don&apos;t have an account? Create an Account
           </Link>
         </Typography>

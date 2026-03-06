@@ -3,8 +3,8 @@
 use forge_db::DbConnection;
 
 use app::handlers::rest::{
-  CreateOrgRoleBody, add_org_user_roles_impl, ensure_org_role_impl,
-  ensure_org_user_impl, list_org_roles_impl,
+  CreateOrgRoleBody, add_org_user_roles_impl, ensure_org_role_impl, ensure_org_user_impl,
+  list_org_roles_impl,
 };
 use db::organization::{CreateOrganizationBody, ensure_organization_impl};
 

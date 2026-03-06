@@ -10,10 +10,9 @@ import Typography from '@mui/material/Typography'
 import { Effect } from 'effect'
 import { useCallback } from 'react'
 import { AuthenticationApi } from '../../services/AuthenticationApi'
+import { useEffect } from 'react'
 import {
   useEffectState,
-  useRunEffect,
-  useEffectRuntime,
   streamWithPendingState,
   runStreamInto,
   type AsyncState,
@@ -22,7 +21,8 @@ import {
   isPending,
   isFailure,
 } from 'react-effect-hooks'
-import { runWithAppRuntime, type AppServices } from '../../../../lib/appLayer'
+import { runApp } from '../../../../lib/appRuntime'
+import type { AppServices } from '../../../../lib/appLayer'
 import { effectSchemaResolver } from '../../../../lib/effectSchemaResolver'
 import {
   registerFormSchema,
@@ -33,7 +33,6 @@ type RegisterState = AsyncState<void, Error>
 
 export default function RegisterPage() {
   const navigate = useNavigate()
-  const { runtime } = useEffectRuntime<AppServices>()
 
   const [submitState, , setSubmitStateAsEffect] = useEffectState<
     RegisterState,
@@ -50,7 +49,10 @@ export default function RegisterPage() {
   })
 
   const registerEffect = useCallback(
-    (email: string, password: string): Effect.Effect<void, Error, AppServices> =>
+    (
+      email: string,
+      password: string,
+    ): Effect.Effect<void, Error, AppServices> =>
       Effect.gen(function* () {
         const api = yield* AuthenticationApi
         yield* api.register(email, password)
@@ -64,19 +66,22 @@ export default function RegisterPage() {
         registerEffect(data.email, data.password),
       )
       const effect = runStreamInto(stream, setSubmitStateAsEffect)
-      runWithAppRuntime(runtime, effect).catch(() => {})
+      runApp(effect)
     },
-    [runtime, registerEffect, setSubmitStateAsEffect],
+    [registerEffect, setSubmitStateAsEffect],
   )
 
-  const successEffect: Effect.Effect<void, never, AppServices> = Effect.gen(
-    function* () {
-      if (!isSuccess(submitState)) return
-      yield* Effect.sync(() => navigate('/authentication/login', { replace: true }))
-      yield* setSubmitStateAsEffect(idle<void, Error>())
-    },
-  )
-  useRunEffect(successEffect, [submitState, navigate, setSubmitStateAsEffect])
+  useEffect(() => {
+    if (!isSuccess(submitState)) return
+    runApp(
+      Effect.gen(function* () {
+        yield* Effect.sync(() =>
+          navigate('/authentication/login', { replace: true }),
+        )
+        yield* setSubmitStateAsEffect(idle<void, Error>())
+      }),
+    )
+  }, [submitState, navigate, setSubmitStateAsEffect])
 
   const submitting = isPending(submitState)
   const errorMessage =
@@ -155,7 +160,11 @@ export default function RegisterPage() {
           </Box>
         </form>
         <Typography variant="body2" textAlign="center">
-          <Link component={RouterLink} to="/authentication/login" variant="body2">
+          <Link
+            component={RouterLink}
+            to="/authentication/login"
+            variant="body2"
+          >
             Already have an account? Log in
           </Link>
         </Typography>

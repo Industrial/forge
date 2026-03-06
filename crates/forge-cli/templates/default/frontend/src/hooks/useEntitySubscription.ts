@@ -8,15 +8,11 @@
 
 import { useEffect, useRef } from 'react'
 import { useAuthentication } from '../context/AuthenticationContext'
-import {
-  register,
-  unregister,
-} from '../lib/subscriptionRegistry'
+import { register, unregister } from '../lib/subscriptionRegistry'
 import type { ListQueryParams } from '../services/EntityApi'
-import { runWithAppRuntime, type AppServices } from '../lib/appLayer'
+import { runApp } from '../lib/appRuntime'
 import { Effect } from 'effect'
 import { RpcApi } from '../services/RpcApi'
-import { useEffectRuntime } from 'react-effect-hooks'
 
 export function useEntitySubscription(
   entityId: string,
@@ -24,29 +20,26 @@ export function useEntitySubscription(
   onRefetch: () => void,
 ): void {
   const { token } = useAuthentication()
-  const { runtime } = useEffectRuntime<AppServices>()
   const subscriptionIdRef = useRef<string | null>(null)
   const onRefetchRef = useRef(onRefetch)
   onRefetchRef.current = onRefetch
 
   useEffect(() => {
-    if (!token || !runtime) return
+    if (!token) return
 
     const subscribeEffect = Effect.gen(function* () {
       const rpc = yield* RpcApi
       return yield* rpc.subscribe(entityId, params)
     })
 
-    runWithAppRuntime(runtime, subscribeEffect)
-      .then((result) => {
-        subscriptionIdRef.current = result.subscription_id
-        register(result.subscription_id, {
-          entityId,
-          params,
-          onInvalidate: () => onRefetchRef.current(),
-        })
+    runApp(subscribeEffect).then((result) => {
+      subscriptionIdRef.current = result.subscription_id
+      register(result.subscription_id, {
+        entityId,
+        params,
+        onInvalidate: () => onRefetchRef.current(),
       })
-      .catch(() => {})
+    })
 
     return () => {
       const id = subscriptionIdRef.current
@@ -55,5 +48,5 @@ export function useEntitySubscription(
         subscriptionIdRef.current = null
       }
     }
-  }, [entityId, token, runtime, JSON.stringify(params ?? {})])
+  }, [entityId, token, JSON.stringify(params ?? {})])
 }

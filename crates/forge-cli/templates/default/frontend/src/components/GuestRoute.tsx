@@ -12,12 +12,22 @@ type GuestRouteProps = { children: React.ReactNode }
  * Use for login and register pages.
  */
 export default function GuestRoute({ children }: GuestRouteProps) {
+  console.log('GuestRoute')
+
   const { user, loading, needs_scope_select } = useAuthentication()
   const location = useLocation()
 
   if (loading) {
     return (
-      <Box sx={{ display: 'flex', justifyContent: 'center', alignItems: 'center', flex: 1, minHeight: '40vh' }}>
+      <Box
+        sx={{
+          display: 'flex',
+          justifyContent: 'center',
+          alignItems: 'center',
+          flex: 1,
+          minHeight: '40vh',
+        }}
+      >
         <LoadingSpinner />
       </Box>
     )

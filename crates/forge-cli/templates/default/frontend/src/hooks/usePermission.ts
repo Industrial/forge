@@ -8,9 +8,7 @@ import { hasPermission } from '../lib/permissions'
  * @param required - One key (e.g. `'organization.read'`) or array (any one grants).
  * @returns true if the user has at least one of the required keys (or equivalent / all.read / all.write).
  */
-export function usePermission(
-  required: string | readonly string[],
-): boolean {
+export function usePermission(required: string | readonly string[]): boolean {
   const { permissions } = useAuthentication()
   return hasPermission(permissions, required)
 }

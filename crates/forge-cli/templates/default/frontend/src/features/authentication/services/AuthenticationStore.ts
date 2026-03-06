@@ -31,13 +31,24 @@ import type { AuthenticationStateSnapshot } from '../domain/AuthenticationStateS
  */
 export interface AuthenticationStoreService {
   /** Returns the current bearer token or null if logged out. */
-  readonly getToken: () => Effect.Effect<string | null, AuthenticationError, never>
+  readonly getToken: () => Effect.Effect<
+    string | null,
+    AuthenticationError,
+    never
+  >
+
   /** Sets the bearer token (and persists in Live); pass null to clear. */
   readonly setToken: (
     token: string | null,
   ) => Effect.Effect<void, AuthenticationError, never>
+
   /** Returns a read-only snapshot of the current auth state. */
-  readonly getState: () => Effect.Effect<AuthenticationStateSnapshot, AuthenticationError, never>
+  readonly getState: () => Effect.Effect<
+    AuthenticationStateSnapshot,
+    AuthenticationError,
+    never
+  >
+
   /**
    * Fetches `/api/auth/me` and updates internal state (user, scopes, permissions, needs_scope_select).
    * If `tokenOverride` is provided, sets the token first then fetches (e.g. after login).
@@ -45,8 +56,10 @@ export interface AuthenticationStoreService {
   readonly fetchMe: (
     tokenOverride?: string | null,
   ) => Effect.Effect<void, AuthenticationError, never>
+
   /** Clears token and scope; no API call. */
   readonly logout: () => Effect.Effect<void, AuthenticationError, never>
+
   /**
    * Sets the current scope (org + role) for the session.
    * Does not call the API; used for request headers and UI.

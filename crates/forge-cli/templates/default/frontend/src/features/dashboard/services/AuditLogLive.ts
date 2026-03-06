@@ -6,7 +6,11 @@ import { HttpClient, HttpClientRequest } from '@effect/platform'
 import { Effect, Layer } from 'effect'
 import { AuditLog } from './AuditLog'
 import { AuditLogEntry } from '../domain/AuditLogEntry'
-import type { AuditLogListParams, AuditLogResult, AuditLogService } from './AuditLog'
+import type {
+  AuditLogListParams,
+  AuditLogResult,
+  AuditLogService,
+} from './AuditLog'
 
 function parseErr(body: unknown): string {
   if (typeof body === 'object' && body !== null && 'error' in body) {

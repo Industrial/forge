@@ -18,7 +18,11 @@ async fn get_me_with_token_in_query_200() {
   let (status, _) = app::test_request(&client, "GET", &path, None, None, None)
     .await
     .unwrap();
-  assert_eq!(status, StatusCode::OK, "GET /api/auth/me?token=... should 200 when token valid");
+  assert_eq!(
+    status,
+    StatusCode::OK,
+    "GET /api/auth/me?token=... should 200 when token valid"
+  );
 }
 
 #[tokio::test]

@@ -5,7 +5,9 @@ export default function HomePage() {
   return (
     <>
       <PageHeader title="Home" />
-      <Typography color="text.secondary">Welcome. You are logged in.</Typography>
+      <Typography color="text.secondary">
+        Welcome. You are logged in.
+      </Typography>
     </>
   )
 }

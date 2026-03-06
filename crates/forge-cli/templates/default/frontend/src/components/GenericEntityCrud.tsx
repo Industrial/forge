@@ -30,8 +30,6 @@ import EmptyState from './EmptyState'
 import ErrorAlert from './ErrorAlert'
 import {
   useEffectState,
-  useRunEffect,
-  useEffectRuntime,
   streamWithPendingState,
   runStreamInto,
   type AsyncState,
@@ -41,7 +39,8 @@ import {
   isFailure,
   isPending,
 } from 'react-effect-hooks'
-import { runWithAppRuntime, type AppServices } from '../lib/appLayer'
+import { runApp } from '../lib/appRuntime'
+import type { AppServices } from '../lib/appLayer'
 import { Effect } from 'effect'
 import { EntityApi } from '../services/EntityApi'
 import type { ListQueryParams } from '../services/EntityApi'
@@ -81,11 +80,15 @@ function defaultGetRowId(item: Record<string, unknown>): string {
   return id != null ? String(id) : ''
 }
 
-function defaultColumns(items: readonly Record<string, unknown>[]): GenericEntityCrudColumn[] {
+function defaultColumns(
+  items: readonly Record<string, unknown>[],
+): GenericEntityCrudColumn[] {
   const first = items[0]
   if (!first || typeof first !== 'object') return [{ key: 'id', label: 'ID' }]
   const keys = Object.keys(first)
-  const idFirst = keys.includes('id') ? ['id', ...keys.filter((k) => k !== 'id')] : keys
+  const idFirst = keys.includes('id')
+    ? ['id', ...keys.filter((k) => k !== 'id')]
+    : keys
   return idFirst.slice(0, 8).map((key) => ({
     key,
     label: key.replace(/_/g, ' '),
@@ -125,20 +128,26 @@ export default function GenericEntityCrud({
   const canUpdate = usePermission(`${entityId}.update`)
   const canDelete = usePermission(`${entityId}.delete`)
 
-  const { runtime } = useEffectRuntime<AppServices>()
-
-  const [listState, , setListStateAsEffect] = useEffectState<ListState, never, never>(
-    idle<readonly Record<string, unknown>[], Error>(),
-  )
-  const [createState, , setCreateStateAsEffect] = useEffectState<ListState, never, never>(
-    idle<readonly Record<string, unknown>[], Error>(),
-  )
-  const [updateState, , setUpdateStateAsEffect] = useEffectState<ListState, never, never>(
-    idle<readonly Record<string, unknown>[], Error>(),
-  )
-  const [deleteState, , setDeleteStateAsEffect] = useEffectState<ListState, never, never>(
-    idle<readonly Record<string, unknown>[], Error>(),
-  )
+  const [listState, , setListStateAsEffect] = useEffectState<
+    ListState,
+    never,
+    never
+  >(idle<readonly Record<string, unknown>[], Error>())
+  const [createState, , setCreateStateAsEffect] = useEffectState<
+    ListState,
+    never,
+    never
+  >(idle<readonly Record<string, unknown>[], Error>())
+  const [updateState, , setUpdateStateAsEffect] = useEffectState<
+    ListState,
+    never,
+    never
+  >(idle<readonly Record<string, unknown>[], Error>())
+  const [deleteState, , setDeleteStateAsEffect] = useEffectState<
+    ListState,
+    never,
+    never
+  >(idle<readonly Record<string, unknown>[], Error>())
 
   const [addDialogOpen, setAddDialogOpen] = useState(false)
   const [editItem, setEditItem] = useState<Record<string, unknown> | null>(null)
@@ -168,12 +177,13 @@ export default function GenericEntityCrud({
     )
   })
 
-  useRunEffect(refreshEffect, [entityId, JSON.stringify(listQueryParams ?? {}), setListStateAsEffect])
+  useEffect(() => {
+    runApp(refreshEffect)
+  }, [entityId, JSON.stringify(listQueryParams ?? {}), setListStateAsEffect])
 
   const handleCreateSubmit = useCallback(
     (body: Record<string, unknown>) => {
-      runWithAppRuntime(
-        runtime,
+      runApp(
         runStreamInto(
           streamWithPendingState(
             Effect.gen(function* () {
@@ -188,15 +198,14 @@ export default function GenericEntityCrud({
       )
       setAddDialogOpen(false)
     },
-    [runtime, entityId, listQueryParams, setCreateStateAsEffect],
+    [entityId, listQueryParams, setCreateStateAsEffect],
   )
 
   const handleUpdateSubmit = useCallback(
     (body: Record<string, unknown>) => {
       if (!editItem) return
       const id = getRowId(editItem)
-      runWithAppRuntime(
-        runtime,
+      runApp(
         runStreamInto(
           streamWithPendingState(
             Effect.gen(function* () {
@@ -211,15 +220,14 @@ export default function GenericEntityCrud({
       )
       setEditItem(null)
     },
-    [runtime, entityId, editItem, getRowId, listQueryParams, setUpdateStateAsEffect],
+    [entityId, editItem, getRowId, listQueryParams, setUpdateStateAsEffect],
   )
 
   const handleDeleteConfirm = useCallback(
     (id: string) => {
       setDeletingId(id)
       setDeleteConfirmId(null)
-      runWithAppRuntime(
-        runtime,
+      runApp(
         runStreamInto(
           streamWithPendingState(
             Effect.gen(function* () {
@@ -233,37 +241,37 @@ export default function GenericEntityCrud({
         ),
       )
     },
-    [runtime, entityId, listQueryParams, setDeleteStateAsEffect],
+    [entityId, listQueryParams, setDeleteStateAsEffect],
   )
 
   // On create/update/delete success: refresh list state
-  useRunEffect(
-    Effect.gen(function* () {
-      if (isSuccess(createState)) {
+  useEffect(() => {
+    if (!isSuccess(createState)) return
+    runApp(
+      Effect.gen(function* () {
         yield* setListStateAsEffect(asyncSuccess(createState.value))
         yield* setCreateStateAsEffect(idle())
-      }
-    }),
-    [createState, setListStateAsEffect, setCreateStateAsEffect],
-  )
-  useRunEffect(
-    Effect.gen(function* () {
-      if (isSuccess(updateState)) {
+      }),
+    )
+  }, [createState, setListStateAsEffect, setCreateStateAsEffect])
+  useEffect(() => {
+    if (!isSuccess(updateState)) return
+    runApp(
+      Effect.gen(function* () {
         yield* setListStateAsEffect(asyncSuccess(updateState.value))
         yield* setUpdateStateAsEffect(idle())
-      }
-    }),
-    [updateState, setListStateAsEffect, setUpdateStateAsEffect],
-  )
-  useRunEffect(
-    Effect.gen(function* () {
-      if (isSuccess(deleteState)) {
+      }),
+    )
+  }, [updateState, setListStateAsEffect, setUpdateStateAsEffect])
+  useEffect(() => {
+    if (!isSuccess(deleteState)) return
+    runApp(
+      Effect.gen(function* () {
         yield* setListStateAsEffect(asyncSuccess(deleteState.value))
         yield* setDeleteStateAsEffect(idle())
-      }
-    }),
-    [deleteState, setListStateAsEffect, setDeleteStateAsEffect],
-  )
+      }),
+    )
+  }, [deleteState, setListStateAsEffect, setDeleteStateAsEffect])
 
   useEffect(() => {
     if (!isPending(deleteState)) setDeletingId(null)
@@ -273,16 +281,33 @@ export default function GenericEntityCrud({
     return (
       <>
         <PageHeader title={title} />
-        <ErrorAlert message="You do not have permission to view this resource." onClose={() => {}} />
+        <ErrorAlert
+          message="You do not have permission to view this resource."
+          onClose={() => {}}
+        />
       </>
     )
   }
 
-  const errorMessage = error instanceof Error ? error.message : error != null ? String(error) : null
+  const errorMessage =
+    error instanceof Error
+      ? error.message
+      : error != null
+        ? String(error)
+        : null
 
   return (
     <Box>
-      <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: 1, mb: 2 }}>
+      <Box
+        sx={{
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'space-between',
+          flexWrap: 'wrap',
+          gap: 1,
+          mb: 2,
+        }}
+      >
         <PageHeader title={title} />
         {canCreate && renderCreateForm != null && (
           <Button
@@ -300,16 +325,14 @@ export default function GenericEntityCrud({
         <ErrorAlert
           message={errorMessage}
           onClose={() => {
-            runWithAppRuntime(runtime, refreshEffect)
+            runApp(refreshEffect)
           }}
         />
       )}
 
       {loading && <LoadingSpinner />}
 
-      {!loading && items.length === 0 && (
-        <EmptyState message={emptyMessage} />
-      )}
+      {!loading && items.length === 0 && <EmptyState message={emptyMessage} />}
 
       {!loading && items.length > 0 && (
         <TableContainer component={Paper}>
@@ -330,7 +353,9 @@ export default function GenericEntityCrud({
                   <TableRow key={id}>
                     {columns.map((col) => (
                       <TableCell key={col.key}>
-                        {col.render ? col.render(item) : String(item[col.key] ?? '—')}
+                        {col.render
+                          ? col.render(item)
+                          : String(item[col.key] ?? '—')}
                       </TableCell>
                     ))}
                     {hasActions && (
@@ -365,19 +390,33 @@ export default function GenericEntityCrud({
       )}
 
       {addDialogOpen && renderCreateForm != null && (
-        <Dialog open={true} onClose={() => setAddDialogOpen(false)} maxWidth="sm" fullWidth>
+        <Dialog
+          open={true}
+          onClose={() => setAddDialogOpen(false)}
+          maxWidth="sm"
+          fullWidth
+        >
           <DialogTitle>Create</DialogTitle>
           <DialogContent>
-            {renderCreateForm(handleCreateSubmit, () => setAddDialogOpen(false))}
+            {renderCreateForm(handleCreateSubmit, () =>
+              setAddDialogOpen(false),
+            )}
           </DialogContent>
         </Dialog>
       )}
 
       {editItem != null && renderEditForm != null && (
-        <Dialog open={true} onClose={() => setEditItem(null)} maxWidth="sm" fullWidth>
+        <Dialog
+          open={true}
+          onClose={() => setEditItem(null)}
+          maxWidth="sm"
+          fullWidth
+        >
           <DialogTitle>Edit</DialogTitle>
           <DialogContent>
-            {renderEditForm(editItem, handleUpdateSubmit, () => setEditItem(null))}
+            {renderEditForm(editItem, handleUpdateSubmit, () =>
+              setEditItem(null),
+            )}
           </DialogContent>
         </Dialog>
       )}

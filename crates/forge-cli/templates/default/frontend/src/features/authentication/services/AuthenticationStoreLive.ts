@@ -209,21 +209,29 @@ export const AuthenticationStoreLive = Layer.effect(
             HttpClientRequest.setHeader('Authorization', `Bearer ${token}`),
           )
           const response = yield* client.execute(req)
-          const body = yield* response.json
           const ok = response.status >= 200 && response.status < 300
           if (!ok) {
-            yield* Effect.logDebug(`fetchMe: non-ok status=${response.status}, resetting state`)
+            yield* Effect.logDebug(
+              `fetchMe: non-ok status=${response.status}, resetting state`,
+            )
             yield* persistToken(null)
             const empty = initialSnapshot()
             syncToAuthStateRef(empty)
             yield* Ref.set(ref, empty)
             return
           }
+          const body = yield* response.json
           const parsed = parseMeResponse(body)
           const user: AuthenticationUser | null = parsed.user
             ? new AuthenticationUser({ ...parsed.user, token })
             : null
           const current = yield* Ref.get(ref)
+          // When we have profiles but no scope selected, default to first so RPC/entity requests get X-Organization-Id and X-Role-Id
+          const defaultScope =
+            parsed.scopes.length > 0 &&
+            (current.currentOrgId == null || current.currentRoleId == null)
+              ? parsed.scopes[0]
+              : null
           const next = new AuthenticationStateSnapshot({
             ...current,
             user,
@@ -231,9 +239,23 @@ export const AuthenticationStoreLive = Layer.effect(
             permissions: parsed.permissions,
             flash: parsed.flash,
             needs_scope_select: parsed.needs_scope_select,
+            ...(defaultScope
+              ? {
+                  currentOrgId: defaultScope.org_id,
+                  currentRoleId: defaultScope.role_id ?? null,
+                  currentRoleName: defaultScope.role ?? null,
+                }
+              : {}),
           })
           syncToAuthStateRef(next)
           yield* Ref.set(ref, next)
+          if (defaultScope != null) {
+            yield* persistScope(
+              next.currentOrgId,
+              next.currentRoleId,
+              next.currentRoleName,
+            )
+          }
           yield* Effect.logDebug(
             `fetchMe: success user=${user?.email ?? 'null'}, needs_scope_select=${parsed.needs_scope_select}`,
           )
@@ -261,7 +283,9 @@ export const AuthenticationStoreLive = Layer.effect(
       setScope: (orgId, roleId, roleName) =>
         Effect.gen(function* () {
           yield* Effect.logTrace('AuthenticationStoreLive.setScope')
-          yield* Effect.logDebug(`setScope: orgId=${orgId}, roleId=${roleId}, roleName=${roleName}`)
+          yield* Effect.logDebug(
+            `setScope: orgId=${orgId}, roleId=${roleId}, roleName=${roleName}`,
+          )
           yield* Ref.update(ref, (s) => {
             const next = new AuthenticationStateSnapshot({
               ...s,

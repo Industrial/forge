@@ -1,9 +1,9 @@
-import { Effect, Layer, Runtime } from 'effect'
+import { Effect, Runtime } from 'effect'
 import { type ReactNode, useEffect, useMemo, useRef, useState } from 'react'
-import { EffectRuntimeProvider, useRunEffect } from 'react-effect-hooks'
 import FullPageLoader from '../components/FullPageLoader'
 import type { HttpClientWithAuthConfig } from './httpClientWithAuth'
-import { AppLayer, runWithAppRuntime, type AppServices } from './appLayer'
+import { AppLayer, type AppServices } from './appLayer'
+import { runApp, setAppRuntime } from './appRuntime'
 import { AuthenticationStore } from '../features/authentication/services/AuthenticationStore'
 import { Websocket } from '../services/Websocket'
 import { getWebsocketUrl } from '../services/WebsocketLive'
@@ -21,7 +21,10 @@ function getInitialConfig(): HttpClientWithAuthConfig {
     organizationId: localStorage.getItem('currentOrgId') ?? undefined,
     roleId: localStorage.getItem('currentRoleId') ?? undefined,
   }
-  console.debug(LOG, 'getInitialConfig', { ...c, token: c.token ? '(set)' : '(none)' })
+  console.debug(LOG, 'getInitialConfig', {
+    ...c,
+    token: c.token ? '(set)' : '(none)',
+  })
   return c
 }
 
@@ -46,7 +49,10 @@ export function AuthenticationRuntimeProvider({
 }: AuthenticationRuntimeProviderProps) {
   const initialConfig = useMemo(getInitialConfig, [])
   const config = configProp ?? initialConfig
-  console.debug(LOG, 'render', { baseUrl: config.baseUrl, hasToken: !!config.token })
+  console.debug(LOG, 'render', {
+    baseUrl: config.baseUrl,
+    hasToken: !!config.token,
+  })
   const [runtime, setRuntime] = useState<Runtime.Runtime<AppServices> | null>(
     null,
   )
@@ -58,10 +64,15 @@ export function AuthenticationRuntimeProvider({
 
   useEffect(() => {
     const key = config.baseUrl
-    console.debug(LOG, 'useEffect: start', { key, cachedKey: cacheRef.current?.key, inFlight: inFlightKeyRef.current })
+    console.debug(LOG, 'useEffect: start', {
+      key,
+      cachedKey: cacheRef.current?.key,
+      inFlight: inFlightKeyRef.current,
+    })
     const cached = cacheRef.current
     if (cached?.key === key) {
       console.debug(LOG, 'useEffect: cache hit, setRuntime from cache')
+      setAppRuntime(cached.runtime)
       setRuntime(cached.runtime)
       return
     }
@@ -85,9 +96,10 @@ export function AuthenticationRuntimeProvider({
       )
     })
     const rehydrate = (r: Runtime.Runtime<AppServices>) => {
+      setAppRuntime(r)
       if (config.token) {
         console.debug(LOG, 'rehydrate: running rehydrateEffect with token')
-        return runWithAppRuntime(r, rehydrateEffect).then(() => {
+        return runApp(rehydrateEffect).then(() => {
           console.debug(LOG, 'rehydrate: rehydrateEffect resolved')
           return r
         })
@@ -139,42 +151,35 @@ export function AuthenticationRuntimeProvider({
         const store = yield* AuthenticationStore
         yield* Effect.logDebug(`${LOG} WebSocket: got AuthenticationStore`)
         const state = yield* store.getState()
-        yield* Effect.logDebug(`${LOG} WebSocket: getState done (hasToken=${state?.token != null})`)
+        yield* Effect.logDebug(
+          `${LOG} WebSocket: getState done (hasToken=${state?.token != null})`,
+        )
         if (state.token) {
-          yield* Effect.logDebug(
-            `${LOG} WebSocket: connecting (has token)`,
-          )
+          yield* Effect.logDebug(`${LOG} WebSocket: connecting (has token)`)
           const ws = yield* Websocket
           yield* Effect.logTrace(`${LOG} WebSocket: got Websocket service`)
           yield* ws.connect(getWebsocketUrl(state.token))
-          yield* Effect.logDebug(
-            `${LOG} WebSocket: connect started`,
-          )
+          yield* Effect.logDebug(`${LOG} WebSocket: connect started`)
         } else {
-          yield* Effect.logDebug(
-            `${LOG} WebSocket: skip (no token)`,
-          )
+          yield* Effect.logDebug(`${LOG} WebSocket: skip (no token)`)
         }
       }).pipe(
         Effect.catchAll((e) =>
-          Effect.logWarning(
-            `${LOG} WebSocket connect failed`,
-            e,
-          ),
+          Effect.logWarning(`${LOG} WebSocket connect failed`, e),
         ),
       ),
     [],
   )
 
-  console.debug(LOG, 'useRunEffect: connectEffect', { hasRuntime: !!runtime })
-  useRunEffect(connectEffect, [runtime, config.token], runtime)
+  useEffect(() => {
+    if (runtime == null) return
+    console.debug(LOG, 'connectEffect: running', { hasToken: !!config.token })
+    runApp(connectEffect)
+  }, [runtime, config.token])
 
   if (runtime == null) {
     console.debug(LOG, 'render: runtime null -> FullPageLoader')
     return <FullPageLoader />
   }
-  console.debug(LOG, 'render: runtime set -> EffectRuntimeProvider')
-  return (
-    <EffectRuntimeProvider runtime={runtime}>{children}</EffectRuntimeProvider>
-  )
+  return <>{children}</>
 }

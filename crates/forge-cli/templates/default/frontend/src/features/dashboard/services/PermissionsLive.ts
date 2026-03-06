@@ -24,7 +24,9 @@ const PermissionsLive = Layer.effect(
       Effect.gen(function* () {
         yield* Effect.logTrace('PermissionsLive.getData')
         const [assignRes, permRes] = yield* Effect.all([
-          client.execute(HttpClientRequest.get('/api/dashboard/role-permissions')),
+          client.execute(
+            HttpClientRequest.get('/api/dashboard/role-permissions'),
+          ),
           client.execute(HttpClientRequest.get('/api/dashboard/permissions')),
         ])
         const assignBody = yield* assignRes.json
@@ -47,7 +49,8 @@ const PermissionsLive = Layer.effect(
               new Assignment({
                 scope: (a as { scope: string }).scope,
                 role_name: (a as { role_name: string }).role_name,
-                permission_key: (a as { permission_key: string }).permission_key,
+                permission_key: (a as { permission_key: string })
+                  .permission_key,
                 org_id: (a as { org_id?: string | null }).org_id,
               }),
           ) as readonly Assignment[]
@@ -68,9 +71,9 @@ const PermissionsLive = Layer.effect(
         yield* Effect.logDebug(
           `PermissionsLive.add: scope=${body.scope}, role_name=${body.role_name}, permission_key=${body.permission_key}`,
         )
-        const req = HttpClientRequest.post('/api/dashboard/role-permissions').pipe(
-          HttpClientRequest.bodyUnsafeJson(body),
-        )
+        const req = HttpClientRequest.post(
+          '/api/dashboard/role-permissions',
+        ).pipe(HttpClientRequest.bodyUnsafeJson(body))
         const response = yield* client.execute(req)
         const resBody = yield* response.json
         if (response.status === 403) {
@@ -90,9 +93,9 @@ const PermissionsLive = Layer.effect(
         yield* Effect.logDebug(
           `PermissionsLive.delete: scope=${body.scope}, role_name=${body.role_name}, permission_key=${body.permission_key}`,
         )
-        const req = HttpClientRequest.del('/api/dashboard/role-permissions').pipe(
-          HttpClientRequest.bodyUnsafeJson(body),
-        )
+        const req = HttpClientRequest.del(
+          '/api/dashboard/role-permissions',
+        ).pipe(HttpClientRequest.bodyUnsafeJson(body))
         const response = yield* client.execute(req)
         const resBody = yield* response.json
         if (response.status === 403) {

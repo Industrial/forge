@@ -41,5 +41,6 @@ export interface SubscriptionStreamService {
  * Use in Effects: yield* SubscriptionStream then yield* svc.openStream().
  * Provide with SubscriptionStreamLive(baseUrl) (requires AuthStateRef).
  */
-export const SubscriptionStream =
-  Context.GenericTag<SubscriptionStreamService>('@forge/SubscriptionStream')
+export const SubscriptionStream = Context.GenericTag<SubscriptionStreamService>(
+  '@forge/SubscriptionStream',
+)

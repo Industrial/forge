@@ -11,8 +11,8 @@ use crate::rest_model::RestModel;
 
 // Re-exports: one per model that implements RestModel.
 pub use crate::models::audit_log::Audit;
-pub use crate::models::organization::Organization;
 pub use crate::models::org_role::Role;
+pub use crate::models::organization::Organization;
 pub use crate::models::role_permission::Permission;
 pub use crate::models::user::User;
 
@@ -154,11 +154,7 @@ pub async fn update_model(
 }
 
 /// Delete model by id. Ok(false) if not found; Err(UnknownModel) if model_id not registered.
-pub async fn delete_model(
-  model_id: &str,
-  db: &DbConnection,
-  id: Uuid,
-) -> Result<bool, ModelError> {
+pub async fn delete_model(model_id: &str, db: &DbConnection, id: Uuid) -> Result<bool, ModelError> {
   match model_id {
     "organization" => Organization::delete(db, id).await,
     "user" => User::delete(db, id).await,

@@ -64,13 +64,15 @@ export const EntityApiLive = Layer.effect(
           `EntityApiLive.list: entityId=${entityId}, params=${JSON.stringify(params ?? {})}`,
         )
         const path = `/api/entities/${encodeURIComponent(entityId)}${buildListQuery(params ?? undefined)}`
-        const response = yield* client.execute(HttpClientRequest.get(path)).pipe(
-          Effect.mapError(toError),
-        )
+        const response = yield* client
+          .execute(HttpClientRequest.get(path))
+          .pipe(Effect.mapError(toError))
         const body = yield* response.json.pipe(Effect.mapError(toError))
         if (response.status >= 200 && response.status < 300) {
           const o = body as { data?: unknown[] }
-          return { data: (o.data ?? []) as readonly unknown[] } satisfies ListResponse
+          return {
+            data: (o.data ?? []) as readonly unknown[],
+          } satisfies ListResponse
         }
         return yield* Effect.fail(new Error(parseError(body)))
       })
@@ -78,11 +80,13 @@ export const EntityApiLive = Layer.effect(
     const get: EntityApiService['get'] = (entityId, id) =>
       Effect.gen(function* () {
         yield* Effect.logTrace('EntityApiLive.get')
-        yield* Effect.logDebug(`EntityApiLive.get: entityId=${entityId}, id=${id}`)
-        const path = `/api/entities/${encodeURIComponent(entityId)}/${encodeURIComponent(id)}`
-        const response = yield* client.execute(HttpClientRequest.get(path)).pipe(
-          Effect.mapError(toError),
+        yield* Effect.logDebug(
+          `EntityApiLive.get: entityId=${entityId}, id=${id}`,
         )
+        const path = `/api/entities/${encodeURIComponent(entityId)}/${encodeURIComponent(id)}`
+        const response = yield* client
+          .execute(HttpClientRequest.get(path))
+          .pipe(Effect.mapError(toError))
         const body = yield* response.json.pipe(Effect.mapError(toError))
         if (response.status >= 200 && response.status < 300) return body
         return yield* Effect.fail(new Error(parseError(body)))
@@ -108,7 +112,9 @@ export const EntityApiLive = Layer.effect(
     const update: EntityApiService['update'] = (entityId, id, body) =>
       Effect.gen(function* () {
         yield* Effect.logTrace('EntityApiLive.update')
-        yield* Effect.logDebug(`EntityApiLive.update: entityId=${entityId}, id=${id}`)
+        yield* Effect.logDebug(
+          `EntityApiLive.update: entityId=${entityId}, id=${id}`,
+        )
         const path = `/api/entities/${encodeURIComponent(entityId)}/${encodeURIComponent(id)}`
         const response = yield* client
           .execute(
@@ -125,11 +131,13 @@ export const EntityApiLive = Layer.effect(
     const del: EntityApiService['delete'] = (entityId, id) =>
       Effect.gen(function* () {
         yield* Effect.logTrace('EntityApiLive.delete')
-        yield* Effect.logDebug(`EntityApiLive.delete: entityId=${entityId}, id=${id}`)
-        const path = `/api/entities/${encodeURIComponent(entityId)}/${encodeURIComponent(id)}`
-        const response = yield* client.execute(HttpClientRequest.del(path)).pipe(
-          Effect.mapError(toError),
+        yield* Effect.logDebug(
+          `EntityApiLive.delete: entityId=${entityId}, id=${id}`,
         )
+        const path = `/api/entities/${encodeURIComponent(entityId)}/${encodeURIComponent(id)}`
+        const response = yield* client
+          .execute(HttpClientRequest.del(path))
+          .pipe(Effect.mapError(toError))
         const body = yield* response.json.pipe(Effect.mapError(toError))
         if (response.status >= 200 && response.status < 300) {
           return undefined

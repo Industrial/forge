@@ -74,7 +74,11 @@ const RolesLive = Layer.effect(
           return [] as readonly DashboardRole[]
         }
         const data = body as {
-          roles?: Array<{ id: string; name: string; display_name: string | null }>
+          roles?: Array<{
+            id: string
+            name: string
+            display_name: string | null
+          }>
         }
         const raw = data.roles ?? []
         const result = raw.map(
@@ -92,7 +96,9 @@ const RolesLive = Layer.effect(
     const create: RolesService['create'] = (body) =>
       Effect.gen(function* () {
         yield* Effect.logTrace('RolesLive.create')
-        yield* Effect.logDebug(`RolesLive.create: org_id=${body.org_id}, name=${body.name}`)
+        yield* Effect.logDebug(
+          `RolesLive.create: org_id=${body.org_id}, name=${body.name}`,
+        )
         const response = yield* client.execute(
           HttpClientRequest.post('/api/dashboard/roles').pipe(
             HttpClientRequest.bodyUnsafeJson(body),

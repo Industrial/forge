@@ -1,9 +1,8 @@
 /**
- * useAuthenticationState – auth state from AuthenticationStore via the Effect runtime.
+ * useAuthenticationState – auth state from AuthenticationStore via runApp.
  *
  * Run AuthenticationStore.getState() on mount and when refresh() is called;
- * state is stored in React. Use inside a tree that has EffectRuntimeProvider
- * with AuthenticationStore (e.g. AuthenticationRuntimeProvider).
+ * state is stored in React. Use inside AuthenticationRuntimeProvider so the app runtime is ready.
  */
 import { Effect } from 'effect'
 import { useCallback, useEffect, useState } from 'react'
@@ -11,8 +10,7 @@ import { flushSync } from 'react-dom'
 import type { AuthenticationError } from '../domain/AuthenticationError'
 import type { AuthenticationStateSnapshot } from '../domain/AuthenticationStateSnapshot'
 import { AuthenticationStore } from '../services/AuthenticationStore'
-import { useEffectRuntime } from 'react-effect-hooks'
-import { runWithAppRuntime, type AppServices } from '../../../lib/appLayer'
+import { runApp } from '../../../lib/appRuntime'
 
 const getStateEffect = Effect.gen(function* () {
   const store = yield* AuthenticationStore
@@ -31,7 +29,6 @@ export interface UseAuthenticationStateResult {
 }
 
 export function useAuthenticationState(): UseAuthenticationStateResult {
-  const { runtime } = useEffectRuntime<AppServices>()
   const [state, setState] = useState<AuthenticationStateSnapshot | null>(null)
   const [isPending, setIsPending] = useState(true)
   const [error, setError] = useState<AuthenticationError | null>(null)
@@ -39,7 +36,7 @@ export function useAuthenticationState(): UseAuthenticationStateResult {
   const runGetState = useCallback((): Promise<void> => {
     setIsPending(true)
     setError(null)
-    return runWithAppRuntime(runtime, getStateEffect)
+    return runApp(getStateEffect)
       .then((snapshot: AuthenticationStateSnapshot) => {
         flushSync(() => {
           setState(snapshot)
@@ -53,7 +50,7 @@ export function useAuthenticationState(): UseAuthenticationStateResult {
           setIsPending(false)
         })
       }) as Promise<void>
-  }, [runtime])
+  }, [])
 
   useEffect(() => {
     runGetState()

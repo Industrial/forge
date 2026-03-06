@@ -5,13 +5,11 @@ import CardActionArea from '@mui/material/CardActionArea'
 import CardContent from '@mui/material/CardContent'
 import Typography from '@mui/material/Typography'
 import { Effect } from 'effect'
-import { useCallback } from 'react'
+import { useCallback, useEffect } from 'react'
 import { AuthenticationStore } from '../../services/AuthenticationStore'
 import { useAuthenticationState } from '../../hooks/useAuthentication'
 import {
   useEffectState,
-  useRunEffect,
-  useEffectRuntime,
   streamWithPendingState,
   runStreamInto,
   type AsyncState,
@@ -20,14 +18,14 @@ import {
   isPending,
   isFailure,
 } from 'react-effect-hooks'
-import { runWithAppRuntime, type AppServices } from '../../../../lib/appLayer'
+import { runApp } from '../../../../lib/appRuntime'
+import type { AppServices } from '../../../../lib/appLayer'
 
 type SetScopeState = AsyncState<void, Error>
 
 export default function SelectScopePage() {
   const navigate = useNavigate()
   const location = useLocation()
-  const { runtime } = useEffectRuntime<AppServices>()
   const { state: authState, isPending: loading } = useAuthenticationState()
   const from =
     (location.state as { from?: { pathname: string } } | null)?.from
@@ -71,19 +69,20 @@ export default function SelectScopePage() {
         setScopeEffect(orgId, roleId, roleName),
       )
       const effect = runStreamInto(stream, setSubmitStateAsEffect)
-      runWithAppRuntime(runtime, effect).catch(() => {})
+      runApp(effect)
     },
-    [runtime, setScopeEffect, setSubmitStateAsEffect],
+    [setScopeEffect, setSubmitStateAsEffect],
   )
 
-  const successEffect: Effect.Effect<void, never, AppServices> = Effect.gen(
-    function* () {
-      if (!isSuccess(submitState)) return
-      yield* Effect.sync(() => navigate(from, { replace: true }))
-      yield* setSubmitStateAsEffect(idle<void, Error>())
-    },
-  )
-  useRunEffect(successEffect, [submitState, navigate, from, setSubmitStateAsEffect])
+  useEffect(() => {
+    if (!isSuccess(submitState)) return
+    runApp(
+      Effect.gen(function* () {
+        yield* Effect.sync(() => navigate(from, { replace: true }))
+        yield* setSubmitStateAsEffect(idle<void, Error>())
+      }),
+    )
+  }, [submitState, navigate, from, setSubmitStateAsEffect])
 
   const user = authState?.user ?? null
   const scopes = authState?.scopes ?? []
@@ -145,11 +144,7 @@ export default function SelectScopePage() {
           <Card key={p.org_id + (p.role_id ?? p.role)} variant="outlined">
             <CardActionArea
               onClick={() =>
-                handleSelectScope(
-                  p.org_id,
-                  p.role_id ?? '',
-                  p.role ?? '',
-                )
+                handleSelectScope(p.org_id, p.role_id ?? '', p.role ?? '')
               }
               disabled={submitting}
               data-testid={`scope-${p.org_name}-${p.role}`}

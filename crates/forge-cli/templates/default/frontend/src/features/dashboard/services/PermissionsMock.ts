@@ -11,7 +11,10 @@ import { Assignment } from '../domain/Assignment'
  * Creates a mock Permissions service. Optionally pass initial data.
  */
 export function createPermissionsMock(
-  initial: { assignments?: readonly Assignment[]; permissions?: readonly string[] } = {},
+  initial: {
+    assignments?: readonly Assignment[]
+    permissions?: readonly string[]
+  } = {},
 ): PermissionsService {
   const assignments: Assignment[] = (initial.assignments ?? []).map((a) =>
     a instanceof Assignment ? a : new Assignment(a),
@@ -54,5 +57,8 @@ export function createPermissionsMock(
 }
 
 export const PermissionsMockLayer = (
-  initial: { assignments?: readonly Assignment[]; permissions?: readonly string[] } = {},
+  initial: {
+    assignments?: readonly Assignment[]
+    permissions?: readonly string[]
+  } = {},
 ) => Layer.succeed(Permissions, createPermissionsMock(initial))

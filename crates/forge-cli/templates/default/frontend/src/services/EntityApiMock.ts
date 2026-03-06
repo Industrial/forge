@@ -20,11 +20,8 @@ function makeEntityApiMock(): EntityApiService {
     create: (_entityId: string, _body: Record<string, unknown>) =>
       Effect.succeed({}),
 
-    update: (
-      _entityId: string,
-      _id: string,
-      _body: Record<string, unknown>,
-    ) => Effect.succeed({}),
+    update: (_entityId: string, _id: string, _body: Record<string, unknown>) =>
+      Effect.succeed({}),
 
     delete: (_entityId: string, _id: string) => Effect.void,
   }

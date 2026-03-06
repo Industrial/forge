@@ -6,7 +6,11 @@ import { useAuthentication } from '../../../../context/AuthenticationContext'
 
 type AuthenticationLayoutProps = { children: React.ReactNode }
 
-export default function AuthenticationLayout({ children }: AuthenticationLayoutProps) {
+export default function AuthenticationLayout({
+  children,
+}: AuthenticationLayoutProps) {
+  console.log('AuthenticationLayout')
+
   const { flash } = useAuthentication()
 
   return (

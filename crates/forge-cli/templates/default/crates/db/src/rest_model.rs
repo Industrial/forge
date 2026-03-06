@@ -78,10 +78,7 @@ where
   ) -> sea_orm::Select<Self::Entity>;
 
   /// List models with filter/sort/pagination. Returns `{ "data": [ ... ] }`. Default uses hooks above.
-  async fn list(
-    db: &DbConnection,
-    spec: &ListQuerySpec,
-  ) -> Result<serde_json::Value, ModelError> {
+  async fn list(db: &DbConnection, spec: &ListQuerySpec) -> Result<serde_json::Value, ModelError> {
     let mut select = Self::Entity::find();
     for cond in &spec.filter {
       select = Self::apply_filter(select, cond);
@@ -105,10 +102,7 @@ where
   }
 
   /// Create model from JSON body. Returns the new model's id. Default: Validation error (not supported).
-  async fn create(
-    _db: &DbConnection,
-    _body: serde_json::Value,
-  ) -> Result<Uuid, ModelError> {
+  async fn create(_db: &DbConnection, _body: serde_json::Value) -> Result<Uuid, ModelError> {
     Err(ModelError::Validation(
       "create not supported for this model".to_string(),
     ))

@@ -64,15 +64,21 @@ const RpcApiLive = Layer.effect(
             ),
           )
           .pipe(Effect.mapError(toError))
+        const ok = response.status >= 200 && response.status < 300
+        if (!ok) {
+          return yield* Effect.fail(
+            new Error(
+              `RPC failed (${response.status}). Scoped routes may require X-Organization-Id and X-Role-Id headers.`,
+            ),
+          )
+        }
         const resBody = yield* response.json.pipe(Effect.mapError(toError))
-        if (response.status >= 200 && response.status < 300) {
-          const result = (resBody as { result?: { subscription_id?: string } })
-            ?.result
-          const id = result?.subscription_id
-          if (typeof id === 'string') {
-            yield* Effect.logDebug(`RpcApiLive.subscribe: subscription_id=${id}`)
-            return { subscription_id: id } satisfies SubscribeResult
-          }
+        const result = (resBody as { result?: { subscription_id?: string } })
+          ?.result
+        const id = result?.subscription_id
+        if (typeof id === 'string') {
+          yield* Effect.logDebug(`RpcApiLive.subscribe: subscription_id=${id}`)
+          return { subscription_id: id } satisfies SubscribeResult
         }
         return yield* Effect.fail(new Error(parseError(resBody)))
       })

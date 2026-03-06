@@ -11,7 +11,10 @@ export type TableEmptyRowProps = {
  * Single table row for empty state: one cell spanning all columns, centered.
  * Use in TableBody when the list is empty.
  */
-export default function TableEmptyRow({ colSpan, children }: TableEmptyRowProps) {
+export default function TableEmptyRow({
+  colSpan,
+  children,
+}: TableEmptyRowProps) {
   return (
     <TableRow>
       <TableCell colSpan={colSpan} align="center">

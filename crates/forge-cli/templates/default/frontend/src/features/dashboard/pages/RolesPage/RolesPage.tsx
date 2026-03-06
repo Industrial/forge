@@ -1,8 +1,6 @@
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import {
-  useEffectRuntime,
   useEffectState,
-  useRunEffect,
   streamWithPendingState,
   runStreamInto,
   type AsyncState,
@@ -12,7 +10,8 @@ import {
   isFailure,
   isPending,
 } from 'react-effect-hooks'
-import { runWithAppRuntime, type AppServices } from '../../../../lib/appLayer'
+import { runApp } from '../../../../lib/appRuntime'
+import type { AppServices } from '../../../../lib/appLayer'
 import { Effect } from 'effect'
 import Box from '@mui/material/Box'
 import Button from '@mui/material/Button'
@@ -44,20 +43,29 @@ import { Dashboard } from '../../services/Dashboard'
 type ListState = AsyncState<readonly Role[], Error>
 
 export default function RolesPage() {
-  const { runtime } = useEffectRuntime<AppServices>()
   const { trigger: liveRefreshTrigger, connected: wsConnected } =
     useLiveRefreshTrigger('roles')
 
-  const [listState, , setListStateAsEffect] = useEffectState<ListState, never, never>(
-    idle<Role[], Error>(),
-  )
-  const [addState, , setAddStateAsEffect] = useEffectState<ListState, never, never>(
-    idle<Role[], Error>(),
-  )
-  const [updateState, , setUpdateStateAsEffect] =
-    useEffectState<ListState, never, never>(idle<Role[], Error>())
-  const [deleteState, , setDeleteStateAsEffect] =
-    useEffectState<ListState, never, never>(idle<Role[], Error>())
+  const [listState, , setListStateAsEffect] = useEffectState<
+    ListState,
+    never,
+    never
+  >(idle<Role[], Error>())
+  const [addState, , setAddStateAsEffect] = useEffectState<
+    ListState,
+    never,
+    never
+  >(idle<Role[], Error>())
+  const [updateState, , setUpdateStateAsEffect] = useEffectState<
+    ListState,
+    never,
+    never
+  >(idle<Role[], Error>())
+  const [deleteState, , setDeleteStateAsEffect] = useEffectState<
+    ListState,
+    never,
+    never
+  >(idle<Role[], Error>())
 
   const [orgListState, , setOrgListStateAsEffect] = useEffectState<
     AsyncState<readonly Organization[], Error>,
@@ -106,7 +114,9 @@ export default function RolesPage() {
     yield* runStreamInto(refreshStream, setListStateAsEffect)
   })
 
-  useRunEffect(refreshEffect, [liveRefreshTrigger, setListStateAsEffect])
+  useEffect(() => {
+    runApp(refreshEffect)
+  }, [liveRefreshTrigger, setListStateAsEffect])
 
   const listOrgsEffect = Effect.gen(function* () {
     const dashboard = yield* Dashboard
@@ -117,45 +127,50 @@ export default function RolesPage() {
     yield* runStreamInto(orgsStream, setOrgListStateAsEffect)
   })
 
-  useRunEffect(orgsEffect, [setOrgListStateAsEffect])
+  useEffect(() => {
+    runApp(orgsEffect)
+  }, [setOrgListStateAsEffect])
 
   // On add success: copy to listState, close add dialog, reset form, reset add state
-  useRunEffect(
-    Effect.gen(function* () {
-      if (!isSuccess(addState)) return
-      yield* setListStateAsEffect(asyncSuccess(addState.value))
-      yield* Effect.sync(() => {
-        setAddOpen(false)
-        setAddName('')
-        setAddDisplayName('')
-        setAddOrgId(organizations[0]?.id ?? '')
-      })
-      yield* setAddStateAsEffect(idle())
-    }),
-    [addState, setListStateAsEffect, setAddStateAsEffect, organizations],
-  )
+  useEffect(() => {
+    if (!isSuccess(addState)) return
+    runApp(
+      Effect.gen(function* () {
+        yield* setListStateAsEffect(asyncSuccess(addState.value))
+        yield* Effect.sync(() => {
+          setAddOpen(false)
+          setAddName('')
+          setAddDisplayName('')
+          setAddOrgId(organizations[0]?.id ?? '')
+        })
+        yield* setAddStateAsEffect(idle())
+      }),
+    )
+  }, [addState, setListStateAsEffect, setAddStateAsEffect, organizations])
 
   // On update success: copy to listState, close edit dialog, reset update state
-  useRunEffect(
-    Effect.gen(function* () {
-      if (!isSuccess(updateState)) return
-      yield* setListStateAsEffect(asyncSuccess(updateState.value))
-      yield* Effect.sync(() => setEditRole(null))
-      yield* setUpdateStateAsEffect(idle())
-    }),
-    [updateState, setListStateAsEffect, setUpdateStateAsEffect],
-  )
+  useEffect(() => {
+    if (!isSuccess(updateState)) return
+    runApp(
+      Effect.gen(function* () {
+        yield* setListStateAsEffect(asyncSuccess(updateState.value))
+        yield* Effect.sync(() => setEditRole(null))
+        yield* setUpdateStateAsEffect(idle())
+      }),
+    )
+  }, [updateState, setListStateAsEffect, setUpdateStateAsEffect])
 
   // On delete success: copy to listState, clear deletingId, reset delete state
-  useRunEffect(
-    Effect.gen(function* () {
-      if (!isSuccess(deleteState)) return
-      yield* setListStateAsEffect(asyncSuccess(deleteState.value))
-      yield* Effect.sync(() => setDeletingId(null))
-      yield* setDeleteStateAsEffect(idle())
-    }),
-    [deleteState, setListStateAsEffect, setDeleteStateAsEffect],
-  )
+  useEffect(() => {
+    if (!isSuccess(deleteState)) return
+    runApp(
+      Effect.gen(function* () {
+        yield* setListStateAsEffect(asyncSuccess(deleteState.value))
+        yield* Effect.sync(() => setDeletingId(null))
+        yield* setDeleteStateAsEffect(idle())
+      }),
+    )
+  }, [deleteState, setListStateAsEffect, setDeleteStateAsEffect])
 
   const handleAdd = () => {
     const name = addName.trim()
@@ -170,8 +185,7 @@ export default function RolesPage() {
       })
       return yield* roles.list()
     })
-    runWithAppRuntime(
-      runtime,
+    runApp(
       runStreamInto(streamWithPendingState(addThenList), setAddStateAsEffect),
     )
   }
@@ -193,8 +207,7 @@ export default function RolesPage() {
       })
       return yield* roles.list()
     })
-    runWithAppRuntime(
-      runtime,
+    runApp(
       runStreamInto(
         streamWithPendingState(updateThenList),
         setUpdateStateAsEffect,
@@ -209,8 +222,7 @@ export default function RolesPage() {
       yield* roles.delete(id)
       return yield* roles.list()
     })
-    runWithAppRuntime(
-      runtime,
+    runApp(
       runStreamInto(
         streamWithPendingState(deleteThenList),
         setDeleteStateAsEffect,
@@ -230,7 +242,7 @@ export default function RolesPage() {
         <ErrorAlert
           message={errorMessage}
           onClose={() => {
-            runWithAppRuntime(runtime, refreshEffect)
+            runApp(refreshEffect)
           }}
         />
       )}

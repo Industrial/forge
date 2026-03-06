@@ -3,25 +3,25 @@
 //! Epic 6: expand/include rejected with 400; relations as IDs only.
 //! Epic 4: list accepts ListQuerySpec (filter, sort, pagination) via query params.
 
+use axum::Json;
 use axum::extract::{Extension, Path, Query, State};
 use axum::http::StatusCode;
 use axum::response::IntoResponse;
-use axum::Json;
 use db::auth::Backend;
 use forge_auth::token_auth::RequireAuth;
 use forge_db::DbConnection;
 use serde::Deserialize;
 use uuid::Uuid;
 
+use crate::Error as ForgeError;
 use crate::handlers::auth::ScopeFromHeaders;
 use crate::handlers::dashboard::require_entity_permission;
-use crate::subscriptions::{ChangeEvent, SubscriptionStore};
 use crate::query_spec::{
-  FilterOperator, ListQuerySpec, SortDirection, DEFAULT_LIMIT, FilterCond, SortSpec,
+  DEFAULT_LIMIT, FilterCond, FilterOperator, ListQuerySpec, SortDirection, SortSpec,
   validate_filter_cond, validate_offset_limit, validate_sort_field,
 };
 use crate::registry;
-use crate::Error as ForgeError;
+use crate::subscriptions::{ChangeEvent, SubscriptionStore};
 use db::models::user;
 
 /// Query params for list: expand/include (rejected), plus filter/sort/pagination (Epic 4).
@@ -132,14 +132,16 @@ pub async fn list_entities(
     return Ok(resp);
   }
   if !registry::is_known_model(entity_id.as_str()) {
-    return Ok((
-      StatusCode::NOT_FOUND,
-      Json(serde_json::json!({
-        "error": "Not Found",
-        "message": "Unknown entity"
-      })),
-    )
-      .into_response());
+    return Ok(
+      (
+        StatusCode::NOT_FOUND,
+        Json(serde_json::json!({
+          "error": "Not Found",
+          "message": "Unknown entity"
+        })),
+      )
+        .into_response(),
+    );
   }
   let user = &auth.0;
   if let Some(resp) =
@@ -150,31 +152,37 @@ pub async fn list_entities(
   let spec = match parse_list_query_spec(&params) {
     Ok(s) => s,
     Err(msg) => {
-      return Ok((
-        StatusCode::BAD_REQUEST,
-        Json(serde_json::json!({ "error": "Bad Request", "message": msg })),
-      )
-        .into_response());
+      return Ok(
+        (
+          StatusCode::BAD_REQUEST,
+          Json(serde_json::json!({ "error": "Bad Request", "message": msg })),
+        )
+          .into_response(),
+      );
     }
   };
   let allowed_filter = registry::effective_filter_fields(entity_id.as_str());
   let allowed_sort = registry::effective_sort_fields(entity_id.as_str());
   for cond in &spec.filter {
     if let Err(msg) = validate_filter_cond(cond, allowed_filter) {
-      return Ok((
-        StatusCode::BAD_REQUEST,
-        Json(serde_json::json!({ "error": "Bad Request", "message": msg })),
-      )
-        .into_response());
+      return Ok(
+        (
+          StatusCode::BAD_REQUEST,
+          Json(serde_json::json!({ "error": "Bad Request", "message": msg })),
+        )
+          .into_response(),
+      );
     }
   }
   if let Some(ref sort) = spec.sort {
     if let Err(msg) = validate_sort_field(&sort.field, allowed_sort) {
-      return Ok((
-        StatusCode::BAD_REQUEST,
-        Json(serde_json::json!({ "error": "Bad Request", "message": msg })),
-      )
-        .into_response());
+      return Ok(
+        (
+          StatusCode::BAD_REQUEST,
+          Json(serde_json::json!({ "error": "Bad Request", "message": msg })),
+        )
+          .into_response(),
+      );
     }
   }
   match registry::list_models(entity_id.as_str(), &db, &spec)
@@ -182,14 +190,16 @@ pub async fn list_entities(
     .map_err(crate::Error::from)
   {
     Ok(v) => Ok(Json(v).into_response()),
-    Err(ForgeError::Auth(StatusCode::NOT_FOUND, _)) => Ok((
-      StatusCode::NOT_FOUND,
-      Json(serde_json::json!({
-        "error": "Not Found",
-        "message": "Unknown entity"
-      })),
-    )
-      .into_response()),
+    Err(ForgeError::Auth(StatusCode::NOT_FOUND, _)) => Ok(
+      (
+        StatusCode::NOT_FOUND,
+        Json(serde_json::json!({
+          "error": "Not Found",
+          "message": "Unknown entity"
+        })),
+      )
+        .into_response(),
+    ),
     Err(e) => Err(e),
   }
 }
@@ -234,14 +244,16 @@ pub async fn get_entity_by_id(
     return Ok(resp);
   }
   if !registry::is_known_model(entity_id.as_str()) {
-    return Ok((
-      StatusCode::NOT_FOUND,
-      Json(serde_json::json!({
-        "error": "Not Found",
-        "message": "Unknown entity"
-      })),
-    )
-      .into_response());
+    return Ok(
+      (
+        StatusCode::NOT_FOUND,
+        Json(serde_json::json!({
+          "error": "Not Found",
+          "message": "Unknown entity"
+        })),
+      )
+        .into_response(),
+    );
   }
   let user = &auth.0;
   if let Some(resp) =
@@ -252,11 +264,13 @@ pub async fn get_entity_by_id(
   let id = match Uuid::parse_str(&id_str) {
     Ok(u) => u,
     Err(_) => {
-      return Ok((
-        StatusCode::BAD_REQUEST,
-        Json(serde_json::json!({ "error": "Bad Request", "message": "Invalid id" })),
-      )
-        .into_response());
+      return Ok(
+        (
+          StatusCode::BAD_REQUEST,
+          Json(serde_json::json!({ "error": "Bad Request", "message": "Invalid id" })),
+        )
+          .into_response(),
+      );
     }
   };
   match registry::get_model(entity_id.as_str(), &db, id)
@@ -264,22 +278,26 @@ pub async fn get_entity_by_id(
     .map_err(crate::Error::from)
   {
     Ok(Some(v)) => Ok(Json(v).into_response()),
-    Ok(None) => Ok((
-      StatusCode::NOT_FOUND,
-      Json(serde_json::json!({
-        "error": "Not Found",
-        "message": "Resource not found"
-      })),
-    )
-      .into_response()),
-    Err(ForgeError::Auth(StatusCode::NOT_FOUND, _)) => Ok((
-      StatusCode::NOT_FOUND,
-      Json(serde_json::json!({
-        "error": "Not Found",
-        "message": "Unknown entity"
-      })),
-    )
-      .into_response()),
+    Ok(None) => Ok(
+      (
+        StatusCode::NOT_FOUND,
+        Json(serde_json::json!({
+          "error": "Not Found",
+          "message": "Resource not found"
+        })),
+      )
+        .into_response(),
+    ),
+    Err(ForgeError::Auth(StatusCode::NOT_FOUND, _)) => Ok(
+      (
+        StatusCode::NOT_FOUND,
+        Json(serde_json::json!({
+          "error": "Not Found",
+          "message": "Unknown entity"
+        })),
+      )
+        .into_response(),
+    ),
     Err(e) => Err(e),
   }
 }
@@ -317,14 +335,16 @@ pub async fn create_entity(
     "create_entity"
   );
   if !registry::is_known_model(entity_id.as_str()) {
-    return Ok((
-      StatusCode::NOT_FOUND,
-      Json(serde_json::json!({
-        "error": "Not Found",
-        "message": "Unknown entity"
-      })),
-    )
-      .into_response());
+    return Ok(
+      (
+        StatusCode::NOT_FOUND,
+        Json(serde_json::json!({
+          "error": "Not Found",
+          "message": "Unknown entity"
+        })),
+      )
+        .into_response(),
+    );
   }
   let user = &auth.0;
   if let Some(resp) =
@@ -350,25 +370,25 @@ pub async fn create_entity(
         .await
         .map_err(crate::Error::from)?
         .ok_or_else(|| ForgeError::Generic("created resource not found".to_string()))?;
-      Ok((
-        StatusCode::CREATED,
-        Json(body),
-      )
-        .into_response())
+      Ok((StatusCode::CREATED, Json(body)).into_response())
     }
-    Err(ForgeError::Auth(StatusCode::NOT_FOUND, _)) => Ok((
-      StatusCode::NOT_FOUND,
-      Json(serde_json::json!({
-        "error": "Not Found",
-        "message": "Unknown entity"
-      })),
-    )
-      .into_response()),
-    Err(ForgeError::Generic(msg)) => Ok((
-      StatusCode::UNPROCESSABLE_ENTITY,
-      Json(serde_json::json!({ "error": "Unprocessable Entity", "message": msg })),
-    )
-      .into_response()),
+    Err(ForgeError::Auth(StatusCode::NOT_FOUND, _)) => Ok(
+      (
+        StatusCode::NOT_FOUND,
+        Json(serde_json::json!({
+          "error": "Not Found",
+          "message": "Unknown entity"
+        })),
+      )
+        .into_response(),
+    ),
+    Err(ForgeError::Generic(msg)) => Ok(
+      (
+        StatusCode::UNPROCESSABLE_ENTITY,
+        Json(serde_json::json!({ "error": "Unprocessable Entity", "message": msg })),
+      )
+        .into_response(),
+    ),
     Err(e) => Err(e),
   }
 }
@@ -389,14 +409,16 @@ pub async fn update_entity(
     "update_entity"
   );
   if !registry::is_known_model(entity_id.as_str()) {
-    return Ok((
-      StatusCode::NOT_FOUND,
-      Json(serde_json::json!({
-        "error": "Not Found",
-        "message": "Unknown entity"
-      })),
-    )
-      .into_response());
+    return Ok(
+      (
+        StatusCode::NOT_FOUND,
+        Json(serde_json::json!({
+          "error": "Not Found",
+          "message": "Unknown entity"
+        })),
+      )
+        .into_response(),
+    );
   }
   let user = &auth.0;
   if let Some(resp) =
@@ -407,11 +429,13 @@ pub async fn update_entity(
   let id = match Uuid::parse_str(&id_str) {
     Ok(u) => u,
     Err(_) => {
-      return Ok((
-        StatusCode::BAD_REQUEST,
-        Json(serde_json::json!({ "error": "Bad Request", "message": "Invalid id" })),
-      )
-        .into_response());
+      return Ok(
+        (
+          StatusCode::BAD_REQUEST,
+          Json(serde_json::json!({ "error": "Bad Request", "message": "Invalid id" })),
+        )
+          .into_response(),
+      );
     }
   };
   if let Some(resp) = require_object_body(&body) {
@@ -430,19 +454,23 @@ pub async fn update_entity(
       });
       Ok(Json(updated).into_response())
     }
-    Err(ForgeError::Auth(StatusCode::NOT_FOUND, _)) => Ok((
-      StatusCode::NOT_FOUND,
-      Json(serde_json::json!({
-        "error": "Not Found",
-        "message": "Unknown entity"
-      })),
-    )
-      .into_response()),
-    Err(ForgeError::Generic(msg)) if msg.contains("not found") => Ok((
-      StatusCode::NOT_FOUND,
-      Json(serde_json::json!({ "error": "Not Found", "message": msg })),
-    )
-      .into_response()),
+    Err(ForgeError::Auth(StatusCode::NOT_FOUND, _)) => Ok(
+      (
+        StatusCode::NOT_FOUND,
+        Json(serde_json::json!({
+          "error": "Not Found",
+          "message": "Unknown entity"
+        })),
+      )
+        .into_response(),
+    ),
+    Err(ForgeError::Generic(msg)) if msg.contains("not found") => Ok(
+      (
+        StatusCode::NOT_FOUND,
+        Json(serde_json::json!({ "error": "Not Found", "message": msg })),
+      )
+        .into_response(),
+    ),
     Err(e) => Err(e),
   }
 }
@@ -462,14 +490,16 @@ pub async fn delete_entity(
     "delete_entity"
   );
   if !registry::is_known_model(entity_id.as_str()) {
-    return Ok((
-      StatusCode::NOT_FOUND,
-      Json(serde_json::json!({
-        "error": "Not Found",
-        "message": "Unknown entity"
-      })),
-    )
-      .into_response());
+    return Ok(
+      (
+        StatusCode::NOT_FOUND,
+        Json(serde_json::json!({
+          "error": "Not Found",
+          "message": "Unknown entity"
+        })),
+      )
+        .into_response(),
+    );
   }
   let user = &auth.0;
   if let Some(resp) =
@@ -480,11 +510,13 @@ pub async fn delete_entity(
   let id = match Uuid::parse_str(&id_str) {
     Ok(u) => u,
     Err(_) => {
-      return Ok((
-        StatusCode::BAD_REQUEST,
-        Json(serde_json::json!({ "error": "Bad Request", "message": "Invalid id" })),
-      )
-        .into_response());
+      return Ok(
+        (
+          StatusCode::BAD_REQUEST,
+          Json(serde_json::json!({ "error": "Bad Request", "message": "Invalid id" })),
+        )
+          .into_response(),
+      );
     }
   };
   match registry::delete_model(entity_id.as_str(), &db, id)
@@ -500,20 +532,23 @@ pub async fn delete_entity(
       });
       Ok(Json(serde_json::json!({ "ok": true })).into_response())
     }
-    Ok(false) => Ok((
-      StatusCode::NOT_FOUND,
-      Json(serde_json::json!({ "error": "Not Found", "message": "Resource not found" })),
-    )
-      .into_response()),
-    Err(ForgeError::Auth(StatusCode::NOT_FOUND, _)) => Ok((
-      StatusCode::NOT_FOUND,
-      Json(serde_json::json!({
-        "error": "Not Found",
-        "message": "Unknown entity"
-      })),
-    )
-      .into_response()),
+    Ok(false) => Ok(
+      (
+        StatusCode::NOT_FOUND,
+        Json(serde_json::json!({ "error": "Not Found", "message": "Resource not found" })),
+      )
+        .into_response(),
+    ),
+    Err(ForgeError::Auth(StatusCode::NOT_FOUND, _)) => Ok(
+      (
+        StatusCode::NOT_FOUND,
+        Json(serde_json::json!({
+          "error": "Not Found",
+          "message": "Unknown entity"
+        })),
+      )
+        .into_response(),
+    ),
     Err(e) => Err(e),
   }
 }
-

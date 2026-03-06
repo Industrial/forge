@@ -9,7 +9,7 @@ use uuid::Uuid;
 
 use crate::model_error::ModelError;
 use crate::query_spec::{FilterCond, FilterOperator, SortDirection, SortSpec};
-use crate::rest_model::{RestModel, REST_ACTIONS};
+use crate::rest_model::{REST_ACTIONS, RestModel};
 
 #[derive(Clone, Debug, PartialEq, DeriveEntityModel, Serialize, Deserialize)]
 #[sea_orm(table_name = "role_permission")]
@@ -30,8 +30,7 @@ impl ActiveModelBehavior for ActiveModel {}
 
 // ---- RestModel ----
 
-const FILTER_SORT_RESPONSE: &[&str] =
-  &["id", "scope", "role_name", "permission_key", "org_id"];
+const FILTER_SORT_RESPONSE: &[&str] = &["id", "scope", "role_name", "permission_key", "org_id"];
 
 /// REST resource for the role_permission table; implements [RestModel].
 pub struct Permission;
@@ -93,10 +92,7 @@ impl RestModel for Permission {
     })
   }
 
-  fn apply_filter(
-    select: sea_orm::Select<Entity>,
-    cond: &FilterCond,
-  ) -> sea_orm::Select<Entity> {
+  fn apply_filter(select: sea_orm::Select<Entity>, cond: &FilterCond) -> sea_orm::Select<Entity> {
     apply_filter(select, cond)
   }
 
@@ -104,10 +100,7 @@ impl RestModel for Permission {
     select.order_by_asc(Column::RoleName)
   }
 
-  fn apply_sort(
-    select: sea_orm::Select<Entity>,
-    sort: &SortSpec,
-  ) -> sea_orm::Select<Entity> {
+  fn apply_sort(select: sea_orm::Select<Entity>, sort: &SortSpec) -> sea_orm::Select<Entity> {
     let (col, dir) = match sort.field.as_str() {
       "id" => (Column::Id, sort.direction),
       "scope" => (Column::Scope, sort.direction),
@@ -122,10 +115,7 @@ impl RestModel for Permission {
     }
   }
 
-  async fn create(
-    _db: &DbConnection,
-    _body: serde_json::Value,
-  ) -> Result<Uuid, ModelError> {
+  async fn create(_db: &DbConnection, _body: serde_json::Value) -> Result<Uuid, ModelError> {
     Err(ModelError::Validation(
       "permission create not implemented via generic handler".to_string(),
     ))
@@ -148,10 +138,7 @@ impl RestModel for Permission {
   }
 }
 
-fn apply_filter(
-  select: sea_orm::Select<Entity>,
-  cond: &FilterCond,
-) -> sea_orm::Select<Entity> {
+fn apply_filter(select: sea_orm::Select<Entity>, cond: &FilterCond) -> sea_orm::Select<Entity> {
   use sea_orm::ColumnTrait;
   match cond.field.as_str() {
     "id" => {

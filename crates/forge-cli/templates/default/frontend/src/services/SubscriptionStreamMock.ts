@@ -13,7 +13,9 @@ function makeSubscriptionStreamMock(): SubscriptionStreamService {
   return {
     openStream: () =>
       Effect.succeed(
-        Stream.fromIterable([{ type: 'ready' } as const] as SubscriptionStreamEvent[]),
+        Stream.fromIterable([
+          { type: 'ready' } as const,
+        ] as SubscriptionStreamEvent[]),
       ),
   }
 }

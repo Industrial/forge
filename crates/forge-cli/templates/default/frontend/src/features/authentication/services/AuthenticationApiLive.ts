@@ -45,7 +45,9 @@ export const AuthenticationApiLive = Layer.effect(
           token: data.token,
           needs_profile_select: data.needs_profile_select,
         } as LoginResult
-        yield* Effect.logDebug(`login result: needs_profile_select=${result.needs_profile_select}`)
+        yield* Effect.logDebug(
+          `login result: needs_profile_select=${result.needs_profile_select}`,
+        )
         return result
       })
 
@@ -68,4 +70,3 @@ export const AuthenticationApiLive = Layer.effect(
     return { login, register }
   }),
 )
-
