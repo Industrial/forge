@@ -62,12 +62,15 @@ export const SubscriptionStreamLive = (baseUrl: string) =>
 
       const openStream: SubscriptionStreamService['openStream'] = () =>
         Effect.gen(function* () {
+          yield* Effect.logTrace('SubscriptionStreamLive.openStream')
           const token = authStateRef.current.token
           if (!token) {
+            yield* Effect.logDebug('SubscriptionStreamLive.openStream: no token')
             return yield* Effect.fail(
               new Error('Not authenticated; cannot open subscription stream'),
             )
           }
+          yield* Effect.logDebug(`SubscriptionStreamLive.openStream: url=${baseUrl.replace(/\/$/, '')}/api/subscriptions/stream`)
           const url = `${baseUrl.replace(/\/$/, '')}/api/subscriptions/stream`
           const res = yield* Effect.tryPromise({
             try: () =>
@@ -93,6 +96,7 @@ export const SubscriptionStreamLive = (baseUrl: string) =>
             readSSEEvents(reader),
             (e) => new Error(String(e)),
           )
+          yield* Effect.logDebug('SubscriptionStreamLive.openStream: stream opened')
           return stream
         })
 

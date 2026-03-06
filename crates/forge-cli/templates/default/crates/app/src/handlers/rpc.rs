@@ -64,8 +64,15 @@ pub async fn rpc_handler(
   let user = &auth.0;
   let method = body.method.as_str();
   let entity_id = body.entity_id.as_str();
-
   let correlation_id = body.id.clone();
+
+  tracing::debug!(
+    target: "app::handlers::rpc",
+    method = %method,
+    entity_id = %entity_id,
+    user_id = %user.id,
+    "rpc_handler"
+  );
 
   // Subscribe/unsubscribe (Epic 8): same transport as entity RPC; server-assigned subscription id.
   match method {
@@ -184,6 +191,11 @@ async fn rpc_subscribe(
   correlation_id: Option<serde_json::Value>,
 ) -> Result<axum::response::Response, ForgeError> {
   let entity_id = body.entity_id.clone();
+  tracing::debug!(
+    target: "app::handlers::rpc",
+    entity_id = %entity_id,
+    "rpc_subscribe"
+  );
   if !registry::is_known_model(&entity_id) {
     return Ok(rpc_error(StatusCode::NOT_FOUND, "Unknown entity", correlation_id));
   }
@@ -245,6 +257,11 @@ async fn rpc_unsubscribe(
     .as_ref()
     .and_then(|p| p.subscription_id.as_deref())
     .unwrap_or("");
+  tracing::debug!(
+    target: "app::handlers::rpc",
+    subscription_id = %subscription_id_str,
+    "rpc_unsubscribe"
+  );
   let subscription_id = match Uuid::parse_str(subscription_id_str) {
     Ok(u) => u,
     Err(_) => {

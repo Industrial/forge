@@ -119,6 +119,15 @@ pub async fn list_entities(
   auth: RequireAuth<Backend, user::Model>,
   State(db): State<DbConnection>,
 ) -> Result<impl IntoResponse, ForgeError> {
+  tracing::debug!(
+    target: "app::handlers::generic_entity",
+    entity_id = %entity_id,
+    filter = ?params.filter.as_deref(),
+    sort = ?params.sort.as_deref(),
+    offset = ?params.offset,
+    limit = ?params.limit,
+    "list_entities"
+  );
   if let Some(resp) = reject_expand_include(&params) {
     return Ok(resp);
   }
@@ -215,6 +224,12 @@ pub async fn get_entity_by_id(
   auth: RequireAuth<Backend, user::Model>,
   State(db): State<DbConnection>,
 ) -> Result<impl IntoResponse, ForgeError> {
+  tracing::debug!(
+    target: "app::handlers::generic_entity",
+    entity_id = %entity_id,
+    id = %id_str,
+    "get_entity_by_id"
+  );
   if let Some(resp) = reject_expand_include(&params) {
     return Ok(resp);
   }
@@ -296,6 +311,11 @@ pub async fn create_entity(
   Extension(subscriptions): Extension<SubscriptionStore>,
   Json(body): Json<serde_json::Value>,
 ) -> Result<impl IntoResponse, ForgeError> {
+  tracing::debug!(
+    target: "app::handlers::generic_entity",
+    entity_id = %entity_id,
+    "create_entity"
+  );
   if !registry::is_known_model(entity_id.as_str()) {
     return Ok((
       StatusCode::NOT_FOUND,
@@ -362,6 +382,12 @@ pub async fn update_entity(
   Extension(subscriptions): Extension<SubscriptionStore>,
   Json(body): Json<serde_json::Value>,
 ) -> Result<impl IntoResponse, ForgeError> {
+  tracing::debug!(
+    target: "app::handlers::generic_entity",
+    entity_id = %entity_id,
+    id = %id_str,
+    "update_entity"
+  );
   if !registry::is_known_model(entity_id.as_str()) {
     return Ok((
       StatusCode::NOT_FOUND,
@@ -429,6 +455,12 @@ pub async fn delete_entity(
   State(db): State<DbConnection>,
   Extension(subscriptions): Extension<SubscriptionStore>,
 ) -> Result<impl IntoResponse, ForgeError> {
+  tracing::debug!(
+    target: "app::handlers::generic_entity",
+    entity_id = %entity_id,
+    id = %id_str,
+    "delete_entity"
+  );
   if !registry::is_known_model(entity_id.as_str()) {
     return Ok((
       StatusCode::NOT_FOUND,

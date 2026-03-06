@@ -31,7 +31,8 @@ export const AuthenticationFeatureLayer = (
       Layer.provide(authRefLayer),
     ),
   )
-  return Layer.merge(
+  return Layer.mergeAll(
+    authRefLayer,
     withHttp,
     AuthenticationApiLive.pipe(Layer.provide(httpLayer)),
   )

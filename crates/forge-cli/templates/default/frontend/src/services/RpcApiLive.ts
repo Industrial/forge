@@ -40,6 +40,10 @@ const RpcApiLive = Layer.effect(
 
     const subscribe: RpcApiService['subscribe'] = (entityId, params) =>
       Effect.gen(function* () {
+        yield* Effect.logTrace('RpcApiLive.subscribe')
+        yield* Effect.logDebug(
+          `RpcApiLive.subscribe: entityId=${entityId}, params=${JSON.stringify(params ?? {})}`,
+        )
         const body = {
           method: 'subscribe',
           entity_id: entityId,
@@ -66,6 +70,7 @@ const RpcApiLive = Layer.effect(
             ?.result
           const id = result?.subscription_id
           if (typeof id === 'string') {
+            yield* Effect.logDebug(`RpcApiLive.subscribe: subscription_id=${id}`)
             return { subscription_id: id } satisfies SubscribeResult
           }
         }
