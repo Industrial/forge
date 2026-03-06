@@ -5,7 +5,7 @@
  * dropdown when creating users). All methods return Effect<A, Error, never>;
  * Live uses HttpClient.
  *
- * For full CRUD use the feature services: Organizations, Roles, Users, etc.
+ * For full CRUD use EntityApi (e.g. organization) or feature services: Roles, Users, etc.
  */
 
 import { Context, Effect } from 'effect'

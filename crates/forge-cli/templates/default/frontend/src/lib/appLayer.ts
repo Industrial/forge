@@ -10,8 +10,6 @@ import type { AuditLogService } from '../features/dashboard/services/AuditLog'
 import { AuditLogLive } from '../features/dashboard/services/AuditLogLive'
 import type { DashboardService } from '../features/dashboard/services/Dashboard'
 import { DashboardLive } from '../features/dashboard/services/DashboardLive'
-import type { OrganizationsService } from '../features/dashboard/services/Organizations'
-import { OrganizationsLive } from '../features/dashboard/services/OrganizationsLive'
 import type { PermissionsService } from '../features/dashboard/services/Permissions'
 import { PermissionsLive } from '../features/dashboard/services/PermissionsLive'
 import type { RolesService } from '../features/dashboard/services/Roles'
@@ -45,7 +43,6 @@ export type AppServices =
   | SubscriptionStreamService
   | WebsocketService
   | ForgeWebsocketService
-  | OrganizationsService
   | AuditLogService
   | PermissionsService
   | RolesService
@@ -76,8 +73,7 @@ const LoggerLayer = Logger.minimumLogLevel(LogLevel.Trace)
 
 /**
  * Builds the full app layer: AuthenticationFeatureLayer (HttpClient + AuthenticationStore),
- * WebsocketLive, ForgeWebsocketLive, and OrganizationsLive. ForgeWebsocketLive and
- * OrganizationsLive receive their dependencies from the base layer.
+ * WebsocketLive and ForgeWebsocketLive receive their dependencies from the base layer.
  * Includes Logger at Trace level so instrumentation logs are visible.
  */
 export const AppLayer = (config: HttpClientWithAuthConfig) => {
@@ -92,7 +88,6 @@ export const AppLayer = (config: HttpClientWithAuthConfig) => {
   const dashboardServices = Layer.mergeAll(
     EntityApiLive,
     RpcApiLive,
-    OrganizationsLive,
     AuditLogLive,
     PermissionsLive,
     RolesLive,

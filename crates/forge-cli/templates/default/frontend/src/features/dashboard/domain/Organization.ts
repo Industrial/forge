@@ -2,7 +2,7 @@ import { Data } from 'effect'
 
 /**
  * Organization entity. Data class for structural equality and tagging.
- * Used by the Organizations service and dashboard pages.
+ * Used by dashboard pages (e.g. OrganizationsPage via EntityApi) and Dashboard service.
  */
 export class Organization extends Data.TaggedClass('Organization')<{
   readonly id: string
