@@ -28,12 +28,15 @@ import type { ForgeWebsocketService } from '@/services/ForgeWebsocket'
 import type { WebsocketService } from '@/services/Websocket'
 import { WebsocketLive } from '@/services/WebsocketLive'
 import { getBaseUrl } from '@/lib/baseUrl'
+import type { AuthenticationStateReactiveStore } from '@/lib/authenticationReactiveStore'
+import { AuthenticationStateReactiveStoreLayer } from '@/lib/authenticationReactiveStore'
 
 /**
  * Union of all service types provided by the app runtime.
  * Matches the type inferred from AppLayer. Use for typing effects and runApp so effects run without casts.
  */
 export type AppServices =
+  | AuthenticationStateReactiveStore
   | HttpClient.HttpClient
   | AuthenticationStoreService
   | AuthenticationApiService
@@ -57,6 +60,7 @@ const LoggerLayer = Logger.minimumLogLevel(LogLevel.Trace)
 
 const BaseLayer = Layer.mergeAll(
   AuthenticationFeatureLayer,
+  AuthenticationStateReactiveStoreLayer,
   WebsocketLive,
   ForgeWebsocketLive.pipe(Layer.provide(WebsocketLive)),
 )
