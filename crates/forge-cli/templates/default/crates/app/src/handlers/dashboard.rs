@@ -59,22 +59,21 @@ pub(crate) fn has_permission(permissions: &[String], key: &str) -> bool {
   if exact {
     return true;
   }
-  if key.ends_with(".read") || equivs.iter().any(|e| e.ends_with(".read")) {
-    if permissions.iter().any(|p| p == "all.read") {
-      return true;
-    }
+  if (key.ends_with(".read") || equivs.iter().any(|e| e.ends_with(".read")))
+    && permissions.iter().any(|p| p == "all.read")
+  {
+    return true;
   }
-  if key.ends_with(".write")
+  if (key.ends_with(".write")
     || key.ends_with(".create")
     || key.ends_with(".update")
     || key.ends_with(".delete")
     || equivs
       .iter()
-      .any(|e| e.ends_with(".write") || e.ends_with(".create"))
+      .any(|e| e.ends_with(".write") || e.ends_with(".create")))
+    && permissions.iter().any(|p| p == "all.write")
   {
-    if permissions.iter().any(|p| p == "all.write") {
-      return true;
-    }
+    return true;
   }
   false
 }
@@ -139,8 +138,7 @@ pub async fn list_permissions(
   State(db): State<DbConnection>,
 ) -> Result<impl IntoResponse, ForgeError> {
   let user = &auth.0;
-  if let Some(resp) =
-    require_entity_permission(&user, &db, Some(&scope), "permission", "read").await
+  if let Some(resp) = require_entity_permission(user, &db, Some(&scope), "permission", "read").await
   {
     return Ok(resp);
   }
@@ -155,10 +153,10 @@ pub async fn list_role_permissions(
   State(db): State<DbConnection>,
 ) -> Result<impl IntoResponse, ForgeError> {
   let user = &auth.0;
-  if let Some(resp) = require_permission(&user, &db, PERMISSION_READ, Some(&scope)).await {
+  if let Some(resp) = require_permission(user, &db, PERMISSION_READ, Some(&scope)).await {
     return Ok(resp);
   }
-  let rows = if has_global_scope(&db, &user, PERMISSION_READ).await {
+  let rows = if has_global_scope(&db, user, PERMISSION_READ).await {
     role_permission::Entity::find().all(&db).await
   } else {
     let org_id = scope.organization_id;
@@ -191,7 +189,7 @@ pub async fn list_tasks(
   Extension(task_state): Extension<std::sync::Arc<crate::tasks::TaskState>>,
 ) -> Result<impl IntoResponse, ForgeError> {
   let user = &auth.0;
-  if let Some(resp) = require_any_permission(&user, &db, Some(&scope)).await {
+  if let Some(resp) = require_any_permission(user, &db, Some(&scope)).await {
     return Ok(resp);
   }
   let tasks = task_state.store.read().await.clone();
@@ -227,14 +225,14 @@ pub async fn list_audit_log(
   Query(q): Query<ListAuditLogQuery>,
 ) -> Result<impl IntoResponse, ForgeError> {
   let user = &auth.0;
-  if let Some(resp) = require_permission(&user, &db, PERMISSION_AUDIT_READ, Some(&scope)).await {
+  if let Some(resp) = require_permission(user, &db, PERMISSION_AUDIT_READ, Some(&scope)).await {
     return Ok(resp);
   }
   let limit = q.limit.min(200);
   let offset = q.offset;
 
   let scope_opt: Option<&forge_auth::RequestScope> =
-    if has_global_scope(&db, &user, PERMISSION_AUDIT_READ).await {
+    if has_global_scope(&db, user, PERMISSION_AUDIT_READ).await {
       None
     } else {
       Some(&scope)
@@ -270,10 +268,8 @@ pub async fn list_audit_log(
   if let Some(ref action) = q.action {
     query = query.filter(audit_log::Column::Action.eq(action.as_str()));
   }
-  if let Some(ref reason) = q.reason {
-    if !reason.is_empty() {
-      query = query.filter(audit_log::Column::Reason.contains(reason.as_str()));
-    }
+  if let Some(ref reason) = q.reason.filter(|r| !r.is_empty()) {
+    query = query.filter(audit_log::Column::Reason.contains(reason.as_str()));
   }
 
   let total = query
@@ -329,7 +325,7 @@ pub async fn add_role_permission(
   Json(payload): Json<AddRolePermissionBody>,
 ) -> Result<impl IntoResponse, ForgeError> {
   let user = &auth.0;
-  if let Some(resp) = require_permission(&user, &db, PERMISSION_WRITE, Some(&req_scope)).await {
+  if let Some(resp) = require_permission(user, &db, PERMISSION_WRITE, Some(&req_scope)).await {
     return Ok(resp);
   }
   let scope = payload.scope.trim();
@@ -354,7 +350,7 @@ pub async fn add_role_permission(
     )
       .into_response());
   }
-  let global_perm = has_global_scope(&db, &user, PERMISSION_WRITE).await;
+  let global_perm = has_global_scope(&db, user, PERMISSION_WRITE).await;
   let org_id_opt = if global_perm {
     if scope == "org" {
       match payload.org_id {
@@ -408,7 +404,7 @@ pub async fn add_role_permission(
     }
     return Err(ForgeError::Generic(e.to_string()));
   }
-  if let (Some(ref backend), Some(org_id)) = (live_backend.as_ref(), org_id_opt) {
+  if let (Some(backend), Some(org_id)) = (live_backend.as_ref(), org_id_opt) {
     let _ = broadcast_to_channel(
       backend,
       &Channel::org_resource(org_id, "role_permissions"),
@@ -441,13 +437,13 @@ pub async fn delete_role_permission(
   Json(payload): Json<DeleteRolePermissionBody>,
 ) -> Result<impl IntoResponse, ForgeError> {
   let user = &auth.0;
-  if let Some(resp) = require_permission(&user, &db, PERMISSION_WRITE, Some(&req_scope)).await {
+  if let Some(resp) = require_permission(user, &db, PERMISSION_WRITE, Some(&req_scope)).await {
     return Ok(resp);
   }
   let scope = payload.scope.trim();
   let role_name = payload.role_name.trim();
   let permission_key = payload.permission_key.trim();
-  let global_perm = has_global_scope(&db, &user, PERMISSION_WRITE).await;
+  let global_perm = has_global_scope(&db, user, PERMISSION_WRITE).await;
   let org_id_opt = if global_perm {
     if scope == "org" {
       if payload.org_id.is_none() {
@@ -496,7 +492,7 @@ pub async fn delete_role_permission(
         .into_response(),
     );
   }
-  if let (Some(ref backend), Some(org_id)) = (live_backend.as_ref(), org_id_opt) {
+  if let (Some(backend), Some(org_id)) = (live_backend.as_ref(), org_id_opt) {
     let _ = broadcast_to_channel(
       backend,
       &Channel::org_resource(org_id, "role_permissions"),
@@ -518,7 +514,7 @@ pub async fn list_organizations(
   State(db): State<DbConnection>,
 ) -> Result<impl IntoResponse, ForgeError> {
   let user = &auth.0;
-  if let Some(resp) = require_permission(&user, &db, PERMISSION_ORGS_READ, Some(&scope)).await {
+  if let Some(resp) = require_permission(user, &db, PERMISSION_ORGS_READ, Some(&scope)).await {
     return Ok(resp);
   }
   let rows = organization::Entity::find()
@@ -555,10 +551,10 @@ pub async fn list_roles(
   Query(_q): Query<ListRolesQuery>,
 ) -> Result<impl IntoResponse, ForgeError> {
   let user = &auth.0;
-  if let Some(resp) = require_permission(&user, &db, PERMISSION_ROLES_READ, Some(&scope)).await {
+  if let Some(resp) = require_permission(user, &db, PERMISSION_ROLES_READ, Some(&scope)).await {
     return Ok(resp);
   }
-  let rows = if has_global_scope(&db, &user, PERMISSION_ROLES_READ).await {
+  let rows = if has_global_scope(&db, user, PERMISSION_ROLES_READ).await {
     org_role::Entity::find()
       .order_by_asc(org_role::Column::OrgId)
       .order_by_asc(org_role::Column::Name)
@@ -605,10 +601,10 @@ pub async fn create_role(
   Json(payload): Json<CreateRoleBody>,
 ) -> Result<impl IntoResponse, ForgeError> {
   let user = &auth.0;
-  if let Some(resp) = require_permission(&user, &db, PERMISSION_ROLES_WRITE, Some(&scope)).await {
+  if let Some(resp) = require_permission(user, &db, PERMISSION_ROLES_WRITE, Some(&scope)).await {
     return Ok(resp);
   }
-  let org_id = if has_global_scope(&db, &user, PERMISSION_ROLES_WRITE).await {
+  let org_id = if has_global_scope(&db, user, PERMISSION_ROLES_WRITE).await {
     payload
       .org_id
       .or(Some(scope.organization_id))
@@ -671,7 +667,6 @@ pub async fn create_role(
     display_name: Set(display_name.clone()),
     created_at: Set(now),
     updated_at: Set(now),
-    ..Default::default()
   };
   org_role::Entity::insert(model)
     .exec(&db)
@@ -721,7 +716,7 @@ pub async fn update_role(
   Json(payload): Json<UpdateRoleBody>,
 ) -> Result<impl IntoResponse, ForgeError> {
   let user = &auth.0;
-  if let Some(resp) = require_permission(&user, &db, PERMISSION_ROLES_WRITE, Some(&scope)).await {
+  if let Some(resp) = require_permission(user, &db, PERMISSION_ROLES_WRITE, Some(&scope)).await {
     return Ok(resp);
   }
   let role = org_role::Entity::find_by_id(payload.id)
@@ -729,7 +724,7 @@ pub async fn update_role(
     .await
     .map_err(|e| ForgeError::Generic(e.to_string()))?
     .ok_or_else(|| ForgeError::Generic("Role not found".into()))?;
-  let can_write_org = has_global_scope(&db, &user, PERMISSION_ROLES_WRITE).await
+  let can_write_org = has_global_scope(&db, user, PERMISSION_ROLES_WRITE).await
     || scope.organization_id == role.org_id;
   if !can_write_org {
     return Ok(
@@ -801,7 +796,7 @@ pub async fn delete_role(
   Json(payload): Json<DeleteRoleBody>,
 ) -> Result<impl IntoResponse, ForgeError> {
   let user = &auth.0;
-  if let Some(resp) = require_permission(&user, &db, PERMISSION_ROLES_WRITE, Some(&scope)).await {
+  if let Some(resp) = require_permission(user, &db, PERMISSION_ROLES_WRITE, Some(&scope)).await {
     return Ok(resp);
   }
   let role = org_role::Entity::find_by_id(payload.id)
@@ -809,7 +804,7 @@ pub async fn delete_role(
     .await
     .map_err(|e| ForgeError::Generic(e.to_string()))?
     .ok_or_else(|| ForgeError::Generic("Role not found".into()))?;
-  let can_write_org = has_global_scope(&db, &user, PERMISSION_ROLES_WRITE).await
+  let can_write_org = has_global_scope(&db, user, PERMISSION_ROLES_WRITE).await
     || scope.organization_id == role.org_id;
   if !can_write_org {
     return Ok(
@@ -862,7 +857,7 @@ pub async fn create_organization(
   Json(payload): Json<CreateOrganizationBody>,
 ) -> Result<impl IntoResponse, ForgeError> {
   let user = &auth.0;
-  if let Some(resp) = require_permission(&user, &db, PERMISSION_ORGS_WRITE, Some(&scope)).await {
+  if let Some(resp) = require_permission(user, &db, PERMISSION_ORGS_WRITE, Some(&scope)).await {
     return Ok(resp);
   }
   let id = create_organization_impl(&db, &payload)
@@ -883,7 +878,6 @@ pub async fn create_organization(
       display_name: Set(None),
       created_at: Set(now),
       updated_at: Set(now),
-      ..Default::default()
     };
     org_role::Entity::insert(r)
       .exec(&db)
@@ -937,7 +931,7 @@ pub async fn update_organization(
   Json(payload): Json<UpdateOrganizationBody>,
 ) -> Result<impl IntoResponse, ForgeError> {
   let user = &auth.0;
-  if let Some(resp) = require_permission(&user, &db, PERMISSION_ORGS_WRITE, Some(&scope)).await {
+  if let Some(resp) = require_permission(user, &db, PERMISSION_ORGS_WRITE, Some(&scope)).await {
     return Ok(resp);
   }
   let db_payload = DbUpdateOrganizationBody {
@@ -986,7 +980,7 @@ pub async fn delete_organization(
   Json(payload): Json<DeleteOrganizationBody>,
 ) -> Result<impl IntoResponse, ForgeError> {
   let user = &auth.0;
-  if let Some(resp) = require_permission(&user, &db, PERMISSION_ORGS_WRITE, Some(&scope)).await {
+  if let Some(resp) = require_permission(user, &db, PERMISSION_ORGS_WRITE, Some(&scope)).await {
     return Ok(resp);
   }
   let result = organization::Entity::delete_by_id(payload.id)
@@ -1188,7 +1182,7 @@ pub async fn list_users(
   Query(params): Query<ListQueryParams>,
 ) -> Result<impl IntoResponse, ForgeError> {
   let user = &auth.0;
-  if let Some(resp) = require_permission(&user, &db, PERMISSION_USERS_READ, Some(&scope)).await {
+  if let Some(resp) = require_permission(user, &db, PERMISSION_USERS_READ, Some(&scope)).await {
     return Ok(resp);
   }
   let spec = match parse_list_query_spec(&params) {
@@ -1214,20 +1208,20 @@ pub async fn list_users(
       );
     }
   }
-  if let Some(ref sort) = spec.sort {
-    if let Err(msg) = validate_sort_field(&sort.field, DASHBOARD_USERS_FILTER_SORT_FIELDS) {
-      return Ok(
-        (
-          StatusCode::BAD_REQUEST,
-          Json(serde_json::json!({ "error": "Bad Request", "message": msg })),
-        )
-          .into_response(),
-      );
-    }
+  if let Some(ref sort) = spec.sort
+    && let Err(msg) = validate_sort_field(&sort.field, DASHBOARD_USERS_FILTER_SORT_FIELDS)
+  {
+    return Ok(
+      (
+        StatusCode::BAD_REQUEST,
+        Json(serde_json::json!({ "error": "Bad Request", "message": msg })),
+      )
+        .into_response(),
+    );
   }
 
   let scope_opt: Option<&forge_auth::RequestScope> =
-    if has_global_scope(&db, &user, PERMISSION_USERS_READ).await {
+    if has_global_scope(&db, user, PERMISSION_USERS_READ).await {
       None
     } else {
       Some(&scope)
@@ -1305,7 +1299,7 @@ pub async fn create_user(
   Json(payload): Json<CreateUserBody>,
 ) -> Result<impl IntoResponse, ForgeError> {
   let user = &auth.0;
-  if let Some(resp) = require_permission(&user, &db, PERMISSION_USERS_WRITE, Some(&scope)).await {
+  if let Some(resp) = require_permission(user, &db, PERMISSION_USERS_WRITE, Some(&scope)).await {
     return Ok(resp);
   }
   let email = payload.email.trim();
@@ -1327,7 +1321,7 @@ pub async fn create_user(
         .into_response(),
     );
   }
-  let org_id = if has_global_scope(&db, &user, PERMISSION_USERS_WRITE).await {
+  let org_id = if has_global_scope(&db, user, PERMISSION_USERS_WRITE).await {
     payload.org_id
   } else {
     if scope.organization_id != payload.org_id {
@@ -1406,7 +1400,6 @@ pub async fn create_user(
     )),
     created_at: Set(now),
     updated_at: Set(now),
-    ..Default::default()
   };
   user::Entity::insert(user_model)
     .exec(&db)
@@ -1418,7 +1411,6 @@ pub async fn create_user(
     org_id: Set(org_id),
     created_at: Set(now),
     updated_at: Set(now),
-    ..Default::default()
   };
   membership::Entity::insert(mem_model)
     .exec(&db)
@@ -1433,7 +1425,6 @@ pub async fn create_user(
       role_id: Set(*role_id),
       created_at: Set(now),
       updated_at: Set(now),
-      ..Default::default()
     };
     user_org_role::Entity::insert(uor)
       .exec(&db)
@@ -1491,7 +1482,7 @@ pub async fn update_user(
   Json(payload): Json<UpdateUserBody>,
 ) -> Result<impl IntoResponse, ForgeError> {
   let user = &auth.0;
-  if let Some(resp) = require_permission(&user, &db, PERMISSION_USERS_WRITE, Some(&scope)).await {
+  if let Some(resp) = require_permission(user, &db, PERMISSION_USERS_WRITE, Some(&scope)).await {
     return Ok(resp);
   }
   let u = user::Entity::find_by_id(payload.id)
@@ -1541,7 +1532,7 @@ pub async fn delete_user(
   Json(payload): Json<DeleteUserBody>,
 ) -> Result<impl IntoResponse, ForgeError> {
   let user = &auth.0;
-  if let Some(resp) = require_permission(&user, &db, PERMISSION_USERS_WRITE, Some(&scope)).await {
+  if let Some(resp) = require_permission(user, &db, PERMISSION_USERS_WRITE, Some(&scope)).await {
     return Ok(resp);
   }
   membership::Entity::delete_many()

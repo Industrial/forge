@@ -30,7 +30,7 @@ pub use error::Error;
 pub fn make_app(live_backend: Arc<forge_live::InMemoryLiveBackend>) -> App {
   let app = App::new()
     .with_token_auth_only(
-      |db| db::auth::Backend::new(db),
+      db::auth::Backend::new,
       Arc::new(move |db, raw_token| Box::pin(db::token_lookup(db, raw_token))),
     )
     .with_live_query_using(live_backend)

@@ -101,7 +101,7 @@ mod bdd_tests {
 
       // When: checking table structure
       // Then: table should exist with all columns
-      use crate::models::organization;
+      use db::models::organization;
       let orgs = organization::Entity::find().all(&db).await;
       assert!(orgs.is_ok());
     }
@@ -118,8 +118,8 @@ mod bdd_tests {
 
       // When: inserting organization with id
       // Then: should succeed
-      use crate::models::organization;
       use chrono::Utc;
+      use db::models::organization;
       use sea_orm::Set;
       use uuid::Uuid;
 
@@ -146,8 +146,8 @@ mod bdd_tests {
         .await
         .expect("migrate");
 
-      use crate::models::organization;
       use chrono::Utc;
+      use db::models::organization;
       use sea_orm::Set;
       use uuid::Uuid;
 
@@ -217,7 +217,7 @@ mod bdd_tests {
 
       // When: trying to query organization table
       // Then: should fail (table doesn't exist)
-      use crate::models::organization;
+      use db::models::organization;
       let result = organization::Entity::find().all(&db).await;
       assert!(result.is_err());
     }

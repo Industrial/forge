@@ -102,7 +102,7 @@ mod bdd_tests {
 
       // When: checking table structure
       // Then: table should exist with all columns
-      use crate::models::api_token;
+      use db::models::api_token;
       let tokens = api_token::Entity::find().all(&db).await;
       assert!(tokens.is_ok());
     }
@@ -119,8 +119,8 @@ mod bdd_tests {
 
       // When: inserting api token with id
       // Then: should succeed
-      use crate::models::api_token;
       use chrono::Utc;
+      use db::models::api_token;
       use sea_orm::Set;
       use uuid::Uuid;
 
@@ -190,7 +190,7 @@ mod bdd_tests {
 
       // When: trying to query api_tokens table
       // Then: should fail (table doesn't exist)
-      use crate::models::api_token;
+      use db::models::api_token;
       let result = api_token::Entity::find().all(&db).await;
       assert!(result.is_err());
     }

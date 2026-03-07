@@ -382,7 +382,7 @@ mod bdd_tests {
 
       // Then: should return true
       assert!(result.is_ok());
-      assert_eq!(result.unwrap(), true);
+      assert!(result.unwrap());
     }
   }
 

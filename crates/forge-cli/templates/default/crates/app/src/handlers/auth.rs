@@ -330,7 +330,6 @@ pub async fn register(
       display_name: Set(None),
       created_at: Set(now),
       updated_at: Set(now),
-      ..Default::default()
     };
     org_role::Entity::insert(r).exec(&tx).await?;
   }
@@ -344,7 +343,6 @@ pub async fn register(
     org_id: Set(org_id),
     created_at: Set(now),
     updated_at: Set(now),
-    ..Default::default()
   };
   membership::Entity::insert(new_membership).exec(&tx).await?;
 
@@ -362,7 +360,6 @@ pub async fn register(
     role_id: Set(owner_role.id),
     created_at: Set(now),
     updated_at: Set(now),
-    ..Default::default()
   };
   user_org_role::Entity::insert(uor).exec(&tx).await?;
 

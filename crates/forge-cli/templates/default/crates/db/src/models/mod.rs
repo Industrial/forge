@@ -14,6 +14,7 @@ mod bdd_tests {
 
   mod module_structure_behavior {
     use super::*;
+    use sea_orm::EntityTrait;
 
     #[test]
     fn should_export_all_model_modules() {

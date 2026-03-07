@@ -70,11 +70,11 @@ impl AuthnBackend for Backend {
       .one(&self.db)
       .await?;
 
-    if let Some(user) = user {
-      if verify_password(&creds.password, &user.password_hash)? {
-        tracing::debug!(target: "app::auth::backend", "authenticate success user_id={}", user.id);
-        return Ok(Some(user));
-      }
+    if let Some(user) = user
+      && verify_password(&creds.password, &user.password_hash)?
+    {
+      tracing::debug!(target: "app::auth::backend", "authenticate success user_id={}", user.id);
+      return Ok(Some(user));
     }
 
     tracing::debug!(target: "app::auth::backend", "authenticate failed (no user or bad password)");
@@ -144,7 +144,6 @@ mod tests {
         current_role: Set(None),
         created_at: Set(now),
         updated_at: Set(now),
-        ..Default::default()
       };
       user::Entity::insert(model)
         .exec(&db)

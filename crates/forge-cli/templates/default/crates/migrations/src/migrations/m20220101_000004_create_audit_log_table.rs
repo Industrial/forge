@@ -126,7 +126,7 @@ mod bdd_tests {
 
       // When: checking table structure
       // Then: table should exist with all columns
-      use crate::models::audit_log;
+      use db::models::audit_log;
       let logs = audit_log::Entity::find().all(&db).await;
       assert!(logs.is_ok());
     }
@@ -143,8 +143,8 @@ mod bdd_tests {
 
       // When: inserting audit log with id
       // Then: should succeed
-      use crate::models::audit_log;
       use chrono::Utc;
+      use db::models::audit_log;
       use sea_orm::Set;
       use uuid::Uuid;
 
@@ -218,7 +218,7 @@ mod bdd_tests {
 
       // When: trying to query audit_log table
       // Then: should fail (table doesn't exist)
-      use crate::models::audit_log;
+      use db::models::audit_log;
       let result = audit_log::Entity::find().all(&db).await;
       assert!(result.is_err());
     }

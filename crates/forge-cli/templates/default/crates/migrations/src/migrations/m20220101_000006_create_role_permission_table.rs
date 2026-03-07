@@ -102,7 +102,7 @@ mod bdd_tests {
 
       // When: checking table structure
       // Then: table should exist with all columns
-      use crate::models::role_permission;
+      use db::models::role_permission;
       let perms = role_permission::Entity::find().all(&db).await;
       assert!(perms.is_ok());
     }
@@ -119,7 +119,7 @@ mod bdd_tests {
 
       // When: inserting role_permission with id
       // Then: should succeed
-      use crate::models::role_permission;
+      use db::models::role_permission;
       use sea_orm::Set;
       use uuid::Uuid;
 
@@ -186,7 +186,7 @@ mod bdd_tests {
 
       // When: trying to query role_permission table
       // Then: should fail (table doesn't exist)
-      use crate::models::role_permission;
+      use db::models::role_permission;
       let result = role_permission::Entity::find().all(&db).await;
       assert!(result.is_err());
     }

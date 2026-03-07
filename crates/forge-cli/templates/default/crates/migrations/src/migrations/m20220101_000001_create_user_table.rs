@@ -102,7 +102,7 @@ mod bdd_tests {
       // When: checking table structure
       // Then: table should exist with all columns
       // Verified by successful Entity operations
-      use crate::models::user;
+      use db::models::user;
       let users = user::Entity::find().all(&db).await;
       assert!(users.is_ok());
     }
@@ -119,8 +119,8 @@ mod bdd_tests {
 
       // When: inserting user with id
       // Then: should succeed (primary key constraint)
-      use crate::models::user;
       use chrono::Utc;
+      use db::models::user;
       use sea_orm::Set;
       use uuid::Uuid;
 
@@ -151,8 +151,8 @@ mod bdd_tests {
         .await
         .expect("migrate");
 
-      use crate::models::user;
       use chrono::Utc;
+      use db::models::user;
       use sea_orm::Set;
       use uuid::Uuid;
 
@@ -230,7 +230,7 @@ mod bdd_tests {
 
       // When: trying to query user table
       // Then: should fail (table doesn't exist)
-      use crate::models::user;
+      use db::models::user;
       let result = user::Entity::find().all(&db).await;
       assert!(result.is_err());
     }

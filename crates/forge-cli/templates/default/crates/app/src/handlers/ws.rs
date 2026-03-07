@@ -79,9 +79,8 @@ async fn handle_socket(
       Ok(m) => m,
       Err(_) => break,
     };
-    match msg {
-      Message::Close(_) => break,
-      _ => {}
+    if let Message::Close(_) = msg {
+      break;
     }
   }
 
@@ -90,7 +89,7 @@ async fn handle_socket(
 }
 
 #[cfg(test)]
-mod bdd_tests {
+mod ws_bdd_tests {
   use super::*;
   use forge_live::InMemoryLiveBackend;
   use std::sync::Arc;
@@ -711,7 +710,7 @@ mod tests {
 }
 
 #[cfg(test)]
-mod bdd_tests {
+mod ws_integration_tests {
   use super::*;
   use axum::http::StatusCode;
   use forge_live::Channel;

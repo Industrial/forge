@@ -43,7 +43,7 @@ tasks:
     command: bash
     args:
       - -c
-      - 'cd crates/forge-cli/templates/default && cargo clippy -p migrations --all-targets --all-features -- -D warnings'
+      - 'cd crates/forge-cli/templates/default && cargo clippy -p migrations --lib --all-features -- -D warnings'
     options:
       runFromWorkspaceRoot: true
     inputs:

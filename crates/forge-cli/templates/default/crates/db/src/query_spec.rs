@@ -23,12 +23,7 @@ mod bdd_tests {
       // Given: query_spec module
       // When: checking ListQuerySpec type
       // Then: should be available (verified by compilation)
-      let _spec: ListQuerySpec = ListQuerySpec {
-        filters: vec![],
-        sort: vec![],
-        limit: None,
-        offset: None,
-      };
+      let _spec: ListQuerySpec = ListQuerySpec::default();
     }
   }
 }

@@ -243,10 +243,10 @@ async fn rpc_subscribe(
       return Ok(rpc_error(StatusCode::BAD_REQUEST, &msg, correlation_id));
     }
   }
-  if let Some(ref sort) = spec.sort {
-    if let Err(msg) = validate_sort_field(&sort.field, allowed_sort) {
-      return Ok(rpc_error(StatusCode::BAD_REQUEST, &msg, correlation_id));
-    }
+  if let Some(ref sort) = spec.sort
+    && let Err(msg) = validate_sort_field(&sort.field, allowed_sort)
+  {
+    return Ok(rpc_error(StatusCode::BAD_REQUEST, &msg, correlation_id));
   }
   let params = serde_json::to_value(&spec).ok();
   let meta = SubscriptionMeta {

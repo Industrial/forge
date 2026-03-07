@@ -61,7 +61,6 @@ pub async fn create_organization_impl<C: sea_orm::ConnectionTrait>(
     slug: Set(slug),
     created_at: Set(now),
     updated_at: Set(now),
-    ..Default::default()
   })
   .exec(db)
   .await?;
@@ -154,7 +153,6 @@ mod bdd_tests {
   }
 
   mod slug_from_name_behavior {
-    use super::*;
 
     #[test]
     fn should_generate_slug_from_name() {
@@ -511,7 +509,7 @@ mod bdd_tests {
 
       // Then: should return true
       assert!(result.is_ok());
-      assert_eq!(result.unwrap(), true);
+      assert!(result.unwrap());
 
       // And: organization should not exist
       let org = organization::Entity::find_by_id(org_id)
@@ -532,7 +530,7 @@ mod bdd_tests {
 
       // Then: should return false
       assert!(result.is_ok());
-      assert_eq!(result.unwrap(), false);
+      assert!(!result.unwrap());
     }
   }
 }

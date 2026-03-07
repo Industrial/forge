@@ -55,34 +55,34 @@ struct RawFilterCond {
 pub fn parse_list_query_spec(params: &ListQueryParams) -> Result<ListQuerySpec, String> {
   let mut spec = ListQuerySpec::default();
 
-  if let Some(ref s) = params.filter {
-    if !s.trim().is_empty() {
-      let raw: Vec<RawFilterCond> =
-        serde_json::from_str(s).map_err(|e| format!("invalid filter JSON: {}", e))?;
-      for r in raw {
-        let op = FilterOperator::try_parse(&r.operator)
-          .ok_or_else(|| format!("invalid filter operator: {}", r.operator))?;
-        spec.filter.push(FilterCond {
-          field: r.field,
-          operator: op,
-          value: r.value,
-        });
-      }
+  if let Some(ref s) = params.filter
+    && !s.trim().is_empty()
+  {
+    let raw: Vec<RawFilterCond> =
+      serde_json::from_str(s).map_err(|e| format!("invalid filter JSON: {}", e))?;
+    for r in raw {
+      let op = FilterOperator::try_parse(&r.operator)
+        .ok_or_else(|| format!("invalid filter operator: {}", r.operator))?;
+      spec.filter.push(FilterCond {
+        field: r.field,
+        operator: op,
+        value: r.value,
+      });
     }
   }
 
-  if let Some(ref field) = params.sort {
-    if !field.trim().is_empty() {
-      let direction = params
-        .order
-        .as_deref()
-        .and_then(SortDirection::try_parse)
-        .unwrap_or(SortDirection::Asc);
-      spec.sort = Some(SortSpec {
-        field: field.clone(),
-        direction,
-      });
-    }
+  if let Some(ref field) = params.sort
+    && !field.trim().is_empty()
+  {
+    let direction = params
+      .order
+      .as_deref()
+      .and_then(SortDirection::try_parse)
+      .unwrap_or(SortDirection::Asc);
+    spec.sort = Some(SortSpec {
+      field: field.clone(),
+      direction,
+    });
   }
 
   let offset = params.offset.unwrap_or(0);
@@ -174,16 +174,16 @@ pub async fn list_entities(
       );
     }
   }
-  if let Some(ref sort) = spec.sort {
-    if let Err(msg) = validate_sort_field(&sort.field, allowed_sort) {
-      return Ok(
-        (
-          StatusCode::BAD_REQUEST,
-          Json(serde_json::json!({ "error": "Bad Request", "message": msg })),
-        )
-          .into_response(),
-      );
-    }
+  if let Some(ref sort) = spec.sort
+    && let Err(msg) = validate_sort_field(&sort.field, allowed_sort)
+  {
+    return Ok(
+      (
+        StatusCode::BAD_REQUEST,
+        Json(serde_json::json!({ "error": "Bad Request", "message": msg })),
+      )
+        .into_response(),
+    );
   }
   match registry::list_models(entity_id.as_str(), &db, &spec)
     .await
@@ -574,8 +574,9 @@ mod bdd_tests {
       // Then: should return default spec with no filters, no sort, default pagination
       assert!(spec.filter.is_empty());
       assert!(spec.sort.is_none());
-      assert_eq!(spec.offset_limit.unwrap().offset, 0);
-      assert_eq!(spec.offset_limit.unwrap().limit, DEFAULT_LIMIT);
+      let offset_limit = spec.offset_limit.unwrap();
+      assert_eq!(offset_limit.offset, 0);
+      assert_eq!(offset_limit.limit, DEFAULT_LIMIT);
     }
 
     #[test]

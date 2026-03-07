@@ -18,10 +18,10 @@ pub use crate::models::user::User;
 
 /// Returns true if model_id is served by the generic handler (has a RestModel impl and dispatch arm).
 pub fn is_known_model(model_id: &str) -> bool {
-  match model_id {
-    "organization" | "user" | "role" | "permission" | "audit" => true,
-    _ => false,
-  }
+  matches!(
+    model_id,
+    "organization" | "user" | "role" | "permission" | "audit"
+  )
 }
 
 /// Allowed filter fields for list query. Empty if unknown model.
@@ -320,7 +320,7 @@ mod bdd_tests {
       // Given: a test database with organizations
       let db = test_db().await;
       let now = chrono::Utc::now().naive_utc();
-      organization::Entity::insert(organization::ActiveModel {
+      crate::models::organization::Entity::insert(crate::models::organization::ActiveModel {
         id: Set(Uuid::new_v4()),
         name: Set("Org 1".to_string()),
         slug: Set("org-1".to_string()),
@@ -331,12 +331,7 @@ mod bdd_tests {
       .await
       .expect("insert");
 
-      let spec = ListQuerySpec {
-        filters: vec![],
-        sort: vec![],
-        limit: None,
-        offset: None,
-      };
+      let spec = ListQuerySpec::default();
 
       // When: listing organizations
       let result = list_models("organization", &db, &spec).await;
@@ -351,12 +346,7 @@ mod bdd_tests {
     async fn should_return_unknown_model_error_for_invalid_id() {
       // Given: a test database
       let db = test_db().await;
-      let spec = ListQuerySpec {
-        filters: vec![],
-        sort: vec![],
-        limit: None,
-        offset: None,
-      };
+      let spec = ListQuerySpec::default();
 
       // When: listing unknown model
       let result = list_models("unknown_model", &db, &spec).await;
@@ -379,7 +369,7 @@ mod bdd_tests {
       let db = test_db().await;
       let org_id = Uuid::new_v4();
       let now = chrono::Utc::now().naive_utc();
-      organization::Entity::insert(organization::ActiveModel {
+      crate::models::organization::Entity::insert(crate::models::organization::ActiveModel {
         id: Set(org_id),
         name: Set("Test Org".to_string()),
         slug: Set("test-org".to_string()),
@@ -481,7 +471,7 @@ mod bdd_tests {
       let db = test_db().await;
       let org_id = Uuid::new_v4();
       let now = chrono::Utc::now().naive_utc();
-      organization::Entity::insert(organization::ActiveModel {
+      crate::models::organization::Entity::insert(crate::models::organization::ActiveModel {
         id: Set(org_id),
         name: Set("Original".to_string()),
         slug: Set("original".to_string()),
@@ -533,7 +523,7 @@ mod bdd_tests {
       let db = test_db().await;
       let org_id = Uuid::new_v4();
       let now = chrono::Utc::now().naive_utc();
-      organization::Entity::insert(organization::ActiveModel {
+      crate::models::organization::Entity::insert(crate::models::organization::ActiveModel {
         id: Set(org_id),
         name: Set("To Delete".to_string()),
         slug: Set("to-delete".to_string()),
@@ -549,7 +539,7 @@ mod bdd_tests {
 
       // Then: should return true
       assert!(result.is_ok());
-      assert_eq!(result.unwrap(), true);
+      assert!(result.unwrap());
     }
 
     #[tokio::test]
@@ -563,7 +553,7 @@ mod bdd_tests {
 
       // Then: should return false
       assert!(result.is_ok());
-      assert_eq!(result.unwrap(), false);
+      assert!(!result.unwrap());
     }
 
     #[tokio::test]

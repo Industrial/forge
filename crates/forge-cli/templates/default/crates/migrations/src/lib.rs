@@ -132,7 +132,7 @@ mod bdd_tests {
 
       // Then: seed data should exist
       // Verify admin user exists
-      use crate::models::user;
+      use db::models::user;
       let admin_users = user::Entity::find()
         .filter(user::Column::Email.eq("admin@admin.com"))
         .all(&db)
@@ -152,7 +152,7 @@ mod bdd_tests {
       let org_id = Uuid::new_v4();
       let now = chrono::Utc::now().naive_utc();
 
-      use crate::models::{org_role, organization};
+      use db::models::{org_role, organization};
       use sea_orm::Set;
 
       organization::Entity::insert(organization::ActiveModel {
@@ -187,7 +187,7 @@ mod bdd_tests {
       assert!(result.is_ok());
 
       // And: permissions should be created
-      use crate::models::role_permission;
+      use db::models::role_permission;
       let perms = role_permission::Entity::find()
         .filter(role_permission::Column::OrgId.eq(Some(org_id)))
         .all(&db)

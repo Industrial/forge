@@ -76,7 +76,6 @@ pub async fn create_org_role_impl(
     display_name: Set(display_name),
     created_at: Set(now),
     updated_at: Set(now),
-    ..Default::default()
   })
   .exec(db)
   .await
@@ -118,7 +117,6 @@ pub async fn ensure_org_role_impl(
     display_name: Set(display_name),
     created_at: Set(now),
     updated_at: Set(now),
-    ..Default::default()
   })
   .exec(db)
   .await
@@ -204,7 +202,6 @@ pub async fn add_org_user_impl(
         current_role: Set(None),
         created_at: Set(now),
         updated_at: Set(now),
-        ..Default::default()
       })
       .exec(db)
       .await
@@ -215,7 +212,6 @@ pub async fn add_org_user_impl(
         org_id: Set(org_id),
         created_at: Set(now),
         updated_at: Set(now),
-        ..Default::default()
       })
       .exec(db)
       .await
@@ -243,7 +239,6 @@ pub async fn add_org_user_impl(
       org_id: Set(org_id),
       created_at: Set(now),
       updated_at: Set(now),
-      ..Default::default()
     })
     .exec(db)
     .await
@@ -287,7 +282,6 @@ pub async fn ensure_org_user_impl(
           org_id: Set(org_id),
           created_at: Set(now),
           updated_at: Set(now),
-          ..Default::default()
         })
         .exec(db)
         .await
@@ -309,7 +303,6 @@ pub async fn ensure_org_user_impl(
         current_role: Set(None),
         created_at: Set(now),
         updated_at: Set(now),
-        ..Default::default()
       })
       .exec(db)
       .await
@@ -320,7 +313,6 @@ pub async fn ensure_org_user_impl(
         org_id: Set(org_id),
         created_at: Set(now),
         updated_at: Set(now),
-        ..Default::default()
       })
       .exec(db)
       .await
@@ -353,7 +345,6 @@ pub async fn ensure_org_membership_impl(
     org_id: Set(org_id),
     created_at: Set(now),
     updated_at: Set(now),
-    ..Default::default()
   })
   .exec(db)
   .await
@@ -398,7 +389,6 @@ pub async fn add_org_user_roles_impl(
         role_id: Set(*rid),
         created_at: Set(now),
         updated_at: Set(now),
-        ..Default::default()
       })
       .exec(db)
       .await
@@ -443,7 +433,6 @@ pub async fn add_org_role_permission_impl(
       role_name: Set(r.name.clone()),
       permission_key: Set(key.to_string()),
       org_id: Set(Some(org_id)),
-      ..Default::default()
     })
     .exec(db)
     .await
@@ -453,7 +442,7 @@ pub async fn add_org_role_permission_impl(
 }
 
 #[cfg(test)]
-mod tests {
+mod unit_tests {
   use super::*;
   use crate::build_router_for_test;
 
@@ -948,7 +937,7 @@ mod bdd_tests {
 }
 
 #[cfg(test)]
-mod tests {
+mod integration_tests {
   use super::*;
 
   mod bdd_tests {

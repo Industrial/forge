@@ -34,6 +34,12 @@ pub struct TaskState {
   pub store: Arc<RwLock<Vec<Task>>>,
 }
 
+impl Default for TaskState {
+  fn default() -> Self {
+    Self::new()
+  }
+}
+
 impl TaskState {
   pub fn new() -> Self {
     Self {
@@ -295,7 +301,7 @@ mod tests {
 
       // Then a Planned task should become Running
       let tasks = state.store.read().await.clone();
-      let planned_count = tasks
+      let _planned_count = tasks
         .iter()
         .filter(|t| t.status == TaskStatus::Planned)
         .count();
@@ -630,7 +636,7 @@ mod bdd_tests {
 
       // Then: Planned task should become Running
       let tasks = state.store.read().await.clone();
-      let planned_count = tasks
+      let _planned_count = tasks
         .iter()
         .filter(|t| t.status == TaskStatus::Planned)
         .count();

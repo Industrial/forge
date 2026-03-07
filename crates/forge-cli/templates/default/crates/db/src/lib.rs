@@ -74,7 +74,6 @@ pub async fn seed_role_permissions_for_org<C: sea_orm::ConnectionTrait>(
         role_name: Set(role.name.clone()),
         permission_key: Set((*key).to_string()),
         org_id: Set(Some(org_id)),
-        ..Default::default()
       };
       crate::models::role_permission::Entity::insert(row)
         .exec(db)
@@ -94,10 +93,8 @@ pub async fn token_lookup(db: DbConnection, raw_token: String) -> Option<uuid::U
     .await
     .ok()
     .flatten()?;
-  if let Some(exp) = row.expires_at {
-    if exp < chrono::Utc::now().naive_utc() {
-      return None;
-    }
+  if matches!(row.expires_at, Some(exp) if exp < chrono::Utc::now().naive_utc()) {
+    return None;
   }
   Some(row.user_id)
 }
@@ -125,6 +122,7 @@ mod tests {
 
     mod seed_role_permissions_for_org_behavior {
       use super::*;
+      use sea_orm::{ColumnTrait, QueryFilter};
 
       #[tokio::test]
       async fn should_insert_role_permissions_for_owner_admin_editor_viewer() {
@@ -138,7 +136,6 @@ mod tests {
           slug: Set("test-org".to_string()),
           created_at: Set(now),
           updated_at: Set(now),
-          ..Default::default()
         })
         .exec(&db)
         .await
@@ -151,7 +148,6 @@ mod tests {
             display_name: Set(None),
             created_at: Set(now),
             updated_at: Set(now),
-            ..Default::default()
           })
           .exec(&db)
           .await
@@ -189,7 +185,6 @@ mod tests {
           slug: Set("test-org".to_string()),
           created_at: Set(now),
           updated_at: Set(now),
-          ..Default::default()
         })
         .exec(&db)
         .await
@@ -202,7 +197,6 @@ mod tests {
             display_name: Set(None),
             created_at: Set(now),
             updated_at: Set(now),
-            ..Default::default()
           })
           .exec(&db)
           .await
@@ -253,7 +247,6 @@ mod tests {
           expires_at: Set(None),
           created_at: Set(now),
           updated_at: Set(now),
-          ..Default::default()
         })
         .exec(&db)
         .await
@@ -282,7 +275,6 @@ mod tests {
           expires_at: Set(Some(past)),
           created_at: Set(now),
           updated_at: Set(now),
-          ..Default::default()
         })
         .exec(&db)
         .await

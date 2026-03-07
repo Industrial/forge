@@ -38,7 +38,6 @@ impl MigrationTrait for Migration {
           display_name: Set(None),
           created_at: Set(now),
           updated_at: Set(now),
-          ..Default::default()
         };
         org_role::Entity::insert(model).exec(db).await?;
       }
@@ -70,7 +69,6 @@ impl MigrationTrait for Migration {
           role_id: Set(role_row.id),
           created_at: Set(now),
           updated_at: Set(now),
-          ..Default::default()
         };
         user_org_role::Entity::insert(model).exec(db).await?;
       }

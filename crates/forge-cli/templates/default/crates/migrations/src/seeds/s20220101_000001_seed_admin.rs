@@ -53,7 +53,6 @@ async fn ensure_admin_org(
         slug: Set(ADMIN_ORG_SLUG.to_string()),
         created_at: Set(now),
         updated_at: Set(now),
-        ..Default::default()
       };
       organization::Entity::insert(o).exec(db).await?;
       info!(
@@ -87,7 +86,6 @@ async fn ensure_admin_role(
         display_name: Set(Some("Admin".to_string())),
         created_at: Set(now),
         updated_at: Set(now),
-        ..Default::default()
       };
       org_role::Entity::insert(model).exec(db).await?;
       info!("Seeded org_role: {} in Admin org", ADMIN_ROLE_NAME);
@@ -116,7 +114,6 @@ async fn ensure_admin_role_permissions(
         role_name: Set(ADMIN_ROLE_NAME.to_string()),
         permission_key: Set(key.to_string()),
         org_id: Set(Some(org_id)),
-        ..Default::default()
       };
       role_permission::Entity::insert(model).exec(db).await?;
       info!(
@@ -156,7 +153,6 @@ async fn ensure_admin_user(
     current_role: Set(Some(ADMIN_ROLE_NAME.to_string())),
     created_at: Set(now),
     updated_at: Set(now),
-    ..Default::default()
   };
   user::Entity::insert(user_model).exec(db).await?;
 
@@ -167,7 +163,6 @@ async fn ensure_admin_user(
     org_id: Set(org_id),
     created_at: Set(now),
     updated_at: Set(now),
-    ..Default::default()
   };
   membership::Entity::insert(m).exec(db).await?;
 
@@ -179,7 +174,6 @@ async fn ensure_admin_user(
     role_id: Set(role_id),
     created_at: Set(now),
     updated_at: Set(now),
-    ..Default::default()
   };
   user_org_role::Entity::insert(uor).exec(db).await?;
 
@@ -215,7 +209,6 @@ async fn ensure_global_platform_admin(
         role_name: Set(PLATFORM_ADMIN_ROLE.to_string()),
         permission_key: Set(key.to_string()),
         org_id: Set(None),
-        ..Default::default()
       })
       .exec(db)
       .await?;
@@ -235,7 +228,6 @@ async fn ensure_global_platform_admin(
       id: Set(Uuid::new_v4()),
       user_id: Set(admin.id),
       role_name: Set(PLATFORM_ADMIN_ROLE.to_string()),
-      ..Default::default()
     })
     .exec(db)
     .await?;

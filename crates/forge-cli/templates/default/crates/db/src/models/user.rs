@@ -231,12 +231,11 @@ fn apply_filter(select: sea_orm::Select<Entity>, cond: &FilterCond) -> sea_orm::
       }
       FilterOperator::StartsWith | FilterOperator::EndsWith => {
         if let Some(serde_json::Value::String(s)) = cond.value.as_ref() {
-          let sel = if cond.operator == FilterOperator::StartsWith {
+          if cond.operator == FilterOperator::StartsWith {
             select.filter(Column::Email.starts_with(s))
           } else {
             select.filter(Column::Email.ends_with(s))
-          };
-          sel
+          }
         } else {
           select
         }
@@ -603,7 +602,7 @@ mod bdd_tests {
       assert!(json.get("password_hash").is_none());
       assert_eq!(json["id"].as_str().unwrap(), id.to_string());
       assert_eq!(json["email"].as_str().unwrap(), "test@example.com");
-      assert_eq!(json["is_active"].as_bool().unwrap(), true);
+      assert!(json["is_active"].as_bool().unwrap());
     }
   }
 }

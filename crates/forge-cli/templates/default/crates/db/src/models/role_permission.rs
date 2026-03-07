@@ -272,7 +272,6 @@ fn apply_filter(select: sea_orm::Select<Entity>, cond: &FilterCond) -> sea_orm::
 #[cfg(test)]
 mod bdd_tests {
   use super::*;
-  use chrono::Utc;
   use sea_orm::{Database, EntityTrait, Set};
   use sea_orm_migration::MigratorTrait;
   use uuid::Uuid;
