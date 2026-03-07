@@ -1,0 +1,10 @@
+# https://moonrepo.dev/docs/config/workspace
+$schema: './cache/schemas/workspace.json'
+# Rust workspace crates
+projects:
+  - 'crates/*'
+  # Root workspace project for workspace-wide tasks
+  - '.'
+vcs:
+  manager: 'git'
+  defaultBranch: 'main'

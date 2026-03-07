@@ -1,0 +1,55 @@
+language: rust
+type: library
+tasks:
+  build:
+    command: bash
+    args:
+      - -c
+      - 'cd crates/forge-cli/templates/default && cargo build -p app'
+    options:
+      runFromWorkspaceRoot: true
+    inputs:
+      - Cargo.toml
+      - Cargo.lock
+      - '**/*.rs'
+    deps:
+      - app:lint
+  check:
+    command: bash
+    args:
+      - -c
+      - 'cd crates/forge-cli/templates/default && cargo check -p app --all-features'
+    options:
+      runFromWorkspaceRoot: true
+    inputs:
+      - Cargo.toml
+      - Cargo.lock
+      - '**/*.rs'
+  test:
+    command: bash
+    args:
+      - -c
+      - 'cd crates/forge-cli/templates/default && cargo nextest run -p app --all-features'
+    options:
+      runFromWorkspaceRoot: true
+    inputs:
+      - Cargo.toml
+      - Cargo.lock
+      - '**/*.rs'
+      - '**/*.toml'
+    deps:
+      - app:build
+  lint:
+    command: bash
+    args:
+      - -c
+      - 'cd crates/forge-cli/templates/default && cargo clippy -p app --all-targets --all-features -- -D warnings'
+    options:
+      runFromWorkspaceRoot: true
+    inputs:
+      - Cargo.toml
+      - Cargo.lock
+      - '**/*.rs'
+    deps:
+      - default:format
+      - app:check

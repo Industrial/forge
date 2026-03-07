@@ -1,0 +1,21 @@
+# Root-level workspace tasks
+# These tasks operate on the entire workspace, not individual projects
+# https://moonrepo.dev/docs/config/project
+language: 'rust'
+type: 'application'
+tasks:
+  # Format entire workspace
+  format:
+    command: 'treefmt'
+    inputs:
+      - 'treefmt.toml'
+      - '.git/**/*'
+      - '**/*.rs'
+      - '**/*.nix'
+      - '**/*.sh'
+      - '**/*.{js,jsx,ts,tsx,json}'
+      - '**/*.{yml,yaml}'
+      - '**/*.toml'
+      - '.github/workflows/*.yml'
+    options:
+      cache: false

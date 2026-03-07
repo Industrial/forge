@@ -1,0 +1,58 @@
+# One CLI to format the code tree - https://github.com/numtide/treefmt
+
+# Exit with error if any changes were made during execution
+# Useful for CI
+fail-on-change = false
+
+# Log paths that did not match any formatters at the specified log level
+on-unmatched = "warn"
+
+# Set the verbosity of logs
+verbose = 1
+
+# The method used to traverse the files within the tree root
+# Use git to only format tracked files
+walk = "git"
+
+[formatter.deadnix]
+command = "deadnix"
+includes = ["*.nix"]
+priority = 0
+
+[formatter.nix]
+command = "alejandra"
+includes = ["*.nix"]
+priority = 1
+
+[formatter.github-actions]
+command = "actionlint"
+includes = [".github/workflows/*.yml"]
+priority = 2
+
+[formatter.bash]
+command = "beautysh"
+includes = ["*.sh", ".envrc"]
+priority = 3
+
+[formatter.javascript]
+command = "biome"
+options = ["format", "--write"]
+includes = ["*.{js,jsx,ts,tsx,json}"]
+priority = 4
+
+[formatter.yaml]
+command = "yamlfmt"
+includes = ["*.{yml,yaml}"]
+priority = 5
+
+[formatter.toml]
+command = "taplo"
+options = ["format"]
+includes = ["*.toml"]
+priority = 6
+
+[formatter.rust]
+command = "rustfmt"
+options = ["--edition", "2024"]
+includes = ["*.rs"]
+priority = 7
