@@ -19,4 +19,5 @@ members = [
   "crates/forge-query",
   "crates/forge-entity",
   "crates/forge-cli",
+  "workspace-hack",
 ]

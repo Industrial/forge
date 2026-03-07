@@ -4,6 +4,10 @@ exec > >(tee log/lint.log) 2>&1
 
 echo "> lint"
 
+# Ensure workspace-hack is up-to-date for optimal build performance
+echo "> lint > cargo hakari generate (workspace-hack optimization)"
+cargo hakari generate --quiet || true
+
 echo "> lint > cargo fmt --check"
 cargo fmt --all -- --check
 

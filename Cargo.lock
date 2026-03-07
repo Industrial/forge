@@ -1013,6 +1013,7 @@ dependencies = [
  "tracing-log",
  "tracing-subscriber",
  "uuid",
+ "workspace-hack",
 ]
 
 [[package]]
@@ -1026,6 +1027,7 @@ dependencies = [
  "tokio",
  "tracing",
  "uuid",
+ "workspace-hack",
 ]
 
 [[package]]
@@ -1048,6 +1050,7 @@ dependencies = [
  "tokio",
  "tower",
  "uuid",
+ "workspace-hack",
 ]
 
 [[package]]
@@ -1062,6 +1065,7 @@ dependencies = [
  "tokio",
  "tower",
  "tracing",
+ "workspace-hack",
 ]
 
 [[package]]
@@ -1077,6 +1081,7 @@ dependencies = [
  "predicates",
  "reqwest",
  "tempfile",
+ "workspace-hack",
 ]
 
 [[package]]
@@ -1086,6 +1091,7 @@ dependencies = [
  "figment",
  "serde",
  "tempfile",
+ "workspace-hack",
 ]
 
 [[package]]
@@ -1094,6 +1100,7 @@ version = "0.1.0"
 dependencies = [
  "axum-valid",
  "validator",
+ "workspace-hack",
 ]
 
 [[package]]
@@ -1106,6 +1113,7 @@ dependencies = [
  "forge-jobs",
  "tokio",
  "tracing",
+ "workspace-hack",
 ]
 
 [[package]]
@@ -1117,6 +1125,7 @@ dependencies = [
  "sea-orm",
  "sea-orm-tracing",
  "tokio",
+ "workspace-hack",
 ]
 
 [[package]]
@@ -1129,6 +1138,7 @@ dependencies = [
  "sea-orm",
  "serde_json",
  "uuid",
+ "workspace-hack",
 ]
 
 [[package]]
@@ -1140,6 +1150,7 @@ dependencies = [
  "forge-db",
  "sea-orm",
  "tokio",
+ "workspace-hack",
 ]
 
 [[package]]
@@ -1156,6 +1167,7 @@ dependencies = [
  "serde_json",
  "tokio",
  "tracing",
+ "workspace-hack",
 ]
 
 [[package]]
@@ -1171,6 +1183,7 @@ dependencies = [
  "tokio",
  "tracing",
  "uuid",
+ "workspace-hack",
 ]
 
 [[package]]
@@ -1186,6 +1199,7 @@ dependencies = [
  "tracing-opentelemetry",
  "tracing-opentelemetry-instrumentation-sdk",
  "tracing-subscriber",
+ "workspace-hack",
 ]
 
 [[package]]
@@ -1194,6 +1208,7 @@ version = "0.1.0"
 dependencies = [
  "serde",
  "serde_json",
+ "workspace-hack",
 ]
 
 [[package]]
@@ -1208,6 +1223,7 @@ dependencies = [
  "tower",
  "tower_governor",
  "uuid",
+ "workspace-hack",
 ]
 
 [[package]]
@@ -1215,6 +1231,7 @@ name = "forge-security"
 version = "0.1.0"
 dependencies = [
  "axum",
+ "workspace-hack",
 ]
 
 [[package]]
@@ -1225,6 +1242,7 @@ dependencies = [
  "forge-db",
  "futures",
  "tokio",
+ "workspace-hack",
 ]
 
 [[package]]
@@ -4965,6 +4983,87 @@ dependencies = [
  "serde_json",
  "unicode-xid",
  "wasmparser",
+]
+
+[[package]]
+name = "workspace-hack"
+version = "0.1.0"
+dependencies = [
+ "aho-corasick",
+ "axum",
+ "axum-core",
+ "base64",
+ "bitflags 2.11.0",
+ "bstr",
+ "chrono",
+ "clap",
+ "clap_builder",
+ "crossbeam-epoch",
+ "crossbeam-utils",
+ "crypto-common",
+ "darling",
+ "darling_core",
+ "digest",
+ "either",
+ "errno",
+ "futures-channel",
+ "futures-core",
+ "futures-io",
+ "futures-sink",
+ "futures-task",
+ "futures-util",
+ "getrandom 0.2.17",
+ "getrandom 0.3.4",
+ "hashbrown 0.16.1",
+ "heck 0.4.1",
+ "hyper",
+ "hyper-util",
+ "idna",
+ "libc",
+ "lock_api",
+ "log",
+ "memchr",
+ "mio",
+ "num-traits",
+ "once_cell",
+ "opentelemetry",
+ "parking_lot",
+ "percent-encoding",
+ "portable-atomic",
+ "proc-macro2",
+ "quote",
+ "rand 0.9.2",
+ "regex",
+ "regex-automata",
+ "regex-syntax",
+ "reqwest",
+ "sea-query",
+ "serde",
+ "serde_core",
+ "serde_json",
+ "sha2",
+ "slab",
+ "smallvec",
+ "sqlx",
+ "sqlx-core",
+ "sqlx-sqlite",
+ "subtle",
+ "syn",
+ "sync_wrapper",
+ "thiserror 2.0.18",
+ "tokio",
+ "tokio-stream",
+ "tokio-util",
+ "tower",
+ "tower-http",
+ "tracing",
+ "tracing-core",
+ "tracing-log",
+ "tracing-opentelemetry-instrumentation-sdk",
+ "tracing-subscriber",
+ "uuid",
+ "windows-sys 0.60.2",
+ "windows-sys 0.61.2",
 ]
 
 [[package]]

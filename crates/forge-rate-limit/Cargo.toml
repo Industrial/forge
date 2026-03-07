@@ -13,6 +13,7 @@ axum-login = "0.17"
 forge-auth = { path = "../forge-auth" }
 tower_governor = "0.8"
 uuid = { version = "1.0", features = ["v4"] }
+workspace-hack = { version = "0.1", path = "../../workspace-hack" }
 
 [dev-dependencies]
 async-trait = "0.1"

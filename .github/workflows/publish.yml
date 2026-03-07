@@ -11,6 +11,9 @@ concurrency:
 env:
   CARGO_TERM_COLOR: always
   RUST_BACKTRACE: 1
+  # Build optimization: sccache for compilation caching
+  RUSTC_WRAPPER: sccache
+  SCCACHE_DIR: ${{ runner.tool_cache }}/sccache
 jobs:
   # =============================================================================
   # VALIDATE
@@ -72,8 +75,27 @@ jobs:
         with:
           toolchain: stable
           components: rustfmt, clippy
+      # Setup sccache for compilation caching
+      - name: Setup sccache
+        uses: mozilla-actions/sccache-action@v0.0.4
+        with:
+          version: "latest"
+      # Install mold linker for faster linking on Linux
+      - name: Install mold linker (Linux)
+        if: runner.os == 'Linux'
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y mold
       - name: Cache dependencies
         uses: Swatinem/rust-cache@v2
+      # Verify workspace-hack is up-to-date (hakari)
+      - name: Install cargo-hakari
+        run: cargo install cargo-hakari --locked
+      - name: Verify workspace-hack (hakari)
+        run: |
+          cargo hakari generate --diff || exit 1
+          cargo hakari manage-deps --dry-run || exit 1
+          echo "✅ Workspace-hack is up-to-date"
       - name: Check formatting
         run: cargo fmt --all -- --check
       - name: Run clippy
@@ -82,6 +104,10 @@ jobs:
         run: cargo test --tests --all-features
       - name: Build release
         run: cargo build --release --all-features
+      # Show sccache statistics
+      - name: Show sccache statistics
+        if: always()
+        run: sccache --show-stats
       - name: Verify package
         run: cargo publish --dry-run
   # =============================================================================
@@ -212,12 +238,21 @@ jobs:
         uses: actions/checkout@v6
       - name: Setup Rust
         uses: dtolnay/rust-toolchain@stable
+      # Setup sccache for compilation caching
+      - name: Setup sccache
+        uses: mozilla-actions/sccache-action@v0.0.4
+        with:
+          version: "latest"
       - name: Cache dependencies
         uses: Swatinem/rust-cache@v2
       - name: Generate documentation
         run: |
           echo "📚 Generating documentation..."
           ./bin/docs
+      # Show sccache statistics
+      - name: Show sccache statistics
+        if: always()
+        run: sccache --show-stats
   # =============================================================================
   # RELEASE COMPLETE
   # =============================================================================

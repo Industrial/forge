@@ -18,6 +18,7 @@ sea-orm = { version = "1.1", default-features = false, features = [
 ] }
 tracing = "0.1"
 uuid = { version = "1.0", features = ["v4", "serde"] }
+workspace-hack = { version = "0.1", path = "../../workspace-hack" }
 
 [dev-dependencies]
 tokio = { version = "1", features = ["rt", "macros"] }

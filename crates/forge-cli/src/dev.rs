@@ -561,7 +561,7 @@ mod tests {
       #[test]
       fn should_handle_valid_hostname_resolution() {
         use std::net::ToSocketAddrs;
-        
+
         // Given: a valid hostname (localhost)
         let host = "127.0.0.1";
         let port = 8080;
@@ -573,7 +573,7 @@ mod tests {
         assert!(addr_result.is_ok(), "Should resolve valid hostname");
         let addr = addr_result.unwrap().next();
         assert!(addr.is_some(), "Should produce at least one socket address");
-        
+
         // Verify the resolved address matches expectations
         let socket_addr = addr.unwrap();
         assert_eq!(socket_addr.port(), port, "Port should match");

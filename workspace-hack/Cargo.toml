@@ -1,0 +1,152 @@
+[package]
+name = "workspace-hack"
+version = "0.1.0"
+edition = "2021"
+resolver = "2"
+
+# This file is managed by cargo hakari.
+# DO NOT EDIT MANUALLY
+
+### BEGIN HAKARI SECTION
+[dependencies]
+aho-corasick = { version = "1" }
+axum = { version = "0.8", features = ["ws"] }
+axum-core = { version = "0.5", default-features = false, features = ["tracing"] }
+base64 = { version = "0.22" }
+bstr = { version = "1" }
+chrono = { version = "0.4", features = ["serde"] }
+clap = { version = "4", features = ["derive", "env"] }
+clap_builder = { version = "4", default-features = false, features = ["color", "env", "help", "std", "suggestions", "usage"] }
+crossbeam-epoch = { version = "0.9" }
+crossbeam-utils = { version = "0.8" }
+crypto-common = { version = "0.1", default-features = false, features = ["std"] }
+digest = { version = "0.10", features = ["mac", "std"] }
+either = { version = "1", features = ["serde", "use_std"] }
+futures-channel = { version = "0.3", features = ["sink"] }
+futures-core = { version = "0.3" }
+futures-io = { version = "0.3" }
+futures-sink = { version = "0.3" }
+futures-task = { version = "0.3", default-features = false, features = ["std"] }
+futures-util = { version = "0.3", features = ["channel", "io", "sink"] }
+getrandom-468e82937335b1c9 = { package = "getrandom", version = "0.3", default-features = false, features = ["std", "wasm_js"] }
+getrandom-6f8ce4dd05d13bba = { package = "getrandom", version = "0.2", default-features = false, features = ["std"] }
+hashbrown = { version = "0.16" }
+hyper = { version = "1", features = ["client", "http1", "http2", "server"] }
+hyper-util = { version = "0.1", features = ["client-legacy", "server-auto", "service"] }
+idna = { version = "1" }
+lock_api = { version = "0.4", features = ["serde"] }
+log = { version = "0.4", default-features = false, features = ["std"] }
+memchr = { version = "2" }
+num-traits = { version = "0.2", default-features = false, features = ["i128", "std"] }
+once_cell = { version = "1" }
+opentelemetry = { version = "0.31" }
+parking_lot = { version = "0.12", features = ["serde"] }
+percent-encoding = { version = "2" }
+portable-atomic = { version = "1", features = ["require-cas"] }
+rand = { version = "0.9" }
+regex = { version = "1" }
+regex-automata = { version = "0.4", default-features = false, features = ["dfa-build", "dfa-onepass", "hybrid", "meta", "nfa", "perf", "std", "unicode"] }
+regex-syntax = { version = "0.8" }
+reqwest = { version = "0.12", features = ["blocking", "json"] }
+sea-query = { version = "0.32", default-features = false, features = ["backend-mysql", "backend-postgres", "backend-sqlite", "derive", "hashable-value", "thread-safe", "with-chrono", "with-uuid"] }
+serde = { version = "1", features = ["alloc", "derive", "rc"] }
+serde_core = { version = "1", features = ["alloc", "rc"] }
+serde_json = { version = "1", features = ["raw_value"] }
+sha2 = { version = "0.10" }
+slab = { version = "0.4" }
+smallvec = { version = "1", default-features = false, features = ["const_new"] }
+sqlx = { version = "0.8", default-features = false, features = ["chrono", "json", "macros", "migrate", "runtime-tokio-rustls", "sqlite", "uuid"] }
+sqlx-core = { version = "0.8", features = ["_rt-tokio", "_tls-rustls-ring-webpki", "any", "chrono", "json", "migrate", "offline", "uuid"] }
+sqlx-sqlite = { version = "0.8", default-features = false, features = ["bundled", "chrono", "json", "migrate", "offline", "uuid"] }
+subtle = { version = "2" }
+sync_wrapper = { version = "1", default-features = false, features = ["futures"] }
+thiserror = { version = "2" }
+tokio = { version = "1", features = ["full"] }
+tokio-stream = { version = "0.1", features = ["fs", "net"] }
+tokio-util = { version = "0.7", features = ["codec", "io"] }
+tower = { version = "0.5", default-features = false, features = ["balance", "buffer", "limit", "load-shed", "log", "retry", "timeout"] }
+tracing = { version = "0.1", features = ["log"] }
+tracing-core = { version = "0.1" }
+tracing-log = { version = "0.2" }
+tracing-opentelemetry-instrumentation-sdk = { version = "0.32", features = ["http"] }
+tracing-subscriber = { version = "0.3", features = ["env-filter"] }
+uuid = { version = "1", features = ["serde", "v4"] }
+
+[build-dependencies]
+base64 = { version = "0.22" }
+chrono = { version = "0.4", features = ["serde"] }
+crossbeam-utils = { version = "0.8" }
+crypto-common = { version = "0.1", default-features = false, features = ["std"] }
+darling = { version = "0.20" }
+darling_core = { version = "0.20", default-features = false, features = ["suggestions"] }
+digest = { version = "0.10", features = ["mac", "std"] }
+either = { version = "1", features = ["serde", "use_std"] }
+futures-channel = { version = "0.3", features = ["sink"] }
+futures-core = { version = "0.3" }
+futures-io = { version = "0.3" }
+futures-sink = { version = "0.3" }
+futures-task = { version = "0.3", default-features = false, features = ["std"] }
+futures-util = { version = "0.3", features = ["channel", "io", "sink"] }
+getrandom-6f8ce4dd05d13bba = { package = "getrandom", version = "0.2", default-features = false, features = ["std"] }
+hashbrown = { version = "0.16" }
+heck = { version = "0.4" }
+idna = { version = "1" }
+lock_api = { version = "0.4", features = ["serde"] }
+log = { version = "0.4", default-features = false, features = ["std"] }
+memchr = { version = "2" }
+num-traits = { version = "0.2", default-features = false, features = ["i128", "std"] }
+once_cell = { version = "1" }
+parking_lot = { version = "0.12", features = ["serde"] }
+percent-encoding = { version = "2" }
+proc-macro2 = { version = "1" }
+quote = { version = "1" }
+serde = { version = "1", features = ["alloc", "derive", "rc"] }
+serde_core = { version = "1", features = ["alloc", "rc"] }
+serde_json = { version = "1", features = ["raw_value"] }
+sha2 = { version = "0.10" }
+slab = { version = "0.4" }
+smallvec = { version = "1", default-features = false, features = ["const_new"] }
+sqlx-core = { version = "0.8", features = ["_rt-tokio", "_tls-rustls-ring-webpki", "any", "chrono", "json", "migrate", "offline", "uuid"] }
+sqlx-sqlite = { version = "0.8", default-features = false, features = ["bundled", "chrono", "json", "migrate", "offline", "uuid"] }
+subtle = { version = "2" }
+syn = { version = "2", features = ["extra-traits", "fold", "full", "visit", "visit-mut"] }
+thiserror = { version = "2" }
+tokio = { version = "1", features = ["full"] }
+tokio-stream = { version = "0.1", features = ["fs", "net"] }
+tracing = { version = "0.1", features = ["log"] }
+tracing-core = { version = "0.1" }
+uuid = { version = "1", features = ["serde", "v4"] }
+
+[target.x86_64-unknown-linux-gnu.dependencies]
+bitflags = { version = "2", default-features = false, features = ["std"] }
+hyper-util = { version = "0.1", default-features = false, features = ["client-proxy", "client-proxy-system"] }
+libc = { version = "0.2" }
+mio = { version = "1", features = ["net", "os-ext"] }
+tower-http = { version = "0.6", features = ["follow-redirect", "trace"] }
+
+[target.x86_64-unknown-linux-gnu.build-dependencies]
+libc = { version = "0.2" }
+mio = { version = "1", features = ["net", "os-ext"] }
+
+[target.x86_64-apple-darwin.dependencies]
+bitflags = { version = "2", default-features = false, features = ["std"] }
+errno = { version = "0.3" }
+hyper-util = { version = "0.1", default-features = false, features = ["client-proxy", "client-proxy-system"] }
+libc = { version = "0.2" }
+tower-http = { version = "0.6", features = ["follow-redirect", "trace"] }
+
+[target.x86_64-apple-darwin.build-dependencies]
+errno = { version = "0.3" }
+libc = { version = "0.2" }
+
+[target.x86_64-pc-windows-msvc.dependencies]
+hyper-util = { version = "0.1", default-features = false, features = ["client-proxy", "client-proxy-system"] }
+tower-http = { version = "0.6", features = ["follow-redirect", "trace"] }
+windows-sys-4db8c43aad08e7ae = { package = "windows-sys", version = "0.60", features = ["Win32_Networking_WinSock", "Win32_Security", "Win32_Storage_FileSystem", "Win32_System_IO", "Win32_System_Threading", "Win32_System_WindowsProgramming"] }
+windows-sys-d4189bed749088b6 = { package = "windows-sys", version = "0.61", features = ["Wdk_Foundation", "Wdk_Storage_FileSystem", "Wdk_System_IO", "Win32_Networking_WinSock", "Win32_Security_Authentication_Identity", "Win32_Security_Credentials", "Win32_Security_Cryptography", "Win32_Storage_FileSystem", "Win32_System_Console", "Win32_System_IO", "Win32_System_LibraryLoader", "Win32_System_Memory", "Win32_System_Pipes", "Win32_System_SystemInformation", "Win32_System_SystemServices", "Win32_System_Threading", "Win32_System_WindowsProgramming"] }
+
+[target.x86_64-pc-windows-msvc.build-dependencies]
+windows-sys-4db8c43aad08e7ae = { package = "windows-sys", version = "0.60", features = ["Win32_Networking_WinSock", "Win32_Security", "Win32_Storage_FileSystem", "Win32_System_IO", "Win32_System_Threading", "Win32_System_WindowsProgramming"] }
+windows-sys-d4189bed749088b6 = { package = "windows-sys", version = "0.61", features = ["Wdk_Foundation", "Wdk_Storage_FileSystem", "Wdk_System_IO", "Win32_Networking_WinSock", "Win32_Security_Authentication_Identity", "Win32_Security_Credentials", "Win32_Security_Cryptography", "Win32_Storage_FileSystem", "Win32_System_Console", "Win32_System_IO", "Win32_System_LibraryLoader", "Win32_System_Memory", "Win32_System_Pipes", "Win32_System_SystemInformation", "Win32_System_SystemServices", "Win32_System_Threading", "Win32_System_WindowsProgramming"] }
+
+### END HAKARI SECTION

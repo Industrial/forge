@@ -15,6 +15,7 @@ sea-orm = { version = "1.1", default-features = false, features = [
   "with-uuid",
   "with-chrono",
 ] }
+workspace-hack = { version = "0.1", path = "../../workspace-hack" }
 
 [dev-dependencies]
 forge-config = { path = "../forge-config" }

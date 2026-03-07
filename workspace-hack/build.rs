@@ -1,0 +1,4 @@
+fn main() {
+  // This file is managed by cargo hakari.
+  // DO NOT EDIT MANUALLY
+}

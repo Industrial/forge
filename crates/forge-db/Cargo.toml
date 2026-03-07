@@ -18,6 +18,7 @@ sea-orm = { version = "1.1", default-features = false, features = [
   "with-chrono",
 ] }
 sea-orm-tracing = "0.2"
+workspace-hack = { version = "0.1", path = "../../workspace-hack" }
 
 [dev-dependencies]
 tokio = { version = "1", features = ["rt", "macros"] }

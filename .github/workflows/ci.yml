@@ -6,6 +6,9 @@ on:
     branches: [main, develop]
 env:
   CARGO_TERM_COLOR: always
+  # Build optimization: sccache for compilation caching
+  RUSTC_WRAPPER: sccache
+  SCCACHE_DIR: ${{ runner.tool_cache }}/sccache
 permissions:
   contents: read
 jobs:
@@ -18,5 +21,28 @@ jobs:
       - uses: DeterminateSystems/magic-nix-cache-action@main
       - name: Install devenv
         run: nix profile install nixpkgs#devenv
+      # Setup sccache for compilation caching
+      - name: Setup sccache
+        uses: mozilla-actions/sccache-action@v0.0.4
+        with:
+          version: "latest"
+      # Install mold linker for faster linking on Linux
+      - name: Install mold linker
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y mold
+
+      # Verify workspace-hack is up-to-date (hakari)
+      - name: Verify workspace-hack (hakari)
+        run: |
+          devenv shell -- cargo hakari generate --diff || exit 1
+          devenv shell -- cargo hakari manage-deps --dry-run || exit 1
+          echo "✅ Workspace-hack is up-to-date"
+
       - name: Run pre-push (format, fix, check, lint, build, test, test-e2e, audit, check-docs)
         run: devenv shell -- ./bin/pre-push
+
+      # Show sccache statistics
+      - name: Show sccache statistics
+        if: always()
+        run: sccache --show-stats

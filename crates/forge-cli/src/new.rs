@@ -355,7 +355,7 @@ mod tests {
       fn should_reject_creation_when_template_directory_not_found() {
         let _guard = ENV_LOCK.lock().unwrap();
         let _env_guard = RestoreForgeTemplatesDir(std::env::var("FORGE_TEMPLATES_DIR").ok());
-        
+
         // Given: FORGE_TEMPLATES_DIR pointing to nonexistent path
         let tmp = tempfile::tempdir().unwrap();
         let missing = tmp.path().join("nonexistent_templates");

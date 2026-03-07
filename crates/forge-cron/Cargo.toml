@@ -14,6 +14,7 @@ forge-db = { path = "../forge-db" }
 forge-jobs = { path = "../forge-jobs" }
 tokio = { version = "1", features = ["time"] }
 tracing = "0.1"
+workspace-hack = { version = "0.1", path = "../../workspace-hack" }
 
 [lints.rust]
 unexpected_cfgs = { level = "warn", check-cfg = ['cfg(coverage)'] }

@@ -4,6 +4,10 @@ exec > >(tee log/build.log) 2>&1
 
 echo "> build"
 
+# Ensure workspace-hack is up-to-date for optimal build performance
+echo "> build > cargo hakari generate (workspace-hack optimization)"
+cargo hakari generate --quiet || true
+
 echo "> build > cargo build"
 RUSTFLAGS='-D warnings' cargo build
 echo "> build > cargo build --examples"

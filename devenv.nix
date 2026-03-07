@@ -72,6 +72,10 @@ in {
     FORGE_SQL_DEBUG = "1";
     # Show SQL queries (sqlx) and app/forge at debug. Omit sqlx=debug to disable SQL logging.
     RUST_LOG = "info,forge=debug,app=trace,sqlx=info";
+
+    # Build optimization: sccache for compilation caching
+    # Uses default $HOME/.cache/sccache location (no custom wrapper needed)
+    RUSTC_WRAPPER = "sccache";
   };
 
   # Development packages
@@ -101,6 +105,11 @@ in {
     cargo-audit
     cargo-llvm-cov
     cargo-nextest
+    cargo-hakari
+
+    # Build optimization
+    sccache
+    mold
 
     # Version management
     git
@@ -157,6 +166,14 @@ in {
   enterShell = ''
     prek-install
     intro
+
+    # Ensure sccache default cache directory exists and is writable
+    # sccache uses $HOME/.cache/sccache by default (no wrapper needed)
+    mkdir -p "$HOME/.cache/sccache"
+    chmod 755 "$HOME/.cache/sccache" 2>/dev/null || true
+
+    # Note: sccache will automatically start its server when first used
+    # RUSTC_WRAPPER is already set to "sccache" in env block above
 
     # Add forge CLI to PATH if it exists, prioritizing debug during dev
     if [ -f ./target/debug/forge ] && [ -f ./target/release/forge ]; then

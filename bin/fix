@@ -4,6 +4,10 @@ exec > >(tee log/fix.log) 2>&1
 
 echo "> fix"
 
+# Ensure workspace-hack is up-to-date for optimal build performance
+echo "> fix > cargo hakari generate (workspace-hack optimization)"
+cargo hakari generate --quiet || true
+
 echo "> fix > cargo fix"
 # Omit --all-features so forge-audit/mock is not enabled; mock makes DatabaseConnection !Clone and breaks sea-orm-tracing.
 RUSTFLAGS='-D warnings' cargo fix --allow-dirty --allow-staged --lib

@@ -38,6 +38,7 @@ forge-rate-limit = { path = "../forge-rate-limit" }
 tower_governor = "0.8"
 governor = "0.10"
 axum-tracing-opentelemetry = { version = "0.33", optional = true }
+workspace-hack = { version = "0.1", path = "../../workspace-hack" }
 
 [features]
 default = []
