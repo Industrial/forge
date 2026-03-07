@@ -95,8 +95,7 @@ impl MigrationTrait for Migration {
 #[cfg(test)]
 mod bdd_tests {
   use super::*;
-  use sea_orm::{ConnectionTrait, Database};
-  use sea_orm_migration::prelude::*;
+  use sea_orm::Database;
 
   async fn test_db() -> sea_orm::DatabaseConnection {
     Database::connect(sea_orm::ConnectOptions::new("sqlite::memory:".to_string()))

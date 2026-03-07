@@ -12,6 +12,43 @@ fn scope_headers<'a>(org_id: &'a str, role_id: &'a str) -> [(&'static str, &'a s
   [("X-Organization-Id", org_id), ("X-Role-Id", role_id)]
 }
 
+/// Helper function to create a test client with migrations run.
+/// This is needed because migrations don't run automatically for integration tests
+/// due to #[cfg(test)] conditional compilation in build_router_for_test_with_db.
+async fn test_client_with_migrations() -> app::TestClient {
+  use sea_orm::{ConnectionTrait, Statement};
+  use sea_orm_migration::MigratorTrait;
+
+  // Build router with database connection
+  let (router, db_conn, guard) = app::build_router_for_test_with_db()
+    .await
+    .expect("build_router_for_test_with_db");
+
+  // Run migrations manually (available when compiling test binaries)
+  let db_ref: &sea_orm::DatabaseConnection = db_conn.as_ref();
+  migrations::Migrator::up(db_ref, None)
+    .await
+    .expect("migrations::Migrator::up");
+  migrations::run_seeds(db_conn.clone())
+    .await
+    .expect("migrations::run_seeds");
+
+  // Verify migrations ran successfully
+  let _ = db_conn
+    .execute(Statement::from_string(
+      db_conn.get_database_backend(),
+      "SELECT 1 FROM user LIMIT 1".to_string(),
+    ))
+    .await
+    .expect("user table check after migration");
+
+  // Return TestClient with the router (router already has state attached)
+  app::TestClient::InProcess {
+    router,
+    _guard: std::sync::Arc::new(std::sync::Mutex::new(Some(guard))),
+  }
+}
+
 mod bdd_tests {
   use super::*;
 
@@ -97,7 +134,7 @@ mod bdd_tests {
     #[tokio::test]
     async fn should_allow_viewer_to_get_org_role_permissions() {
       // Given: an authenticated viewer user with proper scope headers
-      let client = app::test_client().await.expect("test_client");
+      let client = test_client_with_migrations().await;
       let (token, org_id, role_id) =
         app::auth_with_profile(&client, "viewer@default.org", app::SEED_PASSWORD)
           .await
@@ -138,7 +175,7 @@ mod bdd_tests {
     #[tokio::test]
     async fn should_return_not_found_for_non_existent_role() {
       // Given: an authenticated viewer user with proper scope headers
-      let client = app::test_client().await.expect("test_client");
+      let client = test_client_with_migrations().await;
       let (token, org_id, role_id) =
         app::auth_with_profile(&client, "viewer@default.org", app::SEED_PASSWORD)
           .await
@@ -170,7 +207,7 @@ mod bdd_tests {
     #[tokio::test]
     async fn should_return_permissions_list_in_response_body() {
       // Given: an authenticated viewer user with proper scope headers
-      let client = app::test_client().await.expect("test_client");
+      let client = test_client_with_migrations().await;
       let (token, org_id, role_id) =
         app::auth_with_profile(&client, "viewer@default.org", app::SEED_PASSWORD)
           .await
@@ -219,7 +256,7 @@ mod bdd_tests {
     #[tokio::test]
     async fn should_forbid_viewer_from_posting_org_role_permissions() {
       // Given: an authenticated viewer user with proper scope headers
-      let client = app::test_client().await.expect("test_client");
+      let client = test_client_with_migrations().await;
       let (token, org_id, role_id) =
         app::auth_with_profile(&client, "viewer@default.org", app::SEED_PASSWORD)
           .await
@@ -264,7 +301,7 @@ mod bdd_tests {
     #[tokio::test]
     async fn should_allow_editor_to_post_org_role_permissions_or_return_expected_errors() {
       // Given: an authenticated editor user with proper scope headers
-      let client = app::test_client().await.expect("test_client");
+      let client = test_client_with_migrations().await;
       let (token, org_id, role_id) =
         app::auth_with_profile(&client, "editor@default.org", app::SEED_PASSWORD)
           .await
@@ -314,7 +351,7 @@ mod bdd_tests {
     #[tokio::test]
     async fn should_reject_invalid_permission_key() {
       // Given: an authenticated editor user with proper scope headers
-      let client = app::test_client().await.expect("test_client");
+      let client = test_client_with_migrations().await;
       let (token, org_id, role_id) =
         app::auth_with_profile(&client, "editor@default.org", app::SEED_PASSWORD)
           .await
@@ -359,7 +396,7 @@ mod bdd_tests {
     #[tokio::test]
     async fn should_return_not_found_when_posting_to_non_existent_role() {
       // Given: an authenticated editor user with proper scope headers
-      let client = app::test_client().await.expect("test_client");
+      let client = test_client_with_migrations().await;
       let (token, org_id, role_id) =
         app::auth_with_profile(&client, "editor@default.org", app::SEED_PASSWORD)
           .await
@@ -395,7 +432,7 @@ mod bdd_tests {
     #[tokio::test]
     async fn should_forbid_viewer_from_deleting_org_role_permissions() {
       // Given: an authenticated viewer user with proper scope headers
-      let client = app::test_client().await.expect("test_client");
+      let client = test_client_with_migrations().await;
       let (token, org_id, role_id) =
         app::auth_with_profile(&client, "viewer@default.org", app::SEED_PASSWORD)
           .await
@@ -440,7 +477,7 @@ mod bdd_tests {
     #[tokio::test]
     async fn should_allow_editor_to_delete_org_role_permissions_or_return_expected_errors() {
       // Given: an authenticated editor user with proper scope headers
-      let client = app::test_client().await.expect("test_client");
+      let client = test_client_with_migrations().await;
       let (token, org_id, role_id) =
         app::auth_with_profile(&client, "editor@default.org", app::SEED_PASSWORD)
           .await
@@ -489,7 +526,7 @@ mod bdd_tests {
     #[tokio::test]
     async fn should_return_not_found_when_deleting_non_existent_permission() {
       // Given: an authenticated editor user with proper scope headers
-      let client = app::test_client().await.expect("test_client");
+      let client = test_client_with_migrations().await;
       let (token, org_id, role_id) =
         app::auth_with_profile(&client, "editor@default.org", app::SEED_PASSWORD)
           .await
@@ -537,7 +574,7 @@ mod bdd_tests {
     #[tokio::test]
     async fn should_return_not_found_when_deleting_from_non_existent_role() {
       // Given: an authenticated editor user with proper scope headers
-      let client = app::test_client().await.expect("test_client");
+      let client = test_client_with_migrations().await;
       let (token, org_id, role_id) =
         app::auth_with_profile(&client, "editor@default.org", app::SEED_PASSWORD)
           .await

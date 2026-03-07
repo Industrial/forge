@@ -98,7 +98,7 @@ mod bdd_tests {
     #[tokio::test]
     async fn should_run_all_migrations_up() {
       // Given: a test database
-      let db = test_db().await;
+      let _db = test_db().await;
 
       // When: migrations are run
       // Then: should succeed (verified by test_db helper)
@@ -109,6 +109,7 @@ mod bdd_tests {
 
   mod run_seeds_behavior {
     use super::*;
+    use sea_orm::{ColumnTrait, QueryFilter};
 
     #[tokio::test]
     async fn should_run_all_seeds() {
@@ -144,6 +145,7 @@ mod bdd_tests {
 
   mod seed_role_permissions_for_org_behavior {
     use super::*;
+    use sea_orm::{ColumnTrait, QueryFilter, Set};
 
     #[tokio::test]
     async fn should_delegate_to_db_seed_function() {
@@ -153,7 +155,6 @@ mod bdd_tests {
       let now = chrono::Utc::now().naive_utc();
 
       use db::models::{org_role, organization};
-      use sea_orm::Set;
 
       organization::Entity::insert(organization::ActiveModel {
         id: Set(org_id),

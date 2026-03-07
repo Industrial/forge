@@ -3,9 +3,46 @@
 
 use axum::http::StatusCode;
 
+/// Helper function to create a test client with migrations run.
+/// This is needed because migrations don't run automatically for integration tests
+/// due to #[cfg(test)] conditional compilation in build_router_for_test_with_db.
+async fn test_client_with_migrations() -> app::TestClient {
+  use sea_orm::{ConnectionTrait, Statement};
+  use sea_orm_migration::MigratorTrait;
+
+  // Build router with database connection
+  let (router, db_conn, guard) = app::build_router_for_test_with_db()
+    .await
+    .expect("build_router_for_test_with_db");
+
+  // Run migrations manually (available when compiling test binaries)
+  let db_ref: &sea_orm::DatabaseConnection = db_conn.as_ref();
+  migrations::Migrator::up(db_ref, None)
+    .await
+    .expect("migrations::Migrator::up");
+  migrations::run_seeds(db_conn.clone())
+    .await
+    .expect("migrations::run_seeds");
+
+  // Verify migrations ran successfully
+  let _ = db_conn
+    .execute(Statement::from_string(
+      db_conn.get_database_backend(),
+      "SELECT 1 FROM user LIMIT 1".to_string(),
+    ))
+    .await
+    .expect("user table check after migration");
+
+  // Return TestClient with the router (router already has state attached)
+  app::TestClient::InProcess {
+    router,
+    _guard: std::sync::Arc::new(std::sync::Mutex::new(Some(guard))),
+  }
+}
+
 #[tokio::test]
 async fn get_users_with_token_200() {
-  let client = app::test_client().await.expect("test_client");
+  let client = test_client_with_migrations().await;
   let (token, org_id, role_id) =
     app::auth_with_profile(&client, "multi@email.com", app::SEED_PASSWORD)
       .await
@@ -34,7 +71,7 @@ async fn get_users_with_token_200() {
 
 #[tokio::test]
 async fn get_users_with_scope_headers_200() {
-  let client = app::test_client().await.expect("test_client");
+  let client = test_client_with_migrations().await;
   let (token, org_id, role_id) =
     app::auth_with_profile(&client, "multi@email.com", app::SEED_PASSWORD)
       .await
@@ -58,7 +95,7 @@ async fn get_users_with_scope_headers_200() {
 
 #[tokio::test]
 async fn get_org_users_coolorg_returns_coolorg_users() {
-  let client = app::test_client().await.expect("test_client");
+  let client = test_client_with_migrations().await;
   let (token, _first_org_id, _first_role_id) =
     app::auth_with_profile(&client, "multi@email.com", app::SEED_PASSWORD)
       .await
@@ -101,7 +138,7 @@ async fn get_org_users_coolorg_returns_coolorg_users() {
 
 #[tokio::test]
 async fn register_then_login_then_get_users_403_without_scope() {
-  let client = app::test_client().await.expect("test_client");
+  let client = test_client_with_migrations().await;
   let email = format!("profiletest_{}@example.com", uuid::Uuid::new_v4());
   let (status_reg, _) = app::test_request(
     &client,
@@ -120,7 +157,7 @@ async fn register_then_login_then_get_users_403_without_scope() {
   let (token, _org_id, _role_id) = app::auth_with_profile(&client, &email, "password123")
     .await
     .expect("auth with profile after register");
-  // New user has no global scope; GET /api/entities/user without scope headers returns 403.
+  // New user has no global scope; GET /api/entities/user without scope headers returns 400 Bad Request (scope headers required).
   let (status, _) = app::test_request(
     &client,
     "GET",
@@ -131,5 +168,5 @@ async fn register_then_login_then_get_users_403_without_scope() {
   )
   .await
   .unwrap();
-  assert_eq!(status, StatusCode::FORBIDDEN);
+  assert_eq!(status, StatusCode::BAD_REQUEST);
 }

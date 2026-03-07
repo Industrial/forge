@@ -507,6 +507,310 @@ pub async fn delete_role_permission(
   Ok(Json(serde_json::json!({ "ok": true })).into_response())
 }
 
+#[derive(Deserialize)]
+pub struct OrgRolePermissionBody {
+  pub permission_key: String,
+}
+
+#[derive(Deserialize)]
+pub struct OrgRolePath {
+  org_id: Uuid,
+}
+
+#[derive(Deserialize)]
+pub struct OrgRolePermissionPath {
+  org_id: Uuid,
+  role_id: Uuid,
+}
+
+/// GET /api/organizations/{org_id}/roles — list roles for an organization. Requires dashboard.roles.read.
+pub async fn list_org_roles(
+  axum::extract::Path(OrgRolePath { org_id }): axum::extract::Path<OrgRolePath>,
+  ScopeFromHeaders(scope): ScopeFromHeaders,
+  auth: RequireAuth<Backend, user::Model>,
+  State(db): State<DbConnection>,
+) -> Result<impl IntoResponse, ForgeError> {
+  let user = &auth.0;
+  if let Some(resp) = require_permission(user, &db, PERMISSION_ROLES_READ, Some(&scope)).await {
+    return Ok(resp);
+  }
+  // Check if user has access to this org
+  let has_global = has_global_scope(&db, user, PERMISSION_ROLES_READ).await;
+  if !has_global && scope.organization_id != org_id {
+    return Ok(
+      (
+        StatusCode::FORBIDDEN,
+        Json(serde_json::json!({ "error": "Forbidden" })),
+      )
+        .into_response(),
+    );
+  }
+  let rows = org_role::Entity::find()
+    .filter(org_role::Column::OrgId.eq(org_id))
+    .order_by_asc(org_role::Column::Name)
+    .all(&db)
+    .await
+    .map_err(|e: sea_orm::DbErr| ForgeError::Generic(e.to_string()))?;
+  let list: Vec<serde_json::Value> = rows
+    .into_iter()
+    .map(|r| {
+      serde_json::json!({
+        "id": r.id.to_string(),
+        "org_id": r.org_id.to_string(),
+        "name": r.name,
+        "display_name": r.display_name,
+        "created_at": r.created_at.format("%Y-%m-%dT%H:%M:%S%.fZ").to_string(),
+        "updated_at": r.updated_at.format("%Y-%m-%dT%H:%M:%S%.fZ").to_string(),
+      })
+    })
+    .collect();
+  Ok(Json(serde_json::json!({ "roles": list })).into_response())
+}
+
+/// GET /api/organizations/{org_id}/roles/{role_id}/permissions — get permissions for a role. Requires dashboard.permissions.read.
+pub async fn get_role_permissions(
+  axum::extract::Path(OrgRolePermissionPath { org_id, role_id }): axum::extract::Path<
+    OrgRolePermissionPath,
+  >,
+  ScopeFromHeaders(scope): ScopeFromHeaders,
+  auth: RequireAuth<Backend, user::Model>,
+  State(db): State<DbConnection>,
+) -> Result<impl IntoResponse, ForgeError> {
+  let user = &auth.0;
+  if let Some(resp) = require_permission(user, &db, PERMISSION_READ, Some(&scope)).await {
+    return Ok(resp);
+  }
+  // Verify role exists and belongs to org
+  let role = org_role::Entity::find_by_id(role_id)
+    .one(&db)
+    .await
+    .map_err(|e| ForgeError::Generic(e.to_string()))?;
+  let Some(role) = role else {
+    return Ok(
+      (
+        StatusCode::NOT_FOUND,
+        Json(serde_json::json!({ "error": "Role not found" })),
+      )
+        .into_response(),
+    );
+  };
+  if role.org_id != org_id {
+    return Ok(
+      (
+        StatusCode::NOT_FOUND,
+        Json(serde_json::json!({ "error": "Role not found" })),
+      )
+        .into_response(),
+    );
+  }
+  // Check access to org
+  let has_global = has_global_scope(&db, user, PERMISSION_READ).await;
+  if !has_global && scope.organization_id != org_id {
+    return Ok(
+      (
+        StatusCode::FORBIDDEN,
+        Json(serde_json::json!({ "error": "Forbidden" })),
+      )
+        .into_response(),
+    );
+  }
+  // Get permissions for this role
+  let rows = role_permission::Entity::find()
+    .filter(role_permission::Column::Scope.eq("org"))
+    .filter(role_permission::Column::OrgId.eq(org_id))
+    .filter(role_permission::Column::RoleName.eq(&role.name))
+    .all(&db)
+    .await
+    .map_err(|e| ForgeError::Generic(e.to_string()))?;
+  let permissions: Vec<String> = rows.into_iter().map(|r| r.permission_key).collect();
+  Ok(Json(serde_json::json!({ "permissions": permissions })).into_response())
+}
+
+/// POST /api/organizations/{org_id}/roles/{role_id}/permissions — add permission to a role. Requires dashboard.permissions.write.
+pub async fn post_role_permission(
+  axum::extract::Path(OrgRolePermissionPath { org_id, role_id }): axum::extract::Path<
+    OrgRolePermissionPath,
+  >,
+  ScopeFromHeaders(req_scope): ScopeFromHeaders,
+  auth: RequireAuth<Backend, user::Model>,
+  State(db): State<DbConnection>,
+  Extension(live_backend): Extension<Option<Arc<InMemoryLiveBackend>>>,
+  Json(payload): Json<OrgRolePermissionBody>,
+) -> Result<impl IntoResponse, ForgeError> {
+  let user = &auth.0;
+  if let Some(resp) = require_permission(user, &db, PERMISSION_WRITE, Some(&req_scope)).await {
+    return Ok(resp);
+  }
+  // Verify role exists and belongs to org
+  let role = org_role::Entity::find_by_id(role_id)
+    .one(&db)
+    .await
+    .map_err(|e| ForgeError::Generic(e.to_string()))?;
+  let Some(role) = role else {
+    return Ok(
+      (
+        StatusCode::NOT_FOUND,
+        Json(serde_json::json!({ "error": "Role not found" })),
+      )
+        .into_response(),
+    );
+  };
+  if role.org_id != org_id {
+    return Ok(
+      (
+        StatusCode::NOT_FOUND,
+        Json(serde_json::json!({ "error": "Role not found" })),
+      )
+        .into_response(),
+    );
+  }
+  // Check access to org
+  let has_global = has_global_scope(&db, user, PERMISSION_WRITE).await;
+  if !has_global && req_scope.organization_id != org_id {
+    return Ok(
+      (
+        StatusCode::FORBIDDEN,
+        Json(serde_json::json!({ "error": "Forbidden" })),
+      )
+        .into_response(),
+    );
+  }
+  let permission_key = payload.permission_key.trim();
+  if !dashboard_permissions().contains(&permission_key) {
+    return Ok(
+      (
+        StatusCode::UNPROCESSABLE_ENTITY,
+        Json(serde_json::json!({
+          "error": "invalid permission_key",
+          "message": "Permission key is not in the allowed set"
+        })),
+      )
+        .into_response(),
+    );
+  }
+  // Check if already exists
+  let exists = role_permission::Entity::find()
+    .filter(role_permission::Column::Scope.eq("org"))
+    .filter(role_permission::Column::OrgId.eq(org_id))
+    .filter(role_permission::Column::RoleName.eq(&role.name))
+    .filter(role_permission::Column::PermissionKey.eq(permission_key))
+    .one(&db)
+    .await
+    .map_err(|e| ForgeError::Generic(e.to_string()))?;
+  if exists.is_some() {
+    // Idempotent: already exists, return success
+    return Ok(Json(serde_json::json!({ "ok": true })).into_response());
+  }
+  // Add permission
+  let id = Uuid::new_v4();
+  role_permission::Entity::insert(role_permission::ActiveModel {
+    id: Set(id),
+    scope: Set("org".to_string()),
+    role_name: Set(role.name.clone()),
+    permission_key: Set(permission_key.to_string()),
+    org_id: Set(Some(org_id)),
+  })
+  .exec(&db)
+  .await
+  .map_err(|e| ForgeError::Generic(e.to_string()))?;
+  if let Some(backend) = live_backend.as_ref() {
+    let _ = broadcast_to_channel(
+      backend,
+      &Channel::org_resource(org_id, "role_permissions"),
+      &LiveEvent::ResourceChanged {
+        resource: "role_permissions".into(),
+        id: Uuid::nil(),
+        action: Some("created".into()),
+      },
+    )
+    .await;
+  }
+  Ok(Json(serde_json::json!({ "ok": true })).into_response())
+}
+
+/// DELETE /api/organizations/{org_id}/roles/{role_id}/permissions — remove permission from a role. Requires dashboard.permissions.write.
+pub async fn delete_role_permission_by_path(
+  axum::extract::Path(OrgRolePermissionPath { org_id, role_id }): axum::extract::Path<
+    OrgRolePermissionPath,
+  >,
+  ScopeFromHeaders(req_scope): ScopeFromHeaders,
+  auth: RequireAuth<Backend, user::Model>,
+  State(db): State<DbConnection>,
+  Extension(live_backend): Extension<Option<Arc<InMemoryLiveBackend>>>,
+  Json(payload): Json<OrgRolePermissionBody>,
+) -> Result<impl IntoResponse, ForgeError> {
+  let user = &auth.0;
+  if let Some(resp) = require_permission(user, &db, PERMISSION_WRITE, Some(&req_scope)).await {
+    return Ok(resp);
+  }
+  // Verify role exists and belongs to org
+  let role = org_role::Entity::find_by_id(role_id)
+    .one(&db)
+    .await
+    .map_err(|e| ForgeError::Generic(e.to_string()))?;
+  let Some(role) = role else {
+    return Ok(
+      (
+        StatusCode::NOT_FOUND,
+        Json(serde_json::json!({ "error": "Role not found" })),
+      )
+        .into_response(),
+    );
+  };
+  if role.org_id != org_id {
+    return Ok(
+      (
+        StatusCode::NOT_FOUND,
+        Json(serde_json::json!({ "error": "Role not found" })),
+      )
+        .into_response(),
+    );
+  }
+  // Check access to org
+  let has_global = has_global_scope(&db, user, PERMISSION_WRITE).await;
+  if !has_global && req_scope.organization_id != org_id {
+    return Ok(
+      (
+        StatusCode::FORBIDDEN,
+        Json(serde_json::json!({ "error": "Forbidden" })),
+      )
+        .into_response(),
+    );
+  }
+  let permission_key = payload.permission_key.trim();
+  // Delete permission
+  let result = role_permission::Entity::delete_many()
+    .filter(role_permission::Column::Scope.eq("org"))
+    .filter(role_permission::Column::OrgId.eq(org_id))
+    .filter(role_permission::Column::RoleName.eq(&role.name))
+    .filter(role_permission::Column::PermissionKey.eq(permission_key))
+    .exec(&db)
+    .await
+    .map_err(|e| ForgeError::Generic(e.to_string()))?;
+  if result.rows_affected == 0 {
+    return Ok(
+      (
+        StatusCode::NOT_FOUND,
+        Json(serde_json::json!({ "error": "Permission not found" })),
+      )
+        .into_response(),
+    );
+  }
+  if let Some(backend) = live_backend.as_ref() {
+    let _ = broadcast_to_channel(
+      backend,
+      &Channel::org_resource(org_id, "role_permissions"),
+      &LiveEvent::ResourceChanged {
+        resource: "role_permissions".into(),
+        id: Uuid::nil(),
+        action: Some("deleted".into()),
+      },
+    )
+    .await;
+  }
+  Ok(Json(serde_json::json!({ "ok": true })).into_response())
+}
+
 /// GET /api/dashboard/organizations — list all organizations. Requires dashboard.organizations.read (global).
 pub async fn list_organizations(
   ScopeFromHeaders(scope): ScopeFromHeaders,

@@ -65,8 +65,8 @@ impl MigrationTrait for Migration {
 #[cfg(test)]
 mod bdd_tests {
   use super::*;
-  use sea_orm::{ConnectionTrait, Database, EntityTrait};
-  use sea_orm_migration::prelude::*;
+  use crate::migrations::m20220101_000001_create_user_table;
+  use sea_orm::{Database, EntityTrait};
 
   async fn test_db() -> sea_orm::DatabaseConnection {
     Database::connect(sea_orm::ConnectOptions::new("sqlite::memory:".to_string()))
@@ -109,30 +109,55 @@ mod bdd_tests {
 
     #[tokio::test]
     async fn should_create_table_with_primary_key() {
-      // Given: a test database
+      // Given: a test database with user table (required for foreign key)
       let db = test_db().await;
+      // Run user table migration first
+      let user_migration = m20220101_000001_create_user_table::Migration;
+      user_migration
+        .up(&SchemaManager::new(&db))
+        .await
+        .expect("migrate user table");
+
       let migration = Migration;
       migration
         .up(&SchemaManager::new(&db))
         .await
         .expect("migrate");
 
-      // When: inserting api token with id
-      // Then: should succeed
+      // Create a user first (required for foreign key constraint)
       use chrono::Utc;
-      use db::models::api_token;
+      use db::models::{api_token, user};
       use sea_orm::Set;
       use uuid::Uuid;
 
+      let user_id = Uuid::new_v4();
+      let now = Utc::now().naive_utc();
+      user::Entity::insert(user::ActiveModel {
+        id: Set(user_id),
+        email: Set(format!("test-{}@example.com", user_id)),
+        password_hash: Set("test-hash".to_string()),
+        is_active: Set(true),
+        is_admin: Set(false),
+        current_org_id: Set(None),
+        current_role: Set(None),
+        created_at: Set(now),
+        updated_at: Set(now),
+      })
+      .exec(&db)
+      .await
+      .expect("create user");
+
+      // When: inserting api token with id
+      // Then: should succeed
       let result = api_token::Entity::insert(api_token::ActiveModel {
         id: Set(Uuid::new_v4()),
-        user_id: Set(Uuid::new_v4()),
+        user_id: Set(user_id),
         token_hash: Set("hash".to_string()),
         name: Set(None),
         last_used_at: Set(None),
         expires_at: Set(None),
-        created_at: Set(Utc::now().naive_utc()),
-        updated_at: Set(Utc::now().naive_utc()),
+        created_at: Set(now),
+        updated_at: Set(now),
       })
       .exec(&db)
       .await;

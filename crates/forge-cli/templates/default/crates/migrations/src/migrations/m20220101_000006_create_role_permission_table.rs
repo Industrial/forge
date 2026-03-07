@@ -65,8 +65,7 @@ impl MigrationTrait for Migration {
 #[cfg(test)]
 mod bdd_tests {
   use super::*;
-  use sea_orm::{ConnectionTrait, Database, EntityTrait};
-  use sea_orm_migration::prelude::*;
+  use sea_orm::{Database, EntityTrait};
 
   async fn test_db() -> sea_orm::DatabaseConnection {
     Database::connect(sea_orm::ConnectOptions::new("sqlite::memory:".to_string()))
@@ -102,6 +101,14 @@ mod bdd_tests {
 
       // When: checking table structure
       // Then: table should exist with all columns
+      // Note: Migration 7 adds org_id column, so we need to run that too to use the model
+      use crate::migrations::m20220101_000007_add_org_id_to_role_permission;
+      let migration7 = m20220101_000007_add_org_id_to_role_permission::Migration;
+      migration7
+        .up(&SchemaManager::new(&db))
+        .await
+        .expect("migrate to add org_id");
+
       use db::models::role_permission;
       let perms = role_permission::Entity::find().all(&db).await;
       assert!(perms.is_ok());
@@ -116,6 +123,14 @@ mod bdd_tests {
         .up(&SchemaManager::new(&db))
         .await
         .expect("migrate");
+
+      // Run migration 7 to add org_id column (required by model)
+      use crate::migrations::m20220101_000007_add_org_id_to_role_permission;
+      let migration7 = m20220101_000007_add_org_id_to_role_permission::Migration;
+      migration7
+        .up(&SchemaManager::new(&db))
+        .await
+        .expect("migrate to add org_id");
 
       // When: inserting role_permission with id
       // Then: should succeed

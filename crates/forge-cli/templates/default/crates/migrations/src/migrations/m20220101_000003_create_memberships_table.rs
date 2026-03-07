@@ -53,8 +53,7 @@ impl MigrationTrait for Migration {
 #[cfg(test)]
 mod bdd_tests {
   use super::*;
-  use sea_orm::{ConnectionTrait, Database, EntityTrait};
-  use sea_orm_migration::prelude::*;
+  use sea_orm::{Database, EntityTrait};
 
   async fn test_db() -> sea_orm::DatabaseConnection {
     Database::connect(sea_orm::ConnectOptions::new("sqlite::memory:".to_string()))
@@ -105,23 +104,25 @@ mod bdd_tests {
         .await
         .expect("migrate");
 
-      // When: inserting membership with id
+      // When: inserting membership with id using raw SQL (since role field exists in this migration but not in final model)
       // Then: should succeed
       use chrono::Utc;
-      use db::models::membership;
-      use sea_orm::Set;
+      use sea_orm::{ConnectionTrait, Statement};
       use uuid::Uuid;
 
-      let result = membership::Entity::insert(membership::ActiveModel {
-        id: Set(Uuid::new_v4()),
-        user_id: Set(Uuid::new_v4()),
-        org_id: Set(Uuid::new_v4()),
-        role: Set("member".to_string()),
-        created_at: Set(Utc::now().naive_utc()),
-        updated_at: Set(Utc::now().naive_utc()),
-      })
-      .exec(&db)
-      .await;
+      let id = Uuid::new_v4();
+      let user_id = Uuid::new_v4();
+      let org_id = Uuid::new_v4();
+      let now = Utc::now().naive_utc();
+
+      let stmt = Statement::from_string(
+        sea_orm::DatabaseBackend::Sqlite,
+        format!(
+          r#"INSERT INTO membership (id, user_id, org_id, role, created_at, updated_at) VALUES ('{}', '{}', '{}', 'member', '{}', '{}')"#,
+          id, user_id, org_id, now, now
+        ),
+      );
+      let result = db.execute(stmt).await;
 
       assert!(result.is_ok());
     }
@@ -136,25 +137,24 @@ mod bdd_tests {
         .await
         .expect("migrate");
 
+      // When: inserting membership with all required fields using raw SQL
+      // Then: should succeed (not_null constraints satisfied)
       use chrono::Utc;
-      use db::models::membership;
-      use sea_orm::Set;
+      use sea_orm::{ConnectionTrait, Statement};
       use uuid::Uuid;
 
-      // When: inserting membership without user_id
-      // Then: should fail (not_null constraint)
-      // Note: This is verified by the schema requiring not_null
+      let id = Uuid::new_v4();
+      let user_id = Uuid::new_v4();
+      let org_id = Uuid::new_v4();
       let now = Utc::now().naive_utc();
-      let result = membership::Entity::insert(membership::ActiveModel {
-        id: Set(Uuid::new_v4()),
-        user_id: Set(Uuid::new_v4()),
-        org_id: Set(Uuid::new_v4()),
-        role: Set("member".to_string()),
-        created_at: Set(now),
-        updated_at: Set(now),
-      })
-      .exec(&db)
-      .await;
+      let stmt = Statement::from_string(
+        sea_orm::DatabaseBackend::Sqlite,
+        format!(
+          r#"INSERT INTO membership (id, user_id, org_id, role, created_at, updated_at) VALUES ('{}', '{}', '{}', 'member', '{}', '{}')"#,
+          id, user_id, org_id, now, now
+        ),
+      );
+      let result = db.execute(stmt).await;
 
       assert!(result.is_ok());
     }

@@ -214,7 +214,7 @@ mod ws_bdd_tests {
       let backend = Arc::new(InMemoryLiveBackend::new());
       let (tx, _rx) = mpsc::unbounded_channel::<Vec<u8>>();
       let conn_id = backend.register_connection(tx);
-      let channels = vec![Channel::from("test-channel")];
+      let channels = vec![Channel::raw("test-channel")];
 
       for ch in &channels {
         backend.subscribe(conn_id, ch.clone());
@@ -230,7 +230,7 @@ mod ws_bdd_tests {
       // When: socket is handled
       // Then: should send initial task state to the connection
       // Note: The function checks if "tasks" channel exists and sends initial state
-      let channels = vec![Channel::from("tasks")];
+      let channels = vec![Channel::raw("tasks")];
       let has_tasks_channel = channels.iter().any(|c| c.as_str() == "tasks");
 
       assert!(
@@ -246,7 +246,7 @@ mod ws_bdd_tests {
       // When: socket is handled
       // Then: should not send initial task state
       // Note: The function only sends tasks if channels contains "tasks"
-      let channels = vec![Channel::from("other-channel")];
+      let channels = vec![Channel::raw("other-channel")];
       let has_tasks_channel = channels.iter().any(|c| c.as_str() == "tasks");
 
       assert!(
@@ -351,9 +351,9 @@ mod ws_bdd_tests {
       // Then: should subscribe to all channels
       // Note: The function iterates all channels: for ch in &channels { live_backend.subscribe(...) }
       let channels = vec![
-        Channel::from("channel1"),
-        Channel::from("channel2"),
-        Channel::from("channel3"),
+        Channel::raw("channel1"),
+        Channel::raw("channel2"),
+        Channel::raw("channel3"),
       ];
 
       assert_eq!(
@@ -381,7 +381,7 @@ mod ws_bdd_tests {
       // When: checking for tasks channel
       // Then: should detect it using string comparison
       // Note: The function checks channels.iter().any(|c| c.as_str() == "tasks")
-      let channels = vec![Channel::from("tasks")];
+      let channels = vec![Channel::raw("tasks")];
       let has_tasks = channels.iter().any(|c| c.as_str() == "tasks");
 
       assert!(
@@ -497,7 +497,8 @@ mod tests {
 
       // Then: connection should be registered (conn_id should be valid)
       // Note: conn_id is a Uuid, so we just verify it's not zero
-      assert_ne!(conn_id.to_string(), "00000000-0000-0000-0000-000000000000");
+      // ConnectionId wraps a Uuid, verify it's not the nil UUID
+      assert_ne!(conn_id.0, uuid::Uuid::nil());
     }
 
     #[test]
@@ -506,7 +507,7 @@ mod tests {
       let backend = Arc::new(InMemoryLiveBackend::new());
       let (tx, _rx) = mpsc::unbounded_channel::<Vec<u8>>();
       let conn_id = backend.register_connection(tx);
-      let channels = vec![Channel::from("test-channel")];
+      let channels = vec![Channel::raw("test-channel")];
 
       // When: subscribing to channels
       for ch in &channels {
@@ -553,9 +554,9 @@ mod tests {
     fn should_include_tasks_channel_when_permitted() {
       // Given: channels include "tasks"
       let channels = vec![
-        Channel::from("users"),
-        Channel::from("tasks"),
-        Channel::from("organizations"),
+        Channel::raw("users"),
+        Channel::raw("tasks"),
+        Channel::raw("organizations"),
       ];
 
       // When: checking if tasks channel is present
@@ -568,7 +569,7 @@ mod tests {
     #[test]
     fn should_not_include_tasks_channel_when_not_permitted() {
       // Given: channels without "tasks"
-      let channels = vec![Channel::from("users"), Channel::from("organizations")];
+      let channels = vec![Channel::raw("users"), Channel::raw("organizations")];
 
       // When: checking if tasks channel is present
       let has_tasks = channels.iter().any(|c| c.as_str() == "tasks");
@@ -620,7 +621,7 @@ mod tests {
     #[test]
     fn should_handle_binary_message() {
       // Given: a Binary message
-      let msg = Message::Binary(vec![1, 2, 3]);
+      let msg = Message::Binary(axum::body::Bytes::from(vec![1, 2, 3]));
 
       // When: matching message type
       let should_break = match msg {
@@ -638,7 +639,7 @@ mod tests {
     #[test]
     fn should_handle_ping_message() {
       // Given: a Ping message
-      let msg = Message::Ping(vec![1, 2, 3]);
+      let msg = Message::Ping(axum::body::Bytes::from(vec![1, 2, 3]));
 
       // When: matching message type
       let should_break = match msg {
@@ -656,7 +657,7 @@ mod tests {
     #[test]
     fn should_handle_pong_message() {
       // Given: a Pong message
-      let msg = Message::Pong(vec![1, 2, 3]);
+      let msg = Message::Pong(axum::body::Bytes::from(vec![1, 2, 3]));
 
       // When: matching message type
       let should_break = match msg {
@@ -759,9 +760,9 @@ mod ws_integration_tests {
     fn should_subscribe_to_channels_from_permissions() {
       // Given: a list of channels derived from permissions
       let channels = vec![
-        Channel::from("user"),
-        Channel::from("task"),
-        Channel::from("organization"),
+        Channel::raw("user"),
+        Channel::raw("task"),
+        Channel::raw("organization"),
       ];
 
       // When: iterating over channels
@@ -776,9 +777,9 @@ mod ws_integration_tests {
     fn should_detect_tasks_channel_when_present() {
       // Given: channels including "tasks" channel
       let channels = vec![
-        Channel::from("user"),
-        Channel::from("tasks"),
-        Channel::from("org"),
+        Channel::raw("user"),
+        Channel::raw("tasks"),
+        Channel::raw("org"),
       ];
 
       // When: checking if tasks channel exists
@@ -791,7 +792,7 @@ mod ws_integration_tests {
     #[test]
     fn should_not_detect_tasks_channel_when_absent() {
       // Given: channels without "tasks" channel
-      let channels = vec![Channel::from("user"), Channel::from("org")];
+      let channels = vec![Channel::raw("user"), Channel::raw("org")];
 
       // When: checking if tasks channel exists
       let has_tasks = channels.iter().any(|c| c.as_str() == "tasks");
@@ -826,7 +827,7 @@ mod ws_integration_tests {
     #[test]
     fn should_subscribe_to_channels_after_connection_registration() {
       // Given: a registered connection and channels
-      let channels = vec![Channel::from("user"), Channel::from("task")];
+      let channels = vec![Channel::raw("user"), Channel::raw("task")];
 
       // When: subscribing to channels
       // Then: should subscribe each channel
@@ -906,7 +907,7 @@ mod ws_integration_tests {
     #[test]
     fn should_not_send_tasks_when_tasks_channel_not_subscribed() {
       // Given: tasks channel is not in subscribed channels
-      let channels = vec![Channel::from("user"), Channel::from("org")];
+      let channels = vec![Channel::raw("user"), Channel::raw("org")];
 
       // When: checking if tasks should be sent
       let has_tasks = channels.iter().any(|c| c.as_str() == "tasks");

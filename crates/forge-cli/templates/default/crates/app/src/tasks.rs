@@ -2,12 +2,12 @@
 
 use chrono::{DateTime, Utc};
 use forge_live::{Channel, InMemoryLiveBackend, LiveBackend};
-use serde::Serialize;
+use serde::{Deserialize, Serialize};
 use std::sync::Arc;
 use tokio::sync::RwLock;
 
 /// Status of a task for the dashboard.
-#[derive(Clone, Debug, Serialize, PartialEq)]
+#[derive(Clone, Debug, Deserialize, Serialize, PartialEq)]
 #[serde(rename_all = "snake_case")]
 pub enum TaskStatus {
   Planned,

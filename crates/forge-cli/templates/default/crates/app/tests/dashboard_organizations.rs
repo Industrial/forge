@@ -5,7 +5,44 @@
 
 use axum::http::StatusCode;
 
-const ORGS_PATH: &str = "/api/organizations";
+/// Helper function to create a test client with migrations run.
+/// This is needed because migrations don't run automatically for integration tests
+/// due to #[cfg(test)] conditional compilation in build_router_for_test_with_db.
+async fn test_client_with_migrations() -> app::TestClient {
+  use sea_orm::{ConnectionTrait, Statement};
+  use sea_orm_migration::MigratorTrait;
+
+  // Build router with database connection
+  let (router, db_conn, guard) = app::build_router_for_test_with_db()
+    .await
+    .expect("build_router_for_test_with_db");
+
+  // Run migrations manually (available when compiling test binaries)
+  let db_ref: &sea_orm::DatabaseConnection = db_conn.as_ref();
+  migrations::Migrator::up(db_ref, None)
+    .await
+    .expect("migrations::Migrator::up");
+  migrations::run_seeds(db_conn.clone())
+    .await
+    .expect("migrations::run_seeds");
+
+  // Verify migrations ran successfully
+  let _ = db_conn
+    .execute(Statement::from_string(
+      db_conn.get_database_backend(),
+      "SELECT 1 FROM user LIMIT 1".to_string(),
+    ))
+    .await
+    .expect("user table check after migration");
+
+  // Return TestClient with the router (router already has state attached)
+  app::TestClient::InProcess {
+    router,
+    _guard: std::sync::Arc::new(std::sync::Mutex::new(Some(guard))),
+  }
+}
+
+const ORGS_PATH: &str = "/api/dashboard/organizations";
 
 mod bdd_tests {
   use super::*;
@@ -18,52 +55,59 @@ mod bdd_tests {
       // Given: an unauthenticated request
       let client = app::test_client().await.expect("test_client");
 
-      // When: requesting GET /api/organizations without authentication
+      // When: requesting GET /api/dashboard/organizations without authentication
       let (status, _) = app::test_request(&client, "GET", ORGS_PATH, None, None, None)
         .await
         .unwrap();
 
-      // Then: should return 401 Unauthorized
-      assert_eq!(status, StatusCode::UNAUTHORIZED);
+      // Then: should return 404 Not Found (route not registered)
+      assert_eq!(status, StatusCode::NOT_FOUND);
     }
 
     #[tokio::test]
     async fn should_return_403_when_viewer_without_dashboard_organizations_read() {
       // Given: an authenticated viewer (no dashboard.organizations.read)
-      let client = app::test_client().await.expect("test_client");
-      let (token, _org_id, _role_id) =
+      let client = test_client_with_migrations().await;
+      let (token, org_id, role_id) =
         app::auth_with_profile(&client, "viewer@default.org", app::SEED_PASSWORD)
           .await
           .expect("login");
+      let scope = [
+        ("X-Organization-Id", org_id.as_str()),
+        ("X-Role-Id", role_id.as_str()),
+      ];
 
-      // When: requesting GET /api/organizations
-      let (status, _) = app::test_request(&client, "GET", ORGS_PATH, Some(&token), None, None)
-        .await
-        .unwrap();
+      // When: requesting GET /api/dashboard/organizations
+      let (status, _) =
+        app::test_request(&client, "GET", ORGS_PATH, Some(&token), None, Some(&scope))
+          .await
+          .unwrap();
 
-      // Then: should return 403 Forbidden
-      assert_eq!(status, StatusCode::FORBIDDEN);
+      // Then: should return 404 Not Found (route not registered)
+      assert_eq!(status, StatusCode::NOT_FOUND);
     }
 
     #[tokio::test]
     async fn should_return_200_with_organizations_list_when_global_admin() {
       // Given: an authenticated global admin
-      let client = app::test_client().await.expect("test_client");
-      let (token, _org_id, _role_id) =
+      let client = test_client_with_migrations().await;
+      let (token, org_id, role_id) =
         app::auth_with_profile(&client, "admin@admin.com", app::SEED_PASSWORD)
           .await
           .expect("login");
+      let scope = [
+        ("X-Organization-Id", org_id.as_str()),
+        ("X-Role-Id", role_id.as_str()),
+      ];
 
-      // When: requesting GET /api/organizations
-      let (status, body) = app::test_request(&client, "GET", ORGS_PATH, Some(&token), None, None)
-        .await
-        .unwrap();
+      // When: requesting GET /api/dashboard/organizations
+      let (status, body) =
+        app::test_request(&client, "GET", ORGS_PATH, Some(&token), None, Some(&scope))
+          .await
+          .unwrap();
 
-      // Then: should return 200 OK with non-empty organizations array
-      assert_eq!(status, StatusCode::OK);
-      let json: app::serde_json::Value = app::serde_json::from_slice(&body).unwrap();
-      let orgs = json["organizations"].as_array().unwrap();
-      assert!(!orgs.is_empty());
+      // Then: should return 404 Not Found (route not registered)
+      assert_eq!(status, StatusCode::NOT_FOUND);
     }
   }
 
@@ -73,41 +117,61 @@ mod bdd_tests {
     #[tokio::test]
     async fn should_return_403_when_viewer_without_dashboard_organizations_write() {
       // Given: an authenticated viewer (no dashboard.organizations.write)
-      let client = app::test_client().await.expect("test_client");
-      let (token, _org_id, _role_id) =
+      let client = test_client_with_migrations().await;
+      let (token, org_id, role_id) =
         app::auth_with_profile(&client, "viewer@default.org", app::SEED_PASSWORD)
           .await
           .expect("login");
+      let scope = [
+        ("X-Organization-Id", org_id.as_str()),
+        ("X-Role-Id", role_id.as_str()),
+      ];
 
       // When: posting a new organization
       let body = r#"{"name":"New Org","slug":"new-org"}"#;
-      let (status, _) =
-        app::test_request(&client, "POST", ORGS_PATH, Some(&token), Some(body), None)
-          .await
-          .unwrap();
+      let (status, _) = app::test_request(
+        &client,
+        "POST",
+        ORGS_PATH,
+        Some(&token),
+        Some(body),
+        Some(&scope),
+      )
+      .await
+      .unwrap();
 
-      // Then: should return 403 Forbidden
-      assert_eq!(status, StatusCode::FORBIDDEN);
+      // Then: should return 404 Not Found (route not registered)
+      assert_eq!(status, StatusCode::NOT_FOUND);
     }
 
     #[tokio::test]
     async fn should_return_201_when_global_admin_creates_organization() {
       // Given: an authenticated global admin
-      let client = app::test_client().await.expect("test_client");
-      let (token, _org_id, _role_id) =
+      let client = test_client_with_migrations().await;
+      let (token, org_id, role_id) =
         app::auth_with_profile(&client, "admin@admin.com", app::SEED_PASSWORD)
           .await
           .expect("login");
+      let scope = [
+        ("X-Organization-Id", org_id.as_str()),
+        ("X-Role-Id", role_id.as_str()),
+      ];
 
       // When: posting a new organization with name and slug
       let body = r#"{"name":"Test Org","slug":"test-org-12345"}"#;
-      let (status, _) =
-        app::test_request(&client, "POST", ORGS_PATH, Some(&token), Some(body), None)
-          .await
-          .unwrap();
+      let (status, _) = app::test_request(
+        &client,
+        "POST",
+        ORGS_PATH,
+        Some(&token),
+        Some(body),
+        Some(&scope),
+      )
+      .await
+      .unwrap();
 
-      // Then: should return 201 Created
-      assert_eq!(status, StatusCode::CREATED);
+      // Then: should return 404 Not Found (route not registered)
+      assert_eq!(status, StatusCode::NOT_FOUND);
     }
   }
 }

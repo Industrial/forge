@@ -975,9 +975,7 @@ mod tests {
 
       // Then: should include organizations channel
       assert!(
-        channels
-          .iter()
-          .any(|c| matches!(c, Channel::Raw(ref name) if name == "organizations")),
+        channels.iter().any(|c| c.as_str() == "organizations"),
         "Should include organizations channel"
       );
     }
@@ -993,9 +991,7 @@ mod tests {
 
       // Then: should include audit-log channel
       assert!(
-        channels
-          .iter()
-          .any(|c| matches!(c, Channel::Raw(ref name) if name == "audit-log")),
+        channels.iter().any(|c| c.as_str() == "audit-log"),
         "Should include audit-log channel"
       );
     }
@@ -1010,9 +1006,7 @@ mod tests {
 
       // Then: should always include tasks channel
       assert!(
-        channels
-          .iter()
-          .any(|c| matches!(c, Channel::Raw(ref name) if name == "tasks")),
+        channels.iter().any(|c| c.as_str() == "tasks"),
         "Should always include tasks channel"
       );
     }
@@ -1031,12 +1025,17 @@ mod tests {
       let channels = channels_from_permissions(&permissions, org_id);
 
       // Then: should include org-scoped channels
+      let org_id_val = org_id.unwrap();
       assert!(
-        channels.iter().any(|c| matches!(c, Channel::OrgResource(id, ref name) if *id == org_id.unwrap() && name == "users")),
+        channels
+          .iter()
+          .any(|c| c.as_str() == &format!("org:{}:users", org_id_val)),
         "Should include users org channel"
       );
       assert!(
-        channels.iter().any(|c| matches!(c, Channel::OrgResource(id, ref name) if *id == org_id.unwrap() && name == "roles")),
+        channels
+          .iter()
+          .any(|c| c.as_str() == &format!("org:{}:roles", org_id_val)),
         "Should include roles org channel"
       );
     }
@@ -1055,9 +1054,7 @@ mod tests {
 
       // Then: should not include org-scoped channels
       assert!(
-        !channels
-          .iter()
-          .any(|c| matches!(c, Channel::OrgResource(_, _))),
+        !channels.iter().any(|c| c.as_str().starts_with("org:")),
         "Should not include org-scoped channels when org_id is None"
       );
     }

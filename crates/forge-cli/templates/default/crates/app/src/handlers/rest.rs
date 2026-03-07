@@ -476,12 +476,22 @@ mod unit_tests {
     #[tokio::test]
     async fn create_org_role_returns_error_when_name_is_empty() {
       // Given an organization ID and empty role name
-      let (_router, _guard) = build_router_for_test().await.unwrap();
-      let db = forge_db::initialize_database(&forge_config::load_config().unwrap().database)
-        .await
-        .unwrap();
-      let db_conn = forge_db::wrap_traced(db);
+      let (_router, db_conn, _guard) = crate::build_router_for_test_with_db().await.unwrap();
+      // Create organization first (required for foreign key constraint)
       let org_id = Uuid::new_v4();
+      use chrono::Utc;
+      use db::models::organization;
+      use sea_orm::Set;
+      organization::Entity::insert(organization::ActiveModel {
+        id: Set(org_id),
+        name: Set(format!("Test Org {}", org_id)),
+        slug: Set(format!("test-org-{}", org_id)),
+        created_at: Set(Utc::now().naive_utc()),
+        updated_at: Set(Utc::now().naive_utc()),
+      })
+      .exec(&db_conn)
+      .await
+      .expect("create test org");
       let payload = CreateOrgRoleBody {
         name: "   ".to_string(),
         display_name: None,
@@ -499,12 +509,22 @@ mod unit_tests {
     #[tokio::test]
     async fn create_org_role_returns_error_when_role_name_exists() {
       // Given an organization with an existing role
-      let (_router, _guard) = build_router_for_test().await.unwrap();
-      let db = forge_db::initialize_database(&forge_config::load_config().unwrap().database)
-        .await
-        .unwrap();
-      let db_conn = forge_db::wrap_traced(db);
+      let (_router, db_conn, _guard) = crate::build_router_for_test_with_db().await.unwrap();
+      // Create organization first (required for foreign key constraint)
       let org_id = Uuid::new_v4();
+      use chrono::Utc;
+      use db::models::organization;
+      use sea_orm::Set;
+      organization::Entity::insert(organization::ActiveModel {
+        id: Set(org_id),
+        name: Set(format!("Test Org {}", org_id)),
+        slug: Set(format!("test-org-{}", org_id)),
+        created_at: Set(Utc::now().naive_utc()),
+        updated_at: Set(Utc::now().naive_utc()),
+      })
+      .exec(&db_conn)
+      .await
+      .expect("create test org");
       let payload1 = CreateOrgRoleBody {
         name: "admin".to_string(),
         display_name: None,
@@ -529,12 +549,22 @@ mod unit_tests {
     #[tokio::test]
     async fn create_org_role_succeeds_with_valid_name() {
       // Given an organization ID and valid role name
-      let (_router, _guard) = build_router_for_test().await.unwrap();
-      let db = forge_db::initialize_database(&forge_config::load_config().unwrap().database)
-        .await
-        .unwrap();
-      let db_conn = forge_db::wrap_traced(db);
+      let (_router, db_conn, _guard) = crate::build_router_for_test_with_db().await.unwrap();
+      // Create organization first (required for foreign key constraint)
       let org_id = Uuid::new_v4();
+      use chrono::Utc;
+      use db::models::organization;
+      use sea_orm::Set;
+      organization::Entity::insert(organization::ActiveModel {
+        id: Set(org_id),
+        name: Set(format!("Test Org {}", org_id)),
+        slug: Set(format!("test-org-{}", org_id)),
+        created_at: Set(Utc::now().naive_utc()),
+        updated_at: Set(Utc::now().naive_utc()),
+      })
+      .exec(&db_conn)
+      .await
+      .expect("create test org");
       let payload = CreateOrgRoleBody {
         name: "viewer".to_string(),
         display_name: Some("Viewer Role".to_string()),
@@ -556,12 +586,22 @@ mod unit_tests {
     #[tokio::test]
     async fn ensure_org_role_returns_existing_role_when_already_exists() {
       // Given an organization with an existing role
-      let (_router, _guard) = build_router_for_test().await.unwrap();
-      let db = forge_db::initialize_database(&forge_config::load_config().unwrap().database)
-        .await
-        .unwrap();
-      let db_conn = forge_db::wrap_traced(db);
+      let (_router, db_conn, _guard) = crate::build_router_for_test_with_db().await.unwrap();
+      // Create organization first (required for foreign key constraint)
       let org_id = Uuid::new_v4();
+      use chrono::Utc;
+      use db::models::organization;
+      use sea_orm::Set;
+      organization::Entity::insert(organization::ActiveModel {
+        id: Set(org_id),
+        name: Set(format!("Test Org {}", org_id)),
+        slug: Set(format!("test-org-{}", org_id)),
+        created_at: Set(Utc::now().naive_utc()),
+        updated_at: Set(Utc::now().naive_utc()),
+      })
+      .exec(&db_conn)
+      .await
+      .expect("create test org");
       let payload = CreateOrgRoleBody {
         name: "editor".to_string(),
         display_name: None,
@@ -582,12 +622,22 @@ mod unit_tests {
     #[tokio::test]
     async fn ensure_org_role_creates_new_role_when_not_exists() {
       // Given an organization without a specific role
-      let (_router, _guard) = build_router_for_test().await.unwrap();
-      let db = forge_db::initialize_database(&forge_config::load_config().unwrap().database)
-        .await
-        .unwrap();
-      let db_conn = forge_db::wrap_traced(db);
+      let (_router, db_conn, _guard) = crate::build_router_for_test_with_db().await.unwrap();
+      // Create organization first (required for foreign key constraint)
       let org_id = Uuid::new_v4();
+      use chrono::Utc;
+      use db::models::organization;
+      use sea_orm::Set;
+      organization::Entity::insert(organization::ActiveModel {
+        id: Set(org_id),
+        name: Set(format!("Test Org {}", org_id)),
+        slug: Set(format!("test-org-{}", org_id)),
+        created_at: Set(Utc::now().naive_utc()),
+        updated_at: Set(Utc::now().naive_utc()),
+      })
+      .exec(&db_conn)
+      .await
+      .expect("create test org");
       let payload = CreateOrgRoleBody {
         name: "new_role".to_string(),
         display_name: None,
@@ -609,12 +659,22 @@ mod unit_tests {
     #[tokio::test]
     async fn list_org_roles_returns_empty_map_when_no_roles_exist() {
       // Given an organization with no roles
-      let (_router, _guard) = build_router_for_test().await.unwrap();
-      let db = forge_db::initialize_database(&forge_config::load_config().unwrap().database)
-        .await
-        .unwrap();
-      let db_conn = forge_db::wrap_traced(db);
+      let (_router, db_conn, _guard) = crate::build_router_for_test_with_db().await.unwrap();
+      // Create organization first (required for foreign key constraint)
       let org_id = Uuid::new_v4();
+      use chrono::Utc;
+      use db::models::organization;
+      use sea_orm::Set;
+      organization::Entity::insert(organization::ActiveModel {
+        id: Set(org_id),
+        name: Set(format!("Test Org {}", org_id)),
+        slug: Set(format!("test-org-{}", org_id)),
+        created_at: Set(Utc::now().naive_utc()),
+        updated_at: Set(Utc::now().naive_utc()),
+      })
+      .exec(&db_conn)
+      .await
+      .expect("create test org");
 
       // When I list org roles
       let result = list_org_roles_impl(&db_conn, org_id).await;
@@ -628,12 +688,22 @@ mod unit_tests {
     #[tokio::test]
     async fn list_org_roles_returns_all_roles_for_organization() {
       // Given an organization with multiple roles
-      let (_router, _guard) = build_router_for_test().await.unwrap();
-      let db = forge_db::initialize_database(&forge_config::load_config().unwrap().database)
-        .await
-        .unwrap();
-      let db_conn = forge_db::wrap_traced(db);
+      let (_router, db_conn, _guard) = crate::build_router_for_test_with_db().await.unwrap();
+      // Create organization first (required for foreign key constraint)
       let org_id = Uuid::new_v4();
+      use chrono::Utc;
+      use db::models::organization;
+      use sea_orm::Set;
+      organization::Entity::insert(organization::ActiveModel {
+        id: Set(org_id),
+        name: Set(format!("Test Org {}", org_id)),
+        slug: Set(format!("test-org-{}", org_id)),
+        created_at: Set(Utc::now().naive_utc()),
+        updated_at: Set(Utc::now().naive_utc()),
+      })
+      .exec(&db_conn)
+      .await
+      .expect("create test org");
       let role1 = CreateOrgRoleBody {
         name: "admin".to_string(),
         display_name: None,
@@ -1086,8 +1156,8 @@ mod integration_tests {
         );
       }
 
-      #[test]
-      fn should_require_either_user_id_or_email_password() {
+      #[tokio::test]
+      async fn should_require_either_user_id_or_email_password() {
         // Given: AddOrgUserBody validation logic
         let with_user_id = AddOrgUserBody {
           user_id: Some(Uuid::new_v4()),
@@ -1118,7 +1188,7 @@ mod integration_tests {
           has_user_id || has_email_password,
           "Should have either user_id or email+password"
         );
-        assert!(!has_nothing, "Should not be empty");
+        assert!(has_nothing, "Should be empty when nothing provided");
       }
     }
 

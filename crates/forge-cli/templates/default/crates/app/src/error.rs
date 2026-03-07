@@ -273,7 +273,9 @@ mod tests {
     #[tokio::test]
     async fn should_return_500_for_database_error() {
       // Given: a database error
-      let db_err = sea_orm::DbErr::Conn("Connection failed".to_string());
+      let db_err = sea_orm::DbErr::Conn(sea_orm::RuntimeErr::Internal(
+        "Connection failed".to_string(),
+      ));
       let error = Error::Database(db_err);
 
       // When: converting to response
@@ -369,7 +371,9 @@ mod tests {
     #[test]
     fn should_format_database_error_correctly() {
       // Given: a database error
-      let db_err = sea_orm::DbErr::Conn("Connection failed".to_string());
+      let db_err = sea_orm::DbErr::Conn(sea_orm::RuntimeErr::Internal(
+        "Connection failed".to_string(),
+      ));
       let error = Error::Database(db_err);
 
       // When: formatting as string
@@ -406,6 +410,7 @@ mod tests {
 
   mod error_trait_behavior {
     use super::*;
+    use std::error::Error as StdError;
 
     #[test]
     fn should_provide_source_for_io_error() {
@@ -414,7 +419,7 @@ mod tests {
       let error = Error::Io(io_err);
 
       // When: getting source
-      let source = error.source();
+      let source = StdError::source(&error);
 
       // Then: source should be Some
       assert!(source.is_some());
@@ -423,11 +428,13 @@ mod tests {
     #[test]
     fn should_provide_source_for_database_error() {
       // Given: a database error
-      let db_err = sea_orm::DbErr::Conn("Connection failed".to_string());
+      let db_err = sea_orm::DbErr::Conn(sea_orm::RuntimeErr::Internal(
+        "Connection failed".to_string(),
+      ));
       let error = Error::Database(db_err);
 
       // When: getting source
-      let source = error.source();
+      let source = StdError::source(&error);
 
       // Then: source should be Some
       assert!(source.is_some());
@@ -439,7 +446,7 @@ mod tests {
       let error = Error::Authz(AuthzError::Forbidden);
 
       // When: getting source
-      let source = error.source();
+      let source = StdError::source(&error);
 
       // Then: source should be Some
       assert!(source.is_some());
@@ -451,7 +458,7 @@ mod tests {
       let error = Error::Generic("Error message".to_string());
 
       // When: getting source
-      let source = error.source();
+      let source = StdError::source(&error);
 
       // Then: source should be None
       assert!(source.is_none());
@@ -463,7 +470,7 @@ mod tests {
       let error = Error::Auth(StatusCode::UNAUTHORIZED, "Unauthorized".to_string());
 
       // When: getting source
-      let source = error.source();
+      let source = StdError::source(&error);
 
       // Then: source should be None
       assert!(source.is_none());
@@ -476,7 +483,9 @@ mod tests {
     #[test]
     fn should_convert_from_sea_orm_db_err() {
       // Given: a sea_orm::DbErr
-      let db_err = sea_orm::DbErr::Conn("Connection error".to_string());
+      let db_err = sea_orm::DbErr::Conn(sea_orm::RuntimeErr::Internal(
+        "Connection error".to_string(),
+      ));
 
       // When: converting to Error
       let error: Error = db_err.into();

@@ -7,10 +7,10 @@ const CACHE_KEY: &str = "demo";
 
 pub async fn handler(
   State(_db): State<DbConnection>,
-  cache: axum::extract::Extension<Option<Arc<AppCache>>>,
+  cache: Option<axum::extract::Extension<Option<Arc<AppCache>>>>,
 ) -> impl IntoResponse {
   tracing::debug!(target: "app::handlers", "route: GET /api/cache-demo");
-  let value = if let Some(c) = cache.0.as_ref() {
+  let value = if let Some(c) = cache.as_ref().and_then(|e| e.0.as_ref()) {
     if let Some(v) = c.get(CACHE_KEY).await {
       v
     } else {
@@ -42,16 +42,17 @@ mod bdd_tests {
     async fn should_return_cached_value_on_subsequent_requests() {
       // Given: a router with cache enabled
       let (router, _guard) = build_router_for_test().await.unwrap();
-      let router = router.layer(axum::extract::Extension(Some(Arc::new(
-        forge_cache::AppCache::new(forge_config::CacheConfig {
+      let cache_config = forge_config::CacheConfig {
+        enabled: true,
+        application: Some(forge_config::ApplicationCacheConfig {
           enabled: true,
-          application: Some(forge_config::ApplicationCacheConfig {
-            max_capacity: 1000,
-            ttl_secs: 300,
-          }),
-          http_response: None,
+          max_capacity: 1000,
+          default_ttl_secs: 300,
         }),
-      ))));
+        http_response: None,
+      };
+      let cache = forge_cache::AppCache::from_config(&cache_config).unwrap();
+      let router = router.layer(axum::extract::Extension(Some(Arc::new(cache))));
 
       // When: making first request to cache demo endpoint
       let req1 = Request::builder()
@@ -95,14 +96,16 @@ mod bdd_tests {
     async fn should_generate_new_value_when_cache_miss() {
       // Given: a router with cache enabled but empty cache
       let (router, _guard) = build_router_for_test().await.unwrap();
-      let cache = Arc::new(forge_cache::AppCache::new(forge_config::CacheConfig {
+      let cache_config = forge_config::CacheConfig {
         enabled: true,
         application: Some(forge_config::ApplicationCacheConfig {
+          enabled: true,
           max_capacity: 1000,
-          ttl_secs: 300,
+          default_ttl_secs: 300,
         }),
         http_response: None,
-      }));
+      };
+      let cache = Arc::new(forge_cache::AppCache::from_config(&cache_config).unwrap());
       let router = router.layer(axum::extract::Extension(Some(cache.clone())));
 
       // When: making request to cache demo endpoint (cache miss)
@@ -137,7 +140,7 @@ mod bdd_tests {
   mod cache_disabled_behavior {
     use super::*;
 
-    #[tokio::test]
+    #[tokio::test(flavor = "multi_thread")]
     async fn should_return_cache_disabled_message_when_cache_not_provided() {
       // Given: a router without cache extension
       let (router, _guard) = build_router_for_test().await.unwrap();
@@ -194,14 +197,16 @@ mod bdd_tests {
     async fn should_maintain_consistent_value_across_multiple_requests() {
       // Given: a router with cache enabled
       let (router, _guard) = build_router_for_test().await.unwrap();
-      let cache = Arc::new(forge_cache::AppCache::new(forge_config::CacheConfig {
+      let cache_config = forge_config::CacheConfig {
         enabled: true,
         application: Some(forge_config::ApplicationCacheConfig {
+          enabled: true,
           max_capacity: 1000,
-          ttl_secs: 300,
+          default_ttl_secs: 300,
         }),
         http_response: None,
-      }));
+      };
+      let cache = Arc::new(forge_cache::AppCache::from_config(&cache_config).unwrap());
       let router = router.layer(axum::extract::Extension(Some(cache)));
 
       // When: making multiple requests to cache demo endpoint

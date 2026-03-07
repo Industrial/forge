@@ -74,8 +74,8 @@ mod tests {
     #[test]
     #[should_panic(expected = "invalid locale")]
     fn should_panic_when_locale_is_invalid() {
-      // Given: an invalid locale string
-      let locale = "invalid-locale-format";
+      // Given: an invalid locale string (with spaces/special chars that can't be parsed)
+      let locale = "invalid locale with spaces";
 
       // When: looking up greeting for invalid locale
       greeting(locale);
