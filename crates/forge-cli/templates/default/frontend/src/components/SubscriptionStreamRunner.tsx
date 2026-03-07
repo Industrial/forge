@@ -16,8 +16,8 @@ import { SubscriptionStreamStatusStoreTag } from '@/lib/subscriptionStreamStatus
 import { SubscriptionStream } from '@/services/SubscriptionStream'
 
 export function SubscriptionStreamRunner() {
-  const auth = useAuthenticationStateReactiveStore()
-  const hasToken = Option.isSome(auth.token)
+  const { authentication } = useAuthenticationStateReactiveStore()
+  const hasToken = Option.isSome(authentication.token)
 
   useEffect(() => {
     if (!hasToken) return

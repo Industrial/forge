@@ -81,7 +81,8 @@ export default function Sidebar({
   fullWidth = false,
 }: SidebarProps) {
   const width = fullWidth ? '100%' : expanded ? 240 : 72
-  const { permissions } = useAuthenticationStateReactiveStore()
+  const { authentication } = useAuthenticationStateReactiveStore()
+  const permissions = authentication.permissions
   const navItems = NAV_ITEMS.filter((item) =>
     hasPermission(permissions, item.permissions),
   )

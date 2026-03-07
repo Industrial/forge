@@ -9,12 +9,14 @@ export type ProtectedRouteProps = {
 }
 
 export default function ProtectedRoute({ children }: ProtectedRouteProps) {
-  const authentication = useAuthenticationStateReactiveStore()
+  const { authentication, initialized } = useAuthenticationStateReactiveStore()
   const isUserAuthenticated = Option.isSome(authentication.user)
 
-  if (!isUserAuthenticated) {
-    console.log('ProtectedRoute: redirecting to login')
+  if (!initialized) {
+    return null
+  }
 
+  if (!isUserAuthenticated) {
     return <Navigate to="/authentication/login" replace />
   }
 

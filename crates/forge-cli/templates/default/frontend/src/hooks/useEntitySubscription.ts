@@ -18,8 +18,8 @@ export function useEntitySubscription(
   params: ListQueryParams | undefined,
   onRefetch: () => void,
 ): void {
-  const auth = useAuthenticationStateReactiveStore()
-  const hasToken = Option.isSome(auth.token)
+  const { authentication } = useAuthenticationStateReactiveStore()
+  const hasToken = Option.isSome(authentication.token)
   const subscriptionIdRef = useRef<string | null>(null)
   const onRefetchRef = useRef(onRefetch)
   onRefetchRef.current = onRefetch

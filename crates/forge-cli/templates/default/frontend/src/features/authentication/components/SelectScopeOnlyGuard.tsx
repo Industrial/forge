@@ -15,7 +15,7 @@ type SelectScopeOnlyGuardProps = { children: React.ReactNode }
 export default function SelectScopeOnlyGuard({
   children,
 }: SelectScopeOnlyGuardProps) {
-  const authentication = useAuthenticationStateReactiveStore()
+  const { authentication } = useAuthenticationStateReactiveStore()
   const user = Option.getOrElse(authentication.user, () => null)
   const needs_scope_select = Option.getOrElse(
     authentication.needsScopeSelect,

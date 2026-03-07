@@ -27,6 +27,10 @@ import {
  * Implementations are created by {@link makeReactiveStore}. Subscribers run the
  * `changes` stream (e.g. via {@link useReactiveStore}) to react to updates.
  *
+ * Sync notifier: when the React external store is created it registers a setter in a
+ * registry keyed by tag. Every {@link update} calls that setter in the same turn so
+ * the React cache sees the new value before the stream runs.
+ *
  * @typeParam A - The type of the stored value.
  */
 export interface ReactiveStore<A> {
@@ -59,6 +63,12 @@ export interface ReactiveStore<A> {
  * // In component: const value = useReactiveStore(tag, initialValue)
  * ```
  */
+/** Registry so the layer can push to the React cache as soon as the external store exists (no subscribe needed). */
+const syncRegistryByTag = new WeakMap<
+  object,
+  { setter: ((a: unknown) => void) | null }
+>()
+
 export function makeReactiveStore<A>(
   name: string,
   initial: A,
@@ -67,13 +77,29 @@ export function makeReactiveStore<A>(
   layer: Layer.Layer<ReactiveStore<A>, never, never>
 } {
   const tag = Context.GenericTag<ReactiveStore<A>>(name)
+  const registry = { setter: null as ((a: A) => void) | null }
+  syncRegistryByTag.set(tag as object, registry as { setter: ((a: unknown) => void) | null })
 
   const layer: Layer.Layer<ReactiveStore<A>, never, never> = Layer.scoped(
     tag,
     SubscriptionRef.make(initial).pipe(
       Effect.map((ref) => ({
         get: () => ref.get,
-        update: (f: (a: A) => A) => SubscriptionRef.update(ref, f),
+        update: (f: (a: A) => A) =>
+          pipe(
+            SubscriptionRef.update(ref, f),
+            Effect.flatMap(() => ref.get),
+            Effect.tap((value) =>
+              Effect.sync(() => {
+                const setter = registry.setter
+                if (setter) {
+                  if (DEBUG) log(`sync update (registry) notifying React cache`)
+                  setter(value)
+                }
+              }),
+            ),
+            Effect.asVoid,
+          ),
         changes: ref.changes,
       })),
     ),
@@ -102,6 +128,14 @@ export type RunFork = <A, E, R>(
  * @param runFork - Run effect in background (used for changes stream).
  * @returns Object with `subscribe`, `getSnapshot`, and `getServerSnapshot`.
  */
+const DEBUG = true
+let debugStoreId = 0
+const log = (msg: string, ...args: unknown[]) => {
+  if (DEBUG) console.log(`[ReactiveStore] ${msg}`, ...args)
+}
+
+export type ReactiveStoreSnapshot<A> = { value: A; initialized: boolean }
+
 function createExternalStore<A>(
   tag: Context.Tag<ReactiveStore<A>, ReactiveStore<A>>,
   initial: A,
@@ -109,19 +143,37 @@ function createExternalStore<A>(
   runFork: RunFork,
 ): {
   subscribe: (onStoreChange: () => void) => () => void
-  getSnapshot: () => A
-  getServerSnapshot: () => A
+  getSnapshot: () => ReactiveStoreSnapshot<A>
+  getServerSnapshot: () => ReactiveStoreSnapshot<A>
 } {
+  const storeId = `#${++debugStoreId}`
   let cache: A = initial
+  let initialized = false
   const listeners = new Set<() => void>()
   let fiber: Fiber.RuntimeFiber<unknown, never> | null = null
   let started = false
 
+  const setCache = (a: A) => {
+    cache = a
+    initialized = true
+    listeners.forEach((l) => l())
+  }
+
+  const registry = syncRegistryByTag.get(tag as object)
+  if (registry) {
+    registry.setter = (a) => {
+      setCache(a as A)
+      if (DEBUG) log(`sync update (setter) id=${storeId} cacheKeys=${Object.keys(cache as object).join(',')} notifying ${listeners.size} listeners`)
+    }
+  }
+
   const subscribe = (onStoreChange: () => void) => {
     listeners.add(onStoreChange)
+    log(`subscribe id=${storeId} listeners=${listeners.size} started=${started} cacheKeys=${Object.keys(cache as object).join(',')}`)
 
     if (!started) {
       started = true
+      log(`subscribe id=${storeId} first subscriber: starting initial get + stream`)
 
       const initialEffect = Effect.gen(function* () {
         const store = yield* tag
@@ -129,36 +181,57 @@ function createExternalStore<A>(
       })
 
       run(initialEffect).then((current) => {
-        cache = current
-        listeners.forEach((l) => l())
+        setCache(current)
+        log(`initial get completed id=${storeId} cacheKeys=${Object.keys(cache as object).join(',')} notifying ${listeners.size} listeners`)
       })
 
       const streamEffect = Effect.gen(function* () {
         const store = yield* tag
         yield* Stream.runForEach(store.changes, (a) =>
           Effect.sync(() => {
-            cache = a
-            listeners.forEach((l) => l())
+            setCache(a)
+            log(`stream update id=${storeId} cacheKeys=${Object.keys(cache as object).join(',')} notifying ${listeners.size} listeners`)
           }),
         )
       })
 
       fiber = runFork(streamEffect)
+      log(`subscribe id=${storeId} stream fiber forked`)
     }
 
     return () => {
       listeners.delete(onStoreChange)
+      log(`unsubscribe id=${storeId} listeners=${listeners.size}`)
 
       if (listeners.size === 0 && fiber != null) {
-        Effect.runPromise(Fiber.interrupt(fiber))
-        fiber = null
-        started = false
+        log(`unsubscribe id=${storeId} last listener: keeping stream running (no interrupt)`)
       }
     }
   }
 
-  const getSnapshot = () => cache
-  const getServerSnapshot = () => initial
+  let lastSnapshot: ReactiveStoreSnapshot<A> | null = null
+  const serverSnapshot: ReactiveStoreSnapshot<A> = {
+    value: initial,
+    initialized: false,
+  }
+
+  let getSnapshotCallCount = 0
+  const getSnapshot = (): ReactiveStoreSnapshot<A> => {
+    getSnapshotCallCount++
+    if (getSnapshotCallCount <= 3 || getSnapshotCallCount % 20 === 0) {
+      log(`getSnapshot id=${storeId} call#=${getSnapshotCallCount} cacheKeys=${Object.keys(cache as object).join(',')} initialized=${initialized} listeners=${listeners.size}`)
+    }
+    if (
+      lastSnapshot !== null &&
+      lastSnapshot.value === cache &&
+      lastSnapshot.initialized === initialized
+    ) {
+      return lastSnapshot
+    }
+    lastSnapshot = { value: cache, initialized }
+    return lastSnapshot
+  }
+  const getServerSnapshot = (): ReactiveStoreSnapshot<A> => serverSnapshot
 
   return {
     subscribe,
@@ -206,6 +279,46 @@ export function useReactiveStore<A>(
   run: RunEffect,
   runFork: RunFork,
 ): A {
+  const store = useMemo(
+    () =>
+      pipe(
+        Option.fromNullable(externalStoreCache.get(tag)),
+        Option.match({
+          onSome: (cached) => {
+            log('useReactiveStore cache HIT tag=', tag)
+            return cached as ExternalStoreShape<A>
+          },
+          onNone: () => {
+            log('useReactiveStore cache MISS creating new external store tag=', tag)
+            const created = createExternalStore(tag, initial, run, runFork)
+            externalStoreCache.set(tag, created)
+            return created
+          },
+        }),
+      ),
+    [tag, initial, run, runFork],
+  )
+
+  const snapshot = useSyncExternalStore(
+    store.subscribe,
+    store.getSnapshot,
+    store.getServerSnapshot,
+  )
+  return snapshot.value
+}
+
+/**
+ * Like {@link useReactiveStore} but returns both value and whether the store has
+ * received at least one value from the ref (sync update or initial get). Use this
+ * when you must not treat "no user" as "redirect" until the store has initialized
+ * (e.g. after restoreSession or first subscribe).
+ */
+export function useReactiveStoreWithInit<A>(
+  tag: Context.Tag<ReactiveStore<A>, ReactiveStore<A>>,
+  initial: A,
+  run: RunEffect,
+  runFork: RunFork,
+): ReactiveStoreSnapshot<A> {
   const store = useMemo(
     () =>
       pipe(

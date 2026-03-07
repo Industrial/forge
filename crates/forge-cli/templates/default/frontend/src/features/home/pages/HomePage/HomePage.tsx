@@ -5,7 +5,7 @@ export default function HomePage() {
   return (
     <>
       <PageHeader title="Home" />
-      <Typography color="text.secondary">
+      <Typography color="text.secondary" data-testid="home-welcome">
         Welcome. You are logged in.
       </Typography>
     </>

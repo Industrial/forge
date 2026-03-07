@@ -74,7 +74,7 @@ export default function Navbar({
 
   const navigate = useNavigate()
 
-  const authentication = useAuthenticationStateReactiveStore()
+  const { authentication } = useAuthenticationStateReactiveStore()
   const canAccessDashboard = false
   const [anchorEl, setAnchorEl] = useState<null | HTMLElement>(null)
   const open = Boolean(anchorEl)

@@ -9,7 +9,7 @@ import { useAuthenticationStateReactiveStore } from '@/features/authentication/s
 import { Authentication } from '@/features/authentication/services/Authentication'
 
 export default function ScopePage() {
-  const authentication = useAuthenticationStateReactiveStore()
+  const { authentication } = useAuthenticationStateReactiveStore()
   const user = Option.getOrElse(authentication.user, () => null)
   const [loggingOut, setLoggingOut] = useState(false)
 

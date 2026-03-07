@@ -19,7 +19,7 @@ export type DashboardScopeGuardProps = {
 export default function DashboardScopeGuard({
   children,
 }: DashboardScopeGuardProps) {
-  const authentication = useAuthenticationStateReactiveStore()
+  const { authentication } = useAuthenticationStateReactiveStore()
   const isUserAuthenticated = Option.isSome(authentication.user)
   const needsScopeSelect = Option.getOrElse(
     authentication.needsScopeSelect,

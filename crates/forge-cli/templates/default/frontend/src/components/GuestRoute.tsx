@@ -9,7 +9,7 @@ export type GuestRouteProps = {
 }
 
 export default function GuestRoute({ children }: GuestRouteProps) {
-  const authentication = useAuthenticationStateReactiveStore()
+  const { authentication } = useAuthenticationStateReactiveStore()
   const isUserAuthenticated = Option.isSome(authentication.user)
 
   if (isUserAuthenticated) {

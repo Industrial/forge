@@ -19,7 +19,7 @@ export default function DashboardPermissionGuard({
   permission,
   children,
 }: DashboardPermissionGuardProps) {
-  const authentication = useAuthenticationStateReactiveStore()
+  const { authentication } = useAuthenticationStateReactiveStore()
   const user = Option.getOrElse(authentication.user, () => null)
   // Permissions not in reactive store yet; extend store/me API and set permissions here.
   const permissions: readonly string[] = user != null ? [] : []

@@ -15,7 +15,7 @@ import { ScopeError } from '../../errors'
 export default function SelectScopePage() {
   const navigate = useNavigate()
   const location = useLocation()
-  const authentication = useAuthenticationStateReactiveStore()
+  const { authentication } = useAuthenticationStateReactiveStore()
   const [submitting, setSubmitting] = useState(false)
   const [errorMessage, setErrorMessage] = useState<string | null>(null)
 

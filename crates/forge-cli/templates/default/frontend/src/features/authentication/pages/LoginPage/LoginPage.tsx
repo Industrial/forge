@@ -40,12 +40,17 @@ export default function LoginPage() {
     (data: LoginFormValues) => {
       Effect.runPromise(
         Effect.gen(function* () {
+          yield* Effect.logDebug('LoginPage.handleSubmit: starting login')
           const auth = yield* Authentication
           setSubmitting(true)
           setErrorMessage(null)
+          yield* Effect.logDebug('LoginPage.handleSubmit: calling auth.login')
           yield* auth.login(data.email, data.password)
+          yield* Effect.logDebug('LoginPage.handleSubmit: login completed')
           setSubmitting(false)
+          yield* Effect.logDebug('LoginPage.handleSubmit: navigating to /')
           yield* navigateTo(navigate, '/', { replace: true })
+          yield* Effect.logDebug('LoginPage.handleSubmit: navigation completed')
         }).pipe(
           Effect.mapError((error) => {
             setSubmitting(false)
