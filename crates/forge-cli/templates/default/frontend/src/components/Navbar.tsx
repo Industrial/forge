@@ -70,8 +70,6 @@ export default function Navbar({
   onToggleTheme,
   onOpenSidebar,
 }: NavbarProps) {
-  console.log('Navbar')
-
   const navigate = useNavigate()
 
   const authentication = useAuthStore()

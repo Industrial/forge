@@ -26,8 +26,6 @@ import { Providers } from '@/Providers'
 import { SubscriptionStreamRunner } from '@/components/SubscriptionStreamRunner'
 
 function App() {
-  console.log('App')
-
   const [colorSchemeMode, setColorSchemeMode] = useColorSchemeMode()
 
   const theme = createTheme({

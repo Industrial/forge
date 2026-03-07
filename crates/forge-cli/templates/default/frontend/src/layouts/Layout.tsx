@@ -13,8 +13,6 @@ export default function Layout({
   colorScheme,
   onToggleTheme,
 }: LayoutProps) {
-  console.log('Layout')
-
   return (
     <Box
       sx={{

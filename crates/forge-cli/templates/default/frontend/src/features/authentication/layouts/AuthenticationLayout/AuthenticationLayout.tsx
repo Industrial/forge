@@ -8,10 +8,6 @@ export type AuthenticationLayoutProps = {
 export default function AuthenticationLayout({
   children,
 }: AuthenticationLayoutProps) {
-  console.log('AuthenticationLayout')
-
-  // const { flash } = useAuthentication()
-
   return (
     <Box
       sx={{
@@ -31,19 +27,6 @@ export default function AuthenticationLayout({
           width: '100%',
         }}
       >
-        {/* {(flash?.message ?? flash?.error) != null && (
-          <>
-            {flash?.message != null && (
-              <Alert severity="success">{flash.message}</Alert>
-            )}
-            {flash?.error != null && (
-              <Alert severity="error">
-                <Typography variant="subtitle2">Error</Typography>
-                {flash.error}
-              </Alert>
-            )}
-          </>
-        )} */}
         {children}
       </Box>
     </Box>

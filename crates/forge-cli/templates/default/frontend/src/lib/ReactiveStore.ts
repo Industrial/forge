@@ -80,7 +80,6 @@ export function defineStore<A>(
   const notify = (a: A) => {
     current = a
     if (registry.setter) {
-      if (DEBUG) log(`sync update (registry) notifying React cache`)
       registry.setter(a)
     }
     changeListeners.forEach((l) => l(a))
@@ -136,12 +135,6 @@ export type RunFork = <A, E, R>(
  * @param runFork - Run effect in background (used for changes stream).
  * @returns Object with `subscribe`, `getSnapshot`, and `getServerSnapshot`.
  */
-const DEBUG = true
-let debugStoreId = 0
-const log = (msg: string, ...args: unknown[]) => {
-  if (DEBUG) console.log(`[ReactiveStore] ${msg}`, ...args)
-}
-
 export type ReactiveStoreSnapshot<A> = { value: A; initialized: boolean }
 
 function createExternalStore<A>(
@@ -154,11 +147,9 @@ function createExternalStore<A>(
   getSnapshot: () => ReactiveStoreSnapshot<A>
   getServerSnapshot: () => ReactiveStoreSnapshot<A>
 } {
-  const storeId = `#${++debugStoreId}`
   let cache: A = initial
   let initialized = false
   const listeners = new Set<() => void>()
-  let fiber: Fiber.RuntimeFiber<unknown, never> | null = null
   let started = false
 
   const setCache = (a: A) => {
@@ -171,24 +162,14 @@ function createExternalStore<A>(
   if (registry) {
     registry.setter = (a) => {
       setCache(a as A)
-      if (DEBUG)
-        log(
-          `sync update (setter) id=${storeId} cacheKeys=${Object.keys(cache as object).join(',')} notifying ${listeners.size} listeners`,
-        )
     }
   }
 
   const subscribe = (onStoreChange: () => void) => {
     listeners.add(onStoreChange)
-    log(
-      `subscribe id=${storeId} listeners=${listeners.size} started=${started} cacheKeys=${Object.keys(cache as object).join(',')}`,
-    )
 
     if (!started) {
       started = true
-      log(
-        `subscribe id=${storeId} first subscriber: starting initial get + stream`,
-      )
 
       const initialEffect = Effect.gen(function* () {
         const store = yield* tag
@@ -197,9 +178,6 @@ function createExternalStore<A>(
 
       run(initialEffect).then((current) => {
         setCache(current)
-        log(
-          `initial get completed id=${storeId} cacheKeys=${Object.keys(cache as object).join(',')} notifying ${listeners.size} listeners`,
-        )
       })
 
       const streamEffect = Effect.gen(function* () {
@@ -207,26 +185,15 @@ function createExternalStore<A>(
         yield* Stream.runForEach(store.changes, (a) =>
           Effect.sync(() => {
             setCache(a)
-            log(
-              `stream update id=${storeId} cacheKeys=${Object.keys(cache as object).join(',')} notifying ${listeners.size} listeners`,
-            )
           }),
         )
       })
 
-      fiber = runFork(streamEffect)
-      log(`subscribe id=${storeId} stream fiber forked`)
+      runFork(streamEffect)
     }
 
     return () => {
       listeners.delete(onStoreChange)
-      log(`unsubscribe id=${storeId} listeners=${listeners.size}`)
-
-      if (listeners.size === 0 && fiber != null) {
-        log(
-          `unsubscribe id=${storeId} last listener: keeping stream running (no interrupt)`,
-        )
-      }
     }
   }
 
@@ -236,14 +203,7 @@ function createExternalStore<A>(
     initialized: false,
   }
 
-  let getSnapshotCallCount = 0
   const getSnapshot = (): ReactiveStoreSnapshot<A> => {
-    getSnapshotCallCount++
-    if (getSnapshotCallCount <= 3 || getSnapshotCallCount % 20 === 0) {
-      log(
-        `getSnapshot id=${storeId} call#=${getSnapshotCallCount} cacheKeys=${Object.keys(cache as object).join(',')} initialized=${initialized} listeners=${listeners.size}`,
-      )
-    }
     if (
       lastSnapshot !== null &&
       lastSnapshot.value === cache &&
@@ -447,15 +407,8 @@ export function useReactiveStore<A>(
       pipe(
         Option.fromNullable(externalStoreCache.get(tag)),
         Option.match({
-          onSome: (cached) => {
-            log('useReactiveStore cache HIT tag=', tag)
-            return cached as ExternalStoreShape<A>
-          },
+          onSome: (cached) => cached as ExternalStoreShape<A>,
           onNone: () => {
-            log(
-              'useReactiveStore cache MISS creating new external store tag=',
-              tag,
-            )
             const created = createExternalStore(tag, initial, run, runFork)
             externalStoreCache.set(tag, created)
             return created
