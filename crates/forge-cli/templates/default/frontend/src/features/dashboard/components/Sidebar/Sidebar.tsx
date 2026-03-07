@@ -13,7 +13,7 @@ import People from '@mui/icons-material/People'
 import Badge from '@mui/icons-material/Badge'
 import Lock from '@mui/icons-material/Lock'
 import History from '@mui/icons-material/History'
-import { useAuthenticationStateReactiveStore } from '@/features/authentication/stores'
+import { useAuthenticationStateReactiveStore } from '@/features/authentication/hooks/useAuthenticationStateReactiveStore'
 import { hasPermission } from '@/lib/permissions'
 
 /** §7: Entity-based permissions. Show nav item if user has any of these (read or write for section). */

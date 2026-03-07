@@ -23,15 +23,13 @@ export const initialAuthenticationState: AuthenticationState = {
   permissions: [],
 }
 
-const {
-  tag: AuthenticationStateReactiveStoreTag,
-  layer: authenticationStateStoreLayer,
-} = makeReactiveStore(
+const store = makeReactiveStore(
   '@forge/AuthenticationStateReactiveStore',
   initialAuthenticationState,
 )
 
-export { AuthenticationStateReactiveStoreTag }
+export const AuthenticationStateReactiveStoreTag = store.tag
+const authenticationStateStoreLayer = store.layer
 
 export type AuthenticationStateReactiveStore =
   ReactiveStore<AuthenticationState>

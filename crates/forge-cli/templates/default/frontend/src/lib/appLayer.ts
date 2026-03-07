@@ -12,11 +12,13 @@
  * custom composition.
  */
 import { FetchHttpClient, type HttpClient } from '@effect/platform'
+import { useMemo } from 'react'
+import { Effect } from 'effect'
 import { Layer, Logger, LogLevel } from 'effect'
 
 import type { AuditLogService } from '@/features/dashboard/services/AuditLog'
 import type { Authentication as AuthenticationService } from '@/features/authentication/services/Authentication'
-import type { AuthenticationState } from '@/features/authentication/stores'
+import type { AuthenticationState } from '@/features/authentication/stores/AuthenticationStateReactiveStore'
 import type { DashboardService } from '@/features/dashboard/services/Dashboard'
 import type { EntityApiService } from '@/services/EntityApi'
 import type { PermissionsService } from '@/features/dashboard/services/Permissions'
@@ -37,12 +39,9 @@ import { RpcApiLive } from '@/services/RpcApiLive'
 import { SubscriptionStreamLive } from '@/services/SubscriptionStreamLive'
 import { TokenStorageLive } from '@/services/TokenStorageLive'
 import { UsersLive } from '@/features/dashboard/services/UsersLive'
+import { getAuthenticationStateStoreLayer } from '@/features/authentication/stores/AuthenticationStateReactiveStore'
 import { getBaseUrl } from '@/lib/baseUrl'
 import { getSubscriptionStreamStatusStoreLayer } from '@/lib/subscriptionStreamStatusStore'
-import { useMemo } from 'react'
-import { Effect } from 'effect'
-
-import { getAuthenticationStateStoreLayer } from '@/features/authentication/stores'
 
 /**
  * Union of all service types provided by the application layer.

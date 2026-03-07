@@ -14,7 +14,7 @@ import {
   AuthenticationStateReactiveStoreTag,
   initialAuthenticationState,
   type AuthenticationState,
-} from '@/features/authentication/stores'
+} from '@/features/authentication/stores/AuthenticationStateReactiveStore'
 import { TokenStorage } from '@/services/TokenStorage'
 import { getBaseUrl } from '@/lib/baseUrl'
 

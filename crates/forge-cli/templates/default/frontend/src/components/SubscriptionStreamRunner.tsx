@@ -8,7 +8,7 @@
  */
 import { useEffect } from 'react'
 import { Effect, Stream } from 'effect'
-import { useAuthenticationStateReactiveStore } from '@/features/authentication/stores'
+import { useAuthenticationStateReactiveStore } from '@/features/authentication/hooks/useAuthenticationStateReactiveStore'
 import { Option } from 'effect'
 import { getApplicationLayer } from '@/lib/appLayer'
 import { trigger } from '@/lib/subscriptionRegistry'
