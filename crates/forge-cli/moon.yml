@@ -59,6 +59,7 @@ tasks:
     options:
       runFromWorkspaceRoot: true
     deps:
+      - forge:format
       - forge-cli:check
     inputs:
       - Cargo.toml

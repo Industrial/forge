@@ -63,4 +63,5 @@ tasks:
       - Cargo.lock
       - '**/*.rs'
     deps:
+      - forge:format
       - forge-health:check

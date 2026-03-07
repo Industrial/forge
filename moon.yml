@@ -19,7 +19,6 @@ tasks:
       - '.github/workflows/*.yml'
     options:
       cache: false
-      persistent: true
   # Audit workspace dependencies
   audit:
     command: 'cargo'
