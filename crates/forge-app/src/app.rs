@@ -148,7 +148,7 @@ impl App {
   }
 
   /// Enable Live Query: in-memory channel broadcast for real-time sync.
-  /// Handlers can use [Extension]<Option<Arc<forge_live::InMemoryLiveBackend>>>
+  /// Handlers can use [axum::Extension]<Option<Arc<forge_live::InMemoryLiveBackend>>>
   /// and call [forge_live::broadcast_to_org] after mutations.
   pub fn with_live_query(mut self) -> Self {
     self.live_backend = Some(Arc::new(forge_live::InMemoryLiveBackend::new()));
@@ -156,7 +156,7 @@ impl App {
   }
 
   /// Enable Live Query using a shared backend (e.g. so the app and a tick loop can both use it).
-  /// Handlers receive [Extension]<Option<Arc<forge_live::InMemoryLiveBackend>>>.
+  /// Handlers receive [axum::Extension]<Option<Arc<forge_live::InMemoryLiveBackend>>>.
   pub fn with_live_query_using(mut self, backend: Arc<forge_live::InMemoryLiveBackend>) -> Self {
     self.live_backend = Some(backend);
     self

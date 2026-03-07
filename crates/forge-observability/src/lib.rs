@@ -10,6 +10,7 @@ use std::task::{Context as TaskContext, Poll};
 use tower::{Layer, Service};
 use tracing_subscriber::EnvFilter;
 
+/// Extracts W3C trace context headers from HTTP request headers.
 pub(crate) struct HeaderExtractor<'a>(&'a axum::http::HeaderMap);
 
 impl opentelemetry::propagation::Extractor for HeaderExtractor<'_> {
@@ -37,6 +38,7 @@ impl<S> Layer<S> for TraceContextPropagationLayer {
 
 #[derive(Clone)]
 pub struct TraceContextPropagationService<S> {
+  /// The inner service being wrapped.
   inner: S,
 }
 

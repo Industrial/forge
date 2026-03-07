@@ -4,63 +4,63 @@ tasks:
   build:
     command: cargo
     args:
-    - build
-    - -p
-    - forge-cli
+      - build
+      - -p
+      - forge-cli
     options:
       runFromWorkspaceRoot: true
     inputs:
-    - Cargo.toml
-    - Cargo.lock
-    - '**/*.rs'
+      - Cargo.toml
+      - Cargo.lock
+      - '**/*.rs'
     deps:
-    - forge-cli:lint
+      - forge-cli:lint
   check:
     command: cargo
     args:
-    - check
-    - -p
-    - forge-cli
-    - --all-features
+      - check
+      - -p
+      - forge-cli
+      - --all-features
     options:
       runFromWorkspaceRoot: true
     inputs:
-    - Cargo.toml
-    - Cargo.lock
-    - '**/*.rs'
+      - Cargo.toml
+      - Cargo.lock
+      - '**/*.rs'
   test:
     command: cargo
     args:
-    - nextest
-    - run
-    - -p
-    - forge-cli
-    - --all-features
+      - nextest
+      - run
+      - -p
+      - forge-cli
+      - --all-features
     options:
       runFromWorkspaceRoot: true
     deps:
-    - forge-cli:build
+      - forge-cli:build
     inputs:
-    - Cargo.toml
-    - Cargo.lock
-    - '**/*.rs'
-    - '**/*.toml'
+      - Cargo.toml
+      - Cargo.lock
+      - '**/*.rs'
+      - '**/*.toml'
   lint:
     command: cargo
     args:
-    - clippy
-    - -p
-    - forge-cli
-    - --all-targets
-    - --all-features
-    - --
-    - -D
-    - warnings
+      - clippy
+      - -p
+      - forge-cli
+      - --all-targets
+      - --all-features
+      - --
+      - -D
+      - warnings
     options:
       runFromWorkspaceRoot: true
     deps:
-    - forge-cli:check
+      - forge-cli:check
     inputs:
-    - Cargo.toml
-    - Cargo.lock
-    - '**/*.rs'
+      - Cargo.toml
+      - Cargo.lock
+      - '**/*.rs'

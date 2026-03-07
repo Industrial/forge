@@ -33,9 +33,12 @@ pub struct SubscriptionMeta {
 /// In-memory store: subscription_id -> SubscriptionMeta; broadcast channels for change and invalidation events.
 #[derive(Clone)]
 pub struct SubscriptionStore {
+  /// Map of subscription IDs to their metadata.
   inner: std::sync::Arc<Mutex<HashMap<Uuid, SubscriptionMeta>>>,
   #[allow(dead_code)]
+  /// Broadcast channel sender for invalidation events.
   invalidation_tx: tokio::sync::broadcast::Sender<InvalidationEvent>,
+  /// Broadcast channel sender for change events.
   change_tx: tokio::sync::broadcast::Sender<ChangeEvent>,
 }
 

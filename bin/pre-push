@@ -4,6 +4,8 @@ set -euo pipefail
 echo "> pre-push (using moon)"
 
 # Run moon tasks for pre-push validation
+# MOON_TOOLCHAIN_FORCE_GLOBALS is set in devenv.nix, but ensure it's set here too
+export MOON_TOOLCHAIN_FORCE_GLOBALS=rust
 devenv shell -- moon run :format :check :lint :build :test :audit :check-docs
 
 echo "✅ Pre-push checks passed"

@@ -1,5 +1,5 @@
 //! Cron-style schedule types, next-run calculation, and cron job runner for the Forge framework.
-//! Built on [forge_jobs](forge_jobs) for the job queue and worker.
+//! Built on [forge_jobs] for the job queue and worker.
 
 use apalis_core::backend::TaskSink;
 use chrono::Utc;
