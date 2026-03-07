@@ -60,7 +60,7 @@ pub fn parse_list_query_spec(params: &ListQueryParams) -> Result<ListQuerySpec, 
       let raw: Vec<RawFilterCond> =
         serde_json::from_str(s).map_err(|e| format!("invalid filter JSON: {}", e))?;
       for r in raw {
-        let op = FilterOperator::from_str(&r.operator)
+        let op = FilterOperator::try_parse(&r.operator)
           .ok_or_else(|| format!("invalid filter operator: {}", r.operator))?;
         spec.filter.push(FilterCond {
           field: r.field,
@@ -76,7 +76,7 @@ pub fn parse_list_query_spec(params: &ListQueryParams) -> Result<ListQuerySpec, 
       let direction = params
         .order
         .as_deref()
-        .and_then(SortDirection::from_str)
+        .and_then(SortDirection::try_parse)
         .unwrap_or(SortDirection::Asc);
       spec.sort = Some(SortSpec {
         field: field.clone(),
@@ -550,5 +550,253 @@ pub async fn delete_entity(
         .into_response(),
     ),
     Err(e) => Err(e),
+  }
+}
+
+#[cfg(test)]
+mod bdd_tests {
+  use super::*;
+
+  /// BDD-style tests focusing on behavior rather than implementation.
+  /// Tests verify generic entity handler behaviors for CRUD operations.
+
+  mod query_parsing_behavior {
+    use super::*;
+
+    #[test]
+    fn should_parse_empty_query_params_into_default_spec() {
+      // Given: empty query parameters
+      let params = ListQueryParams::default();
+
+      // When: parsing query spec
+      let spec = parse_list_query_spec(&params).unwrap();
+
+      // Then: should return default spec with no filters, no sort, default pagination
+      assert!(spec.filter.is_empty());
+      assert!(spec.sort.is_none());
+      assert_eq!(spec.offset_limit.unwrap().offset, 0);
+      assert_eq!(spec.offset_limit.unwrap().limit, DEFAULT_LIMIT);
+    }
+
+    #[test]
+    fn should_parse_filter_query_param() {
+      // Given: query params with filter JSON
+      let params = ListQueryParams {
+        filter: Some(
+          r#"[{"field": "name", "operator": "eq", "value": "test"}]"#.to_string(),
+        ),
+        ..Default::default()
+      };
+
+      // When: parsing query spec
+      let spec = parse_list_query_spec(&params).unwrap();
+
+      // Then: should parse filter conditions
+      assert_eq!(spec.filter.len(), 1);
+      assert_eq!(spec.filter[0].field, "name");
+      assert_eq!(spec.filter[0].operator, FilterOperator::Eq);
+    }
+
+    #[test]
+    fn should_parse_sort_query_params() {
+      // Given: query params with sort and order
+      let params = ListQueryParams {
+        sort: Some("name".to_string()),
+        order: Some("desc".to_string()),
+        ..Default::default()
+      };
+
+      // When: parsing query spec
+      let spec = parse_list_query_spec(&params).unwrap();
+
+      // Then: should parse sort specification
+      assert!(spec.sort.is_some());
+      let sort = spec.sort.unwrap();
+      assert_eq!(sort.field, "name");
+      assert_eq!(sort.direction, SortDirection::Desc);
+    }
+
+    #[test]
+    fn should_parse_pagination_params() {
+      // Given: query params with offset and limit
+      let params = ListQueryParams {
+        offset: Some(10),
+        limit: Some(20),
+        ..Default::default()
+      };
+
+      // When: parsing query spec
+      let spec = parse_list_query_spec(&params).unwrap();
+
+      // Then: should parse pagination
+      let offset_limit = spec.offset_limit.unwrap();
+      assert_eq!(offset_limit.offset, 10);
+      assert_eq!(offset_limit.limit, 20);
+    }
+
+    #[test]
+    fn should_reject_invalid_filter_json() {
+      // Given: query params with invalid filter JSON
+      let params = ListQueryParams {
+        filter: Some("invalid json".to_string()),
+        ..Default::default()
+      };
+
+      // When: parsing query spec
+      let result = parse_list_query_spec(&params);
+
+      // Then: should return error about invalid JSON
+      assert!(result.is_err());
+      let err = result.unwrap_err();
+      assert!(err.contains("invalid filter JSON"));
+    }
+
+    #[test]
+    fn should_reject_invalid_filter_operator() {
+      // Given: query params with invalid filter operator
+      let params = ListQueryParams {
+        filter: Some(
+          r#"[{"field": "name", "operator": "invalid_op", "value": "test"}]"#.to_string(),
+        ),
+        ..Default::default()
+      };
+
+      // When: parsing query spec
+      let result = parse_list_query_spec(&params);
+
+      // Then: should return error about invalid operator
+      assert!(result.is_err());
+      let err = result.unwrap_err();
+      assert!(err.contains("invalid filter operator"));
+    }
+  }
+
+  mod expand_include_rejection_behavior {
+    use super::*;
+
+    #[test]
+    fn should_reject_expand_parameter() {
+      // Given: query params with expand parameter
+      let params = ListQueryParams {
+        expand: Some("relation".to_string()),
+        ..Default::default()
+      };
+
+      // When: checking for expand/include
+      let response = reject_expand_include(&params);
+
+      // Then: should return 400 Bad Request response
+      assert!(response.is_some());
+    }
+
+    #[test]
+    fn should_reject_include_parameter() {
+      // Given: query params with include parameter
+      let params = ListQueryParams {
+        include: Some("relation".to_string()),
+        ..Default::default()
+      };
+
+      // When: checking for expand/include
+      let response = reject_expand_include(&params);
+
+      // Then: should return 400 Bad Request response
+      assert!(response.is_some());
+    }
+
+    #[test]
+    fn should_accept_params_without_expand_or_include() {
+      // Given: query params without expand or include
+      let params = ListQueryParams {
+        filter: Some(r#"[{"field": "name", "operator": "eq", "value": "test"}]"#.to_string()),
+        ..Default::default()
+      };
+
+      // When: checking for expand/include
+      let response = reject_expand_include(&params);
+
+      // Then: should return None (no rejection)
+      assert!(response.is_none());
+    }
+  }
+
+  mod body_validation_behavior {
+    use super::*;
+
+    #[test]
+    fn should_reject_non_object_body() {
+      // Given: a JSON array body (not an object)
+      let body = serde_json::json!([1, 2, 3]);
+
+      // When: validating body
+      let response = require_object_body(&body);
+
+      // Then: should return 400 Bad Request response
+      assert!(response.is_some());
+    }
+
+    #[test]
+    fn should_reject_string_body() {
+      // Given: a JSON string body (not an object)
+      let body = serde_json::json!("not an object");
+
+      // When: validating body
+      let response = require_object_body(&body);
+
+      // Then: should return 400 Bad Request response
+      assert!(response.is_some());
+    }
+
+    #[test]
+    fn should_accept_object_body() {
+      // Given: a JSON object body
+      let body = serde_json::json!({"name": "test", "value": 123});
+
+      // When: validating body
+      let response = require_object_body(&body);
+
+      // Then: should return None (validation passes)
+      assert!(response.is_none());
+    }
+
+    #[test]
+    fn should_accept_empty_object_body() {
+      // Given: an empty JSON object body
+      let body = serde_json::json!({});
+
+      // When: validating body
+      let response = require_object_body(&body);
+
+      // Then: should return None (validation passes)
+      assert!(response.is_none());
+    }
+  }
+
+  mod id_validation_behavior {
+    use super::*;
+
+    #[test]
+    fn should_validate_uuid_format_for_id() {
+      // Given: a valid UUID string
+      let valid_uuid = uuid::Uuid::new_v4().to_string();
+
+      // When: parsing UUID
+      let result = Uuid::parse_str(&valid_uuid);
+
+      // Then: should parse successfully
+      assert!(result.is_ok());
+    }
+
+    #[test]
+    fn should_reject_invalid_uuid_format() {
+      // Given: an invalid UUID string
+      let invalid_uuid = "not-a-uuid";
+
+      // When: parsing UUID
+      let result = Uuid::parse_str(invalid_uuid);
+
+      // Then: should return error
+      assert!(result.is_err());
+    }
   }
 }

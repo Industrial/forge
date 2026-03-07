@@ -43,7 +43,6 @@ import { useRunWithAppLayer } from '@/lib/appLayer'
 import { Effect } from 'effect'
 import { EntityApi, type EntityApiService } from '../services/EntityApi'
 import type { ListQueryParams } from '../services/EntityApi'
-import { usePermission } from '../hooks/usePermission'
 
 export type GenericEntityCrudColumn = {
   key: string
@@ -72,6 +71,11 @@ export type GenericEntityCrudProps = {
   ) => React.ReactNode
   /** Optional empty message when list is empty. */
   emptyMessage?: string
+  /** Permission flags from parent. Default true when not provided. */
+  canRead?: boolean
+  canCreate?: boolean
+  canUpdate?: boolean
+  canDelete?: boolean
 }
 
 function defaultGetRowId(item: Record<string, unknown>): string {
@@ -121,12 +125,12 @@ export default function GenericEntityCrud({
   renderCreateForm,
   renderEditForm,
   emptyMessage = 'No items.',
+  canRead = true,
+  canCreate = true,
+  canUpdate = true,
+  canDelete = true,
 }: GenericEntityCrudProps) {
   const { run } = useRunWithAppLayer()
-  const canRead = usePermission(`${entityId}.read`)
-  const canCreate = usePermission(`${entityId}.create`)
-  const canUpdate = usePermission(`${entityId}.update`)
-  const canDelete = usePermission(`${entityId}.delete`)
 
   const [listState, , setListStateAsEffect] = useEffectState<
     ListState,

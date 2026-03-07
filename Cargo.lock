@@ -1003,6 +1003,7 @@ dependencies = [
  "reqwest",
  "sea-orm",
  "sea-orm-migration",
+ "serde_json",
  "tempfile",
  "tokio",
  "tower",

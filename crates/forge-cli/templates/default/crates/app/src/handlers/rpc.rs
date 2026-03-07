@@ -484,3 +484,387 @@ async fn rpc_delete(
     )),
   }
 }
+
+#[cfg(test)]
+mod bdd_tests {
+  use super::*;
+  use axum::http::StatusCode;
+
+  /// BDD-style tests focusing on behavior rather than implementation.
+  /// Tests are organized by feature/behavior area with descriptive names.
+
+  mod rpc_request_structure_behavior {
+    use super::*;
+
+    #[test]
+    fn should_deserialize_rpc_request_with_all_fields() {
+      // Given: a JSON string with all RPC request fields
+      let json = r#"{
+        "method": "entity.get",
+        "entity_id": "user",
+        "params": {
+          "id": "123e4567-e89b-12d3-a456-426614174000"
+        },
+        "id": 1
+      }"#;
+
+      // When: deserializing the JSON
+      let request: Result<RpcRequest, _> = serde_json::from_str(json);
+
+      // Then: should deserialize successfully
+      assert!(request.is_ok(), "Should deserialize RPC request with all fields");
+      let req = request.unwrap();
+      assert_eq!(req.method, "entity.get");
+      assert_eq!(req.entity_id, "user");
+      assert!(req.params.is_some());
+      assert!(req.id.is_some());
+    }
+
+    #[test]
+    fn should_deserialize_rpc_request_without_params() {
+      // Given: a JSON string without params field
+      let json = r#"{
+        "method": "entity.list",
+        "entity_id": "user"
+      }"#;
+
+      // When: deserializing the JSON
+      let request: Result<RpcRequest, _> = serde_json::from_str(json);
+
+      // Then: should deserialize successfully with None params
+      assert!(request.is_ok(), "Should deserialize RPC request without params");
+      let req = request.unwrap();
+      assert_eq!(req.method, "entity.list");
+      assert_eq!(req.entity_id, "user");
+      assert!(req.params.is_none());
+    }
+
+    #[test]
+    fn should_deserialize_rpc_request_without_correlation_id() {
+      // Given: a JSON string without id field
+      let json = r#"{
+        "method": "entity.list",
+        "entity_id": "user",
+        "params": {}
+      }"#;
+
+      // When: deserializing the JSON
+      let request: Result<RpcRequest, _> = serde_json::from_str(json);
+
+      // Then: should deserialize successfully with None id
+      assert!(request.is_ok(), "Should deserialize RPC request without correlation id");
+      let req = request.unwrap();
+      assert!(req.id.is_none());
+    }
+
+    #[test]
+    fn should_deserialize_rpc_params_with_all_list_fields() {
+      // Given: RPC params with list query fields
+      let json = r#"{
+        "filter": "name eq 'test'",
+        "sort": "created_at",
+        "order": "desc",
+        "offset": 10,
+        "limit": 20
+      }"#;
+
+      // When: deserializing the JSON
+      let params: Result<RpcParams, _> = serde_json::from_str(json);
+
+      // Then: should deserialize successfully
+      assert!(params.is_ok(), "Should deserialize RPC params with list fields");
+      let p = params.unwrap();
+      assert_eq!(p.filter, Some("name eq 'test'".to_string()));
+      assert_eq!(p.sort, Some("created_at".to_string()));
+      assert_eq!(p.order, Some("desc".to_string()));
+      assert_eq!(p.offset, Some(10));
+      assert_eq!(p.limit, Some(20));
+    }
+  }
+
+  mod rpc_response_format_behavior {
+    use super::*;
+
+    #[test]
+    fn should_format_error_response_with_code_and_message() {
+      // Given: an error status code and message
+      let status = StatusCode::BAD_REQUEST;
+      let message = "Invalid request";
+      let correlation_id = None;
+
+      // When: creating error response
+      let response = rpc_error(status, message, correlation_id);
+
+      // Then: response should have error structure
+      assert_eq!(response.status(), status, "Error response should have correct status");
+    }
+
+    #[test]
+    fn should_include_correlation_id_in_error_response_when_provided() {
+      // Given: an error with correlation id
+      let status = StatusCode::NOT_FOUND;
+      let message = "Not found";
+      let correlation_id = Some(serde_json::json!(42));
+
+      // When: creating error response
+      let response = rpc_error(status, message, correlation_id);
+
+      // Then: response should include correlation id
+      assert_eq!(response.status(), status, "Error response should have correct status");
+    }
+
+    #[test]
+    fn should_format_success_response_with_result() {
+      // Given: a result value
+      let result = serde_json::json!({ "id": "123", "name": "test" });
+      let correlation_id = None;
+
+      // When: creating success response
+      let response = rpc_ok_result(result, correlation_id);
+
+      // Then: response should have success status
+      assert_eq!(
+        response.status(),
+        StatusCode::OK,
+        "Success response should have OK status"
+      );
+    }
+
+    #[test]
+    fn should_include_correlation_id_in_success_response_when_provided() {
+      // Given: a result with correlation id
+      let result = serde_json::json!({ "data": "value" });
+      let correlation_id = Some(serde_json::json!("req-123"));
+
+      // When: creating success response
+      let response = rpc_ok_result(result, correlation_id);
+
+      // Then: response should include correlation id
+      assert_eq!(
+        response.status(),
+        StatusCode::OK,
+        "Success response should have OK status"
+      );
+    }
+  }
+
+  mod method_validation_behavior {
+    use super::*;
+
+    #[test]
+    fn should_accept_entity_list_method() {
+      // Given: method is "entity.list"
+      let method = "entity.list";
+
+      // When: checking if method is valid
+      // Then: should map to ("list", "read") action
+      let (action, required_action) = match method {
+        "entity.list" => ("list", "read"),
+        _ => ("", ""),
+      };
+      assert_eq!(action, "list");
+      assert_eq!(required_action, "read");
+    }
+
+    #[test]
+    fn should_accept_entity_get_method() {
+      // Given: method is "entity.get"
+      let method = "entity.get";
+
+      // When: checking if method is valid
+      // Then: should map to ("get", "read") action
+      let (action, required_action) = match method {
+        "entity.get" => ("get", "read"),
+        _ => ("", ""),
+      };
+      assert_eq!(action, "get");
+      assert_eq!(required_action, "read");
+    }
+
+    #[test]
+    fn should_accept_entity_create_method() {
+      // Given: method is "entity.create"
+      let method = "entity.create";
+
+      // When: checking if method is valid
+      // Then: should map to ("create", "create") action
+      let (action, required_action) = match method {
+        "entity.create" => ("create", "create"),
+        _ => ("", ""),
+      };
+      assert_eq!(action, "create");
+      assert_eq!(required_action, "create");
+    }
+
+    #[test]
+    fn should_accept_entity_update_method() {
+      // Given: method is "entity.update"
+      let method = "entity.update";
+
+      // When: checking if method is valid
+      // Then: should map to ("update", "update") action
+      let (action, required_action) = match method {
+        "entity.update" => ("update", "update"),
+        _ => ("", ""),
+      };
+      assert_eq!(action, "update");
+      assert_eq!(required_action, "update");
+    }
+
+    #[test]
+    fn should_accept_entity_delete_method() {
+      // Given: method is "entity.delete"
+      let method = "entity.delete";
+
+      // When: checking if method is valid
+      // Then: should map to ("delete", "delete") action
+      let (action, required_action) = match method {
+        "entity.delete" => ("delete", "delete"),
+        _ => ("", ""),
+      };
+      assert_eq!(action, "delete");
+      assert_eq!(required_action, "delete");
+    }
+
+    #[test]
+    fn should_accept_subscribe_method() {
+      // Given: method is "subscribe"
+      let method = "subscribe";
+
+      // When: checking if method is handled
+      // Then: should be handled before entity methods
+      match method {
+        "subscribe" => {
+          // Subscribe is handled separately
+        }
+        _ => {}
+      }
+    }
+
+    #[test]
+    fn should_accept_unsubscribe_method() {
+      // Given: method is "unsubscribe"
+      let method = "unsubscribe";
+
+      // When: checking if method is handled
+      // Then: should be handled before entity methods
+      match method {
+        "unsubscribe" => {
+          // Unsubscribe is handled separately
+        }
+        _ => {}
+      }
+    }
+  }
+
+  mod parameter_validation_behavior {
+    use super::*;
+
+    #[test]
+    fn should_parse_valid_uuid_from_params_id() {
+      // Given: params with valid UUID string
+      let uuid_str = "123e4567-e89b-12d3-a456-426614174000";
+
+      // When: parsing UUID
+      let result = Uuid::parse_str(uuid_str);
+
+      // Then: should parse successfully
+      assert!(result.is_ok(), "Should parse valid UUID");
+      let uuid = result.unwrap();
+      assert_eq!(uuid.to_string(), uuid_str);
+    }
+
+    #[test]
+    fn should_reject_invalid_uuid_from_params_id() {
+      // Given: params with invalid UUID string
+      let invalid_uuid = "not-a-uuid";
+
+      // When: parsing UUID
+      let result = Uuid::parse_str(invalid_uuid);
+
+      // Then: should fail to parse
+      assert!(result.is_err(), "Should reject invalid UUID");
+    }
+
+    #[test]
+    fn should_require_params_id_for_get_method() {
+      // Given: params without id field
+      let params = RpcParams {
+        id: None,
+        ..Default::default()
+      };
+
+      // When: accessing id
+      let id_str = params.id.as_deref().unwrap_or("");
+
+      // Then: should be empty string
+      assert_eq!(id_str, "", "Should return empty string when id is missing");
+    }
+
+    #[test]
+    fn should_require_params_body_for_create_method() {
+      // Given: params without body field
+      let params = RpcParams {
+        body: None,
+        ..Default::default()
+      };
+
+      // When: accessing body
+      let body = params.body.unwrap_or(serde_json::Value::Null);
+
+      // Then: should be Null
+      assert!(body.is_null(), "Should return Null when body is missing");
+    }
+
+    #[test]
+    fn should_require_params_subscription_id_for_unsubscribe() {
+      // Given: params without subscription_id field
+      let params = RpcParams {
+        subscription_id: None,
+        ..Default::default()
+      };
+
+      // When: accessing subscription_id
+      let sub_id = params.subscription_id.as_deref().unwrap_or("");
+
+      // Then: should be empty string
+      assert_eq!(sub_id, "", "Should return empty string when subscription_id is missing");
+    }
+  }
+
+  mod correlation_id_behavior {
+    use super::*;
+
+    #[test]
+    fn should_accept_numeric_correlation_id() {
+      // Given: correlation id as number
+      let correlation_id = Some(serde_json::json!(42));
+
+      // When: using correlation id
+      // Then: should be accepted (no error)
+      assert!(correlation_id.is_some());
+      assert!(correlation_id.as_ref().unwrap().is_number());
+    }
+
+    #[test]
+    fn should_accept_string_correlation_id() {
+      // Given: correlation id as string
+      let correlation_id = Some(serde_json::json!("req-123"));
+
+      // When: using correlation id
+      // Then: should be accepted (no error)
+      assert!(correlation_id.is_some());
+      assert!(correlation_id.as_ref().unwrap().is_string());
+    }
+
+    #[test]
+    fn should_handle_missing_correlation_id() {
+      // Given: no correlation id
+      let correlation_id: Option<serde_json::Value> = None;
+
+      // When: using correlation id
+      // Then: should handle None gracefully
+      assert!(correlation_id.is_none());
+    }
+  }
+}

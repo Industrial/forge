@@ -9,7 +9,7 @@ import ProtectedRoute from '@/components/ProtectedRoute'
 import GuestRoute from '@/components/GuestRoute'
 import DashboardScopeGuard from '@/features/dashboard/components/DashboardScopeGuard'
 import SelectScopeOnlyGuard from '@/features/authentication/components/SelectScopeOnlyGuard'
-import DashboardPermissionGuard from '@/features/dashboard/components/DashboardPermissionGuard'
+import { PermissionGuard } from '@/components/PermissionGuard'
 import LoginPage from '@/features/authentication/pages/LoginPage/LoginPage'
 import SelectScopePage from '@/features/authentication/pages/SelectScopePage/SelectScopePage'
 import RegisterPage from '@/features/authentication/pages/RegisterPage/RegisterPage'
@@ -112,57 +112,57 @@ function App() {
             <Route
               index
               element={
-                <DashboardPermissionGuard permission="dashboard">
+                <PermissionGuard permissions={['dashboard']}>
                   <DashboardPage />
-                </DashboardPermissionGuard>
+                </PermissionGuard>
               }
             />
             <Route
               path="organizations"
               element={
-                <DashboardPermissionGuard
-                  permission={['organization.read', 'organization.create']}
+                <PermissionGuard
+                  permissions={['organization.read', 'organization.create']}
                 >
                   <OrganizationsPage />
-                </DashboardPermissionGuard>
+                </PermissionGuard>
               }
             />
             <Route
               path="users"
               element={
-                <DashboardPermissionGuard
-                  permission={['user.read', 'user.create']}
+                <PermissionGuard
+                  permissions={['user.read', 'user.create']}
                 >
                   <UsersPage />
-                </DashboardPermissionGuard>
+                </PermissionGuard>
               }
             />
             <Route
               path="roles"
               element={
-                <DashboardPermissionGuard
-                  permission={['role.read', 'role.create']}
+                <PermissionGuard
+                  permissions={['role.read', 'role.create']}
                 >
                   <RolesPage />
-                </DashboardPermissionGuard>
+                </PermissionGuard>
               }
             />
             <Route
               path="roles-and-permissions"
               element={
-                <DashboardPermissionGuard
-                  permission={['permission.read', 'permission.create']}
+                <PermissionGuard
+                  permissions={['permission.read', 'permission.create']}
                 >
                   <PermissionsPage />
-                </DashboardPermissionGuard>
+                </PermissionGuard>
               }
             />
             <Route
               path="audit-log"
               element={
-                <DashboardPermissionGuard permission="audit.read">
+                <PermissionGuard permissions={['audit.read']}>
                   <AuditLogPage />
-                </DashboardPermissionGuard>
+                </PermissionGuard>
               }
             />
           </Route>

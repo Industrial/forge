@@ -817,4 +817,255 @@ mod tests {
     assert_eq!(scope.role_id, role_id);
     assert_eq!(scope.role_name, "viewer");
   }
+
+  // --- BDD Tests ---
+
+  mod request_validation_behavior {
+    use super::*;
+
+    #[test]
+    fn should_validate_register_request_when_email_and_password_are_valid() {
+      // Given: a register request with valid email and password
+      let request = RegisterRequest {
+        email: "user@example.com".to_string(),
+        password: "password123".to_string(),
+      };
+
+      // When: validating the request
+      let result = request.validate();
+
+      // Then: validation should pass
+      assert!(result.is_ok(), "Valid register request should pass validation");
+    }
+
+    #[test]
+    fn should_reject_register_request_when_email_is_invalid() {
+      // Given: a register request with invalid email
+      let request = RegisterRequest {
+        email: "not-an-email".to_string(),
+        password: "password123".to_string(),
+      };
+
+      // When: validating the request
+      let result = request.validate();
+
+      // Then: validation should fail
+      assert!(result.is_err(), "Invalid email should fail validation");
+    }
+
+    #[test]
+    fn should_reject_register_request_when_password_is_too_short() {
+      // Given: a register request with password shorter than 8 characters
+      let request = RegisterRequest {
+        email: "user@example.com".to_string(),
+        password: "short".to_string(),
+      };
+
+      // When: validating the request
+      let result = request.validate();
+
+      // Then: validation should fail
+      assert!(result.is_err(), "Password shorter than 8 characters should fail validation");
+    }
+
+    #[test]
+    fn should_validate_login_request_when_email_and_password_are_provided() {
+      // Given: a login request with email and password
+      let request = LoginRequest {
+        email: "user@example.com".to_string(),
+        password: "anypassword".to_string(),
+      };
+
+      // When: validating the request
+      let result = request.validate();
+
+      // Then: validation should pass
+      assert!(result.is_ok(), "Valid login request should pass validation");
+    }
+
+    #[test]
+    fn should_reject_login_request_when_email_is_invalid() {
+      // Given: a login request with invalid email
+      let request = LoginRequest {
+        email: "bad-email".to_string(),
+        password: "password".to_string(),
+      };
+
+      // When: validating the request
+      let result = request.validate();
+
+      // Then: validation should fail
+      assert!(result.is_err(), "Invalid email should fail validation");
+    }
+
+    #[test]
+    fn should_reject_login_request_when_password_is_empty() {
+      // Given: a login request with empty password
+      let request = LoginRequest {
+        email: "user@example.com".to_string(),
+        password: String::new(),
+      };
+
+      // When: validating the request
+      let result = request.validate();
+
+      // Then: validation should fail
+      assert!(result.is_err(), "Empty password should fail validation");
+    }
+  }
+
+  mod request_scope_behavior {
+    use super::*;
+
+    #[test]
+    fn should_create_request_scope_with_organization_role_and_name() {
+      // Given: organization ID, role ID, and role name
+      let org_id = Uuid::new_v4();
+      let role_id = Uuid::new_v4();
+      let role_name = "admin".to_string();
+
+      // When: creating RequestScope
+      let scope = RequestScope {
+        organization_id: org_id,
+        role_id,
+        role_name: role_name.clone(),
+      };
+
+      // Then: scope should contain all provided values
+      assert_eq!(scope.organization_id, org_id);
+      assert_eq!(scope.role_id, role_id);
+      assert_eq!(scope.role_name, role_name);
+    }
+
+    #[test]
+    fn should_create_request_scope_with_different_role_names() {
+      // Given: different role names
+      let org_id = Uuid::new_v4();
+      let role_id = Uuid::new_v4();
+      let roles = vec!["owner", "admin", "editor", "viewer"];
+
+      // When: creating RequestScope for each role
+      for role_name in roles {
+        let scope = RequestScope {
+          organization_id: org_id,
+          role_id,
+          role_name: role_name.to_string(),
+        };
+
+        // Then: each scope should have correct role name
+        assert_eq!(scope.role_name, role_name);
+      }
+    }
+  }
+
+  mod channels_from_permissions_behavior {
+    use super::*;
+
+    #[test]
+    fn should_create_organizations_channel_when_permission_present() {
+      // Given: permissions including dashboard.organizations.read
+      let permissions = vec!["dashboard.organizations.read".to_string()];
+      let org_id = Some(Uuid::new_v4());
+
+      // When: deriving channels from permissions
+      let channels = channels_from_permissions(&permissions, org_id);
+
+      // Then: should include organizations channel
+      assert!(
+        channels.iter().any(|c| matches!(c, Channel::Raw(ref name) if name == "organizations")),
+        "Should include organizations channel"
+      );
+    }
+
+    #[test]
+    fn should_create_audit_log_channel_when_permission_present() {
+      // Given: permissions including dashboard.audit.read
+      let permissions = vec!["dashboard.audit.read".to_string()];
+      let org_id = Some(Uuid::new_v4());
+
+      // When: deriving channels from permissions
+      let channels = channels_from_permissions(&permissions, org_id);
+
+      // Then: should include audit-log channel
+      assert!(
+        channels.iter().any(|c| matches!(c, Channel::Raw(ref name) if name == "audit-log")),
+        "Should include audit-log channel"
+      );
+    }
+
+    #[test]
+    fn should_always_include_tasks_channel() {
+      // Given: any permissions (or empty)
+      let permissions = vec![];
+
+      // When: deriving channels from permissions
+      let channels = channels_from_permissions(&permissions, None);
+
+      // Then: should always include tasks channel
+      assert!(
+        channels.iter().any(|c| matches!(c, Channel::Raw(ref name) if name == "tasks")),
+        "Should always include tasks channel"
+      );
+    }
+
+    #[test]
+    fn should_create_org_resource_channels_when_permissions_and_org_present() {
+      // Given: permissions for org-scoped resources and an organization ID
+      let permissions = vec![
+        "dashboard.users.read".to_string(),
+        "dashboard.roles.read".to_string(),
+        "dashboard.permissions.read".to_string(),
+      ];
+      let org_id = Some(Uuid::new_v4());
+
+      // When: deriving channels from permissions
+      let channels = channels_from_permissions(&permissions, org_id);
+
+      // Then: should include org-scoped channels
+      assert!(
+        channels.iter().any(|c| matches!(c, Channel::OrgResource(id, ref name) if *id == org_id.unwrap() && name == "users")),
+        "Should include users org channel"
+      );
+      assert!(
+        channels.iter().any(|c| matches!(c, Channel::OrgResource(id, ref name) if *id == org_id.unwrap() && name == "roles")),
+        "Should include roles org channel"
+      );
+    }
+
+    #[test]
+    fn should_not_create_org_resource_channels_when_org_id_missing() {
+      // Given: permissions for org-scoped resources but no organization ID
+      let permissions = vec![
+        "dashboard.users.read".to_string(),
+        "dashboard.roles.read".to_string(),
+      ];
+      let org_id = None;
+
+      // When: deriving channels from permissions
+      let channels = channels_from_permissions(&permissions, org_id);
+
+      // Then: should not include org-scoped channels
+      assert!(
+        !channels.iter().any(|c| matches!(c, Channel::OrgResource(_, _))),
+        "Should not include org-scoped channels when org_id is None"
+      );
+    }
+
+    #[test]
+    fn should_create_multiple_channels_for_multiple_permissions() {
+      // Given: multiple permissions
+      let permissions = vec![
+        "dashboard.organizations.read".to_string(),
+        "dashboard.audit.read".to_string(),
+        "dashboard.users.read".to_string(),
+      ];
+      let org_id = Some(Uuid::new_v4());
+
+      // When: deriving channels from permissions
+      let channels = channels_from_permissions(&permissions, org_id);
+
+      // Then: should include multiple channels
+      assert!(channels.len() >= 3, "Should create multiple channels");
+    }
+  }
 }

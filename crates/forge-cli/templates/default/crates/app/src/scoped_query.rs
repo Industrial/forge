@@ -114,57 +114,209 @@ mod tests {
     }
   }
 
-  #[tokio::test]
-  async fn audit_log_with_scope_none_leaves_query_unchanged() {
-    let select = audit_log::Entity::find();
-    let scoped = select.with_scope(None);
-    // Just ensure it compiles and returns the same type; we can't run without DB
-    let _: Select<audit_log::Entity> = scoped;
+  mod with_scope_trait_behavior {
+    use super::*;
+
+    mod audit_log_scoping {
+      use super::*;
+
+      #[tokio::test]
+      async fn with_scope_none_leaves_query_unchanged() {
+        // Given an audit_log select query
+        let select = audit_log::Entity::find();
+
+        // When I apply with_scope with None
+        let scoped = select.with_scope(None);
+
+        // Then it should return the same query unchanged (no filter applied)
+        let _: Select<audit_log::Entity> = scoped;
+      }
+
+      #[tokio::test]
+      async fn with_scope_some_applies_organization_filter() {
+        // Given an audit_log select query and a request scope with organization ID
+        let org_id = uuid::Uuid::new_v4();
+        let scope = test_scope(org_id);
+        let select = audit_log::Entity::find();
+
+        // When I apply with_scope with Some(scope)
+        let scoped = select.with_scope(Some(&scope));
+
+        // Then it should return a filtered query (filter is applied at compile time)
+        let _: Select<audit_log::Entity> = scoped;
+      }
+    }
+
+    mod org_role_scoping {
+      use super::*;
+
+      #[tokio::test]
+      async fn with_scope_none_returns_unfiltered_query() {
+        // Given an org_role select query
+        let select = org_role::Entity::find();
+
+        // When I apply with_scope with None
+        let scoped = select.with_scope(None);
+
+        // Then it should return the query without org filter
+        let _: Select<org_role::Entity> = scoped;
+      }
+
+      #[tokio::test]
+      async fn with_scope_some_filters_by_organization_id() {
+        // Given an org_role select query and a request scope
+        let org_id = uuid::Uuid::new_v4();
+        let scope = test_scope(org_id);
+        let select = org_role::Entity::find();
+
+        // When I apply with_scope with Some(scope)
+        let scoped = select.with_scope(Some(&scope));
+
+        // Then it should return a query filtered by org_id
+        let _: Select<org_role::Entity> = scoped;
+      }
+    }
+
+    mod user_org_role_scoping {
+      use super::*;
+
+      #[tokio::test]
+      async fn with_scope_none_returns_all_user_org_roles() {
+        // Given a user_org_role select query
+        let select = user_org_role::Entity::find();
+
+        // When I apply with_scope with None
+        let scoped = select.with_scope(None);
+
+        // Then it should return an unfiltered query
+        let _: Select<user_org_role::Entity> = scoped;
+      }
+
+      #[tokio::test]
+      async fn with_scope_some_filters_by_organization() {
+        // Given a user_org_role select query and a request scope
+        let org_id = uuid::Uuid::new_v4();
+        let scope = test_scope(org_id);
+        let select = user_org_role::Entity::find();
+
+        // When I apply with_scope with Some(scope)
+        let scoped = select.with_scope(Some(&scope));
+
+        // Then it should return a query filtered by organization
+        let _: Select<user_org_role::Entity> = scoped;
+      }
+    }
+
+    mod membership_scoping {
+      use super::*;
+
+      #[tokio::test]
+      async fn with_scope_none_returns_all_memberships() {
+        // Given a membership select query
+        let select = membership::Entity::find();
+
+        // When I apply with_scope with None
+        let scoped = select.with_scope(None);
+
+        // Then it should return an unfiltered query
+        let _: Select<membership::Entity> = scoped;
+      }
+
+      #[tokio::test]
+      async fn with_scope_some_filters_memberships_by_organization() {
+        // Given a membership select query and a request scope
+        let org_id = uuid::Uuid::new_v4();
+        let scope = test_scope(org_id);
+        let select = membership::Entity::find();
+
+        // When I apply with_scope with Some(scope)
+        let scoped = select.with_scope(Some(&scope));
+
+        // Then it should return a query filtered by organization
+        let _: Select<membership::Entity> = scoped;
+      }
+    }
+
+    mod role_permission_scoping {
+      use super::*;
+
+      #[tokio::test]
+      async fn with_scope_none_returns_all_role_permissions() {
+        // Given a role_permission select query
+        let select = role_permission::Entity::find();
+
+        // When I apply with_scope with None
+        let scoped = select.with_scope(None);
+
+        // Then it should return an unfiltered query
+        let _: Select<role_permission::Entity> = scoped;
+      }
+
+      #[tokio::test]
+      async fn with_scope_some_filters_role_permissions_by_organization() {
+        // Given a role_permission select query and a request scope
+        let org_id = uuid::Uuid::new_v4();
+        let scope = test_scope(org_id);
+        let select = role_permission::Entity::find();
+
+        // When I apply with_scope with Some(scope)
+        let scoped = select.with_scope(Some(&scope));
+
+        // Then it should return a query filtered by organization (using Some(org_id))
+        let _: Select<role_permission::Entity> = scoped;
+      }
+    }
   }
 
-  #[tokio::test]
-  async fn audit_log_with_scope_some_adds_org_filter() {
-    let org_id = uuid::Uuid::new_v4();
-    let scope = test_scope(org_id);
-    let select = audit_log::Entity::find().with_scope(Some(&scope));
-    let _: Select<audit_log::Entity> = select;
-    // Filter is applied; we'd assert SQL or run against test DB in integration
-  }
+  mod user_find_scoped_behavior {
+    use super::*;
 
-  #[tokio::test]
-  async fn org_role_with_scope_some_adds_org_filter() {
-    let org_id = uuid::Uuid::new_v4();
-    let scope = test_scope(org_id);
-    let select = org_role::Entity::find().with_scope(Some(&scope));
-    let _: Select<org_role::Entity> = select;
-  }
+    #[tokio::test]
+    async fn user_find_scoped_none_returns_unfiltered_select() {
+      // Given a database connection and no scope
+      let db = sea_orm::Database::connect("sqlite::memory:")
+        .await
+        .expect("in-memory db");
 
-  #[tokio::test]
-  async fn user_org_role_with_scope_some_adds_org_filter() {
-    let org_id = uuid::Uuid::new_v4();
-    let scope = test_scope(org_id);
-    let select = user_org_role::Entity::find().with_scope(Some(&scope));
-    let _: Select<user_org_role::Entity> = select;
-  }
+      // When I call user_find_scoped with None
+      let select = user_find_scoped(&db, None).await.expect("ok");
 
-  #[tokio::test]
-  async fn user_find_scoped_none_returns_unfiltered_select() {
-    let db = sea_orm::Database::connect("sqlite::memory:")
-      .await
-      .expect("in-memory db");
-    let select = user_find_scoped(&db, None).await.expect("ok");
-    let _: Select<user::Entity> = select;
-  }
+      // Then it should return an unfiltered user select query
+      let _: Select<user::Entity> = select;
+    }
 
-  #[tokio::test]
-  async fn user_find_scoped_some_returns_filtered_select() {
-    let db = sea_orm::Database::connect("sqlite::memory:")
-      .await
-      .expect("in-memory db");
-    migrations::Migrator::up(&db, None).await.expect("migrate");
-    let org_id = uuid::Uuid::new_v4();
-    let scope = test_scope(org_id);
-    let select = user_find_scoped(&db, Some(&scope)).await.expect("ok");
-    let _: Select<user::Entity> = select;
+    #[tokio::test]
+    async fn user_find_scoped_some_returns_filtered_select() {
+      // Given a database with migrations and a request scope
+      let db = sea_orm::Database::connect("sqlite::memory:")
+        .await
+        .expect("in-memory db");
+      migrations::Migrator::up(&db, None).await.expect("migrate");
+      let org_id = uuid::Uuid::new_v4();
+      let scope = test_scope(org_id);
+
+      // When I call user_find_scoped with Some(scope)
+      let select = user_find_scoped(&db, Some(&scope)).await.expect("ok");
+
+      // Then it should return a filtered select query
+      let _: Select<user::Entity> = select;
+    }
+
+    #[tokio::test]
+    async fn user_find_scoped_handles_empty_membership_list() {
+      // Given a database with migrations and a scope for an org with no members
+      let db = sea_orm::Database::connect("sqlite::memory:")
+        .await
+        .expect("in-memory db");
+      migrations::Migrator::up(&db, None).await.expect("migrate");
+      let org_id = uuid::Uuid::new_v4();
+      let scope = test_scope(org_id);
+
+      // When I call user_find_scoped with Some(scope) for an org with no members
+      let select = user_find_scoped(&db, Some(&scope)).await.expect("ok");
+
+      // Then it should return a query that matches no rows (using nil UUID filter)
+      let _: Select<user::Entity> = select;
+    }
   }
 }

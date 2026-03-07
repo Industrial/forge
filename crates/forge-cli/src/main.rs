@@ -446,4 +446,312 @@ mod tests {
       assert!(err.to_string().contains("main.rs"));
     }
   }
+
+  mod bdd_tests {
+    use super::*;
+    use std::sync::Mutex;
+
+    /// Restores FORGE_TEMPLATES_DIR on drop (so test can restore env even on panic).
+    struct RestoreForgeTemplatesDir(Option<String>);
+    impl Drop for RestoreForgeTemplatesDir {
+      fn drop(&mut self) {
+        if let Some(ref v) = self.0 {
+          unsafe {
+            std::env::set_var("FORGE_TEMPLATES_DIR", v);
+          }
+        } else {
+          unsafe {
+            std::env::remove_var("FORGE_TEMPLATES_DIR");
+          }
+        }
+      }
+    }
+
+    static CREATE_PROJECT_LOCK: Mutex<()> = Mutex::new(());
+
+    /// BDD-style tests focusing on behavior rather than implementation.
+    /// Tests are organized by feature/behavior area with descriptive names.
+
+    mod main_function_behavior {
+      use super::*;
+
+      /// Helper function to simulate main() behavior with parsed args
+      fn simulate_main_with_args(args: Args) -> std::process::ExitCode {
+        match args.command {
+          Some(Commands::New { name }) => {
+            if let Err(_e) = create_new_project(&name) {
+              return std::process::ExitCode::FAILURE;
+            }
+            std::process::ExitCode::SUCCESS
+          }
+          Some(Commands::Dev {}) => {
+            let config = match forge_config::load_config() {
+              Ok(c) => c,
+              Err(_e) => {
+                return std::process::ExitCode::FAILURE;
+              }
+            };
+            if let Err(_e) = dev::run(&config) {
+              return std::process::ExitCode::FAILURE;
+            }
+            std::process::ExitCode::SUCCESS
+          }
+          Some(Commands::Serve {}) => {
+            let config = match forge_config::load_config() {
+              Ok(c) => c,
+              Err(_e) => {
+                return std::process::ExitCode::FAILURE;
+              }
+            };
+            if let Err(_e) = serve::run(&config) {
+              return std::process::ExitCode::FAILURE;
+            }
+            std::process::ExitCode::SUCCESS
+          }
+          None => {
+            // No subcommand provided, show help
+            let _ = Args::command().print_help();
+            std::process::ExitCode::SUCCESS
+          }
+        }
+      }
+
+      #[test]
+      fn should_return_success_when_no_command_provided() {
+        // Given: Args with no command subcommand
+        let args = Args { command: None };
+
+        // When: Processing the command
+        let exit_code = simulate_main_with_args(args);
+
+        // Then: Should return SUCCESS exit code
+        assert_eq!(exit_code, std::process::ExitCode::SUCCESS);
+      }
+
+      #[test]
+      fn should_return_success_when_new_command_succeeds() {
+        // Given: Args with New command and valid project name
+        let _guard = CREATE_PROJECT_LOCK.lock().unwrap();
+        let template_parent =
+          std::path::Path::new(env!("CARGO_MANIFEST_DIR")).join("templates");
+        let _env_guard = RestoreForgeTemplatesDir(std::env::var("FORGE_TEMPLATES_DIR").ok());
+        unsafe {
+          std::env::set_var("FORGE_TEMPLATES_DIR", &template_parent);
+        }
+        let temp_dir = tempdir().unwrap();
+        let project_path = temp_dir.path().join("test_new_success");
+        let args = Args {
+          command: Some(Commands::New {
+            name: project_path.to_str().unwrap().to_string(),
+          }),
+        };
+
+        // When: Processing the New command
+        let exit_code = simulate_main_with_args(args);
+
+        // Then: Should return SUCCESS exit code
+        assert_eq!(exit_code, std::process::ExitCode::SUCCESS);
+        assert!(project_path.exists());
+      }
+
+      #[test]
+      fn should_return_failure_when_new_command_fails() {
+        // Given: Args with New command pointing to existing directory
+        let _guard = CREATE_PROJECT_LOCK.lock().unwrap();
+        let temp_dir = tempdir().unwrap();
+        let project_path = temp_dir.path().join("existing_dir");
+        fs::create_dir(&project_path).unwrap();
+        let args = Args {
+          command: Some(Commands::New {
+            name: project_path.to_str().unwrap().to_string(),
+          }),
+        };
+
+        // When: Processing the New command
+        let exit_code = simulate_main_with_args(args);
+
+        // Then: Should return FAILURE exit code
+        assert_eq!(exit_code, std::process::ExitCode::FAILURE);
+      }
+
+      #[test]
+      fn should_return_failure_when_dev_command_cannot_load_config() {
+        // Given: Args with Dev command in directory without config
+        let _guard = crate::CHDIR_TEST_LOCK.lock().unwrap();
+        let temp_dir = tempdir().unwrap();
+        let orig = std::env::current_dir().unwrap();
+        std::env::set_current_dir(temp_dir.path()).unwrap();
+        let args = Args {
+          command: Some(Commands::Dev {}),
+        };
+
+        // When: Processing the Dev command
+        let exit_code = simulate_main_with_args(args);
+
+        // Then: Should return FAILURE exit code (config load fails)
+        assert_eq!(exit_code, std::process::ExitCode::FAILURE);
+
+        std::env::set_current_dir(orig).unwrap();
+      }
+
+      #[test]
+      fn should_return_failure_when_serve_command_cannot_load_config() {
+        // Given: Args with Serve command in directory without config
+        let _guard = crate::CHDIR_TEST_LOCK.lock().unwrap();
+        let temp_dir = tempdir().unwrap();
+        let orig = std::env::current_dir().unwrap();
+        std::env::set_current_dir(temp_dir.path()).unwrap();
+        let args = Args {
+          command: Some(Commands::Serve {}),
+        };
+
+        // When: Processing the Serve command
+        let exit_code = simulate_main_with_args(args);
+
+        // Then: Should return FAILURE exit code (config load fails)
+        assert_eq!(exit_code, std::process::ExitCode::FAILURE);
+
+        std::env::set_current_dir(orig).unwrap();
+      }
+    }
+
+    mod command_dispatching_behavior {
+      use super::*;
+
+      #[test]
+      fn should_dispatch_to_new_handler_when_new_command_provided() {
+        // Given: Parsed args with New command
+        let args = Args::try_parse_from(["forge", "new", "test_project"]).unwrap();
+
+        // When: Checking the command variant
+        // Then: Should contain New command
+        match args.command {
+          Some(Commands::New { name }) => {
+            assert_eq!(name, "test_project");
+          }
+          _ => panic!("Expected New command to be dispatched"),
+        }
+      }
+
+      #[test]
+      fn should_dispatch_to_dev_handler_when_dev_command_provided() {
+        // Given: Parsed args with Dev command
+        let args = Args::try_parse_from(["forge", "dev"]).unwrap();
+
+        // When: Checking the command variant
+        // Then: Should contain Dev command
+        match args.command {
+          Some(Commands::Dev {}) => (),
+          _ => panic!("Expected Dev command to be dispatched"),
+        }
+      }
+
+      #[test]
+      fn should_dispatch_to_serve_handler_when_serve_command_provided() {
+        // Given: Parsed args with Serve command
+        let args = Args::try_parse_from(["forge", "serve"]).unwrap();
+
+        // When: Checking the command variant
+        // Then: Should contain Serve command
+        match args.command {
+          Some(Commands::Serve {}) => (),
+          _ => panic!("Expected Serve command to be dispatched"),
+        }
+      }
+
+      #[test]
+      fn should_handle_no_command_by_showing_help() {
+        // Given: Parsed args with no subcommand
+        let args = Args::try_parse_from(["forge"]).unwrap();
+
+        // When: Checking the command variant
+        // Then: Should be None, indicating help should be shown
+        assert!(args.command.is_none());
+      }
+    }
+
+    mod error_handling_behavior {
+      use super::*;
+
+      /// Helper function to simulate main() behavior with parsed args
+      fn simulate_main_with_args(args: Args) -> std::process::ExitCode {
+        match args.command {
+          Some(Commands::New { name }) => {
+            if let Err(_e) = create_new_project(&name) {
+              return std::process::ExitCode::FAILURE;
+            }
+            std::process::ExitCode::SUCCESS
+          }
+          Some(Commands::Dev {}) => {
+            let config = match forge_config::load_config() {
+              Ok(c) => c,
+              Err(_e) => {
+                return std::process::ExitCode::FAILURE;
+              }
+            };
+            if let Err(_e) = dev::run(&config) {
+              return std::process::ExitCode::FAILURE;
+            }
+            std::process::ExitCode::SUCCESS
+          }
+          Some(Commands::Serve {}) => {
+            let config = match forge_config::load_config() {
+              Ok(c) => c,
+              Err(_e) => {
+                return std::process::ExitCode::FAILURE;
+              }
+            };
+            if let Err(_e) = serve::run(&config) {
+              return std::process::ExitCode::FAILURE;
+            }
+            std::process::ExitCode::SUCCESS
+          }
+          None => {
+            let _ = Args::command().print_help();
+            std::process::ExitCode::SUCCESS
+          }
+        }
+      }
+
+      #[test]
+      fn should_handle_new_command_errors_gracefully() {
+        // Given: New command that will fail (existing directory)
+        let _guard = CREATE_PROJECT_LOCK.lock().unwrap();
+        let temp_dir = tempdir().unwrap();
+        let project_path = temp_dir.path().join("existing");
+        fs::create_dir(&project_path).unwrap();
+        let args = Args {
+          command: Some(Commands::New {
+            name: project_path.to_str().unwrap().to_string(),
+          }),
+        };
+
+        // When: Processing the command
+        let exit_code = simulate_main_with_args(args);
+
+        // Then: Should return failure exit code (not panic)
+        assert_eq!(exit_code, std::process::ExitCode::FAILURE);
+      }
+
+      #[test]
+      fn should_handle_config_load_errors_gracefully() {
+        // Given: Dev command in directory without config
+        let _guard = crate::CHDIR_TEST_LOCK.lock().unwrap();
+        let temp_dir = tempdir().unwrap();
+        let orig = std::env::current_dir().unwrap();
+        std::env::set_current_dir(temp_dir.path()).unwrap();
+        let args = Args {
+          command: Some(Commands::Dev {}),
+        };
+
+        // When: Processing the command
+        let exit_code = simulate_main_with_args(args);
+
+        // Then: Should return failure exit code (not panic)
+        assert_eq!(exit_code, std::process::ExitCode::FAILURE);
+
+        std::env::set_current_dir(orig).unwrap();
+      }
+    }
+  }
 }

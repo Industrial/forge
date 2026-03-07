@@ -13,8 +13,7 @@ import People from '@mui/icons-material/People'
 import Badge from '@mui/icons-material/Badge'
 import Lock from '@mui/icons-material/Lock'
 import History from '@mui/icons-material/History'
-import { useAuthStore } from '@/features/authentication/stores'
-import { hasPermission } from '@/lib/permissions'
+import { ShowWithPermissions } from '@/components/ShowWithPermissions'
 
 /** §7: Entity-based permissions. Show nav item if user has any of these (read or write for section). */
 const NAV_ITEMS = [
@@ -81,11 +80,6 @@ export default function Sidebar({
   fullWidth = false,
 }: SidebarProps) {
   const width = fullWidth ? '100%' : expanded ? 240 : 72
-  const authentication = useAuthStore()
-  const permissions = authentication.permissions
-  const navItems = NAV_ITEMS.filter((item) =>
-    hasPermission(permissions, item.permissions),
-  )
 
   return (
     <Box
@@ -107,41 +101,42 @@ export default function Sidebar({
       }}
     >
       <List sx={{ flexGrow: 1, minHeight: 0, py: 0 }}>
-        {navItems.map(({ to, label, end, icon: Icon }) => (
-          <NavLink
-            key={to}
-            to={to}
-            end={end}
-            style={{ textDecoration: 'none', color: 'inherit' }}
-          >
-            {({ isActive }) => (
-              <ListItemButton
-                title={!expanded ? label : undefined}
-                selected={isActive}
-                sx={{
-                  borderRadius: 1,
-                  justifyContent: expanded ? 'flex-start' : 'center',
-                  px: 1.5,
-                  py: 1,
-                  '&.Mui-selected': {
-                    bgcolor: 'primary.main',
-                    color: 'primary.contrastText',
-                    '&:hover': { bgcolor: 'primary.dark' },
-                  },
-                }}
-              >
-                <ListItemIcon
+        {NAV_ITEMS.map(({ to, label, end, icon: Icon, permissions }) => (
+          <ShowWithPermissions key={to} permissions={permissions}>
+            <NavLink
+              to={to}
+              end={end}
+              style={{ textDecoration: 'none', color: 'inherit' }}
+            >
+              {({ isActive }) => (
+                <ListItemButton
+                  title={!expanded ? label : undefined}
+                  selected={isActive}
                   sx={{
-                    minWidth: expanded ? 56 : 'auto',
-                    color: 'inherit',
+                    borderRadius: 1,
+                    justifyContent: expanded ? 'flex-start' : 'center',
+                    px: 1.5,
+                    py: 1,
+                    '&.Mui-selected': {
+                      bgcolor: 'primary.main',
+                      color: 'primary.contrastText',
+                      '&:hover': { bgcolor: 'primary.dark' },
+                    },
                   }}
                 >
-                  <Icon />
-                </ListItemIcon>
-                {expanded && <ListItemText primary={label} />}
-              </ListItemButton>
-            )}
-          </NavLink>
+                  <ListItemIcon
+                    sx={{
+                      minWidth: expanded ? 56 : 'auto',
+                      color: 'inherit',
+                    }}
+                  >
+                    <Icon />
+                  </ListItemIcon>
+                  {expanded && <ListItemText primary={label} />}
+                </ListItemButton>
+              )}
+            </NavLink>
+          </ShowWithPermissions>
         ))}
       </List>
       {!hideToggle && (

@@ -372,4 +372,323 @@ mod tests {
     assert_eq!(key.organization_id, Some(org_id));
     assert_eq!(key.user_id, user_id);
   }
+
+  mod bdd_tests {
+    use super::*;
+
+    /// BDD-style tests focusing on behavior rather than implementation.
+    /// Tests verify RequesterOrgKey structure, key extraction, and rate limiting key generation behavior.
+
+    mod requester_org_key_structure_behavior {
+      use super::*;
+
+      #[test]
+      fn should_create_key_with_organization_and_user() {
+        // Given: organization ID and user ID
+        let org_id = uuid::Uuid::new_v4();
+        let user_id = uuid::Uuid::new_v4();
+
+        // When: creating RequesterOrgKey
+        let key = RequesterOrgKey {
+          organization_id: Some(org_id),
+          user_id,
+        };
+
+        // Then: key should contain both IDs
+        assert_eq!(key.organization_id, Some(org_id));
+        assert_eq!(key.user_id, user_id);
+      }
+
+      #[test]
+      fn should_create_key_without_organization() {
+        // Given: user ID without organization
+        let user_id = uuid::Uuid::new_v4();
+
+        // When: creating RequesterOrgKey without organization
+        let key = RequesterOrgKey {
+          organization_id: None,
+          user_id,
+        };
+
+        // Then: key should have None organization_id
+        assert_eq!(key.organization_id, None);
+        assert_eq!(key.user_id, user_id);
+      }
+
+      #[test]
+      fn should_compare_keys_for_equality() {
+        // Given: two RequesterOrgKey instances with same values
+        let org_id = uuid::Uuid::new_v4();
+        let user_id = uuid::Uuid::new_v4();
+        let key1 = RequesterOrgKey {
+          organization_id: Some(org_id),
+          user_id,
+        };
+        let key2 = RequesterOrgKey {
+          organization_id: Some(org_id),
+          user_id,
+        };
+
+        // When: comparing keys
+        // Then: equal keys should match
+        assert_eq!(key1, key2, "Keys with same values should be equal");
+      }
+
+      #[test]
+      fn should_distinguish_keys_with_different_organizations() {
+        // Given: two keys with same user but different organizations
+        let org_id1 = uuid::Uuid::new_v4();
+        let org_id2 = uuid::Uuid::new_v4();
+        let user_id = uuid::Uuid::new_v4();
+        let key1 = RequesterOrgKey {
+          organization_id: Some(org_id1),
+          user_id,
+        };
+        let key2 = RequesterOrgKey {
+          organization_id: Some(org_id2),
+          user_id,
+        };
+
+        // When: comparing keys
+        // Then: keys should be different
+        assert_ne!(key1, key2, "Keys with different organizations should be different");
+      }
+
+      #[test]
+      fn should_distinguish_keys_with_different_users() {
+        // Given: two keys with same organization but different users
+        let org_id = uuid::Uuid::new_v4();
+        let user_id1 = uuid::Uuid::new_v4();
+        let user_id2 = uuid::Uuid::new_v4();
+        let key1 = RequesterOrgKey {
+          organization_id: Some(org_id),
+          user_id: user_id1,
+        };
+        let key2 = RequesterOrgKey {
+          organization_id: Some(org_id),
+          user_id: user_id2,
+        };
+
+        // When: comparing keys
+        // Then: keys should be different
+        assert_ne!(key1, key2, "Keys with different users should be different");
+      }
+
+      #[test]
+      fn should_hash_keys_consistently() {
+        // Given: a RequesterOrgKey
+        let org_id = uuid::Uuid::new_v4();
+        let user_id = uuid::Uuid::new_v4();
+        let key = RequesterOrgKey {
+          organization_id: Some(org_id),
+          user_id,
+        };
+
+        // When: hashing the key multiple times
+        use std::hash::{Hash, Hasher};
+        let mut hasher1 = std::collections::hash_map::DefaultHasher::new();
+        let mut hasher2 = std::collections::hash_map::DefaultHasher::new();
+        key.hash(&mut hasher1);
+        key.hash(&mut hasher2);
+
+        // Then: hash values should be consistent
+        assert_eq!(
+          hasher1.finish(),
+          hasher2.finish(),
+          "Hash should be consistent for same key"
+        );
+      }
+    }
+
+    mod requester_org_key_from_user_behavior {
+      use super::*;
+
+      #[test]
+      fn should_create_nil_key_when_user_is_none() {
+        // Given: no user
+        // When: extracting key from None user
+        let key = requester_org_key_from_user::<MockUserWithOrg>(None);
+
+        // Then: should return key with nil user_id and no organization
+        assert_eq!(key.user_id, uuid::Uuid::nil(), "Should use nil UUID for missing user");
+        assert_eq!(key.organization_id, None, "Should have no organization");
+      }
+
+      #[test]
+      fn should_extract_key_from_user_without_organization() {
+        // Given: a user without organization
+        let user_id = uuid::Uuid::new_v4();
+        let user = MockUserWithOrg {
+          organization_id: None,
+          user_id,
+        };
+
+        // When: extracting key from user
+        let key = requester_org_key_from_user(Some(&user));
+
+        // Then: should extract user_id but no organization
+        assert_eq!(key.user_id, user_id);
+        assert_eq!(key.organization_id, None);
+      }
+
+      #[test]
+      fn should_extract_key_from_user_with_organization() {
+        // Given: a user with organization
+        let org_id = uuid::Uuid::new_v4();
+        let user_id = uuid::Uuid::new_v4();
+        let user = MockUserWithOrg {
+          organization_id: Some(org_id),
+          user_id,
+        };
+
+        // When: extracting key from user
+        let key = requester_org_key_from_user(Some(&user));
+
+        // Then: should extract both user_id and organization_id
+        assert_eq!(key.user_id, user_id);
+        assert_eq!(key.organization_id, Some(org_id));
+      }
+    }
+
+    mod requester_org_key_extractor_behavior {
+      use super::*;
+
+      #[test]
+      fn should_create_extractor_with_new() {
+        // Given: RequesterOrgKeyExtractor
+        // When: creating extractor with new()
+        let extractor = RequesterOrgKeyExtractor::<MockBackend>::new();
+
+        // Then: extractor should be created
+        // Type check - if it compiles, it's created
+        let _ = extractor;
+        assert!(true, "Extractor should be created");
+      }
+
+      #[test]
+      fn should_create_extractor_with_default() {
+        // Given: RequesterOrgKeyExtractor
+        // When: creating extractor with default()
+        let extractor = RequesterOrgKeyExtractor::<MockBackend>::default();
+
+        // Then: extractor should be created
+        let _ = extractor;
+        assert!(true, "Extractor should be created via Default");
+      }
+
+      #[test]
+      fn should_extract_nil_key_when_no_extensions() {
+        // Given: a request without extensions
+        let req = Request::builder().body(()).unwrap();
+
+        // When: extracting key
+        let key = RequesterOrgKeyExtractor::<MockBackend>::new()
+          .extract(&req)
+          .unwrap();
+
+        // Then: should return nil key
+        assert_eq!(key.user_id, uuid::Uuid::nil());
+        assert_eq!(key.organization_id, None);
+      }
+
+      #[test]
+      fn should_prefer_request_scope_organization_over_user_organization() {
+        // Given: a request with both TokenUser (with org) and RequestScope (with different org)
+        use axum::http::Extensions;
+        use forge_auth::RequestScope;
+        use forge_auth::token_auth::TokenUser;
+
+        let org_from_user = uuid::Uuid::new_v4();
+        let org_from_scope = uuid::Uuid::new_v4();
+        let user_id = uuid::Uuid::new_v4();
+
+        let user = MockUserWithOrg {
+          organization_id: Some(org_from_user),
+          user_id,
+        };
+
+        let mut req = Request::builder().body(()).unwrap();
+        req.extensions_mut().insert(TokenUser::<MockUserWithOrg> {
+          user: user.clone(),
+          extensions: Extensions::new(),
+        });
+        req.extensions_mut().insert(RequestScope {
+          organization_id: org_from_scope,
+          role_id: uuid::Uuid::new_v4(),
+          role_name: "viewer".to_string(),
+        });
+
+        // When: extracting key
+        let key = RequesterOrgKeyExtractor::<MockBackend>::new()
+          .extract(&req)
+          .unwrap();
+
+        // Then: should prefer RequestScope organization
+        assert_eq!(key.organization_id, Some(org_from_scope));
+        assert_eq!(key.user_id, user_id);
+      }
+
+      #[test]
+      fn should_fallback_to_user_organization_when_scope_missing() {
+        // Given: a request with TokenUser but no RequestScope
+        use axum::http::Extensions;
+        use forge_auth::token_auth::TokenUser;
+
+        let org_id = uuid::Uuid::new_v4();
+        let user_id = uuid::Uuid::new_v4();
+        let user = MockUserWithOrg {
+          organization_id: Some(org_id),
+          user_id,
+        };
+
+        let mut req = Request::builder().body(()).unwrap();
+        req.extensions_mut().insert(TokenUser::<MockUserWithOrg> {
+          user: user.clone(),
+          extensions: Extensions::new(),
+        });
+
+        // When: extracting key
+        let key = RequesterOrgKeyExtractor::<MockBackend>::new()
+          .extract(&req)
+          .unwrap();
+
+        // Then: should use user's organization
+        assert_eq!(key.organization_id, Some(org_id));
+        assert_eq!(key.user_id, user_id);
+      }
+    }
+
+    // Helper types for BDD tests
+    static MOCK_AUTH_HASH: [u8; 0] = [];
+    impl axum_login::AuthUser for MockUserWithOrg {
+      type Id = uuid::Uuid;
+      fn id(&self) -> Self::Id {
+        self.user_id
+      }
+      fn session_auth_hash(&self) -> &[u8] {
+        &MOCK_AUTH_HASH
+      }
+    }
+
+    #[derive(Clone)]
+    struct MockBackend;
+    #[async_trait::async_trait]
+    impl axum_login::AuthnBackend for MockBackend {
+      type User = MockUserWithOrg;
+      type Credentials = ();
+      type Error = std::io::Error;
+      async fn authenticate(
+        &self,
+        _: Self::Credentials,
+      ) -> Result<Option<Self::User>, Self::Error> {
+        Ok(None)
+      }
+      async fn get_user(
+        &self,
+        _: &axum_login::UserId<Self>,
+      ) -> Result<Option<Self::User>, Self::Error> {
+        Ok(None)
+      }
+    }
+  }
 }

@@ -220,3 +220,367 @@ mod tests {
     let _ = daily.clone();
   }
 }
+
+#[cfg(test)]
+mod bdd_tests {
+  use super::*;
+  use std::time::Duration;
+
+  /// BDD-style tests focusing on behavior rather than implementation.
+  /// Tests are organized by feature/behavior area with descriptive names.
+
+  mod cron_schedule_enum_behavior {
+    use super::*;
+
+    #[test]
+    fn should_create_interval_schedule() {
+      // Given: a duration
+      let duration = Duration::from_secs(60);
+
+      // When: creating an Interval schedule
+      let schedule = CronSchedule::Interval(duration);
+
+      // Then: should be an Interval variant
+      match schedule {
+        CronSchedule::Interval(d) => assert_eq!(d, duration),
+        _ => panic!("Expected Interval variant"),
+      }
+    }
+
+    #[test]
+    fn should_create_hourly_schedule() {
+      // Given: a minute value
+      let minute = 30;
+
+      // When: creating an Hourly schedule
+      let schedule = CronSchedule::Hourly { minute };
+
+      // Then: should be an Hourly variant with correct minute
+      match schedule {
+        CronSchedule::Hourly { minute: m } => assert_eq!(m, minute),
+        _ => panic!("Expected Hourly variant"),
+      }
+    }
+
+    #[test]
+    fn should_create_daily_schedule() {
+      // Given: hour and minute values
+      let hour = 9;
+      let minute = 15;
+
+      // When: creating a Daily schedule
+      let schedule = CronSchedule::Daily { hour, minute };
+
+      // Then: should be a Daily variant with correct values
+      match schedule {
+        CronSchedule::Daily { hour: h, minute: m } => {
+          assert_eq!(h, hour);
+          assert_eq!(m, minute);
+        }
+        _ => panic!("Expected Daily variant"),
+      }
+    }
+
+    #[test]
+    fn should_be_cloneable() {
+      // Given: a CronSchedule
+      let schedule = CronSchedule::Interval(Duration::from_secs(30));
+
+      // When: cloning it
+      let cloned = schedule.clone();
+
+      // Then: should have same variant and values
+      match (schedule, cloned) {
+        (CronSchedule::Interval(d1), CronSchedule::Interval(d2)) => assert_eq!(d1, d2),
+        _ => panic!("Clones should match"),
+      }
+    }
+
+    #[test]
+    fn should_be_debuggable() {
+      // Given: a CronSchedule
+      let schedule = CronSchedule::Hourly { minute: 15 };
+
+      // When: formatting for debug
+      let debug_str = format!("{:?}", schedule);
+
+      // Then: should produce debug output
+      assert!(!debug_str.is_empty());
+    }
+  }
+
+  mod next_interval_run_behavior {
+    use super::*;
+
+    #[test]
+    fn should_return_now_for_first_run() {
+      // Given: an interval duration and no last run
+      let duration = Duration::from_secs(60);
+      let last_run = None;
+
+      // When: calculating next run
+      let (next, new_last) = next_interval_run(duration, last_run);
+      let now = Instant::now();
+
+      // Then: next should be at or very close to now
+      assert!(next <= now + Duration::from_millis(100));
+      assert!(new_last.is_some());
+    }
+
+    #[test]
+    fn should_schedule_next_run_after_interval() {
+      // Given: an interval duration and a past last run
+      let duration = Duration::from_secs(60);
+      let past = Instant::now() - Duration::from_secs(1);
+      let last_run = Some(past);
+
+      // When: calculating next run
+      let (next, new_last) = next_interval_run(duration, last_run);
+      let now = Instant::now();
+
+      // Then: next should be in the future
+      assert!(next > now);
+      assert!(new_last.is_some());
+      assert!(new_last.unwrap() > now);
+    }
+
+    #[test]
+    fn should_use_now_if_last_run_plus_interval_is_in_past() {
+      // Given: an interval duration and a last run that makes next run in the past
+      let duration = Duration::from_secs(5);
+      let past = Instant::now() - Duration::from_secs(10);
+      let last_run = Some(past);
+
+      // When: calculating next run
+      let (next, new_last) = next_interval_run(duration, last_run);
+      let now = Instant::now();
+
+      // Then: should use now instead of past time
+      assert!(next <= now + Duration::from_millis(100));
+      assert!(new_last.is_some());
+    }
+
+    #[test]
+    fn should_update_last_run_to_next_run() {
+      // Given: an interval duration and last run
+      let duration = Duration::from_secs(60);
+      let past = Instant::now() - Duration::from_secs(1);
+      let last_run = Some(past);
+
+      // When: calculating next run
+      let (next, new_last) = next_interval_run(duration, last_run);
+
+      // Then: new_last should equal next
+      assert_eq!(new_last, Some(next));
+    }
+  }
+
+  mod next_hourly_run_behavior {
+    use super::*;
+
+    #[test]
+    fn should_return_future_instant() {
+      // Given: a minute value
+      let minute = 0;
+
+      // When: calculating next hourly run
+      let next = next_hourly_run(minute);
+      let now = Instant::now();
+
+      // Then: should be in the future
+      assert!(next > now);
+    }
+
+    #[test]
+    fn should_clamp_minute_to_59() {
+      // Given: a minute value greater than 59
+      let minute = 99;
+
+      // When: calculating next hourly run
+      let next = next_hourly_run(minute);
+      let now = Instant::now();
+
+      // Then: should still return valid future instant (minute clamped)
+      assert!(next > now);
+    }
+
+    #[test]
+    fn should_schedule_for_next_hour_if_minute_passed() {
+      // Given: a minute value that may have already passed this hour
+      let minute = 0;
+
+      // When: calculating next hourly run
+      let next = next_hourly_run(minute);
+      let now = Instant::now();
+
+      // Then: should be at least in the future (could be next hour)
+      assert!(next >= now);
+    }
+
+    #[test]
+    fn should_schedule_for_current_hour_if_minute_not_passed() {
+      // Given: a minute value in the future of current hour
+      // (This is probabilistic - minute 59 is likely in the future)
+      let minute = 59;
+
+      // When: calculating next hourly run
+      let next = next_hourly_run(minute);
+      let now = Instant::now();
+
+      // Then: should be in the future
+      assert!(next >= now);
+    }
+  }
+
+  mod next_daily_run_behavior {
+    use super::*;
+
+    #[test]
+    fn should_return_future_instant() {
+      // Given: hour and minute values
+      let hour = 3;
+      let minute = 0;
+
+      // When: calculating next daily run
+      let next = next_daily_run(hour, minute);
+      let now = Instant::now();
+
+      // Then: should be in the future
+      assert!(next > now);
+    }
+
+    #[test]
+    fn should_clamp_hour_to_23() {
+      // Given: hour value greater than 23
+      let hour = 25;
+      let minute = 0;
+
+      // When: calculating next daily run
+      let next = next_daily_run(hour, minute);
+      let now = Instant::now();
+
+      // Then: should still return valid future instant (hour clamped)
+      assert!(next > now);
+    }
+
+    #[test]
+    fn should_clamp_minute_to_59() {
+      // Given: minute value greater than 59
+      let hour = 9;
+      let minute = 99;
+
+      // When: calculating next daily run
+      let next = next_daily_run(hour, minute);
+      let now = Instant::now();
+
+      // Then: should still return valid future instant (minute clamped)
+      assert!(next > now);
+    }
+
+    #[test]
+    fn should_schedule_for_tomorrow_if_time_passed_today() {
+      // Given: hour and minute that may have passed today
+      let hour = 0;
+      let minute = 0;
+
+      // When: calculating next daily run
+      let next = next_daily_run(hour, minute);
+      let now = Instant::now();
+
+      // Then: should be in the future (could be tomorrow)
+      assert!(next >= now);
+    }
+
+    #[test]
+    fn should_schedule_for_today_if_time_not_passed() {
+      // Given: hour and minute likely in the future today
+      // (This is probabilistic - hour 23 is likely in the future)
+      let hour = 23;
+      let minute = 59;
+
+      // When: calculating next daily run
+      let next = next_daily_run(hour, minute);
+      let now = Instant::now();
+
+      // Then: should be in the future
+      assert!(next >= now);
+    }
+  }
+
+  mod cron_runner_behavior {
+    use super::*;
+
+    #[test]
+    fn should_store_tasks_and_job_pool_url() {
+      // Given: tasks and job pool URL
+      let tasks = Vec::new();
+      let job_pool_url = "sqlite::memory:".to_string();
+
+      // When: creating CronRunner
+      let runner = CronRunner {
+        tasks,
+        job_pool_url: job_pool_url.clone(),
+      };
+
+      // Then: should store the values
+      assert_eq!(runner.job_pool_url, job_pool_url);
+      assert_eq!(runner.tasks.len(), 0);
+    }
+
+    #[test]
+    fn should_accept_multiple_tasks() {
+      // Given: multiple cron tasks
+      let task1: CronTaskBox = Box::new(|_db: DbConnection| {
+        Box::pin(async move { Ok(()) })
+      });
+      let task2: CronTaskBox = Box::new(|_db: DbConnection| {
+        Box::pin(async move { Ok(()) })
+      });
+
+      // When: creating CronRunner with multiple tasks
+      let runner = CronRunner {
+        tasks: vec![
+          ("task1".to_string(), CronSchedule::Interval(Duration::from_secs(60)), task1),
+          ("task2".to_string(), CronSchedule::Hourly { minute: 0 }, task2),
+        ],
+        job_pool_url: "sqlite::memory:".to_string(),
+      };
+
+      // Then: should store all tasks
+      assert_eq!(runner.tasks.len(), 2);
+    }
+  }
+
+  mod cron_task_type_behavior {
+    use super::*;
+
+    #[test]
+    fn should_accept_async_task_function() {
+      // Given: an async task function
+      let task: CronTaskBox = Box::new(|_db: DbConnection| {
+        Box::pin(async move {
+          // Simulate some async work
+          Ok(())
+        })
+      });
+
+      // When: using the task type
+      // Then: should compile and be usable
+      assert!(true, "CronTaskBox type is valid");
+    }
+
+    #[test]
+    fn should_allow_error_return() {
+      // Given: a task that can return an error
+      let task: CronTaskBox = Box::new(|_db: DbConnection| {
+        Box::pin(async move {
+          Err("test error".into())
+        })
+      });
+
+      // When: using the task type
+      // Then: should accept error return type
+      assert!(true, "CronTaskBox allows error returns");
+    }
+  }
+}

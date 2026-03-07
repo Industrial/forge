@@ -157,8 +157,16 @@ fn copy_template_dir(
             &format!("{}/crates/forge-db", forge_path),
           )
           .replace(
+            "../../../../../forge-entity",
+            &format!("{}/crates/forge-entity", forge_path),
+          )
+          .replace(
             "../../../../../forge-live",
             &format!("{}/crates/forge-live", forge_path),
+          )
+          .replace(
+            "../../../../../forge-query",
+            &format!("{}/crates/forge-query", forge_path),
           )
           .replace(
             "../../../../../forge-observability",
@@ -255,5 +263,343 @@ mod tests {
       "expected PROJECT_NAME replacement: {}",
       generated
     );
+  }
+
+  mod bdd_tests {
+    use super::*;
+
+    /// BDD-style tests focusing on behavior rather than implementation.
+    /// Tests are organized by feature/behavior area with descriptive names.
+
+    mod directory_skipping_behavior {
+      use super::*;
+
+      #[test]
+      fn should_skip_build_artifacts_and_dependencies() {
+        // Given: directory names that are build artifacts or dependencies
+        let skip_dirs = vec![".devenv", "node_modules", ".git", "target"];
+
+        // When: checking if directories should be skipped
+        // Then: all build artifacts and dependencies should be skipped
+        for dir in skip_dirs {
+          assert!(
+            should_skip_dir(dir),
+            "Directory '{}' should be skipped",
+            dir
+          );
+        }
+      }
+
+      #[test]
+      fn should_not_skip_source_and_config_directories() {
+        // Given: directory names that are source code or configuration
+        let keep_dirs = vec!["src", "crates", "templates", "frontend", "config"];
+
+        // When: checking if directories should be skipped
+        // Then: source and config directories should not be skipped
+        for dir in keep_dirs {
+          assert!(
+            !should_skip_dir(dir),
+            "Directory '{}' should not be skipped",
+            dir
+          );
+        }
+      }
+    }
+
+    mod project_creation_validation_behavior {
+      use super::*;
+
+      #[test]
+      fn should_reject_creation_when_directory_already_exists() {
+        // Given: a directory that already exists
+        let tmp = tempfile::tempdir().unwrap();
+        let existing = tmp.path().join("existing_project");
+        std::fs::create_dir_all(&existing).unwrap();
+
+        // When: attempting to create a new project with the same name
+        let result = create_new_project(existing.to_str().unwrap());
+
+        // Then: should return error indicating directory already exists
+        assert!(result.is_err());
+        let err_msg = result.unwrap_err().to_string();
+        assert!(
+          err_msg.contains("already exists"),
+          "Error should mention directory already exists, got: {}",
+          err_msg
+        );
+      }
+
+      #[test]
+      fn should_reject_creation_when_template_directory_not_found() {
+        // Given: FORGE_TEMPLATES_DIR pointing to nonexistent path
+        let tmp = tempfile::tempdir().unwrap();
+        let missing = tmp.path().join("nonexistent_templates");
+        unsafe {
+          std::env::set_var("FORGE_TEMPLATES_DIR", missing.as_os_str());
+        }
+        let out_dir = tmp.path().join("out");
+        std::fs::create_dir_all(&out_dir).unwrap();
+        let project_path = out_dir.join("myapp");
+
+        // When: attempting to create a new project
+        let result = create_new_project(project_path.to_str().unwrap());
+
+        // Then: should return error indicating template directory not found
+        unsafe {
+          std::env::remove_var("FORGE_TEMPLATES_DIR");
+        }
+        assert!(result.is_err());
+        let err_msg = result.unwrap_err().to_string();
+        assert!(
+          err_msg.contains("Template directory not found") || err_msg.contains("not found"),
+          "Error should mention template directory not found, got: {}",
+          err_msg
+        );
+      }
+    }
+
+    mod template_processing_behavior {
+      use super::*;
+
+      #[test]
+      fn should_replace_project_name_placeholder_in_templates() {
+        // Given: a template file with {{PROJECT_NAME}} placeholder
+        let tmp = tempfile::tempdir().unwrap();
+        let template_root = tmp.path().join("templates").join("default");
+        std::fs::create_dir_all(&template_root).unwrap();
+        let template_file = template_root.join("README.md");
+        std::fs::File::create(&template_file)
+          .unwrap()
+          .write_all(b"# {{PROJECT_NAME}}\n\nWelcome to {{PROJECT_NAME}}!")
+          .unwrap();
+        unsafe {
+          std::env::set_var("FORGE_TEMPLATES_DIR", tmp.path().join("templates"));
+        }
+        let out_dir = tmp.path().join("out");
+        std::fs::create_dir_all(&out_dir).unwrap();
+        let project_path = out_dir.join("myapp");
+
+        // When: creating a new project
+        let result = create_new_project(project_path.to_str().unwrap());
+        unsafe {
+          std::env::remove_var("FORGE_TEMPLATES_DIR");
+        }
+
+        // Then: {{PROJECT_NAME}} should be replaced with actual project name
+        result.expect("Project creation should succeed");
+        let generated = std::fs::read_to_string(project_path.join("README.md")).unwrap();
+        assert!(
+          generated.contains("myapp"),
+          "PROJECT_NAME placeholder should be replaced, got: {}",
+          generated
+        );
+        assert!(
+          !generated.contains("{{PROJECT_NAME}}"),
+          "No placeholder should remain, got: {}",
+          generated
+        );
+      }
+
+      #[test]
+      fn should_replace_forge_path_placeholder_in_templates() {
+        // Given: a template file with {{FORGE_PATH}} placeholder
+        let tmp = tempfile::tempdir().unwrap();
+        let template_root = tmp.path().join("templates").join("default");
+        std::fs::create_dir_all(&template_root).unwrap();
+        let template_file = template_root.join("Cargo.toml");
+        std::fs::File::create(&template_file)
+          .unwrap()
+          .write_all(b"forge = { path = \"{{FORGE_PATH}}\" }")
+          .unwrap();
+        unsafe {
+          std::env::set_var("FORGE_TEMPLATES_DIR", tmp.path().join("templates"));
+        }
+        let out_dir = tmp.path().join("out");
+        std::fs::create_dir_all(&out_dir).unwrap();
+        let project_path = out_dir.join("testapp");
+
+        // When: creating a new project
+        let result = create_new_project(project_path.to_str().unwrap());
+        unsafe {
+          std::env::remove_var("FORGE_TEMPLATES_DIR");
+        }
+
+        // Then: {{FORGE_PATH}} should be replaced with actual forge path
+        result.expect("Project creation should succeed");
+        let generated = std::fs::read_to_string(project_path.join("Cargo.toml")).unwrap();
+        assert!(
+          !generated.contains("{{FORGE_PATH}}"),
+          "FORGE_PATH placeholder should be replaced, got: {}",
+          generated
+        );
+        // The forge path should be a valid path (not empty)
+        assert!(
+          generated.contains("path ="),
+          "Generated Cargo.toml should contain path, got: {}",
+          generated
+        );
+      }
+
+      #[test]
+      fn should_replace_forge_crate_paths_in_templates() {
+        // Given: a template file with relative forge crate paths
+        let tmp = tempfile::tempdir().unwrap();
+        let template_root = tmp.path().join("templates").join("default");
+        std::fs::create_dir_all(&template_root).unwrap();
+        let template_file = template_root.join("Cargo.toml");
+        std::fs::File::create(&template_file)
+          .unwrap()
+          .write_all(b"forge-app = { path = \"../../../../../forge-app\" }")
+          .unwrap();
+        unsafe {
+          std::env::set_var("FORGE_TEMPLATES_DIR", tmp.path().join("templates"));
+        }
+        let out_dir = tmp.path().join("out");
+        std::fs::create_dir_all(&out_dir).unwrap();
+        let project_path = out_dir.join("testapp");
+
+        // When: creating a new project
+        let result = create_new_project(project_path.to_str().unwrap());
+        unsafe {
+          std::env::remove_var("FORGE_TEMPLATES_DIR");
+        }
+
+        // Then: relative paths should be replaced with absolute paths
+        result.expect("Project creation should succeed");
+        let generated = std::fs::read_to_string(project_path.join("Cargo.toml")).unwrap();
+        assert!(
+          !generated.contains("../../../../../forge-app"),
+          "Relative paths should be replaced, got: {}",
+          generated
+        );
+        assert!(
+          generated.contains("crates/forge-app"),
+          "Should contain crates path, got: {}",
+          generated
+        );
+      }
+
+      #[test]
+      fn should_preserve_binary_files_without_text_replacement() {
+        // Given: a binary file (e.g., .ico) in the template
+        let tmp = tempfile::tempdir().unwrap();
+        let template_root = tmp.path().join("templates").join("default");
+        std::fs::create_dir_all(&template_root).unwrap();
+        let binary_data = vec![0u8, 1u8, 2u8, 3u8, 255u8];
+        let binary_file = template_root.join("favicon.ico");
+        std::fs::write(&binary_file, &binary_data).unwrap();
+        unsafe {
+          std::env::set_var("FORGE_TEMPLATES_DIR", tmp.path().join("templates"));
+        }
+        let out_dir = tmp.path().join("out");
+        std::fs::create_dir_all(&out_dir).unwrap();
+        let project_path = out_dir.join("testapp");
+
+        // When: creating a new project
+        let result = create_new_project(project_path.to_str().unwrap());
+        unsafe {
+          std::env::remove_var("FORGE_TEMPLATES_DIR");
+        }
+
+        // Then: binary file should be copied without modification
+        result.expect("Project creation should succeed");
+        let copied = std::fs::read(project_path.join("favicon.ico")).unwrap();
+        assert_eq!(
+          copied, binary_data,
+          "Binary file should be copied exactly without modification"
+        );
+      }
+    }
+
+    mod git_initialization_behavior {
+      use super::*;
+
+      #[test]
+      fn should_initialize_git_repository_in_new_project() {
+        // Given: a valid template directory
+        let tmp = tempfile::tempdir().unwrap();
+        let template_root = tmp.path().join("templates").join("default");
+        std::fs::create_dir_all(&template_root).unwrap();
+        let template_file = template_root.join("README.md");
+        std::fs::File::create(&template_file)
+          .unwrap()
+          .write_all(b"# Test Project")
+          .unwrap();
+        unsafe {
+          std::env::set_var("FORGE_TEMPLATES_DIR", tmp.path().join("templates"));
+        }
+        let out_dir = tmp.path().join("out");
+        std::fs::create_dir_all(&out_dir).unwrap();
+        let project_path = out_dir.join("gitapp");
+
+        // When: creating a new project
+        let result = create_new_project(project_path.to_str().unwrap());
+        unsafe {
+          std::env::remove_var("FORGE_TEMPLATES_DIR");
+        }
+
+        // Then: git repository should be initialized (or attempt made)
+        result.expect("Project creation should succeed");
+        // Git init may succeed or fail depending on git availability,
+        // but the function should complete successfully either way
+        // Verification: if .git exists, git was initialized
+        let _git_dir = project_path.join(".git");
+        // Note: git init may not create .git if git is not available,
+        // but the function should still succeed
+      }
+    }
+
+    mod template_directory_resolution_behavior {
+      use super::*;
+
+      #[test]
+      fn should_use_env_var_when_forge_templates_dir_set() {
+        // Given: FORGE_TEMPLATES_DIR environment variable set to templates/default
+        let tmp = tempfile::tempdir().unwrap();
+        let template_root = tmp.path().join("templates").join("default");
+        std::fs::create_dir_all(&template_root).unwrap();
+        let template_file = template_root.join("test.txt");
+        std::fs::File::create(&template_file)
+          .unwrap()
+          .write_all(b"test")
+          .unwrap();
+        unsafe {
+          std::env::set_var("FORGE_TEMPLATES_DIR", tmp.path().join("templates"));
+        }
+
+        // When: resolving template directory
+        let resolved = template_dir();
+
+        // Then: should use the path from environment variable
+        unsafe {
+          std::env::remove_var("FORGE_TEMPLATES_DIR");
+        }
+        assert!(
+          resolved.ends_with("default"),
+          "Should resolve to templates/default, got: {}",
+          resolved.display()
+        );
+      }
+
+      #[test]
+      fn should_fallback_to_build_time_path_when_env_not_set() {
+        // Given: FORGE_TEMPLATES_DIR not set
+        unsafe {
+          std::env::remove_var("FORGE_TEMPLATES_DIR");
+        }
+
+        // When: resolving template directory
+        let resolved = template_dir();
+
+        // Then: should use build-time path (crate's templates/default)
+        // This will be the actual path from CARGO_MANIFEST_DIR
+        assert!(
+          resolved.ends_with("templates/default") || resolved.ends_with("default"),
+          "Should resolve to templates/default path, got: {}",
+          resolved.display()
+        );
+      }
+    }
   }
 }

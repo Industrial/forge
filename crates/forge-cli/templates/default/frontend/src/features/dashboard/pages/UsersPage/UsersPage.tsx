@@ -38,6 +38,7 @@ import UsersFilters from '@/features/dashboard/components/UsersFilters'
 import UserTableRow from '@/features/dashboard/components/UserTableRow'
 import ErrorAlert from '@/components/ErrorAlert'
 import LoadingSpinner from '@/components/LoadingSpinner'
+import { ShowWithPermissions } from '@/components/ShowWithPermissions'
 import { useLiveRefreshTrigger } from '@/hooks/useLiveRefreshTrigger'
 import { usePermission } from '@/hooks/usePermission'
 import { getApplicationLayer } from '@/lib/appLayer'
@@ -357,7 +358,7 @@ export default function UsersPage() {
         onFilterAdminChange={setFilterAdmin}
       />
 
-      {canWrite && (
+      <ShowWithPermissions permissions={[USERS_WRITE]}>
         <Box sx={{ mb: 2 }}>
           <Button
             variant="contained"
@@ -375,7 +376,7 @@ export default function UsersPage() {
             Add user
           </Button>
         </Box>
-      )}
+      </ShowWithPermissions>
 
       {loading ? (
         <LoadingSpinner />

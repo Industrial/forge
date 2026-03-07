@@ -247,9 +247,9 @@ where
 
 #[cfg(test)]
 mod tests {
-  use super::{extract_bearer, extract_token_from_query};
-  use axum::http::Extensions;
-  use axum::http::HeaderValue;
+  use super::{extract_bearer, extract_token_from_query, RequireAuth, OptionalRequireAuth, TokenUser};
+  use crate::authz::{AuthzContext, RequestScope};
+  use axum::http::{Extensions, HeaderValue, StatusCode};
   use axum_login::AuthUser;
   use uuid::Uuid;
 
@@ -258,6 +258,7 @@ mod tests {
   struct MockUser {
     id: Uuid,
     session_auth_hash_val: Vec<u8>,
+    org_id: Option<Uuid>,
   }
 
   impl AuthUser for MockUser {
@@ -267,6 +268,23 @@ mod tests {
     }
     fn session_auth_hash(&self) -> &[u8] {
       &self.session_auth_hash_val
+    }
+  }
+
+  impl AuthzContext for MockUser {
+    type RequesterId = Uuid;
+    type SubjectId = Uuid;
+
+    fn requester_id(&self) -> Uuid {
+      self.id
+    }
+
+    fn subject_id(&self) -> Uuid {
+      self.id
+    }
+
+    fn organization_id(&self) -> Option<Uuid> {
+      self.org_id
     }
   }
 
@@ -357,6 +375,7 @@ mod tests {
     let mock_user = MockUser {
       id: user_id,
       session_auth_hash_val: vec![1, 2, 3],
+      org_id: None,
     };
     let u = super::TokenUser {
       user: mock_user.clone(),
@@ -366,5 +385,424 @@ mod tests {
     let u2 = u.clone();
     assert_eq!(u2.user.id(), user_id);
     assert_eq!(u2.user.session_auth_hash(), mock_user.session_auth_hash());
+  }
+
+  mod token_user_authz_context {
+    use super::*;
+
+    #[test]
+    fn token_user_delegates_requester_id_to_inner_user() {
+      // Given a TokenUser wrapping a MockUser with a specific ID
+      let user_id = Uuid::new_v4();
+      let mock_user = MockUser {
+        id: user_id,
+        session_auth_hash_val: vec![1, 2, 3],
+        org_id: None,
+      };
+      let token_user = TokenUser {
+        user: mock_user,
+        extensions: Extensions::new(),
+      };
+
+      // When I call requester_id on the TokenUser
+      let requester_id = token_user.requester_id();
+
+      // Then it should return the inner user's ID
+      assert_eq!(requester_id, user_id);
+    }
+
+    #[test]
+    fn token_user_delegates_subject_id_to_inner_user() {
+      // Given a TokenUser wrapping a MockUser with a specific ID
+      let user_id = Uuid::new_v4();
+      let mock_user = MockUser {
+        id: user_id,
+        session_auth_hash_val: vec![1, 2, 3],
+        org_id: None,
+      };
+      let token_user = TokenUser {
+        user: mock_user,
+        extensions: Extensions::new(),
+      };
+
+      // When I call subject_id on the TokenUser
+      let subject_id = token_user.subject_id();
+
+      // Then it should return the inner user's ID
+      assert_eq!(subject_id, user_id);
+    }
+
+    #[test]
+    fn token_user_uses_organization_id_from_extensions_when_present() {
+      // Given a TokenUser with RequestScope in extensions
+      let user_id = Uuid::new_v4();
+      let org_id = Uuid::new_v4();
+      let mock_user = MockUser {
+        id: user_id,
+        session_auth_hash_val: vec![1, 2, 3],
+        org_id: None,
+      };
+      let mut extensions = Extensions::new();
+      extensions.insert(RequestScope {
+        organization_id: org_id,
+        role_id: Uuid::new_v4(),
+        role_name: "admin".to_string(),
+      });
+      let token_user = TokenUser {
+        user: mock_user,
+        extensions,
+      };
+
+      // When I call organization_id on the TokenUser
+      let result_org_id = token_user.organization_id();
+
+      // Then it should return the organization ID from extensions
+      assert_eq!(result_org_id, Some(org_id));
+    }
+
+    #[test]
+    fn token_user_falls_back_to_user_org_id_when_no_extensions() {
+      // Given a TokenUser with a user that has an organization ID but no RequestScope in extensions
+      let user_id = Uuid::new_v4();
+      let org_id = Uuid::new_v4();
+      let mock_user = MockUser {
+        id: user_id,
+        session_auth_hash_val: vec![1, 2, 3],
+        org_id: Some(org_id),
+      };
+      let token_user = TokenUser {
+        user: mock_user,
+        extensions: Extensions::new(),
+      };
+
+      // When I call organization_id on the TokenUser
+      let result_org_id = token_user.organization_id();
+
+      // Then it should return the organization ID from the user
+      assert_eq!(result_org_id, Some(org_id));
+    }
+
+    #[test]
+    fn token_user_returns_none_when_no_org_id_anywhere() {
+      // Given a TokenUser with no organization ID in user or extensions
+      let user_id = Uuid::new_v4();
+      let mock_user = MockUser {
+        id: user_id,
+        session_auth_hash_val: vec![1, 2, 3],
+        org_id: None,
+      };
+      let token_user = TokenUser {
+        user: mock_user,
+        extensions: Extensions::new(),
+      };
+
+      // When I call organization_id on the TokenUser
+      let result_org_id = token_user.organization_id();
+
+      // Then it should return None
+      assert_eq!(result_org_id, None);
+    }
+  }
+
+  mod token_user_auth_user {
+    use super::*;
+
+    #[test]
+    fn token_user_delegates_id_to_inner_user() {
+      // Given a TokenUser wrapping a MockUser
+      let user_id = Uuid::new_v4();
+      let mock_user = MockUser {
+        id: user_id,
+        session_auth_hash_val: vec![1, 2, 3],
+        org_id: None,
+      };
+      let token_user = TokenUser {
+        user: mock_user,
+        extensions: Extensions::new(),
+      };
+
+      // When I call id() on the TokenUser
+      let id = token_user.id();
+
+      // Then it should return the inner user's ID
+      assert_eq!(id, user_id);
+    }
+
+    #[test]
+    fn token_user_delegates_session_auth_hash_to_inner_user() {
+      // Given a TokenUser wrapping a MockUser with a specific session hash
+      let hash = vec![5, 6, 7, 8];
+      let mock_user = MockUser {
+        id: Uuid::new_v4(),
+        session_auth_hash_val: hash.clone(),
+        org_id: None,
+      };
+      let token_user = TokenUser {
+        user: mock_user,
+        extensions: Extensions::new(),
+      };
+
+      // When I call session_auth_hash() on the TokenUser
+      let result_hash = token_user.session_auth_hash();
+
+      // Then it should return the inner user's session hash
+      assert_eq!(result_hash, &hash);
+    }
+  }
+
+  mod bearer_token_extraction {
+    use super::*;
+
+    #[test]
+    fn extract_bearer_returns_none_when_header_is_missing() {
+      // Given no Authorization header
+      // When I try to extract a Bearer token
+      let result = extract_bearer(None);
+
+      // Then it should return None
+      assert_eq!(result, None);
+    }
+
+    #[test]
+    fn extract_bearer_returns_token_when_valid_bearer_header() {
+      // Given an Authorization header with "Bearer <token>"
+      let header = HeaderValue::from_static("Bearer my-secret-token");
+      
+      // When I extract the Bearer token
+      let result = extract_bearer(Some(&header));
+
+      // Then it should return the token value
+      assert_eq!(result, Some("my-secret-token".to_string()));
+    }
+
+    #[test]
+    fn extract_bearer_strips_whitespace_around_token() {
+      // Given an Authorization header with whitespace around the token
+      let header = HeaderValue::from_static("Bearer   token-with-spaces   ");
+      
+      // When I extract the Bearer token
+      let result = extract_bearer(Some(&header));
+
+      // Then it should return the token without leading/trailing whitespace
+      assert_eq!(result, Some("token-with-spaces".to_string()));
+    }
+
+    #[test]
+    fn extract_bearer_returns_none_for_non_bearer_scheme() {
+      // Given an Authorization header with a different scheme (e.g., Basic)
+      let header = HeaderValue::from_static("Basic dXNlcjpwYXNz");
+      
+      // When I try to extract a Bearer token
+      let result = extract_bearer(Some(&header));
+
+      // Then it should return None
+      assert_eq!(result, None);
+    }
+  }
+
+  mod query_token_extraction {
+    use super::*;
+
+    #[test]
+    fn extract_token_from_query_returns_none_when_query_is_missing() {
+      // Given no query string
+      // When I try to extract a token parameter
+      let result = extract_token_from_query(None);
+
+      // Then it should return None
+      assert_eq!(result, None);
+    }
+
+    #[test]
+    fn extract_token_from_query_returns_token_when_present() {
+      // Given a query string with a token parameter
+      let query = "token=my-api-token";
+      
+      // When I extract the token
+      let result = extract_token_from_query(Some(query));
+
+      // Then it should return the token value
+      assert_eq!(result, Some("my-api-token".to_string()));
+    }
+
+    #[test]
+    fn extract_token_from_query_handles_multiple_parameters() {
+      // Given a query string with multiple parameters including token
+      let query = "foo=bar&token=secret-value&baz=quux";
+      
+      // When I extract the token
+      let result = extract_token_from_query(Some(query));
+
+      // Then it should return the token value
+      assert_eq!(result, Some("secret-value".to_string()));
+    }
+
+    #[test]
+    fn extract_token_from_query_returns_none_when_token_is_empty() {
+      // Given a query string with an empty token parameter
+      let query = "token=";
+      
+      // When I try to extract the token
+      let result = extract_token_from_query(Some(query));
+
+      // Then it should return None (empty tokens are invalid)
+      assert_eq!(result, None);
+    }
+
+    #[test]
+    fn extract_token_from_query_returns_none_when_token_key_is_absent() {
+      // Given a query string without a token parameter
+      let query = "other=value&another=param";
+      
+      // When I try to extract the token
+      let result = extract_token_from_query(Some(query));
+
+      // Then it should return None
+      assert_eq!(result, None);
+    }
+  }
+
+  mod require_auth_extractor {
+    use super::*;
+    use async_trait::async_trait;
+    use axum::http::{Request, StatusCode};
+    use axum_login::{AuthnBackend, UserId};
+
+    // Mock backend type for testing
+    #[derive(Clone)]
+    struct MockBackend;
+
+    #[async_trait]
+    impl AuthnBackend for MockBackend {
+      type User = MockUser;
+      type Credentials = ();
+      type Error = std::convert::Infallible;
+
+      async fn authenticate(
+        &self,
+        _: Self::Credentials,
+      ) -> Result<Option<Self::User>, Self::Error> {
+        Ok(None)
+      }
+
+      async fn get_user(&self, _: &UserId<Self>) -> Result<Option<Self::User>, Self::Error> {
+        Ok(None)
+      }
+    }
+
+    #[tokio::test]
+    async fn require_auth_returns_user_when_token_user_present() {
+      // Given request parts with TokenUser in extensions
+      let user_id = Uuid::new_v4();
+      let mock_user = MockUser {
+        id: user_id,
+        session_auth_hash_val: vec![1, 2, 3],
+        org_id: None,
+      };
+      let token_user = TokenUser {
+        user: mock_user.clone(),
+        extensions: Extensions::new(),
+      };
+      let req = Request::builder().body(()).unwrap();
+      let (mut parts, _) = req.into_parts();
+      parts.extensions.insert(token_user);
+
+      // When I extract RequireAuth from the parts
+      let result = RequireAuth::<MockBackend, MockUser>::from_request_parts(&mut parts, &()).await;
+
+      // Then it should return Ok with the user
+      assert!(result.is_ok());
+      let require_auth = result.unwrap();
+      assert_eq!(require_auth.0.id(), user_id);
+    }
+
+    #[tokio::test]
+    async fn require_auth_returns_unauthorized_when_no_token_user() {
+      // Given request parts without TokenUser in extensions
+      let req = Request::builder().body(()).unwrap();
+      let (mut parts, _) = req.into_parts();
+
+      // When I try to extract RequireAuth from the parts
+      let result = RequireAuth::<MockBackend, MockUser>::from_request_parts(&mut parts, &()).await;
+
+      // Then it should return an UNAUTHORIZED error
+      assert!(result.is_err());
+      let err = result.unwrap_err();
+      assert_eq!(err.0, StatusCode::UNAUTHORIZED);
+      assert_eq!(err.1, "Authentication required");
+    }
+  }
+
+  mod optional_require_auth_extractor {
+    use super::*;
+    use async_trait::async_trait;
+    use axum::http::Request;
+    use axum_login::{AuthnBackend, UserId};
+
+    // Mock backend type for testing
+    #[derive(Clone)]
+    struct MockBackend;
+
+    #[async_trait]
+    impl AuthnBackend for MockBackend {
+      type User = MockUser;
+      type Credentials = ();
+      type Error = std::convert::Infallible;
+
+      async fn authenticate(
+        &self,
+        _: Self::Credentials,
+      ) -> Result<Option<Self::User>, Self::Error> {
+        Ok(None)
+      }
+
+      async fn get_user(&self, _: &UserId<Self>) -> Result<Option<Self::User>, Self::Error> {
+        Ok(None)
+      }
+    }
+
+    #[tokio::test]
+    async fn optional_require_auth_returns_some_when_token_user_present() {
+      // Given request parts with TokenUser in extensions
+      let user_id = Uuid::new_v4();
+      let mock_user = MockUser {
+        id: user_id,
+        session_auth_hash_val: vec![1, 2, 3],
+        org_id: None,
+      };
+      let token_user = TokenUser {
+        user: mock_user.clone(),
+        extensions: Extensions::new(),
+      };
+      let req = Request::builder().body(()).unwrap();
+      let (mut parts, _) = req.into_parts();
+      parts.extensions.insert(token_user);
+
+      // When I extract OptionalRequireAuth from the parts
+      let result =
+        OptionalRequireAuth::<MockBackend, MockUser>::from_request_parts(&mut parts, &()).await;
+
+      // Then it should return Ok with Some(user)
+      assert!(result.is_ok());
+      let optional_auth = result.unwrap();
+      assert!(optional_auth.0.is_some());
+      assert_eq!(optional_auth.0.unwrap().id(), user_id);
+    }
+
+    #[tokio::test]
+    async fn optional_require_auth_returns_none_when_no_token_user() {
+      // Given request parts without TokenUser in extensions
+      let req = Request::builder().body(()).unwrap();
+      let (mut parts, _) = req.into_parts();
+
+      // When I extract OptionalRequireAuth from the parts
+      let result =
+        OptionalRequireAuth::<MockBackend, MockUser>::from_request_parts(&mut parts, &()).await;
+
+      // Then it should return Ok with None (never fails)
+      assert!(result.is_ok());
+      let optional_auth = result.unwrap();
+      assert!(optional_auth.0.is_none());
+    }
   }
 }

@@ -13,7 +13,7 @@ const initialFilters: OrganizationsFilterState = {
   filterSlug: '',
 }
 
-function organizationMatches(
+export function organizationMatches(
   org: Organization,
   filters: OrganizationsFilterState,
 ): boolean {

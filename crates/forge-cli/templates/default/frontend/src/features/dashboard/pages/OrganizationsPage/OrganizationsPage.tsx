@@ -28,6 +28,7 @@ import LoadingSpinner from '@/components/LoadingSpinner'
 import EmptyState from '@/components/EmptyState'
 import PageHeader from '@/components/PageHeader'
 import ErrorAlert from '@/components/ErrorAlert'
+import { ShowWithPermissions } from '@/components/ShowWithPermissions'
 import { useEntitySubscription } from '@/hooks/useEntitySubscription'
 import { useLiveRefreshTrigger } from '@/hooks/useLiveRefreshTrigger'
 import { usePermission } from '@/hooks/usePermission'
@@ -370,7 +371,7 @@ export default function OrganizationsPage() {
         }
       />
 
-      {canWrite && (
+      <ShowWithPermissions permissions={[ORG_WRITE]}>
         <Box sx={{ mb: 2 }}>
           <Button
             variant="contained"
@@ -380,7 +381,7 @@ export default function OrganizationsPage() {
             Add organization
           </Button>
         </Box>
-      )}
+      </ShowWithPermissions>
 
       {loading ? (
         <LoadingSpinner />

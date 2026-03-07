@@ -5,8 +5,9 @@ import { fileURLToPath } from 'node:url'
 const __dirname = path.dirname(fileURLToPath(import.meta.url))
 const repoRoot = path.resolve(__dirname, '../..')
 
-const baseURL = process.env.E2E_BASE_URL ?? 'http://127.0.0.1:5173'
-/** API server URL for /healthz, etc. (Vite proxies /api and /ws only). Set by bin/test-e2e. */
+/** Non-standard port (like integration tests) to avoid clashing with dev servers. Set by bin/test-e2e. */
+const baseURL = process.env.E2E_BASE_URL ?? 'http://127.0.0.1:35173'
+/** API server URL for /healthz, etc. (Vite proxies /api and /ws only). Non-standard port; set by bin/test-e2e. */
 export const API_BASE_URL = process.env.E2E_API_URL ?? 'http://127.0.0.1:30999'
 
 export default defineConfig({

@@ -1,57 +1,75 @@
-//! Auth: POST /api/auth/register — public success and validation 4xx.
+//! BDD tests for POST /api/auth/register (template auth).
+//! Public registration: success (201) and validation 4xx.
+//!
+//! BDD-style tests focusing on behavior rather than implementation.
+//! Tests are organized by feature/behavior area with descriptive names.
 
 use axum::http::StatusCode;
 
-#[tokio::test]
-async fn post_register_valid_201() {
-  let client = app::test_client().await.expect("test_client");
+mod bdd_tests {
+  use super::*;
 
-  let body = r#"{"email":"newuser@example.com","password":"password123"}"#;
-  let (status, _) = app::test_request(
-    &client,
-    "POST",
-    "/api/auth/register",
-    None,
-    Some(body),
-    None,
-  )
-  .await
-  .unwrap();
-  assert_eq!(status, StatusCode::CREATED);
-}
+  mod register_behavior {
+    use super::*;
 
-#[tokio::test]
-async fn post_register_invalid_email_422() {
-  let client = app::test_client().await.expect("test_client");
+    #[tokio::test]
+    async fn should_return_201_for_valid_registration() {
+      // Given: a test client and valid email and password
+      let client = app::test_client().await.expect("test_client");
+      let body = r#"{"email":"newuser@example.com","password":"password123"}"#;
+      // When: posting to /api/auth/register with valid payload
+      let (status, _) = app::test_request(
+        &client,
+        "POST",
+        "/api/auth/register",
+        None,
+        Some(body),
+        None,
+      )
+      .await
+      .unwrap();
+      // Then: should return 201 Created
+      assert_eq!(status, StatusCode::CREATED);
+    }
 
-  let body = r#"{"email":"not-an-email","password":"password123"}"#;
-  let (status, _) = app::test_request(
-    &client,
-    "POST",
-    "/api/auth/register",
-    None,
-    Some(body),
-    None,
-  )
-  .await
-  .unwrap();
-  assert_eq!(status, StatusCode::UNPROCESSABLE_ENTITY);
-}
+    #[tokio::test]
+    async fn should_return_422_for_invalid_email() {
+      // Given: a test client and payload with invalid email format
+      let client = app::test_client().await.expect("test_client");
+      let body = r#"{"email":"not-an-email","password":"password123"}"#;
+      // When: posting to /api/auth/register
+      let (status, _) = app::test_request(
+        &client,
+        "POST",
+        "/api/auth/register",
+        None,
+        Some(body),
+        None,
+      )
+      .await
+      .unwrap();
+      // Then: should return 422 Unprocessable Entity
+      assert_eq!(status, StatusCode::UNPROCESSABLE_ENTITY);
+    }
 
-#[tokio::test]
-async fn post_register_short_password_422() {
-  let client = app::test_client().await.expect("test_client");
-
-  let body = r#"{"email":"u@example.com","password":"short"}"#;
-  let (status, _) = app::test_request(
-    &client,
-    "POST",
-    "/api/auth/register",
-    None,
-    Some(body),
-    None,
-  )
-  .await
-  .unwrap();
-  assert_eq!(status, StatusCode::UNPROCESSABLE_ENTITY);
+    #[tokio::test]
+    async fn should_return_422_for_short_password() {
+      // Given: a test client and payload with password too short
+      let client = app::test_client().await.expect("test_client");
+      let body = r#"{"email":"u@example.com","password":"short"}"#;
+      // When: posting to /api/auth/register
+      let (status, _) = app::test_request(
+        &client,
+        "POST",
+        "/api/auth/register",
+        None,
+        Some(body),
+        None,
+      )
+      .await
+      .unwrap();
+      // Then: should return 422 Unprocessable Entity
+      assert_eq!(status, StatusCode::UNPROCESSABLE_ENTITY);
+    }
+  }
 }

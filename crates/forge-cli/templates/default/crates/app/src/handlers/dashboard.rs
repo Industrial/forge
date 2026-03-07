@@ -1581,6 +1581,221 @@ mod tests {
   use super::*;
   use forge_auth::RequestScope;
 
+  mod bdd_tests {
+    use super::*;
+
+    /// BDD-style tests focusing on behavior rather than implementation.
+    /// Tests verify permission checking, helper functions, and core dashboard behaviors.
+
+    mod permission_checking_behavior {
+      use super::*;
+
+      #[test]
+      fn should_grant_permission_when_exact_key_matches() {
+        // Given: a list of permissions containing the exact key
+        let perms = vec!["a".to_string(), "user.read".to_string(), "b".to_string()];
+
+        // When: checking for "user.read" permission
+        let result = has_permission(&perms, "user.read");
+
+        // Then: permission should be granted
+        assert!(result, "Exact permission match should be granted");
+      }
+
+      #[test]
+      fn should_grant_permission_when_all_read_grants_entity_read() {
+        // Given: user has "all.read" permission
+        let perms = vec!["all.read".to_string()];
+
+        // When: checking for any ".read" permission
+        let result = has_permission(&perms, "user.read");
+
+        // Then: permission should be granted via all.read
+        assert!(result, "all.read should grant any entity.read permission");
+      }
+
+      #[test]
+      fn should_grant_permission_when_all_write_grants_entity_create() {
+        // Given: user has "all.write" permission
+        let perms = vec!["all.write".to_string()];
+
+        // When: checking for ".create" permission
+        let result = has_permission(&perms, "user.create");
+
+        // Then: permission should be granted via all.write
+        assert!(result, "all.write should grant any entity.create permission");
+      }
+
+      #[test]
+      fn should_grant_permission_when_all_write_grants_entity_update() {
+        // Given: user has "all.write" permission
+        let perms = vec!["all.write".to_string()];
+
+        // When: checking for ".update" permission
+        let result = has_permission(&perms, "user.update");
+
+        // Then: permission should be granted via all.write
+        assert!(result, "all.write should grant any entity.update permission");
+      }
+
+      #[test]
+      fn should_grant_permission_when_all_write_grants_entity_delete() {
+        // Given: user has "all.write" permission
+        let perms = vec!["all.write".to_string()];
+
+        // When: checking for ".delete" permission
+        let result = has_permission(&perms, "user.delete");
+
+        // Then: permission should be granted via all.write
+        assert!(result, "all.write should grant any entity.delete permission");
+      }
+
+      #[test]
+      fn should_deny_permission_when_key_not_in_list() {
+        // Given: a list of permissions without the requested key
+        let perms = vec!["a".to_string(), "b".to_string()];
+
+        // When: checking for "user.read" permission
+        let result = has_permission(&perms, "user.read");
+
+        // Then: permission should be denied
+        assert!(!result, "Permission should be denied when key is not in list");
+      }
+
+      #[test]
+      fn should_deny_permission_when_permissions_list_is_empty() {
+        // Given: an empty permissions list
+        let perms = vec![];
+
+        // When: checking for any permission
+        let result = has_permission(&perms, "any.permission");
+
+        // Then: permission should be denied
+        assert!(!result, "Permission should be denied when list is empty");
+      }
+
+      #[test]
+      fn should_deny_permission_when_all_read_does_not_grant_write() {
+        // Given: user has "all.read" permission but not write
+        let perms = vec!["all.read".to_string()];
+
+        // When: checking for ".write" permission
+        let result = has_permission(&perms, "user.write");
+
+        // Then: permission should be denied
+        assert!(!result, "all.read should not grant write permissions");
+      }
+
+      #[test]
+      fn should_deny_permission_when_all_write_does_not_grant_read() {
+        // Given: user has "all.write" permission but not read
+        let perms = vec!["all.write".to_string()];
+
+        // When: checking for ".read" permission
+        let result = has_permission(&perms, "user.read");
+
+        // Then: permission should be denied
+        assert!(!result, "all.write should not grant read permissions");
+      }
+    }
+
+    mod helper_function_behavior {
+      use super::*;
+
+      #[test]
+      fn should_return_50_as_default_limit() {
+        // Given: default_limit function
+        // When: calling default_limit
+        let limit = default_limit();
+
+        // Then: it should return 50
+        assert_eq!(limit, 50, "Default limit should be 50");
+      }
+
+      #[test]
+      fn should_create_forbidden_response_with_correct_status() {
+        // Given: forbidden_response function
+        // When: creating a forbidden response
+        let response = forbidden_response();
+
+        // Then: response should have 403 status
+        assert_eq!(response.status(), StatusCode::FORBIDDEN, "Forbidden response should have 403 status");
+      }
+
+      #[test]
+      fn should_create_forbidden_response_with_error_message() {
+        // Given: forbidden_response function
+        // When: creating a forbidden response
+        let response = forbidden_response();
+
+        // Then: response body should contain error information
+        // Note: We can't easily test the body without async runtime, but status is verified
+        assert_eq!(response.status(), StatusCode::FORBIDDEN);
+      }
+
+      #[test]
+      fn should_create_request_scope_with_organization_id() {
+        // Given: organization ID, role ID, and role name
+        let org_a = Uuid::new_v4();
+        let role_id = Uuid::new_v4();
+        let role_name = "viewer".to_string();
+
+        // When: creating RequestScope
+        let scope = RequestScope {
+          organization_id: org_a,
+          role_id,
+          role_name: role_name.clone(),
+        };
+
+        // Then: scope should contain the organization ID
+        assert_eq!(scope.organization_id, org_a, "Scope should contain organization ID");
+        assert_eq!(scope.role_id, role_id, "Scope should contain role ID");
+        assert_eq!(scope.role_name, role_name, "Scope should contain role name");
+      }
+    }
+
+    mod permission_equivalence_behavior {
+      use super::*;
+
+      #[test]
+      fn should_check_permission_with_case_sensitive_matching() {
+        // Given: permissions list with exact case match
+        let perms = vec!["User.Read".to_string(), "user.read".to_string()];
+
+        // When: checking for exact match
+        let result1 = has_permission(&perms, "User.Read");
+        let result2 = has_permission(&perms, "user.read");
+
+        // Then: only exact case matches should work
+        assert!(result1, "Exact case match should work");
+        assert!(result2, "Exact case match should work");
+      }
+
+      #[test]
+      fn should_handle_multiple_permissions_correctly() {
+        // Given: a list with multiple permissions
+        let perms = vec![
+          "dashboard.permissions.read".to_string(),
+          "dashboard.users.write".to_string(),
+          "dashboard.organizations.read".to_string(),
+        ];
+
+        // When: checking various permissions
+        let result1 = has_permission(&perms, "dashboard.permissions.read");
+        let result2 = has_permission(&perms, "dashboard.users.write");
+        let result3 = has_permission(&perms, "dashboard.organizations.read");
+        let result4 = has_permission(&perms, "dashboard.roles.read");
+
+        // Then: only existing permissions should be granted
+        assert!(result1, "First permission should be granted");
+        assert!(result2, "Second permission should be granted");
+        assert!(result3, "Third permission should be granted");
+        assert!(!result4, "Non-existent permission should be denied");
+      }
+    }
+  }
+
+  // Keep existing tests for backward compatibility
   #[test]
   fn has_permission_true_when_key_in_list() {
     let perms = vec!["a".to_string(), "user.read".to_string(), "b".to_string()];

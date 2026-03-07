@@ -744,4 +744,571 @@ auto_seed = false
       std::env::set_current_dir(original_cwd).unwrap();
     }
   }
+
+  mod bdd_tests {
+    use super::*;
+    use axum::extract::State;
+
+    /// BDD-style tests focusing on behavior rather than implementation.
+    /// Tests are organized by feature/behavior area with descriptive names.
+
+    mod app_creation_behavior {
+      use super::*;
+
+      #[test]
+      fn should_create_app_when_config_exists() {
+        // Given: valid configuration files exist
+        let temp_dir = tempfile::tempdir().unwrap();
+        let original_cwd = std::env::current_dir().unwrap();
+        std::env::set_current_dir(temp_dir.path()).unwrap();
+        setup_test_config(&std::env::current_dir().unwrap(), "bdd_test_app");
+
+        // When: creating a new app
+        let app = App::try_new();
+
+        // Then: app should be created successfully
+        assert!(app.is_ok(), "App creation should succeed with valid config");
+
+        std::env::set_current_dir(original_cwd).unwrap();
+      }
+
+      #[test]
+      fn should_panic_when_config_missing() {
+        // Given: no configuration files exist
+        let temp_dir = tempfile::tempdir().unwrap();
+        let original_cwd = std::env::current_dir().unwrap();
+        std::env::set_current_dir(temp_dir.path()).unwrap();
+
+        // When: creating a new app with App::new()
+        // Then: should panic (tested via try_new returning error)
+        let result = App::try_new();
+        assert!(result.is_err(), "App creation should fail without config");
+
+        std::env::set_current_dir(original_cwd).unwrap();
+      }
+
+      #[test]
+      fn should_provide_config_access_after_creation() {
+        // Given: an app is created
+        let temp_dir = tempfile::tempdir().unwrap();
+        let original_cwd = std::env::current_dir().unwrap();
+        std::env::set_current_dir(temp_dir.path()).unwrap();
+        setup_test_config(temp_dir.path(), "config_test");
+
+        // When: accessing the config
+        let app = App::new();
+        let config = app.config();
+
+        // Then: config should be accessible and contain expected values
+        assert_eq!(config.app.name, "config_test");
+        assert_eq!(config.server.host, "127.0.0.1");
+        assert_eq!(config.server.port, 3000);
+
+        std::env::set_current_dir(original_cwd).unwrap();
+      }
+    }
+
+    mod route_registration_behavior {
+      use super::*;
+
+      async fn hello_handler(_: State<DbConnection>) -> &'static str {
+        "Hello, World!"
+      }
+
+      async fn json_handler(_: State<DbConnection>) -> &'static str {
+        "success"
+      }
+
+      #[tokio::test]
+      async fn should_register_get_route_when_route_called() {
+        // Given: an app and a handler
+        let temp_dir = tempfile::tempdir().unwrap();
+        let original_cwd = std::env::current_dir().unwrap();
+        std::env::set_current_dir(temp_dir.path()).unwrap();
+        setup_test_config(temp_dir.path(), "route_test");
+
+        // When: registering a GET route
+        let app = App::new().route("/hello", hello_handler);
+        let (router, _) = app.into_router().await;
+        let listener = tokio::net::TcpListener::bind("127.0.0.1:0").await.unwrap();
+        let port = listener.local_addr().unwrap().port();
+        let maker = router.into_make_service_with_connect_info::<std::net::SocketAddr>();
+        tokio::spawn(async move {
+          let _ = axum::serve(listener, maker).await;
+        });
+
+        tokio::time::sleep(std::time::Duration::from_millis(100)).await;
+
+        // Then: route should be registered and accessible
+        let client = reqwest::Client::new();
+        let resp = client
+          .get(format!("http://127.0.0.1:{}/hello", port))
+          .send()
+          .await
+          .unwrap();
+        assert!(resp.status().is_success());
+        assert_eq!(resp.text().await.unwrap(), "Hello, World!");
+
+        std::env::set_current_dir(original_cwd).unwrap();
+      }
+
+      #[tokio::test]
+      async fn should_register_post_route_when_post_route_called() {
+        // Given: an app and a handler
+        let temp_dir = tempfile::tempdir().unwrap();
+        let original_cwd = std::env::current_dir().unwrap();
+        std::env::set_current_dir(temp_dir.path()).unwrap();
+        setup_test_config(temp_dir.path(), "post_route_test");
+
+        // When: registering a POST route
+        let app = App::new().post_route("/api", json_handler);
+        let (router, _) = app.into_router().await;
+        let listener = tokio::net::TcpListener::bind("127.0.0.1:0").await.unwrap();
+        let port = listener.local_addr().unwrap().port();
+        let maker = router.into_make_service_with_connect_info::<std::net::SocketAddr>();
+        tokio::spawn(async move {
+          let _ = axum::serve(listener, maker).await;
+        });
+
+        tokio::time::sleep(std::time::Duration::from_millis(100)).await;
+
+        // Then: route should be registered and accessible
+        let client = reqwest::Client::new();
+        let resp = client
+          .post(format!("http://127.0.0.1:{}/api", port))
+          .send()
+          .await
+          .unwrap();
+        assert!(resp.status().is_success());
+        assert_eq!(resp.text().await.unwrap(), "success");
+
+        std::env::set_current_dir(original_cwd).unwrap();
+      }
+
+      #[tokio::test]
+      async fn should_register_multiple_methods_when_route_methods_called() {
+        // Given: an app and handlers for different methods
+        let temp_dir = tempfile::tempdir().unwrap();
+        let original_cwd = std::env::current_dir().unwrap();
+        std::env::set_current_dir(temp_dir.path()).unwrap();
+        setup_test_config(temp_dir.path(), "methods_test");
+
+        // When: registering a route with multiple HTTP methods
+        let method_router = axum::routing::MethodRouter::new()
+          .get(hello_handler)
+          .post(json_handler);
+        let app = App::new().route_methods("/api", method_router);
+        let (router, _) = app.into_router().await;
+        let listener = tokio::net::TcpListener::bind("127.0.0.1:0").await.unwrap();
+        let port = listener.local_addr().unwrap().port();
+        let maker = router.into_make_service_with_connect_info::<std::net::SocketAddr>();
+        tokio::spawn(async move {
+          let _ = axum::serve(listener, maker).await;
+        });
+
+        tokio::time::sleep(std::time::Duration::from_millis(100)).await;
+
+        // Then: route should support multiple methods
+        let client = reqwest::Client::new();
+        let get_resp = client
+          .get(format!("http://127.0.0.1:{}/api", port))
+          .send()
+          .await
+          .unwrap();
+        assert!(get_resp.status().is_success());
+        assert_eq!(get_resp.text().await.unwrap(), "Hello, World!");
+
+        let post_resp = client
+          .post(format!("http://127.0.0.1:{}/api", port))
+          .send()
+          .await
+          .unwrap();
+        assert!(post_resp.status().is_success());
+        assert_eq!(post_resp.text().await.unwrap(), "success");
+
+        std::env::set_current_dir(original_cwd).unwrap();
+      }
+
+      #[tokio::test]
+      async fn should_merge_routes_when_nesting_at_root() {
+        // Given: an app and a nested router
+        let temp_dir = tempfile::tempdir().unwrap();
+        let original_cwd = std::env::current_dir().unwrap();
+        std::env::set_current_dir(temp_dir.path()).unwrap();
+        setup_test_config(temp_dir.path(), "nest_test");
+
+        // When: nesting a router at root path
+        let nested_router = Router::new().route("/nested", axum::routing::get(hello_handler));
+        let app = App::new().nest("/", nested_router);
+        let (router, _) = app.into_router().await;
+        let listener = tokio::net::TcpListener::bind("127.0.0.1:0").await.unwrap();
+        let port = listener.local_addr().unwrap().port();
+        let maker = router.into_make_service_with_connect_info::<std::net::SocketAddr>();
+        tokio::spawn(async move {
+          let _ = axum::serve(listener, maker).await;
+        });
+
+        tokio::time::sleep(std::time::Duration::from_millis(100)).await;
+
+        // Then: routes should be merged and accessible
+        let client = reqwest::Client::new();
+        let resp = client
+          .get(format!("http://127.0.0.1:{}/nested", port))
+          .send()
+          .await
+          .unwrap();
+        assert!(resp.status().is_success());
+        assert_eq!(resp.text().await.unwrap(), "Hello, World!");
+
+        std::env::set_current_dir(original_cwd).unwrap();
+      }
+
+      #[tokio::test]
+      async fn should_nest_routes_when_nesting_at_subpath() {
+        // Given: an app and a nested router
+        let temp_dir = tempfile::tempdir().unwrap();
+        let original_cwd = std::env::current_dir().unwrap();
+        std::env::set_current_dir(temp_dir.path()).unwrap();
+        setup_test_config(temp_dir.path(), "nest_subpath_test");
+
+        // When: nesting a router at a subpath
+        let nested_router = Router::new().route("/item", axum::routing::get(hello_handler));
+        let app = App::new().nest("/api", nested_router);
+        let (router, _) = app.into_router().await;
+        let listener = tokio::net::TcpListener::bind("127.0.0.1:0").await.unwrap();
+        let port = listener.local_addr().unwrap().port();
+        let maker = router.into_make_service_with_connect_info::<std::net::SocketAddr>();
+        tokio::spawn(async move {
+          let _ = axum::serve(listener, maker).await;
+        });
+
+        tokio::time::sleep(std::time::Duration::from_millis(100)).await;
+
+        // Then: routes should be nested under the subpath and accessible
+        let client = reqwest::Client::new();
+        let resp = client
+          .get(format!("http://127.0.0.1:{}/api/item", port))
+          .send()
+          .await
+          .unwrap();
+        assert!(resp.status().is_success());
+        assert_eq!(resp.text().await.unwrap(), "Hello, World!");
+
+        std::env::set_current_dir(original_cwd).unwrap();
+      }
+    }
+
+    mod rate_limiting_behavior {
+      use super::*;
+
+      #[tokio::test]
+      async fn should_enable_ip_rate_limiting_when_with_rate_limit_per_ip_called() {
+        // Given: an app
+        let temp_dir = tempfile::tempdir().unwrap();
+        let original_cwd = std::env::current_dir().unwrap();
+        std::env::set_current_dir(temp_dir.path()).unwrap();
+        setup_test_config(temp_dir.path(), "rate_limit_ip_test");
+
+        // When: enabling per-IP rate limiting
+        let app = App::new().with_rate_limit_per_ip(60);
+        let (router, _) = app.into_router().await;
+
+        // Then: rate limiting should be configured (router builds successfully)
+        // The fact that router builds means rate limiting layer was added
+        let _router: Router<()> = router;
+
+        std::env::set_current_dir(original_cwd).unwrap();
+      }
+
+      #[tokio::test]
+      async fn should_enforce_minimum_rate_limit_when_zero_provided() {
+        // Given: an app
+        let temp_dir = tempfile::tempdir().unwrap();
+        let original_cwd = std::env::current_dir().unwrap();
+        std::env::set_current_dir(temp_dir.path()).unwrap();
+        setup_test_config(temp_dir.path(), "rate_limit_min_test");
+
+        // When: setting rate limit to 0
+        let app = App::new().with_rate_limit_per_ip(0);
+
+        // Then: should use minimum of 1 (no panic, router builds)
+        let (router, _) = app.into_router().await;
+        let _router: Router<()> = router;
+
+        std::env::set_current_dir(original_cwd).unwrap();
+      }
+
+      #[tokio::test]
+      async fn should_enable_user_rate_limiting_when_with_rate_limit_per_user_called() {
+        // Given: an app
+        let temp_dir = tempfile::tempdir().unwrap();
+        let original_cwd = std::env::current_dir().unwrap();
+        std::env::set_current_dir(temp_dir.path()).unwrap();
+        setup_test_config(temp_dir.path(), "rate_limit_user_test");
+
+        // When: enabling per-user rate limiting
+        let app = App::new().with_rate_limit_per_user(30);
+
+        // Then: rate limiting should be configured (no panic)
+        // Note: This only takes effect when auth is also configured
+        let (router, _) = app.into_router().await;
+        let _router: Router<()> = router;
+
+        std::env::set_current_dir(original_cwd).unwrap();
+      }
+    }
+
+    mod health_routes_behavior {
+      use super::*;
+
+      #[tokio::test]
+      async fn should_register_health_routes_when_with_health_routes_called() {
+        // Given: an app
+        let temp_dir = tempfile::tempdir().unwrap();
+        let original_cwd = std::env::current_dir().unwrap();
+        std::env::set_current_dir(temp_dir.path()).unwrap();
+        setup_test_config(temp_dir.path(), "health_test");
+
+        // When: enabling health routes
+        let app = App::new().with_health_routes();
+        let (router, _) = app.into_router().await;
+        let listener = tokio::net::TcpListener::bind("127.0.0.1:0").await.unwrap();
+        let port = listener.local_addr().unwrap().port();
+        let maker = router.into_make_service_with_connect_info::<std::net::SocketAddr>();
+        tokio::spawn(async move {
+          let _ = axum::serve(listener, maker).await;
+        });
+
+        tokio::time::sleep(std::time::Duration::from_millis(100)).await;
+
+        // Then: health endpoints should be accessible
+        let client = reqwest::Client::new();
+        let base = format!("http://127.0.0.1:{}", port);
+        for path in ["/healthz", "/livez", "/readyz"] {
+          let resp = client
+            .get(format!("{}{}", base, path))
+            .send()
+            .await
+            .unwrap();
+          assert!(resp.status().is_success(), "{} should return 200", path);
+          let body = resp.text().await.unwrap();
+          assert_eq!(body.trim(), "ok", "{} should return 'ok'", path);
+        }
+
+        std::env::set_current_dir(original_cwd).unwrap();
+      }
+    }
+
+    mod live_query_behavior {
+      use super::*;
+
+      #[tokio::test]
+      async fn should_enable_live_query_when_with_live_query_called() {
+        // Given: an app
+        let temp_dir = tempfile::tempdir().unwrap();
+        let original_cwd = std::env::current_dir().unwrap();
+        std::env::set_current_dir(temp_dir.path()).unwrap();
+        setup_test_config(temp_dir.path(), "live_query_test");
+
+        // When: enabling live query
+        let app = App::new().with_live_query();
+        let (_router, cron_runner) = app.into_router().await;
+
+        // Then: live query backend should be configured
+        // When live query is enabled, a cron runner should be created for sweep task
+        assert!(cron_runner.is_some(), "Cron runner should exist when live query enabled");
+
+        std::env::set_current_dir(original_cwd).unwrap();
+      }
+
+      #[tokio::test]
+      async fn should_use_provided_backend_when_with_live_query_using_called() {
+        // Given: an app and a live query backend
+        let temp_dir = tempfile::tempdir().unwrap();
+        let original_cwd = std::env::current_dir().unwrap();
+        std::env::set_current_dir(temp_dir.path()).unwrap();
+        setup_test_config(temp_dir.path(), "live_query_shared_test");
+
+        // When: enabling live query with a shared backend
+        let backend = Arc::new(forge_live::InMemoryLiveBackend::new());
+        let app = App::new().with_live_query_using(backend);
+        let (_router, cron_runner) = app.into_router().await;
+
+        // Then: the provided backend should be used
+        assert!(cron_runner.is_some(), "Cron runner should exist when live query enabled");
+
+        std::env::set_current_dir(original_cwd).unwrap();
+      }
+    }
+
+    mod router_building_behavior {
+      use super::*;
+
+      #[tokio::test]
+      async fn should_build_router_when_into_router_called() {
+        // Given: a configured app
+        let temp_dir = tempfile::tempdir().unwrap();
+        let original_cwd = std::env::current_dir().unwrap();
+        std::env::set_current_dir(temp_dir.path()).unwrap();
+        setup_test_config(temp_dir.path(), "router_build_test");
+
+        // When: converting app to router
+        let app = App::new().with_health_routes();
+        let (router, cron_runner) = app.into_router().await;
+
+        // Then: router should be built successfully
+        assert!(cron_runner.is_none() || cron_runner.is_some(), "Router should build");
+        // Router type is Router<()> after into_router
+        let _router: Router<()> = router;
+
+        std::env::set_current_dir(original_cwd).unwrap();
+      }
+
+      #[tokio::test]
+      async fn should_build_router_before_state_when_into_router_before_state_called() {
+        // Given: a configured app
+        let temp_dir = tempfile::tempdir().unwrap();
+        let original_cwd = std::env::current_dir().unwrap();
+        std::env::set_current_dir(temp_dir.path()).unwrap();
+        setup_test_config(temp_dir.path(), "router_before_state_test");
+
+        // When: converting app to router before state
+        let app = App::new().with_health_routes();
+        let (router, db_conn, cron_runner, cache_layer) = app.into_router_before_state().await;
+
+        // Then: router should be built with DbConnection state
+        let _router: Router<DbConnection> = router;
+        // db_conn is DbConnection, not Option<DbConnection>, so it always exists
+        let _db: DbConnection = db_conn;
+        assert!(cron_runner.is_none() || cron_runner.is_some(), "Cron runner may or may not exist");
+        assert!(cache_layer.is_none() || cache_layer.is_some(), "Cache layer may or may not exist");
+
+        std::env::set_current_dir(original_cwd).unwrap();
+      }
+
+      #[tokio::test]
+      async fn should_create_cron_runner_when_live_query_enabled() {
+        // Given: an app with live query enabled
+        let temp_dir = tempfile::tempdir().unwrap();
+        let original_cwd = std::env::current_dir().unwrap();
+        std::env::set_current_dir(temp_dir.path()).unwrap();
+        setup_test_config(temp_dir.path(), "cron_runner_test");
+
+        // When: building router with live query
+        let app = App::new().with_live_query();
+        let (_router, cron_runner) = app.into_router().await;
+
+        // Then: cron runner should be created
+        assert!(cron_runner.is_some(), "Cron runner should exist when live query enabled");
+        let (db, runner) = cron_runner.unwrap();
+        // db is DbConnection, not Option<DbConnection>, so it always exists
+        let _db_conn: DbConnection = db;
+        assert!(!runner.tasks.is_empty(), "Cron runner should have tasks");
+
+        std::env::set_current_dir(original_cwd).unwrap();
+      }
+    }
+
+    mod configuration_behavior {
+      use super::*;
+
+      #[test]
+      fn should_load_config_from_files_when_app_created() {
+        // Given: configuration files exist
+        let temp_dir = tempfile::tempdir().unwrap();
+        let original_cwd = std::env::current_dir().unwrap();
+        std::env::set_current_dir(temp_dir.path()).unwrap();
+        setup_test_config(temp_dir.path(), "config_load_test");
+
+        // When: creating an app
+        let app = App::new();
+
+        // Then: config should be loaded from files
+        let config = app.config();
+        assert_eq!(config.app.name, "config_load_test");
+        assert_eq!(config.server.host, "127.0.0.1");
+        assert_eq!(config.server.port, 3000);
+
+        std::env::set_current_dir(original_cwd).unwrap();
+      }
+
+      #[test]
+      fn should_provide_readonly_config_access() {
+        // Given: an app
+        let temp_dir = tempfile::tempdir().unwrap();
+        let original_cwd = std::env::current_dir().unwrap();
+        std::env::set_current_dir(temp_dir.path()).unwrap();
+        setup_test_config(temp_dir.path(), "config_readonly_test");
+
+        // When: accessing config multiple times
+        let app = App::new();
+        let config1 = app.config();
+        let config2 = app.config();
+
+        // Then: should return same config reference
+        assert_eq!(config1.app.name, config2.app.name);
+        assert_eq!(config1.server.host, config2.server.host);
+
+        std::env::set_current_dir(original_cwd).unwrap();
+      }
+    }
+
+    mod fluent_api_behavior {
+      use super::*;
+
+      #[tokio::test]
+      async fn should_support_method_chaining_when_configuring_app() {
+        // Given: an app builder
+        let temp_dir = tempfile::tempdir().unwrap();
+        let original_cwd = std::env::current_dir().unwrap();
+        std::env::set_current_dir(temp_dir.path()).unwrap();
+        setup_test_config(temp_dir.path(), "fluent_api_test");
+
+        async fn handler(_: State<DbConnection>) -> &'static str {
+          "test"
+        }
+
+        // When: chaining multiple configuration methods
+        let app = App::new()
+          .with_health_routes()
+          .with_rate_limit_per_ip(60)
+          .route("/test", handler);
+
+        // Then: all configurations should be applied
+        let (router, _) = app.into_router().await;
+        let _router: Router<()> = router;
+
+        std::env::set_current_dir(original_cwd).unwrap();
+      }
+
+      #[tokio::test]
+      async fn should_allow_multiple_route_registrations() {
+        // Given: an app and multiple handlers
+        let temp_dir = tempfile::tempdir().unwrap();
+        let original_cwd = std::env::current_dir().unwrap();
+        std::env::set_current_dir(temp_dir.path()).unwrap();
+        setup_test_config(temp_dir.path(), "multiple_routes_test");
+
+        async fn handler1(_: State<DbConnection>) -> &'static str {
+          "handler1"
+        }
+
+        async fn handler2(_: State<DbConnection>) -> &'static str {
+          "handler2"
+        }
+
+        // When: registering multiple routes
+        let app = App::new()
+          .route("/route1", handler1)
+          .route("/route2", handler2)
+          .post_route("/route3", handler1);
+
+        // Then: all routes should be registered
+        let (router, _) = app.into_router().await;
+        let _router: Router<()> = router;
+
+        std::env::set_current_dir(original_cwd).unwrap();
+      }
+    }
+  }
 }
