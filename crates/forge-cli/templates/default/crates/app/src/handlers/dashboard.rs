@@ -32,7 +32,7 @@ use crate::permissions::{dashboard_permissions, entity_action_key, permission_eq
 use crate::query_spec::{
   FilterCond, FilterOperator, SortDirection, validate_filter_cond, validate_sort_field,
 };
-use crate::scoped_query::{user_find_scoped, WithScope};
+use crate::scoped_query::{WithScope, user_find_scoped};
 use db::organization::{
   CreateOrganizationBody, UpdateOrganizationBody as DbUpdateOrganizationBody,
   create_organization_impl, update_organization_impl,

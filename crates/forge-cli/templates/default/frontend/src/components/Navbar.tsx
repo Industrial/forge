@@ -153,9 +153,13 @@ export default function Navbar({
         >
           <Avatar
             sx={{ width: 32, height: 32, bgcolor: 'primary.main' }}
-            alt={Option.getOrElse(authentication.user, () => null)?.email ?? 'User'}
+            alt={
+              Option.getOrElse(authentication.user, () => null)?.email ?? 'User'
+            }
           >
-            {Option.getOrElse(authentication.user, () => null)?.email?.charAt(0)?.toUpperCase() ?? 'U'}
+            {Option.getOrElse(authentication.user, () => null)
+              ?.email?.charAt(0)
+              ?.toUpperCase() ?? 'U'}
           </Avatar>
         </IconButton>
         <Menu

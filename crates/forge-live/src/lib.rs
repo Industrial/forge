@@ -7,18 +7,16 @@
 mod backend;
 mod channel;
 mod event;
-mod subscription;
 #[cfg(feature = "redis")]
 mod redis_backend;
+mod subscription;
 
 pub use backend::{ConnectionId, InMemoryLiveBackend, LiveBackend};
 pub use channel::Channel;
 pub use event::LiveEvent;
-pub use subscription::{
-  ChangeEvent, InvalidationEvent, SubscriptionMeta, SubscriptionStore,
-};
 #[cfg(feature = "redis")]
 pub use redis_backend::RedisLiveBackend;
+pub use subscription::{ChangeEvent, InvalidationEvent, SubscriptionMeta, SubscriptionStore};
 
 use std::sync::Arc;
 use uuid::Uuid;

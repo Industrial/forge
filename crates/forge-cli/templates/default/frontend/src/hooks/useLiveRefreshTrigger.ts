@@ -6,7 +6,10 @@
  */
 import { useEffect, useRef, useState } from 'react'
 import { Effect } from 'effect'
-import { channelToEntityId, type ForgeWebsocketKey } from '@/lib/liveRefreshChannels'
+import {
+  channelToEntityId,
+  type ForgeWebsocketKey,
+} from '@/lib/liveRefreshChannels'
 import { register, unregister } from '@/lib/subscriptionRegistry'
 import {
   SubscriptionStreamStatusStoreTag,
@@ -39,14 +42,16 @@ export function useLiveRefreshTrigger(channel: ForgeWebsocketKey): {
       return yield* rpc.subscribe(entityId, undefined)
     })
 
-    run(subscribeEffect).then((result) => {
-      subscriptionIdRef.current = result.subscription_id
-      register(result.subscription_id, {
-        entityId,
-        params: undefined,
-        onInvalidate: () => setTrigger((n) => n + 1),
+    run(subscribeEffect)
+      .then((result) => {
+        subscriptionIdRef.current = result.subscription_id
+        register(result.subscription_id, {
+          entityId,
+          params: undefined,
+          onInvalidate: () => setTrigger((n) => n + 1),
+        })
       })
-    }).catch(() => {})
+      .catch(() => {})
 
     return () => {
       const id = subscriptionIdRef.current

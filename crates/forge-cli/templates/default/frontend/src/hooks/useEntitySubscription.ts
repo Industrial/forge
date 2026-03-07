@@ -33,14 +33,16 @@ export function useEntitySubscription(
       return yield* rpc.subscribe(entityId, params)
     })
 
-    run(subscribeEffect).then((result) => {
-      subscriptionIdRef.current = result.subscription_id
-      register(result.subscription_id, {
-        entityId,
-        params: params ?? undefined,
-        onInvalidate: () => onRefetchRef.current(),
+    run(subscribeEffect)
+      .then((result) => {
+        subscriptionIdRef.current = result.subscription_id
+        register(result.subscription_id, {
+          entityId,
+          params: params ?? undefined,
+          onInvalidate: () => onRefetchRef.current(),
+        })
       })
-    }).catch(() => {})
+      .catch(() => {})
 
     return () => {
       const id = subscriptionIdRef.current

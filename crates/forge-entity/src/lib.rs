@@ -5,4 +5,4 @@ mod model_error;
 mod rest_model;
 
 pub use model_error::ModelError;
-pub use rest_model::{RestModel, REST_ACTIONS};
+pub use rest_model::{REST_ACTIONS, RestModel};

@@ -40,9 +40,7 @@ export function SubscriptionStreamRunner() {
             }
           }),
         ).pipe(
-          Effect.ensuring(
-            statusStore.update(() => ({ connected: false })),
-          ),
+          Effect.ensuring(statusStore.update(() => ({ connected: false }))),
         ),
       )
     })
