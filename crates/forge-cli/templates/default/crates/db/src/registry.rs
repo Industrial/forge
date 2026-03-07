@@ -164,3 +164,423 @@ pub async fn delete_model(model_id: &str, db: &DbConnection, id: Uuid) -> Result
     _ => Err(ModelError::UnknownModel),
   }
 }
+
+#[cfg(test)]
+mod bdd_tests {
+  use super::*;
+  use sea_orm::{Database, EntityTrait, Set};
+  use sea_orm_migration::MigratorTrait;
+  use uuid::Uuid;
+
+  async fn test_db() -> forge_db::DbConnection {
+    let conn = Database::connect(sea_orm::ConnectOptions::new("sqlite::memory:".to_string()))
+      .await
+      .unwrap();
+    migrations::Migrator::up(&conn, None)
+      .await
+      .expect("migrate");
+    forge_db::wrap_traced(conn)
+  }
+
+  mod is_known_model_behavior {
+    use super::*;
+
+    #[test]
+    fn should_return_true_for_registered_models() {
+      // Given: registry with registered models
+      // When: checking known model IDs
+      // Then: should return true
+      assert!(is_known_model("organization"));
+      assert!(is_known_model("user"));
+      assert!(is_known_model("role"));
+      assert!(is_known_model("permission"));
+      assert!(is_known_model("audit"));
+    }
+
+    #[test]
+    fn should_return_false_for_unknown_models() {
+      // Given: registry
+      // When: checking unknown model ID
+      // Then: should return false
+      assert!(!is_known_model("unknown_model"));
+      assert!(!is_known_model(""));
+      assert!(!is_known_model("invalid"));
+    }
+  }
+
+  mod effective_filter_fields_behavior {
+    use super::*;
+
+    #[test]
+    fn should_return_filter_fields_for_known_models() {
+      // Given: registry
+      // When: getting filter fields for known model
+      // Then: should return non-empty array
+      let org_fields = effective_filter_fields("organization");
+      assert!(!org_fields.is_empty());
+      assert!(org_fields.contains(&"id"));
+      assert!(org_fields.contains(&"name"));
+    }
+
+    #[test]
+    fn should_return_empty_for_unknown_models() {
+      // Given: registry
+      // When: getting filter fields for unknown model
+      // Then: should return empty array
+      let fields = effective_filter_fields("unknown_model");
+      assert!(fields.is_empty());
+    }
+  }
+
+  mod effective_sort_fields_behavior {
+    use super::*;
+
+    #[test]
+    fn should_return_sort_fields_for_known_models() {
+      // Given: registry
+      // When: getting sort fields for known model
+      // Then: should return non-empty array
+      let org_fields = effective_sort_fields("organization");
+      assert!(!org_fields.is_empty());
+    }
+
+    #[test]
+    fn should_return_empty_for_unknown_models() {
+      // Given: registry
+      // When: getting sort fields for unknown model
+      // Then: should return empty array
+      let fields = effective_sort_fields("unknown_model");
+      assert!(fields.is_empty());
+    }
+  }
+
+  mod effective_response_columns_behavior {
+    use super::*;
+
+    #[test]
+    fn should_return_response_columns_for_known_models() {
+      // Given: registry
+      // When: getting response columns for known model
+      // Then: should return non-empty vector
+      let org_cols = effective_response_columns("organization");
+      assert!(!org_cols.is_empty());
+      assert!(org_cols.contains(&"id"));
+    }
+
+    #[test]
+    fn should_return_empty_for_unknown_models() {
+      // Given: registry
+      // When: getting response columns for unknown model
+      // Then: should return empty vector
+      let cols = effective_response_columns("unknown_model");
+      assert!(cols.is_empty());
+    }
+  }
+
+  mod allowed_permission_keys_behavior {
+    use super::*;
+
+    #[test]
+    fn should_include_model_action_permissions() {
+      // Given: registry
+      // When: getting allowed permission keys
+      // Then: should include model.action format
+      let keys = allowed_permission_keys();
+      assert!(keys.contains(&"organization.read"));
+      assert!(keys.contains(&"user.read"));
+      assert!(keys.contains(&"audit.read"));
+    }
+
+    #[test]
+    fn should_include_all_read_and_all_write() {
+      // Given: registry
+      // When: getting allowed permission keys
+      // Then: should include all.read and all.write
+      let keys = allowed_permission_keys();
+      assert!(keys.contains(&"all.read"));
+      assert!(keys.contains(&"all.write"));
+    }
+
+    #[test]
+    fn should_return_consistent_results() {
+      // Given: registry
+      // When: calling allowed_permission_keys multiple times
+      // Then: should return same result (cached)
+      let keys1 = allowed_permission_keys();
+      let keys2 = allowed_permission_keys();
+      assert_eq!(keys1.len(), keys2.len());
+    }
+  }
+
+  mod list_models_behavior {
+    use super::*;
+
+    #[tokio::test]
+    async fn should_list_organizations() {
+      // Given: a test database with organizations
+      let db = test_db().await;
+      let now = chrono::Utc::now().naive_utc();
+      organization::Entity::insert(organization::ActiveModel {
+        id: Set(Uuid::new_v4()),
+        name: Set("Org 1".to_string()),
+        slug: Set("org-1".to_string()),
+        created_at: Set(now),
+        updated_at: Set(now),
+      })
+      .exec(&db)
+      .await
+      .expect("insert");
+
+      let spec = ListQuerySpec {
+        filters: vec![],
+        sort: vec![],
+        limit: None,
+        offset: None,
+      };
+
+      // When: listing organizations
+      let result = list_models("organization", &db, &spec).await;
+
+      // Then: should return JSON with data array
+      assert!(result.is_ok());
+      let json = result.unwrap();
+      assert!(json.get("data").and_then(|d| d.as_array()).is_some());
+    }
+
+    #[tokio::test]
+    async fn should_return_unknown_model_error_for_invalid_id() {
+      // Given: a test database
+      let db = test_db().await;
+      let spec = ListQuerySpec {
+        filters: vec![],
+        sort: vec![],
+        limit: None,
+        offset: None,
+      };
+
+      // When: listing unknown model
+      let result = list_models("unknown_model", &db, &spec).await;
+
+      // Then: should return UnknownModel error
+      assert!(result.is_err());
+      match result.unwrap_err() {
+        ModelError::UnknownModel => {}
+        _ => panic!("Expected UnknownModel error"),
+      }
+    }
+  }
+
+  mod get_model_behavior {
+    use super::*;
+
+    #[tokio::test]
+    async fn should_get_existing_organization() {
+      // Given: a test database with organization
+      let db = test_db().await;
+      let org_id = Uuid::new_v4();
+      let now = chrono::Utc::now().naive_utc();
+      organization::Entity::insert(organization::ActiveModel {
+        id: Set(org_id),
+        name: Set("Test Org".to_string()),
+        slug: Set("test-org".to_string()),
+        created_at: Set(now),
+        updated_at: Set(now),
+      })
+      .exec(&db)
+      .await
+      .expect("insert");
+
+      // When: getting organization
+      let result = get_model("organization", &db, org_id).await;
+
+      // Then: should return Some(JSON)
+      assert!(result.is_ok());
+      let json_opt = result.unwrap();
+      assert!(json_opt.is_some());
+      let json = json_opt.unwrap();
+      assert_eq!(json["id"].as_str().unwrap(), org_id.to_string());
+    }
+
+    #[tokio::test]
+    async fn should_return_none_for_non_existent_model() {
+      // Given: a test database
+      let db = test_db().await;
+      let non_existent_id = Uuid::new_v4();
+
+      // When: getting non-existent organization
+      let result = get_model("organization", &db, non_existent_id).await;
+
+      // Then: should return Ok(None)
+      assert!(result.is_ok());
+      assert!(result.unwrap().is_none());
+    }
+
+    #[tokio::test]
+    async fn should_return_unknown_model_error_for_invalid_id() {
+      // Given: a test database
+      let db = test_db().await;
+      let id = Uuid::new_v4();
+
+      // When: getting unknown model
+      let result = get_model("unknown_model", &db, id).await;
+
+      // Then: should return UnknownModel error
+      assert!(result.is_err());
+      match result.unwrap_err() {
+        ModelError::UnknownModel => {}
+        _ => panic!("Expected UnknownModel error"),
+      }
+    }
+  }
+
+  mod create_model_behavior {
+    use super::*;
+
+    #[tokio::test]
+    async fn should_create_organization_via_registry() {
+      // Given: a test database
+      let db = test_db().await;
+      let body = serde_json::json!({
+        "name": "Registry Org",
+        "slug": "registry-org"
+      });
+
+      // When: creating organization via registry
+      let result = create_model("organization", &db, body).await;
+
+      // Then: should return UUID
+      assert!(result.is_ok());
+      let org_id = result.unwrap();
+      assert_ne!(org_id, Uuid::nil());
+    }
+
+    #[tokio::test]
+    async fn should_return_unknown_model_error_for_invalid_id() {
+      // Given: a test database
+      let db = test_db().await;
+      let body = serde_json::json!({});
+
+      // When: creating unknown model
+      let result = create_model("unknown_model", &db, body).await;
+
+      // Then: should return UnknownModel error
+      assert!(result.is_err());
+      match result.unwrap_err() {
+        ModelError::UnknownModel => {}
+        _ => panic!("Expected UnknownModel error"),
+      }
+    }
+  }
+
+  mod update_model_behavior {
+    use super::*;
+
+    #[tokio::test]
+    async fn should_update_organization_via_registry() {
+      // Given: an existing organization
+      let db = test_db().await;
+      let org_id = Uuid::new_v4();
+      let now = chrono::Utc::now().naive_utc();
+      organization::Entity::insert(organization::ActiveModel {
+        id: Set(org_id),
+        name: Set("Original".to_string()),
+        slug: Set("original".to_string()),
+        created_at: Set(now),
+        updated_at: Set(now),
+      })
+      .exec(&db)
+      .await
+      .expect("insert");
+
+      let body = serde_json::json!({
+        "name": "Updated"
+      });
+
+      // When: updating organization via registry
+      let result = update_model("organization", &db, org_id, body).await;
+
+      // Then: should return updated JSON
+      assert!(result.is_ok());
+      let json = result.unwrap();
+      assert_eq!(json["name"].as_str().unwrap(), "Updated");
+    }
+
+    #[tokio::test]
+    async fn should_return_unknown_model_error_for_invalid_id() {
+      // Given: a test database
+      let db = test_db().await;
+      let id = Uuid::new_v4();
+      let body = serde_json::json!({});
+
+      // When: updating unknown model
+      let result = update_model("unknown_model", &db, id, body).await;
+
+      // Then: should return UnknownModel error
+      assert!(result.is_err());
+      match result.unwrap_err() {
+        ModelError::UnknownModel => {}
+        _ => panic!("Expected UnknownModel error"),
+      }
+    }
+  }
+
+  mod delete_model_behavior {
+    use super::*;
+
+    #[tokio::test]
+    async fn should_delete_organization_via_registry() {
+      // Given: an existing organization
+      let db = test_db().await;
+      let org_id = Uuid::new_v4();
+      let now = chrono::Utc::now().naive_utc();
+      organization::Entity::insert(organization::ActiveModel {
+        id: Set(org_id),
+        name: Set("To Delete".to_string()),
+        slug: Set("to-delete".to_string()),
+        created_at: Set(now),
+        updated_at: Set(now),
+      })
+      .exec(&db)
+      .await
+      .expect("insert");
+
+      // When: deleting organization via registry
+      let result = delete_model("organization", &db, org_id).await;
+
+      // Then: should return true
+      assert!(result.is_ok());
+      assert_eq!(result.unwrap(), true);
+    }
+
+    #[tokio::test]
+    async fn should_return_false_for_non_existent_model() {
+      // Given: a test database
+      let db = test_db().await;
+      let non_existent_id = Uuid::new_v4();
+
+      // When: deleting non-existent organization
+      let result = delete_model("organization", &db, non_existent_id).await;
+
+      // Then: should return false
+      assert!(result.is_ok());
+      assert_eq!(result.unwrap(), false);
+    }
+
+    #[tokio::test]
+    async fn should_return_unknown_model_error_for_invalid_id() {
+      // Given: a test database
+      let db = test_db().await;
+      let id = Uuid::new_v4();
+
+      // When: deleting unknown model
+      let result = delete_model("unknown_model", &db, id).await;
+
+      // Then: should return UnknownModel error
+      assert!(result.is_err());
+      match result.unwrap_err() {
+        ModelError::UnknownModel => {}
+        _ => panic!("Expected UnknownModel error"),
+      }
+    }
+  }
+}

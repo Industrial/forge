@@ -270,3 +270,245 @@ fn apply_filter(select: sea_orm::Select<Entity>, cond: &FilterCond) -> sea_orm::
     _ => select,
   }
 }
+
+#[cfg(test)]
+mod bdd_tests {
+  use super::*;
+  use chrono::Utc;
+  use sea_orm::{Database, EntityTrait, Set};
+  use sea_orm_migration::MigratorTrait;
+  use uuid::Uuid;
+
+  async fn test_db() -> forge_db::DbConnection {
+    let conn = Database::connect(sea_orm::ConnectOptions::new("sqlite::memory:".to_string()))
+      .await
+      .unwrap();
+    migrations::Migrator::up(&conn, None)
+      .await
+      .expect("migrate");
+    forge_db::wrap_traced(conn)
+  }
+
+  mod rest_model_behavior {
+    use super::*;
+
+    #[test]
+    fn should_have_model_id_organization() {
+      // Given: Organization RestModel implementation
+      // When: checking model_id
+      // Then: should return "organization"
+      assert_eq!(Organization::model_id(), "organization");
+    }
+
+    #[test]
+    fn should_have_display_name() {
+      // Given: Organization RestModel implementation
+      // When: checking display_name
+      // Then: should return Some("Organization")
+      assert_eq!(Organization::display_name(), Some("Organization"));
+    }
+
+    #[tokio::test]
+    async fn should_create_organization_via_rest_model() {
+      // Given: Organization RestModel and a test database
+      let db = test_db().await;
+      let body = serde_json::json!({
+        "name": "Test Org",
+        "slug": "test-org"
+      });
+
+      // When: creating an organization
+      let result = Organization::create(&db, body).await;
+
+      // Then: should return a UUID
+      assert!(result.is_ok());
+      let org_id = result.unwrap();
+      assert_ne!(org_id, Uuid::nil());
+    }
+
+    #[tokio::test]
+    async fn should_update_organization_via_rest_model() {
+      // Given: an existing organization
+      let db = test_db().await;
+      let org_id = Uuid::new_v4();
+      let now = Utc::now().naive_utc();
+
+      Entity::insert(ActiveModel {
+        id: Set(org_id),
+        name: Set("Original Name".to_string()),
+        slug: Set("original-slug".to_string()),
+        created_at: Set(now),
+        updated_at: Set(now),
+      })
+      .exec(&db)
+      .await
+      .expect("insert");
+
+      let body = serde_json::json!({
+        "name": "Updated Name",
+        "slug": "updated-slug"
+      });
+
+      // When: updating the organization
+      let result = Organization::update(&db, org_id, body).await;
+
+      // Then: should return updated JSON
+      assert!(result.is_ok());
+      let json = result.unwrap();
+      assert_eq!(json["name"].as_str().unwrap(), "Updated Name");
+      assert_eq!(json["slug"].as_str().unwrap(), "updated-slug");
+    }
+
+    #[tokio::test]
+    async fn should_delete_organization_via_rest_model() {
+      // Given: an existing organization
+      let db = test_db().await;
+      let org_id = Uuid::new_v4();
+      let now = Utc::now().naive_utc();
+
+      Entity::insert(ActiveModel {
+        id: Set(org_id),
+        name: Set("Test Org".to_string()),
+        slug: Set("test-org".to_string()),
+        created_at: Set(now),
+        updated_at: Set(now),
+      })
+      .exec(&db)
+      .await
+      .expect("insert");
+
+      // When: deleting the organization
+      let result = Organization::delete(&db, org_id).await;
+
+      // Then: should return true
+      assert!(result.is_ok());
+      assert_eq!(result.unwrap(), true);
+    }
+  }
+
+  mod model_structure_behavior {
+    use super::*;
+
+    #[tokio::test]
+    async fn should_create_organization_with_required_fields() {
+      // Given: a test database
+      let db = test_db().await;
+      let org_id = Uuid::new_v4();
+      let now = Utc::now().naive_utc();
+
+      // When: inserting an organization with required fields
+      let result = Entity::insert(ActiveModel {
+        id: Set(org_id),
+        name: Set("Test Organization".to_string()),
+        slug: Set("test-org".to_string()),
+        created_at: Set(now),
+        updated_at: Set(now),
+      })
+      .exec(&db)
+      .await;
+
+      // Then: should succeed
+      assert!(result.is_ok());
+    }
+
+    #[tokio::test]
+    async fn should_store_organization_with_name_and_slug() {
+      // Given: a test database
+      let db = test_db().await;
+      let org_id = Uuid::new_v4();
+      let now = Utc::now().naive_utc();
+
+      // When: inserting an organization
+      Entity::insert(ActiveModel {
+        id: Set(org_id),
+        name: Set("My Organization".to_string()),
+        slug: Set("my-org".to_string()),
+        created_at: Set(now),
+        updated_at: Set(now),
+      })
+      .exec(&db)
+      .await
+      .expect("insert");
+
+      // Then: should be able to retrieve it
+      let org = Entity::find_by_id(org_id)
+        .one(&db)
+        .await
+        .expect("find")
+        .expect("org should exist");
+      assert_eq!(org.id, org_id);
+      assert_eq!(org.name, "My Organization");
+      assert_eq!(org.slug, "my-org");
+    }
+
+    #[tokio::test]
+    async fn should_query_organization_by_slug() {
+      // Given: a test database with organizations
+      let db = test_db().await;
+      let now = Utc::now().naive_utc();
+
+      Entity::insert(ActiveModel {
+        id: Set(Uuid::new_v4()),
+        name: Set("Org 1".to_string()),
+        slug: Set("org-1".to_string()),
+        created_at: Set(now),
+        updated_at: Set(now),
+      })
+      .exec(&db)
+      .await
+      .expect("insert org1");
+
+      Entity::insert(ActiveModel {
+        id: Set(Uuid::new_v4()),
+        name: Set("Org 2".to_string()),
+        slug: Set("org-2".to_string()),
+        created_at: Set(now),
+        updated_at: Set(now),
+      })
+      .exec(&db)
+      .await
+      .expect("insert org2");
+
+      // When: querying by slug
+      let org = Entity::find()
+        .filter(Column::Slug.eq("org-1"))
+        .one(&db)
+        .await
+        .expect("query");
+
+      // Then: should find the correct organization
+      assert!(org.is_some());
+      let o = org.unwrap();
+      assert_eq!(o.slug, "org-1");
+      assert_eq!(o.name, "Org 1");
+    }
+  }
+
+  mod row_to_json_behavior {
+    use super::*;
+
+    #[test]
+    fn should_convert_model_to_json() {
+      // Given: an organization model
+      let id = Uuid::new_v4();
+      let now = Utc::now().naive_utc();
+      let model = Model {
+        id,
+        name: "Test Org".to_string(),
+        slug: "test-org".to_string(),
+        created_at: now,
+        updated_at: now,
+      };
+
+      // When: converting to JSON
+      let json = Organization::row_to_json(&model);
+
+      // Then: should have all expected fields
+      assert_eq!(json["id"].as_str().unwrap(), id.to_string());
+      assert_eq!(json["name"].as_str().unwrap(), "Test Org");
+      assert_eq!(json["slug"].as_str().unwrap(), "test-org");
+      assert!(json["created_at"].is_string());
+      assert!(json["updated_at"].is_string());
+    }
+  }
+}

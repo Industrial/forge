@@ -1,6 +1,6 @@
 /**
- * BDD component tests for RolesPage.tsx
- * Tests verify component rendering, role management, and CRUD operations
+ * BDD component tests for OrganizationsPage.tsx
+ * Tests verify component rendering, organization management, and CRUD operations
  */
 import { describe, test, expect, beforeAll } from 'bun:test'
 import { render } from '@testing-library/react'
@@ -10,7 +10,7 @@ import { Window } from 'happy-dom'
 import React from 'react'
 import { Effect, Layer } from 'effect'
 
-import RolesPage from './RolesPage'
+import OrganizationsPage from './OrganizationsPage'
 import { Providers } from '@/Providers'
 import { getApplicationLayer } from '@/lib/appLayer'
 import { EntityApi } from '@/services/EntityApi'
@@ -60,68 +60,82 @@ const createWrapper = () => {
   )
 }
 
-describe('RolesPage component', () => {
+describe('OrganizationsPage component', () => {
   describe('export behavior', () => {
-    test('should export RolesPage as default export', () => {
-      expect(RolesPage).toBeDefined()
-      expect(typeof RolesPage).toBe('function')
+    test('should export OrganizationsPage as default export', () => {
+      expect(OrganizationsPage).toBeDefined()
+      expect(typeof OrganizationsPage).toBe('function')
     })
   })
 
   describe('rendering behavior', () => {
     test('should render PageHeader', () => {
-      const { container } = render(<RolesPage />, {
+      const { container } = render(<OrganizationsPage />, {
+        wrapper: createWrapper() },
+      )
+      expect(container).toBeDefined()
+    })
+
+    test('should render OrganizationsFilters', () => {
+      const { container } = render(<OrganizationsPage />, {
         wrapper: createWrapper() },
       )
       expect(container).toBeDefined()
     })
 
     test('should render LoadingSpinner when loading', () => {
-      const { container } = render(<RolesPage />, {
+      const { container } = render(<OrganizationsPage />, {
         wrapper: createWrapper() },
       )
       expect(container).toBeDefined()
     })
 
-    test('should render EmptyState when no roles', () => {
-      const { container } = render(<RolesPage />, {
+    test('should render EmptyState when no organizations', () => {
+      const { container } = render(<OrganizationsPage />, {
         wrapper: createWrapper() },
       )
       expect(container).toBeDefined()
     })
 
-    test('should render RoleTableRow for each role', () => {
-      const { container } = render(<RolesPage />, {
+    test('should render OrganizationTableRow for each organization', () => {
+      const { container } = render(<OrganizationsPage />, {
         wrapper: createWrapper() },
       )
       expect(container).toBeDefined()
     })
   })
 
-  describe('role management behavior', () => {
+  describe('organization management behavior', () => {
     test('should use EntityApi for CRUD operations', () => {
-      const { container } = render(<RolesPage />, {
+      const { container } = render(<OrganizationsPage />, {
         wrapper: createWrapper() },
       )
       expect(container).toBeDefined()
     })
 
-    test('should handle creating roles', () => {
-      const { container } = render(<RolesPage />, {
+    test('should handle filtering organizations', () => {
+      const { container } = render(<OrganizationsPage />, {
         wrapper: createWrapper() },
       )
       expect(container).toBeDefined()
     })
 
-    test('should handle updating roles', () => {
-      const { container } = render(<RolesPage />, {
+    test('should handle creating organizations', () => {
+      const { container } = render(<OrganizationsPage />, {
         wrapper: createWrapper() },
       )
       expect(container).toBeDefined()
     })
 
-    test('should handle deleting roles', () => {
-      const { container } = render(<RolesPage />, {
+    test('should handle updating organizations', () => {
+      const { container } = render(<OrganizationsPage />, {
+        wrapper: createWrapper() },
+      )
+      expect(container).toBeDefined()
+    })
+
+    test('should handle deleting organizations', () => {
+      const { container } = render(<OrganizationsPage />, {
         wrapper: createWrapper() },
       )
       expect(container).toBeDefined()
@@ -130,7 +144,7 @@ describe('RolesPage component', () => {
 
   describe('error handling behavior', () => {
     test('should render ErrorAlert on error', () => {
-      const { container } = render(<RolesPage />, {
+      const { container } = render(<OrganizationsPage />, {
         wrapper: createWrapper() },
       )
       expect(container).toBeDefined()

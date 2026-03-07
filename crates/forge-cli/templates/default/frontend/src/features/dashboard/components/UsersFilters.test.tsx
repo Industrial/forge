@@ -1,0 +1,225 @@
+/**
+ * BDD component tests for UsersFilters.tsx
+ * Tests verify component rendering, props handling, and filter controls
+ */
+import { describe, test, expect, beforeAll } from 'bun:test'
+import { render } from '@testing-library/react'
+import { ThemeProvider, createTheme } from '@mui/material/styles'
+import { Window } from 'happy-dom'
+import React from 'react'
+
+import UsersFilters from './UsersFilters'
+
+beforeAll(() => {
+  if (typeof globalThis.window === 'undefined') {
+    const window = new Window()
+    const document = window.document
+    const global = globalThis as any
+    global.window = window
+    global.document = document
+    global.localStorage = window.localStorage
+    global.navigator = window.navigator
+    if (!document.body) {
+      const body = document.createElement('body')
+      document.appendChild(body)
+    }
+    global.SyntaxError = class SyntaxError extends Error {
+      constructor(message?: string) {
+        super(message)
+        this.name = 'SyntaxError'
+        Object.setPrototypeOf(this, SyntaxError.prototype)
+      }
+    }
+    if (window.SyntaxError === undefined) {
+      window.SyntaxError = global.SyntaxError as any
+    }
+  }
+})
+
+const createWrapper = () => {
+  const theme = createTheme({ palette: { mode: 'light' } })
+  return ({ children }: { children: React.ReactNode }) => (
+    <ThemeProvider theme={theme}>{children}</ThemeProvider>
+  )
+}
+
+describe('UsersFilters component', () => {
+  describe('export behavior', () => {
+    test('should export UsersFilters as default export', () => {
+      expect(UsersFilters).toBeDefined()
+      expect(typeof UsersFilters).toBe('function')
+    })
+  })
+
+  describe('rendering behavior', () => {
+    test('should render email filter field', () => {
+      const { container } = render(
+        <UsersFilters
+          filterEmail=""
+          filterOrgId=""
+          filterRole=""
+          filterActive=""
+          filterAdmin=""
+          organizations={[]}
+          roleOptions={[]}
+          onFilterEmailChange={() => {}}
+          onFilterOrgIdChange={() => {}}
+          onFilterRoleChange={() => {}}
+          onFilterActiveChange={() => {}}
+          onFilterAdminChange={() => {}}
+        />,
+        { wrapper: createWrapper() },
+      )
+      expect(container.textContent).toContain('Email')
+    })
+
+    test('should render organization select', () => {
+      const { container } = render(
+        <UsersFilters
+          filterEmail=""
+          filterOrgId=""
+          filterRole=""
+          filterActive=""
+          filterAdmin=""
+          organizations={[]}
+          roleOptions={[]}
+          onFilterEmailChange={() => {}}
+          onFilterOrgIdChange={() => {}}
+          onFilterRoleChange={() => {}}
+          onFilterActiveChange={() => {}}
+          onFilterAdminChange={() => {}}
+        />,
+        { wrapper: createWrapper() },
+      )
+      expect(container.textContent).toContain('Organization')
+    })
+
+    test('should render role select', () => {
+      const { container } = render(
+        <UsersFilters
+          filterEmail=""
+          filterOrgId=""
+          filterRole=""
+          filterActive=""
+          filterAdmin=""
+          organizations={[]}
+          roleOptions={[]}
+          onFilterEmailChange={() => {}}
+          onFilterOrgIdChange={() => {}}
+          onFilterRoleChange={() => {}}
+          onFilterActiveChange={() => {}}
+          onFilterAdminChange={() => {}}
+        />,
+        { wrapper: createWrapper() },
+      )
+      expect(container.textContent).toContain('Role')
+    })
+
+    test('should render active select', () => {
+      const { container } = render(
+        <UsersFilters
+          filterEmail=""
+          filterOrgId=""
+          filterRole=""
+          filterActive=""
+          filterAdmin=""
+          organizations={[]}
+          roleOptions={[]}
+          onFilterEmailChange={() => {}}
+          onFilterOrgIdChange={() => {}}
+          onFilterRoleChange={() => {}}
+          onFilterActiveChange={() => {}}
+          onFilterAdminChange={() => {}}
+        />,
+        { wrapper: createWrapper() },
+      )
+      expect(container.textContent).toContain('Active')
+    })
+
+    test('should render admin select', () => {
+      const { container } = render(
+        <UsersFilters
+          filterEmail=""
+          filterOrgId=""
+          filterRole=""
+          filterActive=""
+          filterAdmin=""
+          organizations={[]}
+          roleOptions={[]}
+          onFilterEmailChange={() => {}}
+          onFilterOrgIdChange={() => {}}
+          onFilterRoleChange={() => {}}
+          onFilterActiveChange={() => {}}
+          onFilterAdminChange={() => {}}
+        />,
+        { wrapper: createWrapper() },
+      )
+      expect(container.textContent).toContain('Admin')
+    })
+  })
+
+  describe('props handling behavior', () => {
+    test('should accept filter props', () => {
+      const { container } = render(
+        <UsersFilters
+          filterEmail="test@example.com"
+          filterOrgId="org-1"
+          filterRole="admin"
+          filterActive="yes"
+          filterAdmin="no"
+          organizations={[]}
+          roleOptions={[]}
+          onFilterEmailChange={() => {}}
+          onFilterOrgIdChange={() => {}}
+          onFilterRoleChange={() => {}}
+          onFilterActiveChange={() => {}}
+          onFilterAdminChange={() => {}}
+        />,
+        { wrapper: createWrapper() },
+      )
+      expect(container).toBeDefined()
+    })
+
+    test('should accept organizations prop', () => {
+      const { container } = render(
+        <UsersFilters
+          filterEmail=""
+          filterOrgId=""
+          filterRole=""
+          filterActive=""
+          filterAdmin=""
+          organizations={[{ id: 'org-1', name: 'Org 1' }]}
+          roleOptions={[]}
+          onFilterEmailChange={() => {}}
+          onFilterOrgIdChange={() => {}}
+          onFilterRoleChange={() => {}}
+          onFilterActiveChange={() => {}}
+          onFilterAdminChange={() => {}}
+        />,
+        { wrapper: createWrapper() },
+      )
+      expect(container).toBeDefined()
+    })
+
+    test('should accept roleOptions prop', () => {
+      const { container } = render(
+        <UsersFilters
+          filterEmail=""
+          filterOrgId=""
+          filterRole=""
+          filterActive=""
+          filterAdmin=""
+          organizations={[]}
+          roleOptions={['admin', 'user']}
+          onFilterEmailChange={() => {}}
+          onFilterOrgIdChange={() => {}}
+          onFilterRoleChange={() => {}}
+          onFilterActiveChange={() => {}}
+          onFilterAdminChange={() => {}}
+        />,
+        { wrapper: createWrapper() },
+      )
+      expect(container).toBeDefined()
+    })
+  })
+})

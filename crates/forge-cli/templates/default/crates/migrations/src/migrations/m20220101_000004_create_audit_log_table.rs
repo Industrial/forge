@@ -85,3 +85,143 @@ impl MigrationTrait for Migration {
       .await
   }
 }
+
+#[cfg(test)]
+mod bdd_tests {
+  use super::*;
+  use sea_orm::{Database, ConnectionTrait, EntityTrait};
+  use sea_orm_migration::prelude::*;
+
+  async fn test_db() -> sea_orm::DatabaseConnection {
+    Database::connect(sea_orm::ConnectOptions::new("sqlite::memory:".to_string()))
+      .await
+      .unwrap()
+  }
+
+  mod migration_up_behavior {
+    use super::*;
+
+    #[tokio::test]
+    async fn should_create_audit_log_table() {
+      // Given: a test database
+      let db = test_db().await;
+      let migration = Migration;
+
+      // When: running migration up
+      let result = migration.up(&SchemaManager::new(&db)).await;
+
+      // Then: should succeed
+      assert!(result.is_ok());
+    }
+
+    #[tokio::test]
+    async fn should_create_table_with_all_columns() {
+      // Given: a test database
+      let db = test_db().await;
+      let migration = Migration;
+      migration.up(&SchemaManager::new(&db)).await.expect("migrate");
+
+      // When: checking table structure
+      // Then: table should exist with all columns
+      use crate::models::audit_log;
+      let logs = audit_log::Entity::find().all(&db).await;
+      assert!(logs.is_ok());
+    }
+
+    #[tokio::test]
+    async fn should_create_table_with_primary_key() {
+      // Given: a test database
+      let db = test_db().await;
+      let migration = Migration;
+      migration.up(&SchemaManager::new(&db)).await.expect("migrate");
+
+      // When: inserting audit log with id
+      // Then: should succeed
+      use crate::models::audit_log;
+      use sea_orm::Set;
+      use uuid::Uuid;
+      use chrono::Utc;
+
+      let result = audit_log::Entity::insert(audit_log::ActiveModel {
+        id: Set(Uuid::new_v4()),
+        event_kind: Set("test".to_string()),
+        actor_id: Set(Uuid::new_v4()),
+        subject_id: Set(None),
+        organization_id: Set(None),
+        action: Set("test_action".to_string()),
+        resource_type: Set("test_resource".to_string()),
+        resource_id: Set(None),
+        outcome: Set("success".to_string()),
+        reason: Set(None),
+        occurred_at: Set(Utc::now().naive_utc()),
+      })
+      .exec(&db)
+      .await;
+
+      assert!(result.is_ok());
+    }
+
+    #[tokio::test]
+    async fn should_create_indexes() {
+      // Given: a test database
+      let db = test_db().await;
+      let migration = Migration;
+
+      // When: running migration up
+      let result = migration.up(&SchemaManager::new(&db)).await;
+
+      // Then: should succeed (indexes created)
+      assert!(result.is_ok());
+      // Indexes: idx_audit_log_org_occurred, idx_audit_log_actor_occurred
+    }
+  }
+
+  mod migration_down_behavior {
+    use super::*;
+
+    #[tokio::test]
+    async fn should_drop_audit_log_table() {
+      // Given: a test database with audit_log table created
+      let db = test_db().await;
+      let migration = Migration;
+      migration.up(&SchemaManager::new(&db)).await.expect("migrate up");
+
+      // When: running migration down
+      let result = migration.down(&SchemaManager::new(&db)).await;
+
+      // Then: should succeed
+      assert!(result.is_ok());
+    }
+
+    #[tokio::test]
+    async fn should_remove_table_after_down() {
+      // Given: a test database with audit_log table
+      let db = test_db().await;
+      let migration = Migration;
+      migration.up(&SchemaManager::new(&db)).await.expect("migrate up");
+      migration.down(&SchemaManager::new(&db)).await.expect("migrate down");
+
+      // When: trying to query audit_log table
+      // Then: should fail (table doesn't exist)
+      use crate::models::audit_log;
+      let result = audit_log::Entity::find().all(&db).await;
+      assert!(result.is_err());
+    }
+  }
+
+  mod migration_name_behavior {
+    use super::*;
+
+    #[test]
+    fn should_have_correct_migration_name() {
+      // Given: Migration struct
+      let migration = Migration;
+
+      // When: getting migration name
+      let name = migration.name();
+
+      // Then: should match expected name
+      assert_eq!(name, "m20220101_000004_create_audit_log_table");
+    }
+  }
+}

@@ -312,3 +312,298 @@ fn apply_filter(select: sea_orm::Select<Entity>, cond: &FilterCond) -> sea_orm::
     _ => select,
   }
 }
+
+#[cfg(test)]
+mod bdd_tests {
+  use super::*;
+  use chrono::Utc;
+  use sea_orm::{Database, EntityTrait, Set};
+  use sea_orm_migration::MigratorTrait;
+  use uuid::Uuid;
+
+  async fn test_db() -> forge_db::DbConnection {
+    let conn = Database::connect(sea_orm::ConnectOptions::new("sqlite::memory:".to_string()))
+      .await
+      .unwrap();
+    migrations::Migrator::up(&conn, None)
+      .await
+      .expect("migrate");
+    forge_db::wrap_traced(conn)
+  }
+
+  mod rest_model_behavior {
+    use super::*;
+
+    #[test]
+    fn should_have_model_id_user() {
+      // Given: User RestModel implementation
+      // When: checking model_id
+      // Then: should return "user"
+      assert_eq!(User::model_id(), "user");
+    }
+
+    #[test]
+    fn should_have_display_name() {
+      // Given: User RestModel implementation
+      // When: checking display_name
+      // Then: should return Some("User")
+      assert_eq!(User::display_name(), Some("User"));
+    }
+
+    #[test]
+    fn should_exclude_password_hash_from_response_columns() {
+      // Given: User RestModel implementation
+      // When: checking response_columns
+      // Then: should not include password_hash
+      let cols = User::response_columns();
+      assert!(!cols.contains(&"password_hash"));
+      assert!(cols.contains(&"id"));
+      assert!(cols.contains(&"email"));
+    }
+
+    #[tokio::test]
+    async fn should_reject_create_via_generic_handler() {
+      // Given: User RestModel and a test database
+      let db = test_db().await;
+      let body = serde_json::json!({});
+
+      // When: attempting to create a user via generic handler
+      let result = User::create(&db, body).await;
+
+      // Then: should return Validation error
+      assert!(result.is_err());
+      match result.unwrap_err() {
+        ModelError::Validation(msg) => {
+          assert!(msg.contains("not implemented via generic handler"));
+          assert!(msg.contains("POST /api/users"));
+        }
+        _ => panic!("Expected Validation error"),
+      }
+    }
+
+    #[tokio::test]
+    async fn should_reject_update_via_generic_handler() {
+      // Given: User RestModel and a test database
+      let db = test_db().await;
+      let id = Uuid::new_v4();
+      let body = serde_json::json!({});
+
+      // When: attempting to update a user via generic handler
+      let result = User::update(&db, id, body).await;
+
+      // Then: should return Validation error
+      assert!(result.is_err());
+      match result.unwrap_err() {
+        ModelError::Validation(msg) => {
+          assert!(msg.contains("not implemented via generic handler"));
+          assert!(msg.contains("PATCH /api/users"));
+        }
+        _ => panic!("Expected Validation error"),
+      }
+    }
+
+    #[tokio::test]
+    async fn should_reject_delete_via_generic_handler() {
+      // Given: User RestModel and a test database
+      let db = test_db().await;
+      let id = Uuid::new_v4();
+
+      // When: attempting to delete a user via generic handler
+      let result = User::delete(&db, id).await;
+
+      // Then: should return Validation error
+      assert!(result.is_err());
+      match result.unwrap_err() {
+        ModelError::Validation(msg) => {
+          assert!(msg.contains("not implemented via generic handler"));
+          assert!(msg.contains("DELETE /api/users"));
+        }
+        _ => panic!("Expected Validation error"),
+      }
+    }
+  }
+
+  mod model_structure_behavior {
+    use super::*;
+
+    #[tokio::test]
+    async fn should_create_user_with_required_fields() {
+      // Given: a test database
+      let db = test_db().await;
+      let user_id = Uuid::new_v4();
+      let now = Utc::now().naive_utc();
+
+      // When: inserting a user with required fields
+      let result = Entity::insert(ActiveModel {
+        id: Set(user_id),
+        email: Set("test@example.com".to_string()),
+        password_hash: Set("hashed-password".to_string()),
+        is_active: Set(true),
+        is_admin: Set(false),
+        current_org_id: Set(None),
+        current_role: Set(None),
+        created_at: Set(now),
+        updated_at: Set(now),
+      })
+      .exec(&db)
+      .await;
+
+      // Then: should succeed
+      assert!(result.is_ok());
+    }
+
+    #[tokio::test]
+    async fn should_store_user_with_email_and_password_hash() {
+      // Given: a test database
+      let db = test_db().await;
+      let user_id = Uuid::new_v4();
+      let now = Utc::now().naive_utc();
+
+      // When: inserting a user
+      Entity::insert(ActiveModel {
+        id: Set(user_id),
+        email: Set("user@example.com".to_string()),
+        password_hash: Set("hashed-password-123".to_string()),
+        is_active: Set(true),
+        is_admin: Set(false),
+        current_org_id: Set(None),
+        current_role: Set(None),
+        created_at: Set(now),
+        updated_at: Set(now),
+      })
+      .exec(&db)
+      .await
+      .expect("insert");
+
+      // Then: should be able to retrieve it
+      let user = Entity::find_by_id(user_id)
+        .one(&db)
+        .await
+        .expect("find")
+        .expect("user should exist");
+      assert_eq!(user.id, user_id);
+      assert_eq!(user.email, "user@example.com");
+      assert_eq!(user.password_hash, "hashed-password-123");
+    }
+
+    #[tokio::test]
+    async fn should_query_user_by_email() {
+      // Given: a test database with users
+      let db = test_db().await;
+      let now = Utc::now().naive_utc();
+
+      Entity::insert(ActiveModel {
+        id: Set(Uuid::new_v4()),
+        email: Set("user1@example.com".to_string()),
+        password_hash: Set("hash1".to_string()),
+        is_active: Set(true),
+        is_admin: Set(false),
+        current_org_id: Set(None),
+        current_role: Set(None),
+        created_at: Set(now),
+        updated_at: Set(now),
+      })
+      .exec(&db)
+      .await
+      .expect("insert user1");
+
+      Entity::insert(ActiveModel {
+        id: Set(Uuid::new_v4()),
+        email: Set("user2@example.com".to_string()),
+        password_hash: Set("hash2".to_string()),
+        is_active: Set(true),
+        is_admin: Set(false),
+        current_org_id: Set(None),
+        current_role: Set(None),
+        created_at: Set(now),
+        updated_at: Set(now),
+      })
+      .exec(&db)
+      .await
+      .expect("insert user2");
+
+      // When: querying by email
+      let user = Entity::find()
+        .filter(Column::Email.eq("user1@example.com"))
+        .one(&db)
+        .await
+        .expect("query");
+
+      // Then: should find the correct user
+      assert!(user.is_some());
+      let u = user.unwrap();
+      assert_eq!(u.email, "user1@example.com");
+    }
+  }
+
+  mod authz_context_behavior {
+    use super::*;
+
+    #[tokio::test]
+    async fn should_implement_authz_context() {
+      // Given: a user model
+      let db = test_db().await;
+      let user_id = Uuid::new_v4();
+      let org_id = Uuid::new_v4();
+      let now = Utc::now().naive_utc();
+
+      Entity::insert(ActiveModel {
+        id: Set(user_id),
+        email: Set("authz@example.com".to_string()),
+        password_hash: Set("hash".to_string()),
+        is_active: Set(true),
+        is_admin: Set(false),
+        current_org_id: Set(Some(org_id)),
+        current_role: Set(Some("viewer".to_string())),
+        created_at: Set(now),
+        updated_at: Set(now),
+      })
+      .exec(&db)
+      .await
+      .expect("insert");
+
+      let user = Entity::find_by_id(user_id)
+        .one(&db)
+        .await
+        .expect("find")
+        .expect("user should exist");
+
+      // When: using AuthzContext methods
+      // Then: should return correct values
+      assert_eq!(user.requester_id(), user_id);
+      assert_eq!(user.subject_id(), user_id);
+      assert_eq!(user.organization_id(), Some(org_id));
+    }
+  }
+
+  mod row_to_json_behavior {
+    use super::*;
+
+    #[test]
+    fn should_exclude_password_hash_from_json() {
+      // Given: a user model with password_hash
+      let id = Uuid::new_v4();
+      let now = Utc::now().naive_utc();
+      let model = Model {
+        id,
+        email: "test@example.com".to_string(),
+        password_hash: "secret-hash".to_string(),
+        is_active: true,
+        is_admin: false,
+        current_org_id: None,
+        current_role: None,
+        created_at: now,
+        updated_at: now,
+      };
+
+      // When: converting to JSON
+      let json = User::row_to_json(&model);
+
+      // Then: should not include password_hash
+      assert!(json.get("password_hash").is_none());
+      assert_eq!(json["id"].as_str().unwrap(), id.to_string());
+      assert_eq!(json["email"].as_str().unwrap(), "test@example.com");
+      assert_eq!(json["is_active"].as_bool().unwrap(), true);
+    }
+  }
+}
