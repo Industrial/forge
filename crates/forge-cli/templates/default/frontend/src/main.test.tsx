@@ -10,11 +10,17 @@ import ReactDOM from 'react-dom/client'
 import { BrowserRouter } from 'react-router-dom'
 
 import App from '@/App.tsx'
-import { getApplicationLayer } from '@/lib/appLayer'
+import {
+  getApplicationLayer,
+  buildApplicationLayer,
+  setApplicationLayerOverrideForTesting,
+  clearApplicationLayerOverrideForTesting,
+} from '@/lib/appLayer'
 import { Authentication } from '@/features/authentication/services/Authentication'
 import { createMockAuthentication } from '@/features/authentication/services/AuthenticationMock'
+import { RpcApiMock } from '@/services/RpcApiMock'
 
-// Set up DOM environment for tests
+// Set up DOM environment and application layer override for tests
 beforeEach(() => {
   const window = new Window()
   const document = window.document
@@ -29,9 +35,15 @@ beforeEach(() => {
   const rootElement = document.createElement('div')
   rootElement.id = 'root'
   document.body.appendChild(rootElement)
+
+  const baseLayer = buildApplicationLayer()
+  setApplicationLayerOverrideForTesting(
+    Layer.mergeAll(baseLayer, RpcApiMock),
+  )
 })
 
 afterEach(() => {
+  clearApplicationLayerOverrideForTesting()
   // Clean up React root
   const rootElement = document.getElementById('root')
   if (rootElement) {
@@ -197,13 +209,18 @@ describe('main.tsx initialization', () => {
       const failingProgram = Effect.gen(function* () {
         return yield* Effect.fail(new Error('Test error'))
       })
-      // When: running the failing effect
-      // Then: should throw error
-      await expect(
-        Effect.runPromise(
-          failingProgram.pipe(Effect.provide(getApplicationLayer())),
+      // When: running the failing effect and capturing the error with Either
+      const result = await Effect.runPromise(
+        failingProgram.pipe(
+          Effect.either,
+          Effect.provide(getApplicationLayer()),
         ),
-      ).rejects.toThrow('Test error')
+      )
+      // Then: should capture the error (Left) and not throw
+      expect(result._tag).toBe('Left')
+      if (result._tag === 'Left') {
+        expect(result.left.message).toBe('Test error')
+      }
     })
   })
 

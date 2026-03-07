@@ -3,7 +3,7 @@
  * Tests verify component rendering, authentication integration, and redirect behavior
  */
 import { describe, test, expect, beforeAll, afterEach } from 'bun:test'
-import { render } from '@testing-library/react'
+import { render, waitFor, screen } from '@testing-library/react'
 import { BrowserRouter } from 'react-router-dom'
 import { ThemeProvider, createTheme } from '@mui/material/styles'
 import { Window } from 'happy-dom'
@@ -25,6 +25,7 @@ import {
   initialAuthenticationState,
 } from '@/features/authentication/stores/AuthenticationStateReactiveStore'
 import { AuthenticationUser } from '@/features/authentication/domain/AuthenticationUser'
+import { RpcApiMock } from '@/services/RpcApiMock'
 
 // Set up DOM environment for tests
 beforeAll(() => {
@@ -61,25 +62,59 @@ beforeAll(() => {
   }
 })
 
+// Helper to create a mock auth store with user and needsScopeSelect
+function createMockAuthStore(
+  user: AuthenticationUser | null = null,
+  needsScopeSelect: boolean = false,
+) {
+  let current: AuthenticationState = {
+    ...initialAuthenticationState,
+    user: Option.fromNullable(user),
+    needsScopeSelect: Option.fromNullable(needsScopeSelect ? true : null),
+  }
+  const changeListeners = new Set<(a: AuthenticationState) => void>()
+
+  const notify = (a: AuthenticationState) => {
+    current = a
+    changeListeners.forEach((l) => l(a))
+  }
+
+  const changes = Stream.async<AuthenticationState, never, never>((emit) => {
+    // Emit current value immediately when stream is subscribed
+    emit(Effect.succeed(Chunk.of(current)))
+    const listener = (a: AuthenticationState) => {
+      emit(Effect.succeed(Chunk.of(a)))
+    }
+    changeListeners.add(listener)
+    return Effect.sync(() => {
+      changeListeners.delete(listener)
+    })
+  })
+
+  const store: ReactiveStore<AuthenticationState> = {
+    get: () => Effect.succeed(current),
+    update: (f: (a: AuthenticationState) => AuthenticationState) =>
+      Effect.sync(() => {
+        notify(f(current))
+      }),
+    changes,
+  }
+
+  return Layer.succeed(AuthStoreTag, store)
+}
+
 // Helper to create a wrapper with theme, router, and app layer context
 const createWrapper = (
   user: AuthenticationUser | null = null,
   needsScopeSelect: boolean = false,
 ) => {
   const theme = createTheme({ palette: { mode: 'light' } })
-  const mockAuth = createMockAuthentication()
-  if (user) {
-    mockAuth.setUser(user)
-  }
-  mockAuth.state.needsScopeSelect = Option.fromNullable(
-    needsScopeSelect ? true : null,
-  )
-
-  const appLayer = getApplicationLayer(
-    Layer.mergeAll(
-      mockAuth.authentication,
-      Layer.succeed(Authentication, mockAuth.authentication),
-    ),
+  const mockStoreLayer = createMockAuthStore(user, needsScopeSelect)
+  const baseLayer = buildApplicationLayer()
+  clearReactiveStoreCacheForTesting(AuthStoreTag)
+  // Merge baseLayer with mockStoreLayer so mockStoreLayer overrides baseLayer's store
+  setApplicationLayerOverrideForTesting(
+    Layer.mergeAll(baseLayer, mockStoreLayer, RpcApiMock),
   )
 
   return ({ children }: { children: React.ReactNode }) => (
@@ -90,6 +125,9 @@ const createWrapper = (
 }
 
 describe('SelectScopeOnlyGuard component', () => {
+  afterEach(() => {
+    clearApplicationLayerOverrideForTesting()
+  })
   describe('export behavior', () => {
     test('should export SelectScopeOnlyGuard as default export', () => {
       // Given: the SelectScopeOnlyGuard module
@@ -101,7 +139,7 @@ describe('SelectScopeOnlyGuard component', () => {
   })
 
   describe('rendering behavior', () => {
-    test('should render children when needsScopeSelect is true', () => {
+    test('should render children when needsScopeSelect is true', async () => {
       // Given: SelectScopeOnlyGuard component with needsScopeSelect=true
       const user: AuthenticationUser = {
         id: 'user-1',
@@ -117,12 +155,16 @@ describe('SelectScopeOnlyGuard component', () => {
         </SelectScopeOnlyGuard>,
         { wrapper: createWrapper(user, true) },
       )
-      // Then: children should be rendered
-      expect(container).toBeDefined()
-      expect(container.querySelector('[data-testid="content"]')).not.toBeNull()
+      // Then: children should be rendered (wait for store to initialize)
+      await waitFor(
+        () => {
+          expect(container.querySelector('[data-testid="content"]')).not.toBeNull()
+        },
+        { timeout: 5000 },
+      )
     })
 
-    test('should return null when loading', () => {
+    test('should return null when loading', async () => {
       // Given: SelectScopeOnlyGuard component with loading=true
       // Note: loading is hardcoded to false in component
       // This test verifies the loading check exists
@@ -132,11 +174,12 @@ describe('SelectScopeOnlyGuard component', () => {
         </SelectScopeOnlyGuard>,
         { wrapper: createWrapper(null, false) },
       )
+      await waitFor(() => {})
       // Then: component should handle loading state
       expect(container).toBeDefined()
     })
 
-    test('should return null when user is null', () => {
+    test('should return null when user is null', async () => {
       // Given: SelectScopeOnlyGuard component without user
       const { container } = render(
         <SelectScopeOnlyGuard>
@@ -144,13 +187,14 @@ describe('SelectScopeOnlyGuard component', () => {
         </SelectScopeOnlyGuard>,
         { wrapper: createWrapper(null, false) },
       )
+      await waitFor(() => {})
       // Then: should return null (user is null)
       expect(container).toBeDefined()
     })
   })
 
   describe('redirect behavior', () => {
-    test('should redirect to /dashboard when needsScopeSelect is false', () => {
+    test('should redirect to /dashboard when needsScopeSelect is false', async () => {
       // Given: SelectScopeOnlyGuard component with needsScopeSelect=false
       const user: AuthenticationUser = {
         id: 'user-1',
@@ -166,12 +210,13 @@ describe('SelectScopeOnlyGuard component', () => {
         </SelectScopeOnlyGuard>,
         { wrapper: createWrapper(user, false) },
       )
+      await waitFor(() => {})
       // Then: should redirect to /dashboard (Navigate component)
       expect(container).toBeDefined()
       // Note: Navigate component redirects, children not rendered
     })
 
-    test('should not redirect when needsScopeSelect is true', () => {
+    test('should not redirect when needsScopeSelect is true', async () => {
       // Given: SelectScopeOnlyGuard component with needsScopeSelect=true
       const user: AuthenticationUser = {
         id: 'user-1',
@@ -187,13 +232,18 @@ describe('SelectScopeOnlyGuard component', () => {
         </SelectScopeOnlyGuard>,
         { wrapper: createWrapper(user, true) },
       )
-      // Then: children should be rendered (no redirect)
-      expect(container.querySelector('[data-testid="content"]')).not.toBeNull()
+      // Then: children should be rendered (no redirect, wait for store to initialize)
+      await waitFor(
+        () => {
+          expect(container.querySelector('[data-testid="content"]')).not.toBeNull()
+        },
+        { timeout: 5000 },
+      )
     })
   })
 
   describe('props handling behavior', () => {
-    test('should accept children prop', () => {
+    test('should accept children prop', async () => {
       // Given: SelectScopeOnlyGuard component with children
       const user: AuthenticationUser = {
         id: 'user-1',
@@ -208,13 +258,18 @@ describe('SelectScopeOnlyGuard component', () => {
         <SelectScopeOnlyGuard>{children}</SelectScopeOnlyGuard>,
         { wrapper: createWrapper(user, true) },
       )
-      // Then: children should be rendered when conditions are met
-      expect(container.querySelector('[data-testid="children"]')).not.toBeNull()
+      // Then: children should be rendered when conditions are met (wait for store to initialize)
+      await waitFor(
+        () => {
+          expect(container.querySelector('[data-testid="children"]')).not.toBeNull()
+        },
+        { timeout: 5000 },
+      )
     })
   })
 
   describe('authentication integration behavior', () => {
-    test('should use useAuthStore hook', () => {
+    test('should use useAuthStore hook', async () => {
       // Given: SelectScopeOnlyGuard component
       // When: checking component structure
       // Then: should use useAuthStore (verified by component rendering)
@@ -224,10 +279,11 @@ describe('SelectScopeOnlyGuard component', () => {
         </SelectScopeOnlyGuard>,
         { wrapper: createWrapper(null, false) },
       )
+      await waitFor(() => {})
       expect(container).toBeDefined()
     })
 
-    test('should read user from authentication state', () => {
+    test('should read user from authentication state', async () => {
       // Given: SelectScopeOnlyGuard component
       const user: AuthenticationUser = {
         id: 'user-1',
@@ -244,11 +300,12 @@ describe('SelectScopeOnlyGuard component', () => {
         </SelectScopeOnlyGuard>,
         { wrapper: createWrapper(user, true) },
       )
+      await waitFor(() => {})
       // Then: should read user from authentication state
       expect(container).toBeDefined()
     })
 
-    test('should read needsScopeSelect from authentication state', () => {
+    test('should read needsScopeSelect from authentication state', async () => {
       // Given: SelectScopeOnlyGuard component
       const user: AuthenticationUser = {
         id: 'user-1',
@@ -265,11 +322,12 @@ describe('SelectScopeOnlyGuard component', () => {
         </SelectScopeOnlyGuard>,
         { wrapper: createWrapper(user, true) },
       )
+      await waitFor(() => {})
       // Then: should read needsScopeSelect from authentication state
       expect(container).toBeDefined()
     })
 
-    test('should use Option.getOrElse for user', () => {
+    test('should use Option.getOrElse for user', async () => {
       // Given: SelectScopeOnlyGuard component
       // When: rendering component
       // Then: should use Option.getOrElse for user (component renders)
@@ -279,10 +337,11 @@ describe('SelectScopeOnlyGuard component', () => {
         </SelectScopeOnlyGuard>,
         { wrapper: createWrapper(null, false) },
       )
+      await waitFor(() => {})
       expect(container).toBeDefined()
     })
 
-    test('should use Option.getOrElse for needsScopeSelect', () => {
+    test('should use Option.getOrElse for needsScopeSelect', async () => {
       // Given: SelectScopeOnlyGuard component
       // When: rendering component
       // Then: should use Option.getOrElse for needsScopeSelect (component renders)
@@ -292,12 +351,13 @@ describe('SelectScopeOnlyGuard component', () => {
         </SelectScopeOnlyGuard>,
         { wrapper: createWrapper(null, false) },
       )
+      await waitFor(() => {})
       expect(container).toBeDefined()
     })
   })
 
   describe('edge cases', () => {
-    test('should handle null children', () => {
+    test('should handle null children', async () => {
       // Given: SelectScopeOnlyGuard component with null children
       const user: AuthenticationUser = {
         id: 'user-1',
@@ -311,11 +371,12 @@ describe('SelectScopeOnlyGuard component', () => {
         <SelectScopeOnlyGuard>{null}</SelectScopeOnlyGuard>,
         { wrapper: createWrapper(user, true) },
       )
+      await waitFor(() => {})
       // Then: component should still render (no error)
       expect(container).toBeDefined()
     })
 
-    test('should handle undefined children', () => {
+    test('should handle undefined children', async () => {
       // Given: SelectScopeOnlyGuard component with undefined children
       const user: AuthenticationUser = {
         id: 'user-1',
@@ -329,6 +390,7 @@ describe('SelectScopeOnlyGuard component', () => {
         <SelectScopeOnlyGuard>{undefined}</SelectScopeOnlyGuard>,
         { wrapper: createWrapper(user, true) },
       )
+      await waitFor(() => {})
       // Then: component should still render (no error)
       expect(container).toBeDefined()
     })

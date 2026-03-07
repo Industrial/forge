@@ -2,19 +2,25 @@
  * BDD component tests for GenericEntityCrud.tsx
  * Tests verify component rendering, CRUD operations, and EntityApi integration
  */
-import { describe, test, expect, beforeAll } from 'bun:test'
-import { render } from '@testing-library/react'
+import { describe, test, expect, beforeAll, afterEach } from 'bun:test'
+import { render, waitFor } from '@testing-library/react'
 import { BrowserRouter } from 'react-router-dom'
-import { ThemeProvider, createTheme } from '@mui/material/styles'
+import { createTheme } from '@mui/material/styles'
 import { Window } from 'happy-dom'
 import React from 'react'
-import { Effect, Layer } from 'effect'
+import { Layer, Runtime } from 'effect'
+import { EffectRuntimeProvider } from 'react-effect-hooks'
 
 import GenericEntityCrud from './GenericEntityCrud'
-import { Providers } from './Providers'
-import { getApplicationLayer } from '@/lib/appLayer'
-import { EntityApi } from '@/services/EntityApi'
+import { Providers } from '@/Providers'
+import {
+  buildApplicationLayer,
+  getApplicationLayer,
+  setApplicationLayerOverrideForTesting,
+  clearApplicationLayerOverrideForTesting,
+} from '@/lib/appLayer'
 import { EntityApiMock } from '@/services/EntityApiMock'
+import { RpcApiMock } from '@/services/RpcApiMock'
 
 beforeAll(() => {
   // Ensure SyntaxError exists globally first
@@ -52,23 +58,26 @@ beforeAll(() => {
 
 const createWrapper = () => {
   const theme = createTheme({ palette: { mode: 'light' } })
-  const mockApi = EntityApiMock.make()
-
-  const appLayer = getApplicationLayer(
-    Layer.mergeAll(
-      mockApi,
-      Layer.succeed(EntityApi, mockApi),
-    ),
+  const baseLayer = buildApplicationLayer()
+  setApplicationLayerOverrideForTesting(
+    Layer.mergeAll(baseLayer, EntityApiMock, RpcApiMock),
   )
+  const layer = getApplicationLayer()
+  const runtime = Runtime.make(layer)
 
   return ({ children }: { children: React.ReactNode }) => (
     <BrowserRouter>
-      <Providers theme={theme}>{children}</Providers>
+      <EffectRuntimeProvider runtime={runtime}>
+        <Providers theme={theme}>{children}</Providers>
+      </EffectRuntimeProvider>
     </BrowserRouter>
   )
 }
 
 describe('GenericEntityCrud component', () => {
+  afterEach(() => {
+    clearApplicationLayerOverrideForTesting()
+  })
   describe('export behavior', () => {
     test('should export GenericEntityCrud as default export', () => {
       expect(GenericEntityCrud).toBeDefined()
@@ -77,57 +86,63 @@ describe('GenericEntityCrud component', () => {
   })
 
   describe('rendering behavior', () => {
-    test('should render PageHeader with title', () => {
+    test('should render PageHeader with title', async () => {
       const { container } = render(
         <GenericEntityCrud entityId="test" title="Test Entity" />,
         { wrapper: createWrapper() },
       )
+      await waitFor(() => {})
       expect(container.textContent).toContain('Test Entity')
     })
 
-    test('should render LoadingSpinner when loading', () => {
+    test('should render LoadingSpinner when loading', async () => {
       const { container } = render(
         <GenericEntityCrud entityId="test" title="Test" />,
         { wrapper: createWrapper() },
       )
+      await waitFor(() => {})
       expect(container).toBeDefined()
     })
 
-    test('should render EmptyState when list is empty', () => {
+    test('should render EmptyState when list is empty', async () => {
       const { container } = render(
         <GenericEntityCrud entityId="test" title="Test" />,
         { wrapper: createWrapper() },
       )
+      await waitFor(() => {})
       expect(container).toBeDefined()
     })
 
-    test('should render table when items exist', () => {
+    test('should render table when items exist', async () => {
       const { container } = render(
         <GenericEntityCrud entityId="test" title="Test" />,
         { wrapper: createWrapper() },
       )
+      await waitFor(() => {})
       expect(container).toBeDefined()
     })
   })
 
   describe('props handling behavior', () => {
-    test('should accept entityId prop', () => {
+    test('should accept entityId prop', async () => {
       const { container } = render(
         <GenericEntityCrud entityId="test-entity" title="Test" />,
         { wrapper: createWrapper() },
       )
+      await waitFor(() => {})
       expect(container).toBeDefined()
     })
 
-    test('should accept title prop', () => {
+    test('should accept title prop', async () => {
       const { container } = render(
         <GenericEntityCrud entityId="test" title="Custom Title" />,
         { wrapper: createWrapper() },
       )
+      await waitFor(() => {})
       expect(container.textContent).toContain('Custom Title')
     })
 
-    test('should accept columns prop', () => {
+    test('should accept columns prop', async () => {
       const { container } = render(
         <GenericEntityCrud
           entityId="test"
@@ -136,10 +151,11 @@ describe('GenericEntityCrud component', () => {
         />,
         { wrapper: createWrapper() },
       )
+      await waitFor(() => {})
       expect(container).toBeDefined()
     })
 
-    test('should accept emptyMessage prop', () => {
+    test('should accept emptyMessage prop', async () => {
       const { container } = render(
         <GenericEntityCrud
           entityId="test"
@@ -148,10 +164,11 @@ describe('GenericEntityCrud component', () => {
         />,
         { wrapper: createWrapper() },
       )
+      await waitFor(() => {})
       expect(container).toBeDefined()
     })
 
-    test('should accept permission flags', () => {
+    test('should accept permission flags', async () => {
       const { container } = render(
         <GenericEntityCrud
           entityId="test"
@@ -163,20 +180,22 @@ describe('GenericEntityCrud component', () => {
         />,
         { wrapper: createWrapper() },
       )
+      await waitFor(() => {})
       expect(container).toBeDefined()
     })
   })
 
   describe('CRUD operations behavior', () => {
-    test('should use EntityApi for list operation', () => {
+    test('should use EntityApi for list operation', async () => {
       const { container } = render(
         <GenericEntityCrud entityId="test" title="Test" />,
         { wrapper: createWrapper() },
       )
+      await waitFor(() => {})
       expect(container).toBeDefined()
     })
 
-    test('should show Add button when renderCreateForm is provided', () => {
+    test('should show Add button when renderCreateForm is provided', async () => {
       const { container } = render(
         <GenericEntityCrud
           entityId="test"
@@ -185,10 +204,11 @@ describe('GenericEntityCrud component', () => {
         />,
         { wrapper: createWrapper() },
       )
+      await waitFor(() => {})
       expect(container.textContent).toContain('Add')
     })
 
-    test('should show Edit button when renderEditForm is provided', () => {
+    test('should show Edit button when renderEditForm is provided', async () => {
       const { container } = render(
         <GenericEntityCrud
           entityId="test"
@@ -197,32 +217,36 @@ describe('GenericEntityCrud component', () => {
         />,
         { wrapper: createWrapper() },
       )
+      await waitFor(() => {})
       expect(container).toBeDefined()
     })
 
-    test('should show Delete button when canDelete is true', () => {
+    test('should show Delete button when canDelete is true', async () => {
       const { container } = render(
         <GenericEntityCrud entityId="test" title="Test" canDelete={true} />,
         { wrapper: createWrapper() },
       )
+      await waitFor(() => {})
       expect(container).toBeDefined()
     })
   })
 
   describe('error handling behavior', () => {
-    test('should render ErrorAlert on error', () => {
+    test('should render ErrorAlert on error', async () => {
       const { container } = render(
         <GenericEntityCrud entityId="test" title="Test" />,
         { wrapper: createWrapper() },
       )
+      await waitFor(() => {})
       expect(container).toBeDefined()
     })
 
-    test('should show permission error when canRead is false', () => {
+    test('should show permission error when canRead is false', async () => {
       const { container } = render(
         <GenericEntityCrud entityId="test" title="Test" canRead={false} />,
         { wrapper: createWrapper() },
       )
+      await waitFor(() => {})
       expect(container.textContent).toContain('permission')
     })
   })

@@ -3,7 +3,7 @@
  * Tests verify component rendering, form handling, and registration integration
  */
 import { describe, test, expect, beforeAll } from 'bun:test'
-import { render } from '@testing-library/react'
+import { render, waitFor } from '@testing-library/react'
 import { BrowserRouter } from 'react-router-dom'
 import { ThemeProvider, createTheme } from '@mui/material/styles'
 import { Window } from 'happy-dom'

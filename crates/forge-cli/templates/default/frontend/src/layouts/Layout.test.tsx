@@ -1,16 +1,32 @@
 /**
  * BDD component tests for Layout.tsx
- * Tests verify component structure, props handling, and basic rendering behavior
+ * Tests verify component structure, props handling, and basic rendering behavior.
+ * Navbar uses useAuthStore; tests use Effect's Layer system to provide app layer (no vi.mock()).
  */
-import { describe, test, expect, beforeAll } from 'bun:test'
-import { render } from '@testing-library/react'
+import { describe, test, expect, beforeAll, afterEach } from 'bun:test'
+import { render, waitFor } from '@testing-library/react'
 import { BrowserRouter } from 'react-router-dom'
-import { ThemeProvider, createTheme } from '@mui/material/styles'
+import { createTheme } from '@mui/material/styles'
 import { Window } from 'happy-dom'
 import React from 'react'
+import { Effect, Layer, Option, Stream, Chunk } from 'effect'
 
 import Layout from './Layout'
 import { Providers } from '@/Providers'
+import {
+  buildApplicationLayer,
+  setApplicationLayerOverrideForTesting,
+  clearApplicationLayerOverrideForTesting,
+} from '@/lib/appLayer'
+import { clearReactiveStoreCacheForTesting } from '@/lib/ReactiveStore'
+import type { ReactiveStore } from '@/lib/ReactiveStore'
+import type { AuthenticationState } from '@/features/authentication/stores/AuthenticationStateReactiveStore'
+import {
+  AuthStoreTag,
+  initialAuthenticationState,
+} from '@/features/authentication/stores/AuthenticationStateReactiveStore'
+import type { AuthenticationUser } from '@/features/authentication/domain/AuthenticationUser'
+import { RpcApiMock } from '@/services/RpcApiMock'
 
 // Set up DOM environment for tests
 beforeAll(() => {
@@ -47,11 +63,45 @@ beforeAll(() => {
   }
 })
 
-// Helper to create a wrapper with theme, router, and app layer context
+// Helper to create a mock auth store (Effect.ts testing: provide via Layer)
+function createMockAuthStore(user: AuthenticationUser | null) {
+  let current: AuthenticationState = {
+    ...initialAuthenticationState,
+    user: user ? Option.some(user) : Option.none(),
+  }
+  const changeListeners = new Set<(a: AuthenticationState) => void>()
+  const notify = (a: AuthenticationState) => {
+    current = a
+    changeListeners.forEach((l) => l(a))
+  }
+  const changes = Stream.async<AuthenticationState, never, never>((emit) => {
+    emit(Effect.succeed(Chunk.of(current)))
+    const listener = (a: AuthenticationState) => {
+      emit(Effect.succeed(Chunk.of(a)))
+    }
+    changeListeners.add(listener)
+    return Effect.sync(() => changeListeners.delete(listener))
+  })
+  const store: ReactiveStore<AuthenticationState> = {
+    get: () => Effect.succeed(current),
+    update: (f: (a: AuthenticationState) => AuthenticationState) =>
+      Effect.sync(() => {
+        notify(f(current))
+      }),
+    changes,
+  }
+  return Layer.succeed(AuthStoreTag, store)
+}
+
+// Helper to create a wrapper with theme, router, and app layer (so Navbar's useAuthStore works)
 const createWrapper = () => {
   const theme = createTheme({ palette: { mode: 'light' } })
-  // Note: Navbar uses useAuthStore which needs app layer context
-  // For component tests, we'll test Layout's structure and props
+  const mockStoreLayer = createMockAuthStore(null)
+  const baseLayer = buildApplicationLayer()
+  clearReactiveStoreCacheForTesting(AuthStoreTag)
+  setApplicationLayerOverrideForTesting(
+    Layer.mergeAll(mockStoreLayer, baseLayer, RpcApiMock),
+  )
   return ({ children }: { children: React.ReactNode }) => (
     <BrowserRouter>
       <Providers theme={theme}>{children}</Providers>
@@ -60,6 +110,9 @@ const createWrapper = () => {
 }
 
 describe('Layout component', () => {
+  afterEach(() => {
+    clearApplicationLayerOverrideForTesting()
+  })
   describe('export behavior', () => {
     test('should export Layout as default export', () => {
       // Given: the Layout module
@@ -71,7 +124,7 @@ describe('Layout component', () => {
   })
 
   describe('rendering behavior', () => {
-    test('should render with children', () => {
+    test('should render with children', async () => {
       // Given: Layout component with children
       const mockToggleTheme = () => {}
       // When: rendering Layout with children
@@ -81,11 +134,12 @@ describe('Layout component', () => {
         </Layout>,
         { wrapper: createWrapper() },
       )
+      await waitFor(() => {})
       // Then: component should render (container exists)
       expect(container).toBeDefined()
     })
 
-    test('should render component structure', () => {
+    test('should render component structure', async () => {
       // Given: Layout component
       const mockToggleTheme = () => {}
       // When: rendering Layout
@@ -95,12 +149,13 @@ describe('Layout component', () => {
         </Layout>,
         { wrapper: createWrapper() },
       )
+      await waitFor(() => {})
       // Then: component structure should be present
       expect(container).toBeDefined()
       expect(container.querySelector('div')).not.toBeNull()
     })
 
-    test('should render with light colorScheme', () => {
+    test('should render with light colorScheme', async () => {
       // Given: Layout component with light colorScheme
       const mockToggleTheme = () => {}
       // When: rendering Layout with light theme
@@ -110,11 +165,12 @@ describe('Layout component', () => {
         </Layout>,
         { wrapper: createWrapper() },
       )
+      await waitFor(() => {})
       // Then: component should render successfully
       expect(container).toBeDefined()
     })
 
-    test('should render with dark colorScheme', () => {
+    test('should render with dark colorScheme', async () => {
       // Given: Layout component with dark colorScheme
       const mockToggleTheme = () => {}
       // When: rendering Layout with dark theme
@@ -124,13 +180,14 @@ describe('Layout component', () => {
         </Layout>,
         { wrapper: createWrapper() },
       )
+      await waitFor(() => {})
       // Then: component should render successfully
       expect(container).toBeDefined()
     })
   })
 
   describe('props handling behavior', () => {
-    test('should accept children prop', () => {
+    test('should accept children prop', async () => {
       // Given: Layout component with children
       const mockToggleTheme = () => {}
       const children = <div data-testid="test-children">Child Content</div>
@@ -141,11 +198,12 @@ describe('Layout component', () => {
         </Layout>,
         { wrapper: createWrapper() },
       )
+      await waitFor(() => {})
       // Then: component should render (children prop accepted)
       expect(container).toBeDefined()
     })
 
-    test('should accept colorScheme prop', () => {
+    test('should accept colorScheme prop', async () => {
       // Given: Layout component with colorScheme
       const mockToggleTheme = () => {}
       // When: rendering Layout with light colorScheme
@@ -155,11 +213,12 @@ describe('Layout component', () => {
         </Layout>,
         { wrapper: createWrapper() },
       )
+      await waitFor(() => {})
       // Then: component should render (colorScheme passed to Navbar)
       expect(container).toBeDefined()
     })
 
-    test('should accept onToggleTheme prop', () => {
+    test('should accept onToggleTheme prop', async () => {
       // Given: Layout component with onToggleTheme callback
       let toggleCalled = false
       const mockToggleTheme = () => {
@@ -172,13 +231,14 @@ describe('Layout component', () => {
         </Layout>,
         { wrapper: createWrapper() },
       )
+      await waitFor(() => {})
       // Then: onToggleTheme should be passed to Navbar (callback is callable)
       expect(typeof mockToggleTheme).toBe('function')
       mockToggleTheme()
       expect(toggleCalled).toBe(true)
     })
 
-    test('should handle multiple children', () => {
+    test('should handle multiple children', async () => {
       // Given: Layout component with multiple children
       const mockToggleTheme = () => {}
       // When: rendering Layout with multiple children
@@ -190,13 +250,14 @@ describe('Layout component', () => {
         </Layout>,
         { wrapper: createWrapper() },
       )
+      await waitFor(() => {})
       // Then: component should render (multiple children accepted)
       expect(container).toBeDefined()
     })
   })
 
   describe('structure behavior', () => {
-    test('should render Box container with correct structure', () => {
+    test('should render Box container with correct structure', async () => {
       // Given: Layout component
       const mockToggleTheme = () => {}
       // When: rendering Layout
@@ -206,13 +267,14 @@ describe('Layout component', () => {
         </Layout>,
         { wrapper: createWrapper() },
       )
+      await waitFor(() => {})
       // Then: Box container should be present
       expect(container).toBeDefined()
       // Container should have rendered content
       expect(container.innerHTML).toBeTruthy()
     })
 
-    test('should render component structure with Navbar and children', () => {
+    test('should render component structure with Navbar and children', async () => {
       // Given: Layout component
       const mockToggleTheme = () => {}
       // When: rendering Layout
@@ -222,11 +284,12 @@ describe('Layout component', () => {
         </Layout>,
         { wrapper: createWrapper() },
       )
+      await waitFor(() => {})
       // Then: component structure should be present
       expect(container).toBeDefined()
     })
 
-    test('should render children in content area', () => {
+    test('should render children in content area', async () => {
       // Given: Layout component with children
       const mockToggleTheme = () => {}
       // When: rendering Layout
@@ -236,13 +299,14 @@ describe('Layout component', () => {
         </Layout>,
         { wrapper: createWrapper() },
       )
+      await waitFor(() => {})
       // Then: component should render (children in structure)
       expect(container).toBeDefined()
     })
   })
 
   describe('integration behavior', () => {
-    test('should integrate with Navbar component', () => {
+    test('should integrate with Navbar component', async () => {
       // Given: Layout component
       const mockToggleTheme = () => {}
       // When: rendering Layout
@@ -252,11 +316,12 @@ describe('Layout component', () => {
         </Layout>,
         { wrapper: createWrapper() },
       )
+      await waitFor(() => {})
       // Then: component should render (Navbar integration)
       expect(container).toBeDefined()
     })
 
-    test('should pass colorScheme to Navbar', () => {
+    test('should pass colorScheme to Navbar', async () => {
       // Given: Layout component with colorScheme
       const mockToggleTheme = () => {}
       // When: rendering Layout with light colorScheme
@@ -266,11 +331,12 @@ describe('Layout component', () => {
         </Layout>,
         { wrapper: createWrapper() },
       )
+      await waitFor(() => {})
       // Then: component should render (colorScheme passed)
       expect(container).toBeDefined()
     })
 
-    test('should pass onToggleTheme to Navbar', () => {
+    test('should pass onToggleTheme to Navbar', async () => {
       // Given: Layout component with onToggleTheme
       let toggleCalled = false
       const mockToggleTheme = () => {
@@ -283,6 +349,7 @@ describe('Layout component', () => {
         </Layout>,
         { wrapper: createWrapper() },
       )
+      await waitFor(() => {})
       // Then: onToggleTheme should be passed (callback is callable)
       expect(typeof mockToggleTheme).toBe('function')
       mockToggleTheme()
@@ -292,7 +359,7 @@ describe('Layout component', () => {
   })
 
   describe('edge cases', () => {
-    test('should handle null children', () => {
+    test('should handle null children', async () => {
       // Given: Layout component with null children
       const mockToggleTheme = () => {}
       // When: rendering Layout with null children
@@ -302,11 +369,12 @@ describe('Layout component', () => {
         </Layout>,
         { wrapper: createWrapper() },
       )
+      await waitFor(() => {})
       // Then: component should still render
       expect(container).toBeDefined()
     })
 
-    test('should handle undefined children', () => {
+    test('should handle undefined children', async () => {
       // Given: Layout component with undefined children
       const mockToggleTheme = () => {}
       // When: rendering Layout with undefined children
@@ -316,11 +384,12 @@ describe('Layout component', () => {
         </Layout>,
         { wrapper: createWrapper() },
       )
+      await waitFor(() => {})
       // Then: component should still render
       expect(container).toBeDefined()
     })
 
-    test('should handle complex nested children', () => {
+    test('should handle complex nested children', async () => {
       // Given: Layout component with nested children
       const mockToggleTheme = () => {}
       // When: rendering Layout with nested structure
@@ -337,6 +406,7 @@ describe('Layout component', () => {
         </Layout>,
         { wrapper: createWrapper() },
       )
+      await waitFor(() => {})
       // Then: component should render (nested structure accepted)
       expect(container).toBeDefined()
     })

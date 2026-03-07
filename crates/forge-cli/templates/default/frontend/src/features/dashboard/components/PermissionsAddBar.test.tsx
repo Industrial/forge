@@ -3,7 +3,7 @@
  * Tests verify component rendering, props handling, and form controls
  */
 import { describe, test, expect, beforeAll } from 'bun:test'
-import { render } from '@testing-library/react'
+import { render, waitFor } from '@testing-library/react'
 import { ThemeProvider, createTheme } from '@mui/material/styles'
 import { Window } from 'happy-dom'
 import React from 'react'
@@ -60,7 +60,7 @@ describe('PermissionsAddBar component', () => {
   })
 
   describe('rendering behavior', () => {
-    test('should render scope select', () => {
+    test('should render scope select', async () => {
       const { container } = render(
         <PermissionsAddBar
           scope="org"
@@ -76,10 +76,11 @@ describe('PermissionsAddBar component', () => {
         />,
         { wrapper: createWrapper() },
       )
+      await waitFor(() => {})
       expect(container.textContent).toContain('Scope')
     })
 
-    test('should render role select', () => {
+    test('should render role select', async () => {
       const { container } = render(
         <PermissionsAddBar
           scope="org"
@@ -95,10 +96,11 @@ describe('PermissionsAddBar component', () => {
         />,
         { wrapper: createWrapper() },
       )
+      await waitFor(() => {})
       expect(container.textContent).toContain('Role')
     })
 
-    test('should render permission select', () => {
+    test('should render permission select', async () => {
       const { container } = render(
         <PermissionsAddBar
           scope="org"
@@ -114,10 +116,11 @@ describe('PermissionsAddBar component', () => {
         />,
         { wrapper: createWrapper() },
       )
+      await waitFor(() => {})
       expect(container.textContent).toContain('Permission')
     })
 
-    test('should render Add button', () => {
+    test('should render Add button', async () => {
       const { container } = render(
         <PermissionsAddBar
           scope="org"
@@ -133,12 +136,13 @@ describe('PermissionsAddBar component', () => {
         />,
         { wrapper: createWrapper() },
       )
+      await waitFor(() => {})
       expect(container.textContent).toContain('Add')
     })
   })
 
   describe('props handling behavior', () => {
-    test('should accept scope prop', () => {
+    test('should accept scope prop', async () => {
       const { container } = render(
         <PermissionsAddBar
           scope="global"
@@ -154,10 +158,11 @@ describe('PermissionsAddBar component', () => {
         />,
         { wrapper: createWrapper() },
       )
+      await waitFor(() => {})
       expect(container).toBeDefined()
     })
 
-    test('should accept roles prop', () => {
+    test('should accept roles prop', async () => {
       const { container } = render(
         <PermissionsAddBar
           scope="org"
@@ -173,10 +178,11 @@ describe('PermissionsAddBar component', () => {
         />,
         { wrapper: createWrapper() },
       )
+      await waitFor(() => {})
       expect(container).toBeDefined()
     })
 
-    test('should accept permissions prop', () => {
+    test('should accept permissions prop', async () => {
       const { container } = render(
         <PermissionsAddBar
           scope="org"
@@ -192,10 +198,11 @@ describe('PermissionsAddBar component', () => {
         />,
         { wrapper: createWrapper() },
       )
+      await waitFor(() => {})
       expect(container).toBeDefined()
     })
 
-    test('should disable Add button when adding is true', () => {
+    test('should disable Add button when adding is true', async () => {
       const { container } = render(
         <PermissionsAddBar
           scope="org"
@@ -211,10 +218,11 @@ describe('PermissionsAddBar component', () => {
         />,
         { wrapper: createWrapper() },
       )
+      await waitFor(() => {})
       expect(container.textContent).toContain('Adding…')
     })
 
-    test('should disable Add button when permission is empty', () => {
+    test('should disable Add button when permission is empty', async () => {
       const { container } = render(
         <PermissionsAddBar
           scope="org"
@@ -230,6 +238,7 @@ describe('PermissionsAddBar component', () => {
         />,
         { wrapper: createWrapper() },
       )
+      await waitFor(() => {})
       expect(container).toBeDefined()
     })
   })

@@ -3,7 +3,7 @@
  * Tests verify component rendering, permission checking, and conditional visibility
  */
 import { describe, test, expect, beforeAll, afterEach } from 'bun:test'
-import { render } from '@testing-library/react'
+import { render, waitFor, screen } from '@testing-library/react'
 import { BrowserRouter } from 'react-router-dom'
 import { ThemeProvider, createTheme } from '@mui/material/styles'
 import { Window } from 'happy-dom'
@@ -21,6 +21,7 @@ import { clearReactiveStoreCacheForTesting } from '@/lib/ReactiveStore'
 import type { ReactiveStore } from '@/lib/ReactiveStore'
 import type { AuthenticationState } from '@/features/authentication/stores/AuthenticationStateReactiveStore'
 import { AuthStoreTag, initialAuthenticationState } from '@/features/authentication/stores/AuthenticationStateReactiveStore'
+import { RpcApiMock } from '@/services/RpcApiMock'
 
 beforeAll(() => {
   // Ensure SyntaxError exists globally first
@@ -69,7 +70,9 @@ function createMockAuthStoreWithPermissions(permissions: string[]) {
     changeListeners.forEach((l) => l(a))
   }
 
+  // Create a stream that emits the current value immediately and then listens for changes
   const changes = Stream.async<AuthenticationState, never, never>((emit) => {
+    // Emit current value immediately when stream is subscribed
     emit(Effect.succeed(Chunk.of(current)))
     const listener = (a: AuthenticationState) => {
       emit(Effect.succeed(Chunk.of(a)))
@@ -81,7 +84,8 @@ function createMockAuthStoreWithPermissions(permissions: string[]) {
   })
 
   const store: ReactiveStore<AuthenticationState> = {
-    get: () => Effect.succeed(current),
+    // Use Effect.sync to ensure synchronous resolution
+    get: () => Effect.sync(() => current),
     update: (f: (a: AuthenticationState) => AuthenticationState) =>
       Effect.sync(() => {
         notify(f(current))
@@ -97,9 +101,11 @@ const createWrapper = (permissions: string[] = []) => {
   const mockStoreLayer = createMockAuthStoreWithPermissions(permissions)
   const baseLayer = buildApplicationLayer()
   clearReactiveStoreCacheForTesting(AuthStoreTag)
+  // Merge baseLayer with mockStoreLayer so mockStoreLayer overrides baseLayer's store
   setApplicationLayerOverrideForTesting(
-    Layer.merge(mockStoreLayer, baseLayer),
+    Layer.mergeAll(baseLayer, mockStoreLayer, RpcApiMock),
   )
+  
   return ({ children }: { children: React.ReactNode }) => (
     <BrowserRouter>
       <Providers theme={theme}>{children}</Providers>
@@ -110,6 +116,7 @@ const createWrapper = (permissions: string[] = []) => {
 describe('ShowWithoutPermissions component', () => {
   afterEach(() => {
     clearApplicationLayerOverrideForTesting()
+    clearReactiveStoreCacheForTesting(AuthStoreTag)
   })
 
   describe('export behavior', () => {
@@ -120,39 +127,50 @@ describe('ShowWithoutPermissions component', () => {
   })
 
   describe('rendering behavior', () => {
-    test('should render children when user lacks all permissions', () => {
+    test('should render children when user lacks all permissions', async () => {
       const { container } = render(
         <ShowWithoutPermissions permissions={['test.permission']}>
           <div data-testid="content">Content</div>
         </ShowWithoutPermissions>,
         { wrapper: createWrapper([]) },
       )
-      expect(container.querySelector('[data-testid="content"]')).not.toBeNull()
+      await waitFor(
+        () => {
+          expect(container.querySelector('[data-testid="content"]')).not.toBeNull()
+        },
+        { timeout: 5000, interval: 100 },
+      )
     })
 
-    test('should hide children when user has any of the permissions', () => {
+    test('should hide children when user has any of the permissions', async () => {
       const { container } = render(
         <ShowWithoutPermissions permissions={['test.permission']}>
           <div data-testid="content">Content</div>
         </ShowWithoutPermissions>,
         { wrapper: createWrapper(['test.permission']) },
       )
-      expect(container.querySelector('[data-testid="content"]')).toBeNull()
+      await waitFor(
+        () => {
+          expect(container.querySelector('[data-testid="content"]')).toBeNull()
+        },
+        { timeout: 5000, interval: 100 },
+      )
     })
   })
 
   describe('props handling behavior', () => {
-    test('should accept permissions prop', () => {
+    test('should accept permissions prop', async () => {
       const { container } = render(
         <ShowWithoutPermissions permissions={['perm1', 'perm2']}>
           <div>Content</div>
         </ShowWithoutPermissions>,
         { wrapper: createWrapper([]) },
       )
+      await waitFor(() => {})
       expect(container).toBeDefined()
     })
 
-    test('should accept children prop', () => {
+    test('should accept children prop', async () => {
       const children = <div data-testid="children">Children</div>
       const { container } = render(
         <ShowWithoutPermissions permissions={['test.permission']}>
@@ -160,28 +178,31 @@ describe('ShowWithoutPermissions component', () => {
         </ShowWithoutPermissions>,
         { wrapper: createWrapper([]) },
       )
+      await waitFor(() => {})
       expect(container.querySelector('[data-testid="children"]')).not.toBeNull()
     })
   })
 
   describe('permission checking behavior', () => {
-    test('should use shouldShowWithoutPermissions function', () => {
+    test('should use shouldShowWithoutPermissions function', async () => {
       const { container } = render(
         <ShowWithoutPermissions permissions={['test.permission']}>
           <div>Content</div>
         </ShowWithoutPermissions>,
         { wrapper: createWrapper([]) },
       )
+      await waitFor(() => {})
       expect(container).toBeDefined()
     })
 
-    test('should check user permissions from useAuthStore', () => {
+    test('should check user permissions from useAuthStore', async () => {
       const { container } = render(
         <ShowWithoutPermissions permissions={['test.permission']}>
           <div>Content</div>
         </ShowWithoutPermissions>,
         { wrapper: createWrapper([]) },
       )
+      await waitFor(() => {})
       expect(container).toBeDefined()
     })
   })

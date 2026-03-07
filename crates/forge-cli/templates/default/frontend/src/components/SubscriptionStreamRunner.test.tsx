@@ -5,7 +5,7 @@
 import { describe, test, expect, beforeAll } from 'bun:test'
 // Import test setup to configure React Testing Library (reduces verbose output)
 import '@/test-setup'
-import { render } from '@testing-library/react'
+import { render, waitFor } from '@testing-library/react'
 import { BrowserRouter } from 'react-router-dom'
 import { ThemeProvider, createTheme } from '@mui/material/styles'
 import { Window } from 'happy-dom'
@@ -84,12 +84,13 @@ describe('SubscriptionStreamRunner component', () => {
   describe('rendering behavior', () => {
     test(
       'should return null (no UI)',
-      () => {
+      async () => {
         // Given: SubscriptionStreamRunner component
         // When: rendering the component
         const { container } = render(<SubscriptionStreamRunner />, {
           wrapper: createWrapper(true),
         })
+        await waitFor(() => {})
 
         // Then: component should render successfully (returns null, no visible UI)
         // Note: useEffect runs asynchronously but doesn't affect the return value
@@ -103,47 +104,53 @@ describe('SubscriptionStreamRunner component', () => {
   })
 
   describe('authentication integration behavior', () => {
-    test('should use useAuthStore hook', () => {
+    test('should use useAuthStore hook', async () => {
       const { container } = render(<SubscriptionStreamRunner />, {
         wrapper: createWrapper(false),
       })
+      await waitFor(() => {})
       expect(container).toBeDefined()
     })
 
-    test('should check if token exists', () => {
+    test('should check if token exists', async () => {
       const { container } = render(<SubscriptionStreamRunner />, {
         wrapper: createWrapper(true),
       })
+      await waitFor(() => {})
       expect(container).toBeDefined()
     })
 
-    test('should not open stream when token is missing', () => {
+    test('should not open stream when token is missing', async () => {
       const { container } = render(<SubscriptionStreamRunner />, {
         wrapper: createWrapper(false),
       })
+      await waitFor(() => {})
       expect(container).toBeDefined()
     })
   })
 
   describe('stream setup behavior', () => {
-    test('should use SubscriptionStream service', () => {
+    test('should use SubscriptionStream service', async () => {
       const { container } = render(<SubscriptionStreamRunner />, {
         wrapper: createWrapper(true),
       })
+      await waitFor(() => {})
       expect(container).toBeDefined()
     })
 
-    test('should use SubscriptionStreamStatusStoreTag', () => {
+    test('should use SubscriptionStreamStatusStoreTag', async () => {
       const { container } = render(<SubscriptionStreamRunner />, {
         wrapper: createWrapper(true),
       })
+      await waitFor(() => {})
       expect(container).toBeDefined()
     })
 
-    test('should trigger subscription registry on events', () => {
+    test('should trigger subscription registry on events', async () => {
       const { container } = render(<SubscriptionStreamRunner />, {
         wrapper: createWrapper(true),
       })
+      await waitFor(() => {})
       expect(container).toBeDefined()
     })
   })

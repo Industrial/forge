@@ -3,7 +3,7 @@
  * Tests verify component rendering, props handling, and MUI TextField integration
  */
 import { describe, test, expect, beforeAll } from 'bun:test'
-import { render } from '@testing-library/react'
+import { render, waitFor } from '@testing-library/react'
 import { ThemeProvider, createTheme } from '@mui/material/styles'
 import { Window } from 'happy-dom'
 import React from 'react'
@@ -60,7 +60,7 @@ describe('FormTextField component', () => {
   })
 
   describe('rendering behavior', () => {
-    test('should render TextField', () => {
+    test('should render TextField', async () => {
       const { container } = render(
         <FormTextField
           value=""
@@ -69,10 +69,11 @@ describe('FormTextField component', () => {
         />,
         { wrapper: createWrapper() },
       )
+      await waitFor(() => {})
       expect(container).toBeDefined()
     })
 
-    test('should render with label', () => {
+    test('should render with label', async () => {
       const { container } = render(
         <FormTextField
           value=""
@@ -81,10 +82,11 @@ describe('FormTextField component', () => {
         />,
         { wrapper: createWrapper() },
       )
+      await waitFor(() => {})
       expect(container.textContent).toContain('Test Label')
     })
 
-    test('should render with value', () => {
+    test('should render with value', async () => {
       const { container } = render(
         <FormTextField
           value="test value"
@@ -93,12 +95,13 @@ describe('FormTextField component', () => {
         />,
         { wrapper: createWrapper() },
       )
+      await waitFor(() => {})
       expect(container).toBeDefined()
     })
   })
 
   describe('props handling behavior', () => {
-    test('should accept value prop', () => {
+    test('should accept value prop', async () => {
       const { container } = render(
         <FormTextField
           value="test"
@@ -107,10 +110,11 @@ describe('FormTextField component', () => {
         />,
         { wrapper: createWrapper() },
       )
+      await waitFor(() => {})
       expect(container).toBeDefined()
     })
 
-    test('should accept onChange callback', () => {
+    test('should accept onChange callback', async () => {
       let changeCalled = false
       const handleChange = () => {
         changeCalled = true
@@ -123,12 +127,13 @@ describe('FormTextField component', () => {
         />,
         { wrapper: createWrapper() },
       )
+      await waitFor(() => {})
       expect(typeof handleChange).toBe('function')
       handleChange('new value')
       expect(changeCalled).toBe(true)
     })
 
-    test('should accept onBlur callback', () => {
+    test('should accept onBlur callback', async () => {
       let blurCalled = false
       const handleBlur = () => {
         blurCalled = true
@@ -142,12 +147,13 @@ describe('FormTextField component', () => {
         />,
         { wrapper: createWrapper() },
       )
+      await waitFor(() => {})
       expect(typeof handleBlur).toBe('function')
       handleBlur()
       expect(blurCalled).toBe(true)
     })
 
-    test('should accept error prop', () => {
+    test('should accept error prop', async () => {
       const { container } = render(
         <FormTextField
           value=""
@@ -157,10 +163,11 @@ describe('FormTextField component', () => {
         />,
         { wrapper: createWrapper() },
       )
+      await waitFor(() => {})
       expect(container).toBeDefined()
     })
 
-    test('should accept helperText prop', () => {
+    test('should accept helperText prop', async () => {
       const { container } = render(
         <FormTextField
           value=""
@@ -170,10 +177,11 @@ describe('FormTextField component', () => {
         />,
         { wrapper: createWrapper() },
       )
+      await waitFor(() => {})
       expect(container.textContent).toContain('Helper text')
     })
 
-    test('should use default error value', () => {
+    test('should use default error value', async () => {
       const { container } = render(
         <FormTextField
           value=""
@@ -182,12 +190,13 @@ describe('FormTextField component', () => {
         />,
         { wrapper: createWrapper() },
       )
+      await waitFor(() => {})
       expect(container).toBeDefined()
     })
   })
 
   describe('MUI integration behavior', () => {
-    test('should use TextField from MUI', () => {
+    test('should use TextField from MUI', async () => {
       const { container } = render(
         <FormTextField
           value=""
@@ -196,10 +205,11 @@ describe('FormTextField component', () => {
         />,
         { wrapper: createWrapper() },
       )
+      await waitFor(() => {})
       expect(container).toBeDefined()
     })
 
-    test('should apply fullWidth by default', () => {
+    test('should apply fullWidth by default', async () => {
       const { container } = render(
         <FormTextField
           value=""
@@ -208,10 +218,11 @@ describe('FormTextField component', () => {
         />,
         { wrapper: createWrapper() },
       )
+      await waitFor(() => {})
       expect(container).toBeDefined()
     })
 
-    test('should pass through TextField props', () => {
+    test('should pass through TextField props', async () => {
       const { container } = render(
         <FormTextField
           value=""
@@ -221,6 +232,7 @@ describe('FormTextField component', () => {
         />,
         { wrapper: createWrapper() },
       )
+      await waitFor(() => {})
       expect(container).toBeDefined()
     })
   })

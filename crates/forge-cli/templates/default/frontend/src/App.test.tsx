@@ -2,19 +2,24 @@
  * BDD component tests for App.tsx
  * Tests verify component rendering, routing structure, and theme integration
  */
-import { describe, test, expect, beforeAll } from 'bun:test'
+import { describe, test, expect, beforeAll, afterEach } from 'bun:test'
 import { render } from '@testing-library/react'
 import { BrowserRouter } from 'react-router-dom'
-import { ThemeProvider, createTheme } from '@mui/material/styles'
+import { createTheme } from '@mui/material/styles'
 import { Window } from 'happy-dom'
 import React from 'react'
-import { Effect, Layer, Option } from 'effect'
+import { Layer } from 'effect'
 
 import App from './App'
 import { Providers } from './Providers'
-import { getApplicationLayer } from '@/lib/appLayer'
+import {
+  buildApplicationLayer,
+  setApplicationLayerOverrideForTesting,
+  clearApplicationLayerOverrideForTesting,
+} from '@/lib/appLayer'
 import { Authentication } from '@/features/authentication/services/Authentication'
 import { createMockAuthentication } from '@/features/authentication/services/AuthenticationMock'
+import { RpcApiMock } from '@/services/RpcApiMock'
 
 // Set up DOM environment for tests
 beforeAll(() => {
@@ -52,17 +57,17 @@ beforeAll(() => {
   }
 })
 
-// Helper to create a wrapper with theme, router, and app layer context
+// Helper to create a wrapper with theme, router, and app layer (Effect.ts testing: provide mock via Layer)
 const createWrapper = () => {
   const theme = createTheme({ palette: { mode: 'light' } })
   const mockAuth = createMockAuthentication()
-
-  const appLayer = getApplicationLayer(
-    Layer.mergeAll(
-      mockAuth.authentication,
-      Layer.succeed(Authentication, mockAuth.authentication),
-    ),
+  const baseLayer = buildApplicationLayer()
+  const mockLayer = Layer.mergeAll(
+    baseLayer,
+    Layer.succeed(Authentication, mockAuth.authentication),
+    RpcApiMock,
   )
+  setApplicationLayerOverrideForTesting(mockLayer)
 
   return ({ children }: { children: React.ReactNode }) => (
     <BrowserRouter>
@@ -72,6 +77,9 @@ const createWrapper = () => {
 }
 
 describe('App component', () => {
+  afterEach(() => {
+    clearApplicationLayerOverrideForTesting()
+  })
   describe('export behavior', () => {
     test('should export App as default export', () => {
       // Given: the App module

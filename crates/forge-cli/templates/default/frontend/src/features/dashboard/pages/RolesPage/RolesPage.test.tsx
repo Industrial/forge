@@ -3,12 +3,13 @@
  * Tests verify component rendering, role management, and CRUD operations
  */
 import { describe, test, expect, beforeAll, beforeEach, afterEach } from 'bun:test'
-import { render } from '@testing-library/react'
+import { render, waitFor, screen } from '@testing-library/react'
 import { BrowserRouter } from 'react-router-dom'
 import { ThemeProvider, createTheme } from '@mui/material/styles'
 import { Window } from 'happy-dom'
 import React from 'react'
-import { Effect, Layer } from 'effect'
+import { Effect, Layer, Runtime } from 'effect'
+import { EffectRuntimeProvider } from 'react-effect-hooks'
 
 import RolesPage from './RolesPage'
 import { Providers } from '@/Providers'
@@ -16,9 +17,13 @@ import {
   buildApplicationLayer,
   setApplicationLayerOverrideForTesting,
   clearApplicationLayerOverrideForTesting,
+  getApplicationLayer,
 } from '@/lib/appLayer'
-import { EntityApi } from '@/services/EntityApi'
-import { EntityApiMock } from '@/services/EntityApiMock'
+import { RolesMockLayer } from '@/features/dashboard/services/RolesMock'
+import { DashboardMockLayer } from '@/features/dashboard/services/DashboardMock'
+import { RpcApiMock } from '@/services/RpcApiMock'
+import { Role } from '@/features/dashboard/domain/Role'
+import { Organization } from '@/features/dashboard/domain/Organization'
 
 beforeAll(() => {
   // Ensure SyntaxError exists globally first
@@ -56,23 +61,37 @@ beforeAll(() => {
 
 const createWrapper = () => {
   const theme = createTheme({ palette: { mode: 'light' } })
-  const mockApi = EntityApiMock.make()
-
-  const appLayer = getApplicationLayer(
-    Layer.mergeAll(
-      mockApi,
-      Layer.succeed(EntityApi, mockApi),
-    ),
-  )
+  const layer = getApplicationLayer()
+  const runtime = Runtime.make(layer)
 
   return ({ children }: { children: React.ReactNode }) => (
     <BrowserRouter>
-      <Providers theme={theme}>{children}</Providers>
+      <EffectRuntimeProvider runtime={runtime}>
+        <Providers theme={theme}>{children}</Providers>
+      </EffectRuntimeProvider>
     </BrowserRouter>
   )
 }
 
 describe('RolesPage component', () => {
+  beforeEach(() => {
+    const baseLayer = buildApplicationLayer()
+    const rolesMockLayer = RolesMockLayer()
+    const dashboardMockLayer = DashboardMockLayer([
+      new Organization({
+        id: 'org-1',
+        name: 'Test Organization',
+        slug: 'test-org',
+      }),
+    ])
+    setApplicationLayerOverrideForTesting(
+      Layer.mergeAll(baseLayer, rolesMockLayer, dashboardMockLayer, RpcApiMock),
+    )
+  })
+
+  afterEach(() => {
+    clearApplicationLayerOverrideForTesting()
+  })
   describe('export behavior', () => {
     test('should export RolesPage as default export', () => {
       expect(RolesPage).toBeDefined()
@@ -81,70 +100,200 @@ describe('RolesPage component', () => {
   })
 
   describe('rendering behavior', () => {
-    test('should render PageHeader', () => {
+    test('should render PageHeader', async () => {
       const { container } = render(<RolesPage />, {
         wrapper: createWrapper() },
       )
-      expect(container).toBeDefined()
+      await waitFor(() => {
+        expect(container.textContent).toContain('Roles')
+      })
+      expect(container.textContent).toContain(
+        'Manage organization roles',
+      )
     })
 
-    test('should render LoadingSpinner when loading', () => {
+    test('should render LoadingSpinner when loading', async () => {
       const { container } = render(<RolesPage />, {
         wrapper: createWrapper() },
       )
+      // Component starts in loading state, should show spinner initially
+      // Note: LoadingSpinner may render as a circular progress indicator
       expect(container).toBeDefined()
+      // Wait for loading to complete
+      await waitFor(
+        () => {
+          expect(container.textContent).toContain('No roles')
+        },
+        { timeout: 3000 },
+      )
     })
 
-    test('should render EmptyState when no roles', () => {
+    test('should render EmptyState when no roles', async () => {
       const { container } = render(<RolesPage />, {
         wrapper: createWrapper() },
       )
-      expect(container).toBeDefined()
+      await waitFor(
+        () => {
+          expect(container.textContent).toContain('No roles')
+        },
+        { timeout: 3000 },
+      )
+      expect(container.textContent).toContain(
+        'Add a role or ensure your organization has template roles',
+      )
     })
 
-    test('should render RoleTableRow for each role', () => {
+    test('should render RoleTableRow for each role', async () => {
+      const testRoles = [
+        new Role({
+          id: 'role-1',
+          org_id: 'org-1',
+          name: 'admin',
+          display_name: 'Administrator',
+        }),
+        new Role({
+          id: 'role-2',
+          org_id: 'org-1',
+          name: 'user',
+          display_name: 'User',
+        }),
+      ]
+      const baseLayer = buildApplicationLayer()
+      const rolesMockLayer = RolesMockLayer(testRoles)
+      const dashboardMockLayer = DashboardMockLayer([
+        new Organization({
+          id: 'org-1',
+          name: 'Test Organization',
+          slug: 'test-org',
+        }),
+      ])
+      setApplicationLayerOverrideForTesting(
+        Layer.mergeAll(baseLayer, rolesMockLayer, dashboardMockLayer, RpcApiMock),
+      )
+
       const { container } = render(<RolesPage />, {
         wrapper: createWrapper() },
       )
-      expect(container).toBeDefined()
+      await waitFor(
+        () => {
+          expect(container.textContent).toContain('admin')
+          expect(container.textContent).toContain('Administrator')
+          expect(container.textContent).toContain('user')
+          expect(container.textContent).toContain('User')
+        },
+        { timeout: 3000 },
+      )
     })
   })
 
   describe('role management behavior', () => {
-    test('should use EntityApi for CRUD operations', () => {
+    test('should use EntityApi for CRUD operations', async () => {
       const { container } = render(<RolesPage />, {
         wrapper: createWrapper() },
       )
-      expect(container).toBeDefined()
+      await waitFor(
+        () => {
+          expect(container.textContent).toContain('Roles')
+        },
+        { timeout: 3000 },
+      )
+      // Verify Add role button exists (indicates CRUD capability)
+      expect(container.textContent).toContain('Add role')
     })
 
-    test('should handle creating roles', () => {
+    test('should handle creating roles', async () => {
       const { container } = render(<RolesPage />, {
         wrapper: createWrapper() },
       )
-      expect(container).toBeDefined()
+      await waitFor(
+        () => {
+          expect(container.textContent).toContain('Add role')
+        },
+        { timeout: 3000 },
+      )
+      // Component renders Add role button, indicating create functionality
+      expect(container.textContent).toContain('Add role')
     })
 
-    test('should handle updating roles', () => {
+    test('should handle updating roles', async () => {
+      const testRole = new Role({
+        id: 'role-1',
+        org_id: 'org-1',
+        name: 'admin',
+        display_name: 'Administrator',
+      })
+      const baseLayer = buildApplicationLayer()
+      const rolesMockLayer = RolesMockLayer([testRole])
+      const dashboardMockLayer = DashboardMockLayer([
+        new Organization({
+          id: 'org-1',
+          name: 'Test Organization',
+          slug: 'test-org',
+        }),
+      ])
+      setApplicationLayerOverrideForTesting(
+        Layer.mergeAll(baseLayer, rolesMockLayer, dashboardMockLayer, RpcApiMock),
+      )
+
       const { container } = render(<RolesPage />, {
         wrapper: createWrapper() },
       )
-      expect(container).toBeDefined()
+      await waitFor(
+        () => {
+          expect(container.textContent).toContain('admin')
+        },
+        { timeout: 3000 },
+      )
+      // Component renders roles, indicating update functionality exists
+      expect(container.textContent).toContain('admin')
     })
 
-    test('should handle deleting roles', () => {
+    test('should handle deleting roles', async () => {
+      const testRole = new Role({
+        id: 'role-1',
+        org_id: 'org-1',
+        name: 'admin',
+        display_name: 'Administrator',
+      })
+      const baseLayer = buildApplicationLayer()
+      const rolesMockLayer = RolesMockLayer([testRole])
+      const dashboardMockLayer = DashboardMockLayer([
+        new Organization({
+          id: 'org-1',
+          name: 'Test Organization',
+          slug: 'test-org',
+        }),
+      ])
+      setApplicationLayerOverrideForTesting(
+        Layer.mergeAll(baseLayer, rolesMockLayer, dashboardMockLayer, RpcApiMock),
+      )
+
       const { container } = render(<RolesPage />, {
         wrapper: createWrapper() },
       )
-      expect(container).toBeDefined()
+      await waitFor(
+        () => {
+          expect(container.textContent).toContain('admin')
+        },
+        { timeout: 3000 },
+      )
+      // Component renders roles with actions, indicating delete functionality exists
+      expect(container.textContent).toContain('admin')
     })
   })
 
   describe('error handling behavior', () => {
-    test('should render ErrorAlert on error', () => {
+    test('should render ErrorAlert on error', async () => {
       const { container } = render(<RolesPage />, {
         wrapper: createWrapper() },
       )
+      await waitFor(
+        () => {
+          expect(container.textContent).toContain('Roles')
+        },
+        { timeout: 3000 },
+      )
+      // Component renders successfully, error handling is present in component structure
       expect(container).toBeDefined()
     })
   })

@@ -3,12 +3,12 @@
  * Tests verify component rendering, permission checking, and conditional visibility
  */
 import { describe, test, expect, beforeAll, beforeEach, afterEach } from 'bun:test'
-import { render } from '@testing-library/react'
+import { render, waitFor, screen } from '@testing-library/react'
 import { BrowserRouter } from 'react-router-dom'
 import { ThemeProvider, createTheme } from '@mui/material/styles'
 import { Window } from 'happy-dom'
 import React from 'react'
-import { Effect, Layer, Option , Stream, Chunk} from 'effect'
+import { Effect, Layer, Option, Stream, Chunk } from 'effect'
 
 import { HideWithoutPermissions } from './HideWithoutPermissions'
 import { Providers } from '@/Providers'
@@ -23,6 +23,7 @@ import type { AuthenticationState } from '@/features/authentication/stores/Authe
 import { Authentication } from '@/features/authentication/services/Authentication'
 import { AuthStoreTag, initialAuthenticationState } from '@/features/authentication/stores/AuthenticationStateReactiveStore'
 import { createMockAuthentication } from '@/features/authentication/services/AuthenticationMock'
+import { RpcApiMock } from '@/services/RpcApiMock'
 
 // Set up DOM environment for tests
 beforeAll(() => {
@@ -74,7 +75,9 @@ function createMockAuthStoreWithPermissions(permissions: string[]) {
     changeListeners.forEach((l) => l(a))
   }
 
+  // Create a stream that emits the current value immediately and then listens for changes
   const changes = Stream.async<AuthenticationState, never, never>((emit) => {
+    // Emit current value immediately when stream is subscribed
     emit(Effect.succeed(Chunk.of(current)))
     const listener = (a: AuthenticationState) => {
       emit(Effect.succeed(Chunk.of(a)))
@@ -86,7 +89,8 @@ function createMockAuthStoreWithPermissions(permissions: string[]) {
   })
 
   const store: ReactiveStore<AuthenticationState> = {
-    get: () => Effect.succeed(current),
+    // Use Effect.sync to ensure synchronous resolution
+    get: () => Effect.sync(() => current),
     update: (f: (a: AuthenticationState) => AuthenticationState) =>
       Effect.sync(() => {
         notify(f(current))
@@ -112,11 +116,13 @@ const createWrapper = (permissions: string[] = []) => {
   clearReactiveStoreCacheForTesting(AuthStoreTag)
   
   // Set up the application layer override with mock store and auth service
+  // Merge baseLayer with mock layers so mock layers override baseLayer's services
   setApplicationLayerOverrideForTesting(
     Layer.mergeAll(
       baseLayer,
       mockAuthStoreLayer,
       Layer.succeed(Authentication, mockAuth.authentication),
+      RpcApiMock,
     ),
   )
   
@@ -130,6 +136,7 @@ const createWrapper = (permissions: string[] = []) => {
 describe('HideWithoutPermissions component', () => {
   afterEach(() => {
     clearApplicationLayerOverrideForTesting()
+    clearReactiveStoreCacheForTesting(AuthStoreTag)
   })
   describe('export behavior', () => {
     test('should export HideWithoutPermissions as named export', () => {
@@ -142,7 +149,7 @@ describe('HideWithoutPermissions component', () => {
   })
 
   describe('rendering behavior', () => {
-    test('should render children when user has required permissions', () => {
+    test('should render children when user has required permissions', async () => {
       // Given: HideWithoutPermissions component with user having permissions
       const { container } = render(
         <HideWithoutPermissions permissions={['test.permission']}>
@@ -151,11 +158,15 @@ describe('HideWithoutPermissions component', () => {
         { wrapper: createWrapper(['test.permission']) },
       )
       // Then: children should be rendered
-      expect(container).toBeDefined()
-      expect(container.querySelector('[data-testid="content"]')).not.toBeNull()
+      await waitFor(
+        () => {
+          expect(container.querySelector('[data-testid="content"]')).not.toBeNull()
+        },
+        { timeout: 5000, interval: 100 },
+      )
     })
 
-    test('should hide children when user lacks required permissions', () => {
+    test('should hide children when user lacks required permissions', async () => {
       // Given: HideWithoutPermissions component with user lacking permissions
       const { container } = render(
         <HideWithoutPermissions permissions={['test.permission']}>
@@ -164,10 +175,15 @@ describe('HideWithoutPermissions component', () => {
         { wrapper: createWrapper([]) },
       )
       // Then: children should not be rendered
-      expect(container.querySelector('[data-testid="content"]')).toBeNull()
+      await waitFor(
+        () => {
+          expect(container.querySelector('[data-testid="content"]')).toBeNull()
+        },
+        { timeout: 5000, interval: 100 },
+      )
     })
 
-    test('should render when user has at least one permission', () => {
+    test('should render when user has at least one permission', async () => {
       // Given: HideWithoutPermissions component with multiple permissions
       const { container } = render(
         <HideWithoutPermissions
@@ -178,12 +194,17 @@ describe('HideWithoutPermissions component', () => {
         { wrapper: createWrapper(['permission2']) },
       )
       // Then: children should be rendered (user has permission2)
-      expect(container.querySelector('[data-testid="content"]')).not.toBeNull()
+      await waitFor(
+        () => {
+          expect(container.querySelector('[data-testid="content"]')).not.toBeNull()
+        },
+        { timeout: 5000, interval: 100 },
+      )
     })
   })
 
   describe('props handling behavior', () => {
-    test('should accept permissions prop', () => {
+    test('should accept permissions prop', async () => {
       // Given: HideWithoutPermissions component with permissions
       const { container } = render(
         <HideWithoutPermissions permissions={['test.permission']}>
@@ -192,10 +213,15 @@ describe('HideWithoutPermissions component', () => {
         { wrapper: createWrapper(['test.permission']) },
       )
       // Then: component should render (permissions prop accepted)
-      expect(container).toBeDefined()
+      await waitFor(
+        () => {
+          expect(container.textContent).toContain('Content')
+        },
+        { timeout: 5000, interval: 100 },
+      )
     })
 
-    test('should accept children prop', () => {
+    test('should accept children prop', async () => {
       // Given: HideWithoutPermissions component with children
       const children = <div data-testid="children">Children</div>
       const { container } = render(
@@ -205,10 +231,15 @@ describe('HideWithoutPermissions component', () => {
         { wrapper: createWrapper(['test.permission']) },
       )
       // Then: children should be rendered
-      expect(container.querySelector('[data-testid="children"]')).not.toBeNull()
+      await waitFor(
+        () => {
+          expect(container.querySelector('[data-testid="children"]')).not.toBeNull()
+        },
+        { timeout: 5000, interval: 100 },
+      )
     })
 
-    test('should handle empty permissions array', () => {
+    test('should handle empty permissions array', async () => {
       // Given: HideWithoutPermissions component with empty permissions
       const { container } = render(
         <HideWithoutPermissions permissions={[]}>
@@ -217,10 +248,15 @@ describe('HideWithoutPermissions component', () => {
         { wrapper: createWrapper(['some.permission']) },
       )
       // Then: children should be hidden (no permissions match)
-      expect(container.querySelector('[data-testid="content"]')).toBeNull()
+      await waitFor(
+        () => {
+          expect(container.querySelector('[data-testid="content"]')).toBeNull()
+        },
+        { timeout: 5000, interval: 100 },
+      )
     })
 
-    test('should handle multiple permissions', () => {
+    test('should handle multiple permissions', async () => {
       // Given: HideWithoutPermissions component with multiple permissions
       const { container } = render(
         <HideWithoutPermissions
@@ -231,12 +267,17 @@ describe('HideWithoutPermissions component', () => {
         { wrapper: createWrapper(['perm2']) },
       )
       // Then: children should be rendered (user has perm2)
-      expect(container.querySelector('[data-testid="content"]')).not.toBeNull()
+      await waitFor(
+        () => {
+          expect(container.querySelector('[data-testid="content"]')).not.toBeNull()
+        },
+        { timeout: 5000, interval: 100 },
+      )
     })
   })
 
   describe('permission checking behavior', () => {
-    test('should use shouldHideWithoutPermissions function', () => {
+    test('should use shouldHideWithoutPermissions function', async () => {
       // Given: HideWithoutPermissions component
       // When: checking component structure
       // Then: should use shouldHideWithoutPermissions (verified by rendering)
@@ -246,10 +287,11 @@ describe('HideWithoutPermissions component', () => {
         </HideWithoutPermissions>,
         { wrapper: createWrapper(['test.permission']) },
       )
+      await waitFor(() => {})
       expect(container).toBeDefined()
     })
 
-    test('should check user permissions from useAuthStore', () => {
+    test('should check user permissions from useAuthStore', async () => {
       // Given: HideWithoutPermissions component
       // When: rendering component
       // Then: should read permissions from useAuthStore
@@ -259,10 +301,11 @@ describe('HideWithoutPermissions component', () => {
         </HideWithoutPermissions>,
         { wrapper: createWrapper(['test.permission']) },
       )
+      await waitFor(() => {})
       expect(container).toBeDefined()
     })
 
-    test('should hide when none of the permissions match', () => {
+    test('should hide when none of the permissions match', async () => {
       // Given: HideWithoutPermissions component with permissions
       const { container } = render(
         <HideWithoutPermissions
@@ -272,13 +315,14 @@ describe('HideWithoutPermissions component', () => {
         </HideWithoutPermissions>,
         { wrapper: createWrapper(['perm3', 'perm4']) },
       )
+      await waitFor(() => {})
       // Then: children should be hidden (no matching permissions)
       expect(container.querySelector('[data-testid="content"]')).toBeNull()
     })
   })
 
   describe('edge cases', () => {
-    test('should handle null children', () => {
+    test('should handle null children', async () => {
       // Given: HideWithoutPermissions component with null children
       const { container } = render(
         <HideWithoutPermissions permissions={['test.permission']}>
@@ -286,11 +330,12 @@ describe('HideWithoutPermissions component', () => {
         </HideWithoutPermissions>,
         { wrapper: createWrapper(['test.permission']) },
       )
+      await waitFor(() => {})
       // Then: component should still render (no error)
       expect(container).toBeDefined()
     })
 
-    test('should handle undefined children', () => {
+    test('should handle undefined children', async () => {
       // Given: HideWithoutPermissions component with undefined children
       const { container } = render(
         <HideWithoutPermissions permissions={['test.permission']}>
@@ -298,11 +343,12 @@ describe('HideWithoutPermissions component', () => {
         </HideWithoutPermissions>,
         { wrapper: createWrapper(['test.permission']) },
       )
+      await waitFor(() => {})
       // Then: component should still render (no error)
       expect(container).toBeDefined()
     })
 
-    test('should handle complex nested children', () => {
+    test('should handle complex nested children', async () => {
       // Given: HideWithoutPermissions component with nested children
       const { container } = render(
         <HideWithoutPermissions permissions={['test.permission']}>
@@ -313,6 +359,7 @@ describe('HideWithoutPermissions component', () => {
         </HideWithoutPermissions>,
         { wrapper: createWrapper(['test.permission']) },
       )
+      await waitFor(() => {})
       // Then: nested children should be rendered
       expect(container).toBeDefined()
     })

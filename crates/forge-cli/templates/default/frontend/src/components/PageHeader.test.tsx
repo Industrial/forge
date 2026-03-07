@@ -3,7 +3,7 @@
  * Tests verify component rendering, props handling, and MUI integration
  */
 import { describe, test, expect, beforeAll } from 'bun:test'
-import { render } from '@testing-library/react'
+import { render, waitFor } from '@testing-library/react'
 import { ThemeProvider, createTheme } from '@mui/material/styles'
 import { Window } from 'happy-dom'
 import React from 'react'
@@ -61,158 +61,176 @@ describe('PageHeader component', () => {
   })
 
   describe('rendering behavior', () => {
-    test('should render title', () => {
+    test('should render title', async () => {
       const { container } = render(
         <PageHeader title="Test Page" />,
         { wrapper: createWrapper() },
       )
+      await waitFor(() => {})
       expect(container.textContent).toContain('Test Page')
     })
 
-    test('should render description when provided', () => {
+    test('should render description when provided', async () => {
       const { container } = render(
         <PageHeader title="Test" description="Description text" />,
         { wrapper: createWrapper() },
       )
+      await waitFor(() => {})
       expect(container.textContent).toContain('Description text')
     })
 
-    test('should not render description when not provided', () => {
+    test('should not render description when not provided', async () => {
       const { container } = render(
         <PageHeader title="Test" />,
         { wrapper: createWrapper() },
       )
+      await waitFor(() => {})
       expect(container.textContent).not.toContain('Description')
     })
 
-    test('should render Live chip when liveConnected is true', () => {
+    test('should render Live chip when liveConnected is true', async () => {
       const { container } = render(
         <PageHeader title="Test" liveConnected={true} />,
         { wrapper: createWrapper() },
       )
+      await waitFor(() => {})
       expect(container.textContent).toContain('Live')
     })
 
-    test('should not render Live chip when liveConnected is false', () => {
+    test('should not render Live chip when liveConnected is false', async () => {
       const { container } = render(
         <PageHeader title="Test" liveConnected={false} />,
         { wrapper: createWrapper() },
       )
+      await waitFor(() => {})
       expect(container.textContent).not.toContain('Live')
     })
   })
 
   describe('props handling behavior', () => {
-    test('should accept title prop', () => {
+    test('should accept title prop', async () => {
       const { container } = render(
         <PageHeader title="Custom Title" />,
         { wrapper: createWrapper() },
       )
+      await waitFor(() => {})
       expect(container.textContent).toContain('Custom Title')
     })
 
-    test('should accept description prop', () => {
+    test('should accept description prop', async () => {
       const { container } = render(
         <PageHeader title="Test" description="Custom description" />,
         { wrapper: createWrapper() },
       )
+      await waitFor(() => {})
       expect(container.textContent).toContain('Custom description')
     })
 
-    test('should accept liveConnected prop', () => {
+    test('should accept liveConnected prop', async () => {
       const { container } = render(
         <PageHeader title="Test" liveConnected={true} />,
         { wrapper: createWrapper() },
       )
+      await waitFor(() => {})
       expect(container.textContent).toContain('Live')
     })
 
-    test('should accept data-testid prop', () => {
+    test('should accept data-testid prop', async () => {
       const { container } = render(
         <PageHeader title="Test" data-testid="page-header" />,
         { wrapper: createWrapper() },
       )
+      await waitFor(() => {})
       const element = container.querySelector('[data-testid="page-header"]')
       expect(element).not.toBeNull()
     })
 
-    test('should use default liveConnected value', () => {
+    test('should use default liveConnected value', async () => {
       const { container } = render(
         <PageHeader title="Test" />,
         { wrapper: createWrapper() },
       )
+      await waitFor(() => {})
       expect(container.textContent).not.toContain('Live')
     })
   })
 
   describe('MUI integration behavior', () => {
-    test('should use Typography for title', () => {
+    test('should use Typography for title', async () => {
       const { container } = render(
         <PageHeader title="Test" />,
         { wrapper: createWrapper() },
       )
+      await waitFor(() => {})
       expect(container).toBeDefined()
     })
 
-    test('should use Box for layout', () => {
+    test('should use Box for layout', async () => {
       const { container } = render(
         <PageHeader title="Test" />,
         { wrapper: createWrapper() },
       )
+      await waitFor(() => {})
       expect(container).toBeDefined()
     })
 
-    test('should use Chip for Live indicator', () => {
+    test('should use Chip for Live indicator', async () => {
       const { container } = render(
         <PageHeader title="Test" liveConnected={true} />,
         { wrapper: createWrapper() },
       )
+      await waitFor(() => {})
       expect(container.textContent).toContain('Live')
     })
   })
 
   describe('structure behavior', () => {
-    test('should render h1 heading', () => {
+    test('should render h1 heading', async () => {
       const { container } = render(
         <PageHeader title="Test" />,
         { wrapper: createWrapper() },
       )
+      await waitFor(() => {})
       const heading = container.querySelector('h1')
       expect(heading).not.toBeNull()
       expect(heading?.textContent).toContain('Test')
     })
 
-    test('should apply flex layout', () => {
+    test('should apply flex layout', async () => {
       const { container } = render(
         <PageHeader title="Test" />,
         { wrapper: createWrapper() },
       )
+      await waitFor(() => {})
       expect(container).toBeDefined()
     })
 
-    test('should render description as Typography variant body2', () => {
+    test('should render description as Typography variant body2', async () => {
       const { container } = render(
         <PageHeader title="Test" description="Description" />,
         { wrapper: createWrapper() },
       )
+      await waitFor(() => {})
       expect(container.textContent).toContain('Description')
     })
   })
 
   describe('edge cases', () => {
-    test('should handle empty title', () => {
+    test('should handle empty title', async () => {
       const { container } = render(
         <PageHeader title="" />,
         { wrapper: createWrapper() },
       )
+      await waitFor(() => {})
       expect(container).toBeDefined()
     })
 
-    test('should handle ReactNode description', () => {
+    test('should handle ReactNode description', async () => {
       const { container } = render(
         <PageHeader title="Test" description={<span>Node description</span>} />,
         { wrapper: createWrapper() },
       )
+      await waitFor(() => {})
       expect(container.textContent).toContain('Node description')
     })
   })
