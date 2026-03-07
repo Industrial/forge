@@ -78,7 +78,10 @@ export function makeReactiveStore<A>(
 } {
   const tag = Context.GenericTag<ReactiveStore<A>>(name)
   const registry = { setter: null as ((a: A) => void) | null }
-  syncRegistryByTag.set(tag as object, registry as { setter: ((a: unknown) => void) | null })
+  syncRegistryByTag.set(
+    tag as object,
+    registry as { setter: ((a: unknown) => void) | null },
+  )
 
   const layer: Layer.Layer<ReactiveStore<A>, never, never> = Layer.scoped(
     tag,
@@ -196,17 +199,24 @@ function createExternalStore<A>(
   if (registry) {
     registry.setter = (a) => {
       setCache(a as A)
-      if (DEBUG) log(`sync update (setter) id=${storeId} cacheKeys=${Object.keys(cache as object).join(',')} notifying ${listeners.size} listeners`)
+      if (DEBUG)
+        log(
+          `sync update (setter) id=${storeId} cacheKeys=${Object.keys(cache as object).join(',')} notifying ${listeners.size} listeners`,
+        )
     }
   }
 
   const subscribe = (onStoreChange: () => void) => {
     listeners.add(onStoreChange)
-    log(`subscribe id=${storeId} listeners=${listeners.size} started=${started} cacheKeys=${Object.keys(cache as object).join(',')}`)
+    log(
+      `subscribe id=${storeId} listeners=${listeners.size} started=${started} cacheKeys=${Object.keys(cache as object).join(',')}`,
+    )
 
     if (!started) {
       started = true
-      log(`subscribe id=${storeId} first subscriber: starting initial get + stream`)
+      log(
+        `subscribe id=${storeId} first subscriber: starting initial get + stream`,
+      )
 
       const initialEffect = Effect.gen(function* () {
         const store = yield* tag
@@ -215,7 +225,9 @@ function createExternalStore<A>(
 
       run(initialEffect).then((current) => {
         setCache(current)
-        log(`initial get completed id=${storeId} cacheKeys=${Object.keys(cache as object).join(',')} notifying ${listeners.size} listeners`)
+        log(
+          `initial get completed id=${storeId} cacheKeys=${Object.keys(cache as object).join(',')} notifying ${listeners.size} listeners`,
+        )
       })
 
       const streamEffect = Effect.gen(function* () {
@@ -223,7 +235,9 @@ function createExternalStore<A>(
         yield* Stream.runForEach(store.changes, (a) =>
           Effect.sync(() => {
             setCache(a)
-            log(`stream update id=${storeId} cacheKeys=${Object.keys(cache as object).join(',')} notifying ${listeners.size} listeners`)
+            log(
+              `stream update id=${storeId} cacheKeys=${Object.keys(cache as object).join(',')} notifying ${listeners.size} listeners`,
+            )
           }),
         )
       })
@@ -237,7 +251,9 @@ function createExternalStore<A>(
       log(`unsubscribe id=${storeId} listeners=${listeners.size}`)
 
       if (listeners.size === 0 && fiber != null) {
-        log(`unsubscribe id=${storeId} last listener: keeping stream running (no interrupt)`)
+        log(
+          `unsubscribe id=${storeId} last listener: keeping stream running (no interrupt)`,
+        )
       }
     }
   }
@@ -252,7 +268,9 @@ function createExternalStore<A>(
   const getSnapshot = (): ReactiveStoreSnapshot<A> => {
     getSnapshotCallCount++
     if (getSnapshotCallCount <= 3 || getSnapshotCallCount % 20 === 0) {
-      log(`getSnapshot id=${storeId} call#=${getSnapshotCallCount} cacheKeys=${Object.keys(cache as object).join(',')} initialized=${initialized} listeners=${listeners.size}`)
+      log(
+        `getSnapshot id=${storeId} call#=${getSnapshotCallCount} cacheKeys=${Object.keys(cache as object).join(',')} initialized=${initialized} listeners=${listeners.size}`,
+      )
     }
     if (
       lastSnapshot !== null &&
@@ -322,7 +340,10 @@ export function useReactiveStore<A>(
             return cached as ExternalStoreShape<A>
           },
           onNone: () => {
-            log('useReactiveStore cache MISS creating new external store tag=', tag)
+            log(
+              'useReactiveStore cache MISS creating new external store tag=',
+              tag,
+            )
             const created = createExternalStore(tag, initial, run, runFork)
             externalStoreCache.set(tag, created)
             return created

@@ -115,7 +115,9 @@ export default function LoginPage() {
                   label="Password"
                   placeholder="••••••••"
                   required
-                  slotProps={{ htmlInput: { autoComplete: 'current-password' } }}
+                  slotProps={{
+                    htmlInput: { autoComplete: 'current-password' },
+                  }}
                   disabled={submitting}
                   data-testid="login-password"
                   fullWidth

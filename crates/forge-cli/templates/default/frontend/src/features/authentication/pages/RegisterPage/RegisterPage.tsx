@@ -42,7 +42,9 @@ export default function RegisterPage() {
           setErrorMessage(null)
           yield* auth.register(data.email, data.password)
           setSubmitting(false)
-          yield* navigateTo(navigate, '/authentication/login', { replace: true })
+          yield* navigateTo(navigate, '/authentication/login', {
+            replace: true,
+          })
         }).pipe(
           Effect.mapError((error) => {
             setSubmitting(false)
@@ -107,7 +109,9 @@ export default function RegisterPage() {
                   label="Password"
                   placeholder="••••••••"
                   required
-                  slotProps={{ htmlInput: { minLength: 8, autoComplete: 'new-password' } }}
+                  slotProps={{
+                    htmlInput: { minLength: 8, autoComplete: 'new-password' },
+                  }}
                   disabled={submitting}
                   data-testid="register-password"
                   fullWidth

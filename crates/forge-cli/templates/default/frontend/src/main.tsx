@@ -4,10 +4,7 @@ import { Effect, SubscriptionRef } from 'effect'
 
 import '@/reset.css'
 import App from '@/App.tsx'
-import {
-  buildApplicationLayer,
-  setApplicationLayer,
-} from '@/lib/appLayer'
+import { buildApplicationLayer, setApplicationLayer } from '@/lib/appLayer'
 import { createReactiveStoreFromRef } from '@/lib/ReactiveStore'
 import {
   AuthenticationStateReactiveStoreTag,
@@ -47,6 +44,6 @@ await Effect.runPromise(
 
         yield* Effect.never
       }).pipe(Effect.provide(layer))
-    })
-  )
+    }),
+  ),
 )

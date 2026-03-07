@@ -9,7 +9,10 @@
 import { Effect } from 'effect'
 
 /** Type of the function returned by useNavigate() from react-router-dom. */
-export type NavigateFunction = (to: string, options?: { replace?: boolean }) => void | Promise<void>
+export type NavigateFunction = (
+  to: string,
+  options?: { replace?: boolean },
+) => void | Promise<void>
 
 /**
  * Normalizes React Router v7 navigate (void | Promise<void>) to a single
@@ -21,7 +24,8 @@ function navigateToPromise(
   options?: { replace?: boolean },
 ): Promise<void> {
   const result = navigate(to, options)
-  return result != null && typeof (result as Promise<unknown>).then === 'function'
+  return result != null &&
+    typeof (result as Promise<unknown>).then === 'function'
     ? (result as Promise<void>)
     : Promise.resolve()
 }

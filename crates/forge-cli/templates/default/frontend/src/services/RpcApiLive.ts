@@ -74,10 +74,7 @@ const RpcApiLive = Layer.effect(
         const decoded = yield* pipe(
           Schema.decodeUnknown(RpcSubscribeResponseSchema)(resBody),
           Effect.mapError(
-            (e) =>
-              new Error(
-                `Invalid RPC response: ${e.message ?? String(e)}`,
-              ),
+            (e) => new Error(`Invalid RPC response: ${e.message ?? String(e)}`),
           ),
         )
         const result = decoded.result

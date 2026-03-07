@@ -179,7 +179,12 @@ export default function GenericEntityCrud({
 
   useEffect(() => {
     run(refreshEffect)
-  }, [entityId, JSON.stringify(listQueryParams ?? {}), setListStateAsEffect, run])
+  }, [
+    entityId,
+    JSON.stringify(listQueryParams ?? {}),
+    setListStateAsEffect,
+    run,
+  ])
 
   const handleCreateSubmit = useCallback(
     (body: Record<string, unknown>) => {
@@ -220,7 +225,14 @@ export default function GenericEntityCrud({
       )
       setEditItem(null)
     },
-    [entityId, editItem, getRowId, listQueryParams, setUpdateStateAsEffect, run],
+    [
+      entityId,
+      editItem,
+      getRowId,
+      listQueryParams,
+      setUpdateStateAsEffect,
+      run,
+    ],
   )
 
   const handleDeleteConfirm = useCallback(
