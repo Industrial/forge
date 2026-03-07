@@ -180,23 +180,6 @@ export function getApplicationLayer() {
 }
 
 /**
- * Runs an effect with the application layer provided. Use at boundaries (e.g. event
- * handlers) when you need to run an effect outside of a hook. For hooks, prefer
- * {@link useRunWithAppLayer}.
- */
-export function runWithAppLayer<A, E, R>(
-  effect: Effect.Effect<A, E, R>,
-): Promise<A> {
-  return Effect.runPromise(
-    effect.pipe(Effect.provide(getApplicationLayer())) as Effect.Effect<
-      A,
-      E,
-      never
-    >,
-  )
-}
-
-/**
  * Hook that returns stable {@link RunEffect} and {@link RunFork} functions that
  * run effects with the application layer provided. Use these when calling
  * {@link useReactiveStore} so the store subscription runs in the app layer.

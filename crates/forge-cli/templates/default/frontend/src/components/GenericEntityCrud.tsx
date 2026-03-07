@@ -39,9 +39,9 @@ import {
   isFailure,
   isPending,
 } from 'react-effect-hooks'
-import { runWithAppLayer, type AppServices } from '@/lib/appLayer'
+import { useRunWithAppLayer } from '@/lib/appLayer'
 import { Effect } from 'effect'
-import { EntityApi } from '../services/EntityApi'
+import { EntityApi, type EntityApiService } from '../services/EntityApi'
 import type { ListQueryParams } from '../services/EntityApi'
 import { usePermission } from '../hooks/usePermission'
 
@@ -103,7 +103,7 @@ function defaultColumns(
 const listEffect = (
   entityId: string,
   params: ListQueryParams | undefined,
-): Effect.Effect<readonly Record<string, unknown>[], Error, AppServices> =>
+): Effect.Effect<readonly Record<string, unknown>[], Error, EntityApiService> =>
   Effect.gen(function* () {
     const api = yield* EntityApi
     const res = yield* api.list(entityId, params)
@@ -122,6 +122,7 @@ export default function GenericEntityCrud({
   renderEditForm,
   emptyMessage = 'No items.',
 }: GenericEntityCrudProps) {
+  const { run } = useRunWithAppLayer()
   const canRead = usePermission(`${entityId}.read`)
   const canCreate = usePermission(`${entityId}.create`)
   const canUpdate = usePermission(`${entityId}.update`)
@@ -177,12 +178,12 @@ export default function GenericEntityCrud({
   })
 
   useEffect(() => {
-    runWithAppLayer(refreshEffect)
-  }, [entityId, JSON.stringify(listQueryParams ?? {}), setListStateAsEffect])
+    run(refreshEffect)
+  }, [entityId, JSON.stringify(listQueryParams ?? {}), setListStateAsEffect, run])
 
   const handleCreateSubmit = useCallback(
     (body: Record<string, unknown>) => {
-      runWithAppLayer(
+      run(
         runStreamInto(
           streamWithPendingState(
             Effect.gen(function* () {
@@ -197,14 +198,14 @@ export default function GenericEntityCrud({
       )
       setAddDialogOpen(false)
     },
-    [entityId, listQueryParams, setCreateStateAsEffect],
+    [entityId, listQueryParams, setCreateStateAsEffect, run],
   )
 
   const handleUpdateSubmit = useCallback(
     (body: Record<string, unknown>) => {
       if (!editItem) return
       const id = getRowId(editItem)
-      runWithAppLayer(
+      run(
         runStreamInto(
           streamWithPendingState(
             Effect.gen(function* () {
@@ -219,14 +220,14 @@ export default function GenericEntityCrud({
       )
       setEditItem(null)
     },
-    [entityId, editItem, getRowId, listQueryParams, setUpdateStateAsEffect],
+    [entityId, editItem, getRowId, listQueryParams, setUpdateStateAsEffect, run],
   )
 
   const handleDeleteConfirm = useCallback(
     (id: string) => {
       setDeletingId(id)
       setDeleteConfirmId(null)
-      runWithAppLayer(
+      run(
         runStreamInto(
           streamWithPendingState(
             Effect.gen(function* () {
@@ -240,37 +241,37 @@ export default function GenericEntityCrud({
         ),
       )
     },
-    [entityId, listQueryParams, setDeleteStateAsEffect],
+    [entityId, listQueryParams, setDeleteStateAsEffect, run],
   )
 
   // On create/update/delete success: refresh list state
   useEffect(() => {
     if (!isSuccess(createState)) return
-    runWithAppLayer(
+    run(
       Effect.gen(function* () {
         yield* setListStateAsEffect(asyncSuccess(createState.value))
         yield* setCreateStateAsEffect(idle())
       }),
     )
-  }, [createState, setListStateAsEffect, setCreateStateAsEffect])
+  }, [createState, setListStateAsEffect, setCreateStateAsEffect, run])
   useEffect(() => {
     if (!isSuccess(updateState)) return
-    runWithAppLayer(
+    run(
       Effect.gen(function* () {
         yield* setListStateAsEffect(asyncSuccess(updateState.value))
         yield* setUpdateStateAsEffect(idle())
       }),
     )
-  }, [updateState, setListStateAsEffect, setUpdateStateAsEffect])
+  }, [updateState, setListStateAsEffect, setUpdateStateAsEffect, run])
   useEffect(() => {
     if (!isSuccess(deleteState)) return
-    runWithAppLayer(
+    run(
       Effect.gen(function* () {
         yield* setListStateAsEffect(asyncSuccess(deleteState.value))
         yield* setDeleteStateAsEffect(idle())
       }),
     )
-  }, [deleteState, setListStateAsEffect, setDeleteStateAsEffect])
+  }, [deleteState, setListStateAsEffect, setDeleteStateAsEffect, run])
 
   useEffect(() => {
     if (!isPending(deleteState)) setDeletingId(null)
@@ -324,7 +325,7 @@ export default function GenericEntityCrud({
         <ErrorAlert
           message={errorMessage}
           onClose={() => {
-            runWithAppLayer(refreshEffect)
+            run(refreshEffect)
           }}
         />
       )}
