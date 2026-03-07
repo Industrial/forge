@@ -9,8 +9,6 @@ import {
   isFailure,
   isPending,
 } from 'react-effect-hooks'
-import { runApp } from '../../../../lib/appRuntime'
-import type { AppServices } from '../../../../lib/appLayer'
 import { Effect } from 'effect'
 import Table from '@mui/material/Table'
 import TableBody from '@mui/material/TableBody'
@@ -20,16 +18,18 @@ import TableHead from '@mui/material/TableHead'
 import TableRow from '@mui/material/TableRow'
 import Paper from '@mui/material/Paper'
 import TablePagination from '@mui/material/TablePagination'
-import PageHeader from '../../../../components/PageHeader'
-import TableEmptyRow from '../../../../components/TableEmptyRow'
-import AuditLogFilters from '../../components/AuditLogFilters'
-import AuditLogTableRow from '../../components/AuditLogTableRow'
-import ErrorAlert from '../../../../components/ErrorAlert'
-import LoadingSpinner from '../../../../components/LoadingSpinner'
-import { useLiveRefreshTrigger } from '../../../../hooks/useLiveRefreshTrigger'
-import { useTablePaginationDefaults } from '../../../../hooks/useTablePaginationDefaults'
-import type { AuditLogResult } from '../../services/AuditLog'
-import { AuditLog as AuditLogService } from '../../services/AuditLog'
+
+import { getApplicationLayer, type AppServices } from '@/lib/appLayer'
+import PageHeader from '@/components/PageHeader'
+import TableEmptyRow from '@/components/TableEmptyRow'
+import AuditLogFilters from '@/features/dashboard/components/AuditLogFilters'
+import AuditLogTableRow from '@/features/dashboard/components/AuditLogTableRow'
+import ErrorAlert from '@/components/ErrorAlert'
+import LoadingSpinner from '@/components/LoadingSpinner'
+import { useLiveRefreshTrigger } from '@/hooks/useLiveRefreshTrigger'
+import { useTablePaginationDefaults } from '@/hooks/useTablePaginationDefaults'
+import type { AuditLogResult } from '@/features/dashboard/services/AuditLog'
+import { AuditLog as AuditLogService } from '@/features/dashboard/services/AuditLog'
 
 type ListState = AsyncState<AuditLogResult, Error>
 
@@ -86,7 +86,7 @@ export default function AuditLogPage() {
   })
 
   useEffect(() => {
-    runApp(refreshEffect)
+    Effect.runPromise(refreshEffect.pipe(Effect.provide(getApplicationLayer())))
   }, [
     liveRefreshTrigger,
     page,
@@ -158,7 +158,9 @@ export default function AuditLogPage() {
         <ErrorAlert
           message={errorMessage}
           onClose={() => {
-            runApp(refreshEffect)
+            Effect.runPromise(
+              refreshEffect.pipe(Effect.provide(getApplicationLayer())),
+            )
           }}
         />
       )}

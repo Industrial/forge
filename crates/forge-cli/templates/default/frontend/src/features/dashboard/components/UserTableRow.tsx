@@ -3,8 +3,9 @@ import TableRow from '@mui/material/TableRow'
 import IconButton from '@mui/material/IconButton'
 import EditIcon from '@mui/icons-material/Edit'
 import DeleteIcon from '@mui/icons-material/Delete'
-import { formatDate } from '../utils/formatDate'
-import { membershipsSummary } from '../utils/membershipsSummary'
+
+import { formatDate } from '@/features/dashboard/utils/formatDate'
+import { membershipsSummary } from '@/features/dashboard/utils/membershipsSummary'
 
 export type UserRow = {
   id: string

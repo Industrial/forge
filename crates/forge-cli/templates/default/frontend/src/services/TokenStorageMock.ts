@@ -22,8 +22,14 @@ export function makeTokenStorageMock(): {
       Effect.sync(() =>
         token != null && token !== '' ? Option.some(token) : Option.none(),
       ),
-    setToken: (t: string) => Effect.sync(() => { token = t }),
-    clearToken: () => Effect.sync(() => { token = null }),
+    setToken: (t: string) =>
+      Effect.sync(() => {
+        token = t
+      }),
+    clearToken: () =>
+      Effect.sync(() => {
+        token = null
+      }),
     getScope: () =>
       Effect.sync(() =>
         organizationId != null && roleId != null
@@ -48,8 +54,12 @@ export function makeTokenStorageMock(): {
   const layer = Layer.succeed(TokenStorage, storage)
   return {
     layer,
-    setToken: (t: string) => { token = t },
-    clearToken: () => { token = null },
+    setToken: (t: string) => {
+      token = t
+    },
+    clearToken: () => {
+      token = null
+    },
     setScope: (org: string, role: string) => {
       organizationId = org
       roleId = role

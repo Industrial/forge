@@ -1,13 +1,15 @@
 import React, { useEffect, useState } from 'react'
 import { Navigate } from 'react-router-dom'
-import { Effect } from 'effect'
-import { useAuthentication } from '../../../context/AuthenticationContext'
-import { AuthenticationStore } from '../../authentication/services/AuthenticationStore'
-import { runApp } from '../../../lib/appRuntime'
+import { Effect, Option } from 'effect'
 import Box from '@mui/material/Box'
 import LoadingSpinner from '../../../components/LoadingSpinner'
+import { getApplicationLayer } from '@/lib/appLayer'
+import { useAuthenticationStateReactiveStore } from '@/features/authentication/stores'
+import { Authentication } from '@/features/authentication/services/Authentication'
 
-type DashboardScopeGuardProps = { children: React.ReactNode }
+export type DashboardScopeGuardProps = {
+  children: React.ReactNode
+}
 
 /**
  * When the user is logged in but needs scope: redirects to scope selection, or
@@ -17,34 +19,49 @@ type DashboardScopeGuardProps = { children: React.ReactNode }
 export default function DashboardScopeGuard({
   children,
 }: DashboardScopeGuardProps) {
-  const { user, needs_scope_select, scopes, loading, refresh } =
-    useAuthentication()
+  const authentication = useAuthenticationStateReactiveStore()
+  const isUserAuthenticated = Option.isSome(authentication.user)
+  const needsScopeSelect = Option.getOrElse(
+    authentication.needsScopeSelect,
+    () => false,
+  )
+
+  // Scopes not in reactive store; extend store/me API to enable single-scope auto-select.
+  const scopes: { org_id: string; role_id?: string; role?: string }[] = []
+  const loading = false
+
   const [autoSelecting, setAutoSelecting] = useState(false)
 
   useEffect(() => {
-    if (
-      !loading &&
-      user != null &&
-      needs_scope_select &&
-      scopes.length === 1 &&
-      !autoSelecting
-    ) {
-      const p = scopes[0]
-      const orgId = p.org_id
-      const roleId = p.role_id ?? ''
-      const roleName = p.role ?? ''
-      setAutoSelecting(true)
-      runApp(
-        Effect.gen(function* () {
-          const store = yield* AuthenticationStore
-          yield* store.setScope(orgId, roleId, roleName)
-          yield* store.fetchMe()
-        }),
-      )
-        .then(() => refresh().then(() => setAutoSelecting(false)))
-        .catch(() => setAutoSelecting(false))
-    }
-  }, [loading, user, needs_scope_select, scopes, autoSelecting, refresh])
+    Effect.runPromise(
+      Effect.gen(function* () {
+        if (
+          !loading &&
+          isUserAuthenticated &&
+          needsScopeSelect &&
+          scopes.length === 1 &&
+          !autoSelecting
+        ) {
+          const p = scopes[0]
+          const orgId = p.org_id
+          const roleId = p.role_id ?? ''
+          setAutoSelecting(true)
+          const auth = yield* Authentication
+          yield* auth.selectScope(orgId, roleId)
+          setAutoSelecting(false)
+        }
+      }).pipe(
+        Effect.mapError(() => setAutoSelecting(false)),
+        Effect.provide(getApplicationLayer()),
+      ),
+    )
+  }, [
+    loading,
+    isUserAuthenticated,
+    needsScopeSelect,
+    scopes.length,
+    autoSelecting,
+  ])
 
   if (loading || autoSelecting) {
     return (
@@ -61,8 +78,8 @@ export default function DashboardScopeGuard({
       </Box>
     )
   }
-  if (user == null) return null // ProtectedRoute handles unauthenticated
-  if (needs_scope_select) {
+  if (!isUserAuthenticated) return null
+  if (needsScopeSelect) {
     return <Navigate to="/authentication/select-scope" replace />
   }
   return <>{children}</>

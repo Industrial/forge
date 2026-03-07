@@ -8,37 +8,21 @@ import Link from '@mui/material/Link'
 import TextField from '@mui/material/TextField'
 import Typography from '@mui/material/Typography'
 import { Effect } from 'effect'
-import { useCallback } from 'react'
-import { AuthenticationApi } from '../../services/AuthenticationApi'
-import { useEffect } from 'react'
-import {
-  useEffectState,
-  streamWithPendingState,
-  runStreamInto,
-  type AsyncState,
-  idle,
-  isSuccess,
-  isPending,
-  isFailure,
-} from 'react-effect-hooks'
-import { runApp } from '../../../../lib/appRuntime'
-import type { AppServices } from '../../../../lib/appLayer'
-import { effectSchemaResolver } from '../../../../lib/effectSchemaResolver'
+import { useCallback, useState } from 'react'
+
+import { getApplicationLayer } from '@/lib/appLayer'
+import { Authentication } from '@/features/authentication/services/Authentication'
+import { effectSchemaResolver } from '@/lib/effectSchemaResolver'
 import {
   registerFormSchema,
   type RegisterFormValues,
-} from '../../../../schemas/userFormSchemas'
-
-type RegisterState = AsyncState<void, Error>
+} from '@/schemas/userFormSchemas'
+import { AuthenticationError } from '../../errors/AuthenticationError'
 
 export default function RegisterPage() {
   const navigate = useNavigate()
-
-  const [submitState, , setSubmitStateAsEffect] = useEffectState<
-    RegisterState,
-    never,
-    never
-  >(idle())
+  const [submitting, setSubmitting] = useState(false)
+  const [errorMessage, setErrorMessage] = useState<string | null>(null)
 
   const form = useForm<RegisterFormValues>({
     resolver: effectSchemaResolver(
@@ -48,48 +32,31 @@ export default function RegisterPage() {
     mode: 'onChange',
   })
 
-  const registerEffect = useCallback(
-    (
-      email: string,
-      password: string,
-    ): Effect.Effect<void, Error, AppServices> =>
-      Effect.gen(function* () {
-        const api = yield* AuthenticationApi
-        yield* api.register(email, password)
-      }),
-    [],
-  )
-
   const handleSubmit = useCallback(
     (data: RegisterFormValues) => {
-      const stream = streamWithPendingState(
-        registerEffect(data.email, data.password),
+      Effect.runPromise(
+        Effect.gen(function* () {
+          const auth = yield* Authentication
+          setSubmitting(true)
+          setErrorMessage(null)
+          yield* auth.register(data.email, data.password)
+          setSubmitting(false)
+          navigate('/authentication/login', { replace: true })
+        }).pipe(
+          Effect.mapError((error) => {
+            setSubmitting(false)
+            setErrorMessage(
+              error instanceof AuthenticationError
+                ? error.message
+                : 'Registration failed',
+            )
+          }),
+          Effect.provide(getApplicationLayer()),
+        ),
       )
-      const effect = runStreamInto(stream, setSubmitStateAsEffect)
-      runApp(effect)
     },
-    [registerEffect, setSubmitStateAsEffect],
+    [navigate],
   )
-
-  useEffect(() => {
-    if (!isSuccess(submitState)) return
-    runApp(
-      Effect.gen(function* () {
-        yield* Effect.sync(() =>
-          navigate('/authentication/login', { replace: true }),
-        )
-        yield* setSubmitStateAsEffect(idle<void, Error>())
-      }),
-    )
-  }, [submitState, navigate, setSubmitStateAsEffect])
-
-  const submitting = isPending(submitState)
-  const errorMessage =
-    isFailure(submitState) && submitState.error
-      ? submitState.error instanceof Error
-        ? submitState.error.message
-        : String(submitState.error)
-      : null
 
   return (
     <>

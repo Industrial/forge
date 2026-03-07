@@ -7,22 +7,22 @@ import Typography from '@mui/material/Typography'
 import { Effect } from 'effect'
 import { Link as RouterLink, useNavigate } from 'react-router-dom'
 import { Schema } from 'effect'
-import { useCallback } from 'react'
+import { useCallback, useState } from 'react'
 import { useForm, Controller } from 'react-hook-form'
 
-import { AppLayer } from '@/lib/appLayer'
-import { AuthenticationApi } from '@/features/authentication/services/AuthenticationApi'
-import { AuthenticationStore } from '@/features/authentication/services/AuthenticationStore'
+import { Authentication } from '@/features/authentication/services/Authentication'
 import { effectSchemaResolver } from '@/lib/effectSchemaResolver'
 import {
   loginFormSchema,
   type LoginFormValues,
 } from '@/schemas/userFormSchemas'
+import { getApplicationLayer } from '@/lib/appLayer'
+import { AuthenticationError } from '../../errors/AuthenticationError'
 
 export default function LoginPage() {
-  console.log('LoginPage')
-
   const navigate = useNavigate()
+  const [submitting, setSubmitting] = useState(false)
+  const [errorMessage, setErrorMessage] = useState<string | null>(null)
 
   const form = useForm<LoginFormValues>({
     resolver: effectSchemaResolver(
@@ -39,27 +39,27 @@ export default function LoginPage() {
     (data: LoginFormValues) => {
       Effect.runPromise(
         Effect.gen(function* () {
-          const api = yield* AuthenticationApi
-          const store = yield* AuthenticationStore
-          const result = yield* api.login(data.email, data.password)
-          yield* store.setToken(result.token)
-          yield* store.fetchMe(result.token)
-          return result
-        }).pipe(Effect.provide(AppLayer)),
+          const auth = yield* Authentication
+          setSubmitting(true)
+          setErrorMessage(null)
+          yield* auth.login(data.email, data.password)
+          setSubmitting(false)
+          navigate('/', { replace: true })
+        }).pipe(
+          Effect.mapError((error) => {
+            setSubmitting(false)
+            setErrorMessage(
+              error instanceof AuthenticationError
+                ? error.message
+                : 'Login failed',
+            )
+          }),
+          Effect.provide(getApplicationLayer()),
+        ),
       )
     },
     [navigate],
   )
-
-  // const submitting = isPending(submitState)
-  const submitting = false
-  // const errorMessage =
-  //   isFailure(submitState) && submitState.error
-  //     ? submitState.error instanceof Error
-  //       ? submitState.error.message
-  //       : String(submitState.error)
-  //     : null
-  const errorMessage = null
 
   return (
     <>

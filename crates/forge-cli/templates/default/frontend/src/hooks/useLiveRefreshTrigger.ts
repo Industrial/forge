@@ -1,8 +1,9 @@
 import { useState } from 'react'
+
 import {
   useLiveUpdates,
   type ForgeWebsocketKey,
-} from '../context/ForgeWebsocketContext'
+} from '@/context/ForgeWebsocketContext'
 
 /**
  * Subscribes to live updates for a channel and exposes a trigger value that

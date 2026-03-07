@@ -4,7 +4,7 @@ import type { Flash } from './Flash'
 import type { Scope } from './Scope'
 
 /**
- * Read-only snapshot of auth state for consumers (e.g. React useAuthenticationState hook).
+ * Read-only snapshot of auth state for consumers (legacy; prefer reactive store + useAuthenticationStateReactiveStore).
  *
  * @remarks
  * No setters; all mutations go through AuthenticationStore methods. Use

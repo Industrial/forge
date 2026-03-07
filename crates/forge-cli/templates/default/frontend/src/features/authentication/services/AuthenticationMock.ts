@@ -84,6 +84,8 @@ export function createMockAuthentication(): {
   }
 
   const authentication: Authentication = {
+    restoreSession: () => Effect.void,
+
     getCurrentUser: () =>
       Option.match(state.getCurrentUserError, {
         onNone: () => Effect.succeed(state.user),
@@ -103,6 +105,8 @@ export function createMockAuthentication(): {
         },
         onSome: (e) => Effect.fail(e),
       }),
+
+    register: (_email: string, _password: string) => Effect.void,
 
     logout: () =>
       Effect.sync(() => {

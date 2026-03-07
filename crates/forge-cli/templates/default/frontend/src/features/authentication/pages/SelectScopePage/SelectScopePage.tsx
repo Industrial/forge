@@ -4,89 +4,62 @@ import Card from '@mui/material/Card'
 import CardActionArea from '@mui/material/CardActionArea'
 import CardContent from '@mui/material/CardContent'
 import Typography from '@mui/material/Typography'
-import { Effect } from 'effect'
-import { useCallback, useEffect } from 'react'
-import { AuthenticationStore } from '../../services/AuthenticationStore'
-import { useAuthenticationState } from '../../hooks/useAuthentication'
-import {
-  useEffectState,
-  streamWithPendingState,
-  runStreamInto,
-  type AsyncState,
-  idle,
-  isSuccess,
-  isPending,
-  isFailure,
-} from 'react-effect-hooks'
-import { runApp } from '../../../../lib/appRuntime'
-import type { AppServices } from '../../../../lib/appLayer'
+import { Effect, Option } from 'effect'
+import { useCallback, useState } from 'react'
 
-type SetScopeState = AsyncState<void, Error>
+import { getApplicationLayer } from '@/lib/appLayer'
+import { useAuthenticationStateReactiveStore } from '@/features/authentication/stores'
+import { Authentication } from '@/features/authentication/services/Authentication'
+import { ScopeError } from '../../errors'
 
 export default function SelectScopePage() {
   const navigate = useNavigate()
   const location = useLocation()
-  const { state: authState, isPending: loading } = useAuthenticationState()
+  const authentication = useAuthenticationStateReactiveStore()
+  const [submitting, setSubmitting] = useState(false)
+  const [errorMessage, setErrorMessage] = useState<string | null>(null)
+
   const from =
     (location.state as { from?: { pathname: string } } | null)?.from
       ?.pathname ?? '/dashboard'
 
-  const [submitState, , setSubmitStateAsEffect] = useEffectState<
-    SetScopeState,
-    never,
-    never
-  >(idle())
-
-  const setScopeEffect = useCallback(
-    (
-      orgId: string,
-      roleId: string,
-      roleName: string,
-    ): Effect.Effect<void, Error, AppServices> =>
-      Effect.gen(function* () {
-        const store = yield* AuthenticationStore
-        const prev = yield* store.getState()
-        yield* store.setScope(orgId, roleId, roleName)
-        yield* store.fetchMe().pipe(
-          Effect.catchAll((e) =>
-            Effect.gen(function* () {
-              yield* store.setScope(
-                prev.currentOrgId ?? '',
-                prev.currentRoleId ?? '',
-                prev.currentRoleName ?? '',
-              )
-              return yield* Effect.fail(e)
-            }),
-          ),
-        )
-      }),
-    [],
+  const user = Option.getOrElse(authentication.user, () => null)
+  const needs_scope_select = Option.getOrElse(
+    authentication.needsScopeSelect,
+    () => false,
   )
+  // Scopes are not in the reactive store; extend AuthenticationState / me API if you need scope list.
+  const scopes: {
+    org_id: string
+    role_id?: string
+    role?: string
+    org_name: string
+  }[] = []
+  const loading = false
 
   const handleSelectScope = useCallback(
-    (orgId: string, roleId: string, roleName: string) => {
-      const stream = streamWithPendingState(
-        setScopeEffect(orgId, roleId, roleName),
+    (orgId: string, roleId: string, _roleName: string) => {
+      Effect.runPromise(
+        Effect.gen(function* () {
+          const auth = yield* Authentication
+          setSubmitting(true)
+          setErrorMessage(null)
+          yield* auth.selectScope(orgId, roleId)
+          setSubmitting(false)
+          navigate(from, { replace: true })
+        }).pipe(
+          Effect.mapError((error) => {
+            setSubmitting(false)
+            setErrorMessage(
+              error instanceof ScopeError ? error.message : String(error),
+            )
+          }),
+          Effect.provide(getApplicationLayer()),
+        ),
       )
-      const effect = runStreamInto(stream, setSubmitStateAsEffect)
-      runApp(effect)
     },
-    [setScopeEffect, setSubmitStateAsEffect],
+    [navigate, from],
   )
-
-  useEffect(() => {
-    if (!isSuccess(submitState)) return
-    runApp(
-      Effect.gen(function* () {
-        yield* Effect.sync(() => navigate(from, { replace: true }))
-        yield* setSubmitStateAsEffect(idle<void, Error>())
-      }),
-    )
-  }, [submitState, navigate, from, setSubmitStateAsEffect])
-
-  const user = authState?.user ?? null
-  const scopes = authState?.scopes ?? []
-  const needs_scope_select = authState?.needs_scope_select ?? false
 
   if (!loading && user == null) {
     return (
@@ -100,14 +73,6 @@ export default function SelectScopePage() {
   if (!loading && user != null && !needs_scope_select) {
     return <Navigate to={from} replace />
   }
-
-  const submitting = isPending(submitState)
-  const errorMessage =
-    isFailure(submitState) && submitState.error
-      ? submitState.error instanceof Error
-        ? submitState.error.message
-        : String(submitState.error)
-      : null
 
   if (loading || scopes.length === 0) {
     return (

@@ -1,3 +1,14 @@
+import {
+  useEffectState,
+  streamWithPendingState,
+  runStreamInto,
+  type AsyncState,
+  idle,
+  success as asyncSuccess,
+  isSuccess,
+  isFailure,
+  isPending,
+} from 'react-effect-hooks'
 import { useEffect, useState } from 'react'
 import { useForm, Controller } from 'react-hook-form'
 import Box from '@mui/material/Box'
@@ -17,42 +28,31 @@ import Select from '@mui/material/Select'
 import MenuItem from '@mui/material/MenuItem'
 import Alert from '@mui/material/Alert'
 import FormControlLabel from '@mui/material/FormControlLabel'
-import FormDialog from '../../../../components/FormDialog'
 import Checkbox from '@mui/material/Checkbox'
-import PageHeader from '../../../../components/PageHeader'
-import TableEmptyRow from '../../../../components/TableEmptyRow'
-import UsersFilters from '../../components/UsersFilters'
-import UserTableRow from '../../components/UserTableRow'
-import ErrorAlert from '../../../../components/ErrorAlert'
-import LoadingSpinner from '../../../../components/LoadingSpinner'
-import { useLiveRefreshTrigger } from '../../../../hooks/useLiveRefreshTrigger'
-import { usePermission } from '../../../../hooks/usePermission'
 import { Effect, Schema } from 'effect'
-import { runApp } from '../../../../lib/appRuntime'
-import {
-  useEffectState,
-  streamWithPendingState,
-  runStreamInto,
-  type AsyncState,
-  idle,
-  success as asyncSuccess,
-  isSuccess,
-  isFailure,
-  isPending,
-} from 'react-effect-hooks'
-import { effectSchemaResolver } from '../../../../lib/effectSchemaResolver'
+
+import FormDialog from '@/components/FormDialog'
+import PageHeader from '@/components/PageHeader'
+import TableEmptyRow from '@/components/TableEmptyRow'
+import UsersFilters from '@/features/dashboard/components/UsersFilters'
+import UserTableRow from '@/features/dashboard/components/UserTableRow'
+import ErrorAlert from '@/components/ErrorAlert'
+import LoadingSpinner from '@/components/LoadingSpinner'
+import { useLiveRefreshTrigger } from '@/hooks/useLiveRefreshTrigger'
+import { usePermission } from '@/hooks/usePermission'
+import { getApplicationLayer } from '@/lib/appLayer'
+import { effectSchemaResolver } from '@/lib/effectSchemaResolver'
 import {
   userAddFormSchemaStrict,
   userEditFormSchema,
   type UserAddFormValuesStrict,
   type UserEditFormValues,
-} from '../../../../schemas/userFormSchemas'
-import type { AppServices } from '../../../../lib/appLayer'
-import type { User } from '../../domain/User'
-import type { Organization } from '../../domain/Organization'
-import type { DashboardRole } from '../../domain/DashboardRole'
-import { Users } from '../../services/Users'
-import { Dashboard } from '../../services/Dashboard'
+} from '@/schemas/userFormSchemas'
+import type { User } from '@/features/dashboard/domain/User'
+import type { Organization } from '@/features/dashboard/domain/Organization'
+import type { DashboardRole } from '@/features/dashboard/domain/DashboardRole'
+import { Users } from '@/features/dashboard/services/Users'
+import { Dashboard } from '@/features/dashboard/services/Dashboard'
 
 const USERS_READ = 'dashboard.users.read'
 const USERS_WRITE = 'dashboard.users.write'
@@ -138,7 +138,7 @@ export default function UsersPage() {
     const effect = canRead
       ? runStreamInto(refreshEffect, setListStateAsEffect)
       : Effect.sync(() => setListState(idle()))
-    runApp(effect)
+    Effect.runPromise(effect.pipe(Effect.provide(getApplicationLayer())))
   }, [liveRefreshTrigger, setListStateAsEffect, canRead])
 
   const listOrgsEffect = Effect.gen(function* () {
@@ -152,7 +152,7 @@ export default function UsersPage() {
           setOrgListStateAsEffect,
         )
       : Effect.sync(() => setOrgListState(idle()))
-    runApp(effect)
+    Effect.runPromise(effect.pipe(Effect.provide(getApplicationLayer())))
   }, [setOrgListStateAsEffect, canRead])
 
   useEffect(() => {
@@ -163,7 +163,7 @@ export default function UsersPage() {
           yield* setOrgRolesAsEffect(roles)
         })
       : setOrgRolesAsEffect([])
-    runApp(effect)
+    Effect.runPromise(effect.pipe(Effect.provide(getApplicationLayer())))
   }, [addFormOrgId, setOrgRolesAsEffect])
 
   useEffect(() => {
@@ -187,11 +187,11 @@ export default function UsersPage() {
     })
 
   const handleAdd = (data: UserAddFormValuesStrict) => {
-    runApp(
+    Effect.runPromise(
       runStreamInto(
         streamWithPendingState(createThenList(data)),
         setAddStateAsEffect,
-      ),
+      ).pipe(Effect.provide(getApplicationLayer())),
     )
   }
 
@@ -214,11 +214,11 @@ export default function UsersPage() {
 
   const handleSaveEdit = (data: UserEditFormValues) => {
     if (!editUser) return
-    runApp(
+    Effect.runPromise(
       runStreamInto(
         streamWithPendingState(updateThenList(data)),
         setUpdateStateAsEffect,
-      ),
+      ).pipe(Effect.provide(getApplicationLayer())),
     )
   }
 
@@ -231,17 +231,17 @@ export default function UsersPage() {
 
   const handleDelete = (id: string) => {
     setDeletingId(id)
-    runApp(
+    Effect.runPromise(
       runStreamInto(
         streamWithPendingState(deleteThenList(id)),
         setDeleteStateAsEffect,
-      ),
+      ).pipe(Effect.provide(getApplicationLayer())),
     )
   }
 
   useEffect(() => {
     if (!isSuccess(addState)) return
-    runApp(
+    Effect.runPromise(
       Effect.gen(function* () {
         yield* setListStateAsEffect(asyncSuccess(addState.value))
         yield* Effect.sync(() => {
@@ -254,29 +254,29 @@ export default function UsersPage() {
           setAddDialogOpen(false)
         })
         yield* setAddStateAsEffect(idle())
-      }),
+      }).pipe(Effect.provide(getApplicationLayer())),
     )
   }, [addState])
 
   useEffect(() => {
     if (!isSuccess(updateState)) return
-    runApp(
+    Effect.runPromise(
       Effect.gen(function* () {
         yield* setListStateAsEffect(asyncSuccess(updateState.value))
         yield* Effect.sync(() => setEditUser(null))
         yield* setUpdateStateAsEffect(idle())
-      }),
+      }).pipe(Effect.provide(getApplicationLayer())),
     )
   }, [updateState])
 
   useEffect(() => {
     if (!isSuccess(deleteState)) return
-    runApp(
+    Effect.runPromise(
       Effect.gen(function* () {
         yield* setListStateAsEffect(asyncSuccess(deleteState.value))
         yield* Effect.sync(() => setDeletingId(null))
         yield* setDeleteStateAsEffect(idle())
-      }),
+      }).pipe(Effect.provide(getApplicationLayer())),
     )
   }, [deleteState])
 
@@ -330,13 +330,13 @@ export default function UsersPage() {
         <ErrorAlert
           message={error}
           onClose={() => {
-            runApp(
+            Effect.runPromise(
               Effect.gen(function* () {
                 yield* runStreamInto(refreshEffect, setListStateAsEffect)
                 yield* setAddStateAsEffect(idle())
                 yield* setUpdateStateAsEffect(idle())
                 yield* setDeleteStateAsEffect(idle())
-              }),
+              }).pipe(Effect.provide(getApplicationLayer())),
             )
           }}
         />

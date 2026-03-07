@@ -1,6 +1,8 @@
 import React from 'react'
 import { Navigate } from 'react-router-dom'
-import { useAuthentication } from '../../../context/AuthenticationContext'
+import { Option } from 'effect'
+
+import { useAuthenticationStateReactiveStore } from '@/features/authentication/stores'
 
 type SelectScopeOnlyGuardProps = { children: React.ReactNode }
 
@@ -13,10 +15,21 @@ type SelectScopeOnlyGuardProps = { children: React.ReactNode }
 export default function SelectScopeOnlyGuard({
   children,
 }: SelectScopeOnlyGuardProps) {
-  const { user, needs_scope_select, loading } = useAuthentication()
+  const authentication = useAuthenticationStateReactiveStore()
+  const user = Option.getOrElse(authentication.user, () => null)
+  const needs_scope_select = Option.getOrElse(
+    authentication.needsScopeSelect,
+    () => false,
+  )
+  const loading = false
 
-  if (loading) return null
-  if (user == null) return null // ProtectedRoute handles unauthenticated
+  if (loading) {
+    return null
+  }
+  // ProtectedRoute handles unauthenticated
+  if (user == null) {
+    return null
+  }
   if (!needs_scope_select) {
     return <Navigate to="/dashboard" replace />
   }

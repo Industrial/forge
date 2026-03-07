@@ -93,8 +93,7 @@ export const AuthenticationLive = Layer.effect(
           const tokenOpt = yield* tokenStorage.getToken()
           yield* Option.match(tokenOpt, {
             onNone: () => Effect.void,
-            onSome: (token) =>
-              fetchMeAndUpdate(token).pipe(Effect.asVoid),
+            onSome: (token) => fetchMeAndUpdate(token).pipe(Effect.asVoid),
           })
         }).pipe(Effect.catchAll(() => Effect.void)),
 
@@ -180,6 +179,47 @@ export const AuthenticationLive = Layer.effect(
             }),
           )
         }).pipe(Effect.flatten),
+
+      register: (
+        email: string,
+        password: string,
+      ): Effect.Effect<void, AuthenticationError, never> =>
+        Effect.gen(function* () {
+          const url = `${baseUrl}/api/auth/register`
+          const req = HttpClientRequest.post(url).pipe(
+            HttpClientRequest.bodyUnsafeJson({ email, password }),
+          )
+          const response = yield* client.execute(req).pipe(
+            Effect.mapError(
+              (e) =>
+                new AuthenticationError({
+                  message: e instanceof Error ? e.message : String(e),
+                  cause: e,
+                }),
+            ),
+          )
+          const body = yield* response.json.pipe(
+            Effect.mapError(
+              (e) =>
+                new AuthenticationError({
+                  message:
+                    e instanceof Error ? e.message : 'Invalid response body',
+                  cause: e,
+                }),
+            ),
+          )
+          const ok = response.status >= 200 && response.status < 300
+          if (!ok) {
+            const message =
+              body != null &&
+              typeof body === 'object' &&
+              'message' in body &&
+              typeof (body as { message: unknown }).message === 'string'
+                ? (body as { message: string }).message
+                : 'Registration failed'
+            return yield* Effect.fail(new AuthenticationError({ message }))
+          }
+        }),
 
       logout: (): Effect.Effect<void, never, never> =>
         Effect.gen(function* () {

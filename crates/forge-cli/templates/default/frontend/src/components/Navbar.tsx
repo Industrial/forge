@@ -14,7 +14,10 @@ import Toolbar from '@mui/material/Toolbar'
 import { useNavigate } from 'react-router-dom'
 import { useState } from 'react'
 
-import { AuthenticationStateReactiveStoreTag, initialAuthenticationState } from '@/features/authentication/stores'
+import {
+  AuthenticationStateReactiveStoreTag,
+  initialAuthenticationState,
+} from '@/features/authentication/stores'
 import { useReactiveStore } from '@/lib/ReactiveStore'
 
 type NavbarProps = {

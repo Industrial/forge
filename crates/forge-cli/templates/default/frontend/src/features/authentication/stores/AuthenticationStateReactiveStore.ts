@@ -22,8 +22,11 @@ export const initialAuthenticationState: AuthenticationState = {
 
 const {
   tag: AuthenticationStateReactiveStoreTag,
-  layer: authenticationStateStoreLayer
-} = makeReactiveStore('@forge/AuthenticationStateReactiveStore', initialAuthenticationState)
+  layer: authenticationStateStoreLayer,
+} = makeReactiveStore(
+  '@forge/AuthenticationStateReactiveStore',
+  initialAuthenticationState,
+)
 
 export { AuthenticationStateReactiveStoreTag }
 
@@ -37,4 +40,3 @@ export type AuthenticationStateReactiveStore =
 export function getAuthenticationStateStoreLayer() {
   return authenticationStateStoreLayer
 }
-

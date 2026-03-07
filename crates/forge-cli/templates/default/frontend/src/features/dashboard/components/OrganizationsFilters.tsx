@@ -1,5 +1,6 @@
 import TextField from '@mui/material/TextField'
-import FiltersPanel from '../../../components/FiltersPanel'
+
+import FiltersPanel from '@/components/FiltersPanel'
 
 export type OrganizationsFiltersProps = {
   filterName: string

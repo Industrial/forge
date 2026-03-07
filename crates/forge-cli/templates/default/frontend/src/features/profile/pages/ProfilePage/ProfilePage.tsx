@@ -1,11 +1,28 @@
+import { useState } from 'react'
 import Box from '@mui/material/Box'
 import Button from '@mui/material/Button'
 import Typography from '@mui/material/Typography'
-import PageHeader from '../../../../components/PageHeader'
-import { useAuthentication } from '../../../../context/AuthenticationContext'
+import { Effect, Option } from 'effect'
+import PageHeader from '@/components/PageHeader'
+import { getApplicationLayer } from '@/lib/appLayer'
+import { useAuthenticationStateReactiveStore } from '@/features/authentication/stores'
+import { Authentication } from '@/features/authentication/services/Authentication'
 
 export default function ScopePage() {
-  const { user, logout, loading } = useAuthentication()
+  const authentication = useAuthenticationStateReactiveStore()
+  const user = Option.getOrElse(authentication.user, () => null)
+  const [loggingOut, setLoggingOut] = useState(false)
+
+  const handleLogout = () => {
+    Effect.runPromise(
+      Effect.gen(function* () {
+        const auth = yield* Authentication
+        setLoggingOut(true)
+        yield* auth.logout()
+        setLoggingOut(false)
+      }).pipe(Effect.provide(getApplicationLayer())),
+    )
+  }
 
   return (
     <>
@@ -17,8 +34,8 @@ export default function ScopePage() {
             <Button
               type="button"
               variant="outlined"
-              onClick={() => logout()}
-              disabled={loading}
+              onClick={handleLogout}
+              disabled={loggingOut}
             >
               Log out
             </Button>

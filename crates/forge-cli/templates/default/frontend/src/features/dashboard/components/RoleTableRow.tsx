@@ -3,7 +3,8 @@ import TableRow from '@mui/material/TableRow'
 import IconButton from '@mui/material/IconButton'
 import EditIcon from '@mui/icons-material/Edit'
 import DeleteIcon from '@mui/icons-material/Delete'
-import type { Role } from '../domain/Role'
+
+import type { Role } from '@/features/dashboard/domain/Role'
 
 export type RoleTableRowProps = {
   role: Role

@@ -31,6 +31,12 @@ export interface Authentication {
     password: string,
   ) => Effect.Effect<AuthenticationUser, AuthenticationError, never>
 
+  /** Register with email/password. Does not log in; use login after. */
+  readonly register: (
+    email: string,
+    password: string,
+  ) => Effect.Effect<void, AuthenticationError, never>
+
   /** Clear session (storage, ref, reactive store). */
   readonly logout: () => Effect.Effect<void, never, never>
 

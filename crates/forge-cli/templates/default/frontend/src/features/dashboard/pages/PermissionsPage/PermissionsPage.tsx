@@ -10,8 +10,6 @@ import {
   isFailure,
   isPending,
 } from 'react-effect-hooks'
-import { runApp } from '../../../../lib/appRuntime'
-import type { AppServices } from '../../../../lib/appLayer'
 import { Effect } from 'effect'
 import Table from '@mui/material/Table'
 import TableBody from '@mui/material/TableBody'
@@ -21,19 +19,21 @@ import TableHead from '@mui/material/TableHead'
 import TableRow from '@mui/material/TableRow'
 import TablePagination from '@mui/material/TablePagination'
 import Paper from '@mui/material/Paper'
-import PageHeader from '../../../../components/PageHeader'
-import TableEmptyRow from '../../../../components/TableEmptyRow'
-import PermissionsAddBar from '../../components/PermissionsAddBar'
-import AssignmentTableRow from '../../components/AssignmentTableRow'
-import ErrorAlert from '../../../../components/ErrorAlert'
-import LoadingSpinner from '../../../../components/LoadingSpinner'
-import { useLiveRefreshTrigger } from '../../../../hooks/useLiveRefreshTrigger'
-import { useTablePaginationDefaults } from '../../../../hooks/useTablePaginationDefaults'
-import type { Assignment } from '../../domain/Assignment'
+
+import { getApplicationLayer } from '@/lib/appLayer'
+import PageHeader from '@/components/PageHeader'
+import TableEmptyRow from '@/components/TableEmptyRow'
+import PermissionsAddBar from '@/features/dashboard/components/PermissionsAddBar'
+import AssignmentTableRow from '@/features/dashboard/components/AssignmentTableRow'
+import ErrorAlert from '@/components/ErrorAlert'
+import LoadingSpinner from '@/components/LoadingSpinner'
+import { useLiveRefreshTrigger } from '@/hooks/useLiveRefreshTrigger'
+import { useTablePaginationDefaults } from '@/hooks/useTablePaginationDefaults'
+import type { Assignment } from '@/features/dashboard/domain/Assignment'
 import {
   Permissions as PermissionsService,
   type PermissionsData,
-} from '../../services/Permissions'
+} from '@/features/dashboard/services/Permissions'
 
 const ORG_ROLES = ['owner', 'admin', 'editor', 'viewer'] as const
 const GLOBAL_ROLES = ['platform_admin'] as const
@@ -99,29 +99,29 @@ export default function PermissionsPage() {
   })
 
   useEffect(() => {
-    runApp(refreshEffect)
+    Effect.runPromise(refreshEffect.pipe(Effect.provide(getApplicationLayer())))
   }, [liveRefreshTrigger, setListStateAsEffect])
 
   // On add success: copy to listState and reset add state
   useEffect(() => {
     if (!isSuccess(addState)) return
-    runApp(
+    Effect.runPromise(
       Effect.gen(function* () {
         yield* setListStateAsEffect(asyncSuccess(addState.value))
         yield* setAddStateAsEffect(idle())
-      }),
+      }).pipe(Effect.provide(getApplicationLayer())),
     )
   }, [addState, setListStateAsEffect, setAddStateAsEffect])
 
   // On delete success: copy to listState, clear deletingKey, reset delete state
   useEffect(() => {
     if (!isSuccess(deleteState)) return
-    runApp(
+    Effect.runPromise(
       Effect.gen(function* () {
         yield* setListStateAsEffect(asyncSuccess(deleteState.value))
         yield* Effect.sync(() => setDeletingKey(null))
         yield* setDeleteStateAsEffect(idle())
-      }),
+      }).pipe(Effect.provide(getApplicationLayer())),
     )
   }, [deleteState, setListStateAsEffect, setDeleteStateAsEffect])
 
@@ -155,8 +155,11 @@ export default function PermissionsPage() {
       })
       return yield* permissions.getData()
     })
-    runApp(
-      runStreamInto(streamWithPendingState(addThenList), setAddStateAsEffect),
+    Effect.runPromise(
+      runStreamInto(
+        streamWithPendingState(addThenList),
+        setAddStateAsEffect,
+      ).pipe(Effect.provide(getApplicationLayer())),
     )
   }
 
@@ -175,11 +178,11 @@ export default function PermissionsPage() {
       })
       return yield* permissions.getData()
     })
-    runApp(
+    Effect.runPromise(
       runStreamInto(
         streamWithPendingState(deleteThenList),
         setDeleteStateAsEffect,
-      ),
+      ).pipe(Effect.provide(getApplicationLayer())),
     )
   }
 
@@ -217,7 +220,9 @@ export default function PermissionsPage() {
         <ErrorAlert
           message={errorMessage}
           onClose={() => {
-            runApp(refreshEffect)
+            Effect.runPromise(
+              refreshEffect.pipe(Effect.provide(getApplicationLayer())),
+            )
           }}
         />
       )}

@@ -74,9 +74,7 @@ export function makeReactiveStore<A>(
 }
 
 /** Run an effect to completion (e.g. at the boundary with the app layer). */
-export type RunEffect = <A, E, R>(
-  effect: Effect.Effect<A, E, R>,
-) => Promise<A>
+export type RunEffect = <A, E, R>(effect: Effect.Effect<A, E, R>) => Promise<A>
 
 /** Run an effect in the background; returns a fiber (interrupt to cancel). */
 export type RunFork = <A, E, R>(

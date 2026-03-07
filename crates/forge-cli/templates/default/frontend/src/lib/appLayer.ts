@@ -69,8 +69,9 @@ export type AppServices =
   | ReactiveStore<AuthenticationState>
 
 /** Logger layer: sets minimum log level to Trace. */
-const LoggerLayer: Layer.Layer<never, never, never> =
-  Logger.minimumLogLevel(LogLevel.Trace)
+const LoggerLayer: Layer.Layer<never, never, never> = Logger.minimumLogLevel(
+  LogLevel.Trace,
+)
 
 /**
  * Plain HTTP client layer (no auth headers).
@@ -119,14 +120,9 @@ export function buildApplicationLayer() {
     RolesLive,
     UsersLive,
     DashboardLive,
-  )
-    .pipe(Layer.provide(BaseLayer))
+  ).pipe(Layer.provide(BaseLayer))
 
-  const result = Layer.mergeAll(
-    BaseLayer,
-    DashboardServicesLayer,
-    LoggerLayer,
-  )
+  const result = Layer.mergeAll(BaseLayer, DashboardServicesLayer, LoggerLayer)
 
   return result
 }

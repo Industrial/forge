@@ -10,8 +10,6 @@ import {
   isFailure,
   isPending,
 } from 'react-effect-hooks'
-import { runApp } from '../../../../lib/appRuntime'
-import type { AppServices } from '../../../../lib/appLayer'
 import { Effect } from 'effect'
 import Box from '@mui/material/Box'
 import Button from '@mui/material/Button'
@@ -24,21 +22,23 @@ import TableHead from '@mui/material/TableHead'
 import TableRow from '@mui/material/TableRow'
 import Paper from '@mui/material/Paper'
 import AddIcon from '@mui/icons-material/Add'
-import FormDialog from '../../../../components/FormDialog'
-import TableEmptyRow from '../../../../components/TableEmptyRow'
-import RoleTableRow from '../../components/RoleTableRow'
 import FormControl from '@mui/material/FormControl'
 import InputLabel from '@mui/material/InputLabel'
 import Select from '@mui/material/Select'
 import MenuItem from '@mui/material/MenuItem'
-import PageHeader from '../../../../components/PageHeader'
-import ErrorAlert from '../../../../components/ErrorAlert'
-import LoadingSpinner from '../../../../components/LoadingSpinner'
-import { useLiveRefreshTrigger } from '../../../../hooks/useLiveRefreshTrigger'
-import type { Role } from '../../domain/Role'
-import type { Organization } from '../../domain/Organization'
-import { Roles as RolesService } from '../../services/Roles'
-import { Dashboard } from '../../services/Dashboard'
+
+import { getApplicationLayer } from '@/lib/appLayer'
+import FormDialog from '@/components/FormDialog'
+import TableEmptyRow from '@/components/TableEmptyRow'
+import RoleTableRow from '@/features/dashboard/components/RoleTableRow'
+import PageHeader from '@/components/PageHeader'
+import ErrorAlert from '@/components/ErrorAlert'
+import LoadingSpinner from '@/components/LoadingSpinner'
+import { useLiveRefreshTrigger } from '@/hooks/useLiveRefreshTrigger'
+import type { Role } from '@/features/dashboard/domain/Role'
+import type { Organization } from '@/features/dashboard/domain/Organization'
+import { Roles as RolesService } from '@/features/dashboard/services/Roles'
+import { Dashboard } from '@/features/dashboard/services/Dashboard'
 
 type ListState = AsyncState<readonly Role[], Error>
 
@@ -115,7 +115,7 @@ export default function RolesPage() {
   })
 
   useEffect(() => {
-    runApp(refreshEffect)
+    Effect.runPromise(refreshEffect.pipe(Effect.provide(getApplicationLayer())))
   }, [liveRefreshTrigger, setListStateAsEffect])
 
   const listOrgsEffect = Effect.gen(function* () {
@@ -128,13 +128,13 @@ export default function RolesPage() {
   })
 
   useEffect(() => {
-    runApp(orgsEffect)
+    Effect.runPromise(orgsEffect.pipe(Effect.provide(getApplicationLayer())))
   }, [setOrgListStateAsEffect])
 
   // On add success: copy to listState, close add dialog, reset form, reset add state
   useEffect(() => {
     if (!isSuccess(addState)) return
-    runApp(
+    Effect.runPromise(
       Effect.gen(function* () {
         yield* setListStateAsEffect(asyncSuccess(addState.value))
         yield* Effect.sync(() => {
@@ -144,31 +144,31 @@ export default function RolesPage() {
           setAddOrgId(organizations[0]?.id ?? '')
         })
         yield* setAddStateAsEffect(idle())
-      }),
+      }).pipe(Effect.provide(getApplicationLayer())),
     )
   }, [addState, setListStateAsEffect, setAddStateAsEffect, organizations])
 
   // On update success: copy to listState, close edit dialog, reset update state
   useEffect(() => {
     if (!isSuccess(updateState)) return
-    runApp(
+    Effect.runPromise(
       Effect.gen(function* () {
         yield* setListStateAsEffect(asyncSuccess(updateState.value))
         yield* Effect.sync(() => setEditRole(null))
         yield* setUpdateStateAsEffect(idle())
-      }),
+      }).pipe(Effect.provide(getApplicationLayer())),
     )
   }, [updateState, setListStateAsEffect, setUpdateStateAsEffect])
 
   // On delete success: copy to listState, clear deletingId, reset delete state
   useEffect(() => {
     if (!isSuccess(deleteState)) return
-    runApp(
+    Effect.runPromise(
       Effect.gen(function* () {
         yield* setListStateAsEffect(asyncSuccess(deleteState.value))
         yield* Effect.sync(() => setDeletingId(null))
         yield* setDeleteStateAsEffect(idle())
-      }),
+      }).pipe(Effect.provide(getApplicationLayer())),
     )
   }, [deleteState, setListStateAsEffect, setDeleteStateAsEffect])
 
@@ -185,8 +185,11 @@ export default function RolesPage() {
       })
       return yield* roles.list()
     })
-    runApp(
-      runStreamInto(streamWithPendingState(addThenList), setAddStateAsEffect),
+    Effect.runPromise(
+      runStreamInto(
+        streamWithPendingState(addThenList),
+        setAddStateAsEffect,
+      ).pipe(Effect.provide(getApplicationLayer())),
     )
   }
 
@@ -207,11 +210,11 @@ export default function RolesPage() {
       })
       return yield* roles.list()
     })
-    runApp(
+    Effect.runPromise(
       runStreamInto(
         streamWithPendingState(updateThenList),
         setUpdateStateAsEffect,
-      ),
+      ).pipe(Effect.provide(getApplicationLayer())),
     )
   }
 
@@ -222,11 +225,11 @@ export default function RolesPage() {
       yield* roles.delete(id)
       return yield* roles.list()
     })
-    runApp(
+    Effect.runPromise(
       runStreamInto(
         streamWithPendingState(deleteThenList),
         setDeleteStateAsEffect,
-      ),
+      ).pipe(Effect.provide(getApplicationLayer())),
     )
   }
 
@@ -242,7 +245,9 @@ export default function RolesPage() {
         <ErrorAlert
           message={errorMessage}
           onClose={() => {
-            runApp(refreshEffect)
+            Effect.runPromise(
+              refreshEffect.pipe(Effect.provide(getApplicationLayer())),
+            )
           }}
         />
       )}

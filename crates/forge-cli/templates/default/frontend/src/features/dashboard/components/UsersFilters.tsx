@@ -3,7 +3,8 @@ import FormControl from '@mui/material/FormControl'
 import InputLabel from '@mui/material/InputLabel'
 import MenuItem from '@mui/material/MenuItem'
 import Select from '@mui/material/Select'
-import FiltersPanel from '../../../components/FiltersPanel'
+
+import FiltersPanel from '@/components/FiltersPanel'
 
 export type OrgOption = { id: string; name: string }
 

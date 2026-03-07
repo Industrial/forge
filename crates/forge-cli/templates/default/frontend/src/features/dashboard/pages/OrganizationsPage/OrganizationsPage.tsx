@@ -9,19 +9,6 @@ import TableHead from '@mui/material/TableHead'
 import TableRow from '@mui/material/TableRow'
 import Paper from '@mui/material/Paper'
 import AddIcon from '@mui/icons-material/Add'
-import FormDialog from '../../../../components/FormDialog'
-import LoadingSpinner from '../../../../components/LoadingSpinner'
-import EmptyState from '../../../../components/EmptyState'
-import PageHeader from '../../../../components/PageHeader'
-import ErrorAlert from '../../../../components/ErrorAlert'
-import { useEntitySubscription } from '../../../../hooks/useEntitySubscription'
-import { useLiveRefreshTrigger } from '../../../../hooks/useLiveRefreshTrigger'
-import { usePermission } from '../../../../hooks/usePermission'
-import { useIsMobile } from '../../../../hooks/useIsMobile'
-import OrganizationsFilters from '../../components/OrganizationsFilters'
-import OrganizationCard from '../../components/OrganizationCard'
-import OrganizationTableRow from '../../components/OrganizationTableRow'
-import { useOrganizationsFilter } from '../../hooks/useOrganizationsFilter'
 import { useEffect } from 'react'
 import {
   useEffectState,
@@ -34,11 +21,24 @@ import {
   isFailure,
   isPending,
 } from 'react-effect-hooks'
-import { runApp } from '../../../../lib/appRuntime'
-import type { AppServices } from '../../../../lib/appLayer'
 import { Effect } from 'effect'
-import { EntityApi } from '../../../../services/EntityApi'
-import { Organization } from '../../domain/Organization'
+
+import FormDialog from '@/components/FormDialog'
+import LoadingSpinner from '@/components/LoadingSpinner'
+import EmptyState from '@/components/EmptyState'
+import PageHeader from '@/components/PageHeader'
+import ErrorAlert from '@/components/ErrorAlert'
+import { useEntitySubscription } from '@/hooks/useEntitySubscription'
+import { useLiveRefreshTrigger } from '@/hooks/useLiveRefreshTrigger'
+import { usePermission } from '@/hooks/usePermission'
+import { useIsMobile } from '@/hooks/useIsMobile'
+import OrganizationsFilters from '@/features/dashboard/components/OrganizationsFilters'
+import OrganizationCard from '@/features/dashboard/components/OrganizationCard'
+import OrganizationTableRow from '@/features/dashboard/components/OrganizationTableRow'
+import { useOrganizationsFilter } from '@/features/dashboard/hooks/useOrganizationsFilter'
+import { getApplicationLayer, type AppServices } from '@/lib/appLayer'
+import { EntityApi } from '@/services/EntityApi'
+import { Organization } from '@/features/dashboard/domain/Organization'
 
 const ENTITY_ID = 'organization'
 const ORG_WRITE = 'dashboard.organizations.write'
@@ -170,7 +170,7 @@ export default function OrganizationsPage() {
   })
 
   useEntitySubscription(ENTITY_ID, undefined, () => {
-    runApp(refreshEffect)
+    Effect.runPromise(refreshEffect.pipe(Effect.provide(getApplicationLayer())))
   })
 
   const [addDialogOpen, setAddDialogOpen, setAddDialogOpenAsEffect] =
@@ -199,7 +199,7 @@ export default function OrganizationsPage() {
   const handleAdd = () => {
     const name = addName.trim()
     if (!name) return
-    runApp(
+    Effect.runPromise(
       runStreamInto(
         streamWithPendingState(
           Effect.gen(function* () {
@@ -215,7 +215,7 @@ export default function OrganizationsPage() {
           }),
         ),
         setCreateStateAsEffect,
-      ),
+      ).pipe(Effect.provide(getApplicationLayer())),
     )
   }
 
@@ -227,7 +227,7 @@ export default function OrganizationsPage() {
 
   const handleSaveEdit = () => {
     if (!editOrg) return
-    runApp(
+    Effect.runPromise(
       runStreamInto(
         streamWithPendingState(
           Effect.gen(function* () {
@@ -243,13 +243,13 @@ export default function OrganizationsPage() {
           }),
         ),
         setUpdateStateAsEffect,
-      ),
+      ).pipe(Effect.provide(getApplicationLayer())),
     )
   }
 
   const handleDelete = (id: string) => {
     setDeletingId(id)
-    runApp(
+    Effect.runPromise(
       runStreamInto(
         streamWithPendingState(
           Effect.gen(function* () {
@@ -262,42 +262,42 @@ export default function OrganizationsPage() {
           }),
         ),
         setDeleteStateAsEffect,
-      ),
+      ).pipe(Effect.provide(getApplicationLayer())),
     )
   }
 
   const handleClearError = () => {
-    runApp(
+    Effect.runPromise(
       Effect.gen(function* () {
         yield* setCreateStateAsEffect(idle())
         yield* setUpdateStateAsEffect(idle())
         yield* setDeleteStateAsEffect(idle())
         yield* refreshEffect
-      }),
+      }).pipe(Effect.provide(getApplicationLayer())),
     )
   }
 
   // Initial load: run once when page mounts
   useEffect(() => {
-    runApp(refreshEffect)
+    Effect.runPromise(refreshEffect.pipe(Effect.provide(getApplicationLayer())))
   }, [])
 
   // Live-refresh: re-run when liveRefreshTrigger fires
   useEffect(() => {
-    runApp(refreshEffect)
+    Effect.runPromise(refreshEffect.pipe(Effect.provide(getApplicationLayer())))
   }, [liveRefreshTrigger, setListStateAsEffect])
 
   // On create success: copy list to listState, close add dialog, reset create state
   useEffect(() => {
     if (!isSuccess(createState)) return
-    runApp(
+    Effect.runPromise(
       Effect.gen(function* () {
         yield* setListStateAsEffect(asyncSuccess(createState.value))
         yield* setAddDialogOpenAsEffect(false)
         yield* setAddNameAsEffect('')
         yield* setAddSlugAsEffect('')
         yield* setCreateStateAsEffect(idle())
-      }),
+      }).pipe(Effect.provide(getApplicationLayer())),
     )
   }, [
     createState,
@@ -311,12 +311,12 @@ export default function OrganizationsPage() {
   // On update success: copy list to listState, close edit dialog, reset update state
   useEffect(() => {
     if (!isSuccess(updateState)) return
-    runApp(
+    Effect.runPromise(
       Effect.gen(function* () {
         yield* setListStateAsEffect(asyncSuccess(updateState.value))
         yield* setEditOrgAsEffect(null)
         yield* setUpdateStateAsEffect(idle())
-      }),
+      }).pipe(Effect.provide(getApplicationLayer())),
     )
   }, [
     updateState,
@@ -328,12 +328,12 @@ export default function OrganizationsPage() {
   // On delete success: copy list to listState, clear deletingId, reset delete state
   useEffect(() => {
     if (!isSuccess(deleteState)) return
-    runApp(
+    Effect.runPromise(
       Effect.gen(function* () {
         yield* setListStateAsEffect(asyncSuccess(deleteState.value))
         yield* setDeletingIdAsEffect(null)
         yield* setDeleteStateAsEffect(idle())
-      }),
+      }).pipe(Effect.provide(getApplicationLayer())),
     )
   }, [
     deleteState,
