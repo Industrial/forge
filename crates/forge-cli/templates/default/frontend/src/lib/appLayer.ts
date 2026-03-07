@@ -24,6 +24,7 @@ import type { PermissionsService } from '@/features/dashboard/services/Permissio
 import type { ReactiveStore, RunEffect, RunFork } from '@/lib/ReactiveStore'
 import type { RolesService } from '@/features/dashboard/services/Roles'
 import type { RpcApiService } from '@/services/RpcApi'
+import type { TokenStorageService } from '@/services/TokenStorage'
 import type { UsersService } from '@/features/dashboard/services/Users'
 import type { WebsocketService } from '@/services/Websocket'
 import { AuditLogLive } from '@/features/dashboard/services/AuditLogLive'
@@ -34,6 +35,7 @@ import { ForgeWebsocketLive } from '@/services/ForgeWebsocketLive'
 import { PermissionsLive } from '@/features/dashboard/services/PermissionsLive'
 import { RolesLive } from '@/features/dashboard/services/RolesLive'
 import { RpcApiLive } from '@/services/RpcApiLive'
+import { TokenStorageLive } from '@/services/TokenStorageLive'
 import { UsersLive } from '@/features/dashboard/services/UsersLive'
 import { WebsocketLive } from '@/services/WebsocketLive'
 import { useMemo } from 'react'
@@ -63,6 +65,7 @@ export type AppServices =
   | RolesService
   | UsersService
   | DashboardService
+  | TokenStorageService
   | ReactiveStore<AuthenticationState>
 
 /** Logger layer: sets minimum log level to Trace. */
@@ -94,9 +97,11 @@ export function buildApplicationLayer() {
   const AuthLayer = Layer.mergeAll(
     authStoreLayer,
     HttpClientLayer,
+    TokenStorageLive,
     AuthenticationLive.pipe(
       Layer.provide(authStoreLayer),
       Layer.provide(HttpClientLayer),
+      Layer.provide(TokenStorageLive),
     ),
   )
 

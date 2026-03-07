@@ -12,7 +12,13 @@ import type { AuthenticationError } from '@/features/authentication/errors/Authe
 import type { ScopeError } from '@/features/authentication/errors'
 
 export interface Authentication {
-  /** Load current user from storage/API; updates reactive store and AuthStateRef. Returns none if not logged in or token invalid. */
+  /**
+   * Restore session from persisted token: read token from storage; if present,
+   * fetch current user and update reactive store. Call once before mounting the app.
+   */
+  readonly restoreSession: () => Effect.Effect<void, never, never>
+
+  /** Load current user from storage/API; updates reactive store. Returns none if not logged in or token invalid. */
   readonly getCurrentUser: () => Effect.Effect<
     Option.Option<AuthenticationUser>,
     AuthenticationError,

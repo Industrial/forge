@@ -1,6 +1,6 @@
 /**
  * Production implementation of Authentication.
- * Uses only the auth reactive store and localStorage for state.
+ * Uses auth reactive store and TokenStorage (Live = localStorage).
  */
 import { Effect, Option } from 'effect'
 import { HttpClient, HttpClientRequest } from '@effect/platform'
@@ -15,16 +15,8 @@ import {
   initialAuthenticationState,
   type AuthenticationState,
 } from '@/features/authentication/stores'
+import { TokenStorage } from '@/services/TokenStorage'
 import { getBaseUrl } from '@/lib/baseUrl'
-
-const TOKEN_KEY = 'token'
-const ORG_ID_KEY = 'currentOrgId'
-const ROLE_ID_KEY = 'currentRoleId'
-
-function getStorage(): Storage | null {
-  if (typeof window === 'undefined') return null
-  return window.localStorage
-}
 
 function parseMeResponse(
   body: unknown,
@@ -61,6 +53,7 @@ export const AuthenticationLive = Layer.effect(
   Effect.gen(function* () {
     const client = yield* HttpClient.HttpClient
     const store = yield* AuthenticationStateReactiveStoreTag
+    const tokenStorage = yield* TokenStorage
     const baseUrl = getBaseUrl()
 
     const fetchMeAndUpdate = (
@@ -74,12 +67,8 @@ export const AuthenticationLive = Layer.effect(
         const ok = response.status >= 200 && response.status < 300
         if (!ok) {
           yield* store.update(() => initialAuthenticationState)
-          const s = getStorage()
-          if (s) {
-            s.removeItem(TOKEN_KEY)
-            s.removeItem(ORG_ID_KEY)
-            s.removeItem(ROLE_ID_KEY)
-          }
+          yield* tokenStorage.clearToken()
+          yield* tokenStorage.clearScope()
           return Option.none()
         }
         const body = yield* response.json
@@ -99,15 +88,25 @@ export const AuthenticationLive = Layer.effect(
       )
 
     return {
+      restoreSession: (): Effect.Effect<void, never, never> =>
+        Effect.gen(function* () {
+          const tokenOpt = yield* tokenStorage.getToken()
+          yield* Option.match(tokenOpt, {
+            onNone: () => Effect.void,
+            onSome: (token) =>
+              fetchMeAndUpdate(token).pipe(Effect.asVoid),
+          })
+        }).pipe(Effect.catchAll(() => Effect.void)),
+
       getCurrentUser: (): Effect.Effect<
         Option.Option<AuthenticationUser>,
         AuthenticationError,
         never
       > =>
         Effect.gen(function* () {
-          const s = getStorage()
-          const token = s?.getItem(TOKEN_KEY) ?? null
-          if (token == null || token === '') {
+          const tokenOpt = yield* tokenStorage.getToken()
+          const token = Option.getOrElse(tokenOpt, () => '')
+          if (token === '') {
             yield* store.update(() => initialAuthenticationState)
             return Option.none()
           }
@@ -167,8 +166,7 @@ export const AuthenticationLive = Layer.effect(
               }),
             )
           }
-          const s = getStorage()
-          if (s) s.setItem(TOKEN_KEY, token)
+          yield* tokenStorage.setToken(token)
           const userOpt = yield* fetchMeAndUpdate(token)
           return userOpt.pipe(
             Option.match({
@@ -184,27 +182,18 @@ export const AuthenticationLive = Layer.effect(
         }).pipe(Effect.flatten),
 
       logout: (): Effect.Effect<void, never, never> =>
-        Effect.sync(() => {
-          const s = getStorage()
-          if (s) {
-            s.removeItem(TOKEN_KEY)
-            s.removeItem(ORG_ID_KEY)
-            s.removeItem(ROLE_ID_KEY)
-          }
-        }).pipe(
-          Effect.flatMap(() => store.update(() => initialAuthenticationState)),
-        ),
+        Effect.gen(function* () {
+          yield* tokenStorage.clearToken()
+          yield* tokenStorage.clearScope()
+          yield* store.update(() => initialAuthenticationState)
+        }),
 
       selectScope: (
         organizationId: string,
         roleId: string,
       ): Effect.Effect<void, ScopeError, never> =>
         Effect.gen(function* () {
-          const s = getStorage()
-          if (s) {
-            s.setItem(ORG_ID_KEY, organizationId)
-            s.setItem(ROLE_ID_KEY, roleId)
-          }
+          yield* tokenStorage.setScope(organizationId, roleId)
           yield* store.update((state) => ({
             ...state,
             needsScopeSelect: Option.some(false),
