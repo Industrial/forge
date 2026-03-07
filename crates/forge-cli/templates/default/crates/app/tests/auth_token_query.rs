@@ -135,6 +135,6 @@ async fn should_return_401_for_ws_upgrade_when_no_token() {
     .await
     .unwrap();
 
-  // Then: should return 426 Upgrade Required (Axum returns this when WebSocket upgrade fails)
-  assert_eq!(status, StatusCode::UPGRADE_REQUIRED);
+  // Then: should return 401 Unauthorized (authentication required before WebSocket upgrade)
+  assert_eq!(status, StatusCode::UNAUTHORIZED);
 }
