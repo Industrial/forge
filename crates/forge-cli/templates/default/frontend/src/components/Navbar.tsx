@@ -13,12 +13,9 @@ import Person from '@mui/icons-material/Person'
 import Toolbar from '@mui/material/Toolbar'
 import { useNavigate } from 'react-router-dom'
 import { useState } from 'react'
+import { Option } from 'effect'
 
-import {
-  AuthenticationStateReactiveStoreTag,
-  initialAuthenticationState,
-} from '@/features/authentication/stores'
-import { useReactiveStore } from '@/lib/ReactiveStore'
+import { useAuthenticationStateReactiveStore } from '@/features/authentication/stores'
 
 type NavbarProps = {
   appName?: string
@@ -77,12 +74,7 @@ export default function Navbar({
 
   const navigate = useNavigate()
 
-  const authentication = useReactiveStore(
-    AuthenticationStateReactiveStoreTag,
-    initialAuthenticationState,
-  )
-
-  // const canAccessDashboard = usePermission('dashboard')
+  const authentication = useAuthenticationStateReactiveStore()
   const canAccessDashboard = false
   const [anchorEl, setAnchorEl] = useState<null | HTMLElement>(null)
   const open = Boolean(anchorEl)
@@ -98,15 +90,6 @@ export default function Navbar({
   const handleScope = () => {
     handleClose()
     navigate('/scope')
-  }
-
-  const handleSwitchScope = async (
-    orgId: string,
-    roleId: string,
-    roleName: string,
-  ) => {
-    handleClose()
-    // await switchScope(orgId, roleId, roleName)
   }
 
   const handleLogout = async () => {
@@ -170,9 +153,9 @@ export default function Navbar({
         >
           <Avatar
             sx={{ width: 32, height: 32, bgcolor: 'primary.main' }}
-            // alt={user?.email ?? 'User'}
+            alt={Option.getOrElse(authentication.user, () => null)?.email ?? 'User'}
           >
-            {/* {user?.email?.charAt(0)?.toUpperCase() ?? 'U'} */}
+            {Option.getOrElse(authentication.user, () => null)?.email?.charAt(0)?.toUpperCase() ?? 'U'}
           </Avatar>
         </IconButton>
         <Menu

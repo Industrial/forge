@@ -12,12 +12,15 @@ export interface AuthenticationState {
   token: Option.Option<string>
   user: Option.Option<AuthenticationUser>
   needsScopeSelect: Option.Option<boolean>
+  /** Permission keys from /api/auth/me (e.g. for usePermission). */
+  permissions: readonly string[]
 }
 
 export const initialAuthenticationState: AuthenticationState = {
   token: Option.none(),
   user: Option.none(),
   needsScopeSelect: Option.none(),
+  permissions: [],
 }
 
 const {

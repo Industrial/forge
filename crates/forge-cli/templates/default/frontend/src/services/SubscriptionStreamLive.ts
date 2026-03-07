@@ -2,17 +2,17 @@
  * Live implementation of SubscriptionStream using fetch and SSE parsing.
  *
  * GET /api/subscriptions/stream with Authorization header; parses text/event-stream
- * for data lines (ready and subscription_id). Requires AuthStateRef (for token).
+ * for data lines (ready and subscription_id). Uses auth reactive store for token.
  */
 
-import { Effect, Stream } from 'effect'
-import { AuthStateRef } from '../lib/authStateRef'
+import { Effect, Option, Stream } from 'effect'
+import { Layer } from 'effect'
+import { AuthenticationStateReactiveStoreTag } from '@/features/authentication/stores'
 import type {
   SubscriptionStreamEvent,
   SubscriptionStreamService,
 } from './SubscriptionStream'
 import { SubscriptionStream } from './SubscriptionStream'
-import { Layer } from 'effect'
 
 function toError(e: unknown): Error {
   return e instanceof Error ? e : new Error(String(e))
@@ -58,12 +58,13 @@ export const SubscriptionStreamLive = (baseUrl: string) =>
   Layer.effect(
     SubscriptionStream,
     Effect.gen(function* () {
-      const authStateRef = yield* AuthStateRef
+      const authStore = yield* AuthenticationStateReactiveStoreTag
 
       const openStream: SubscriptionStreamService['openStream'] = () =>
         Effect.gen(function* () {
           yield* Effect.logTrace('SubscriptionStreamLive.openStream')
-          const token = authStateRef.current.token
+          const state = yield* authStore.get()
+          const token = Option.getOrElse(state.token, () => null)
           if (!token) {
             yield* Effect.logDebug(
               'SubscriptionStreamLive.openStream: no token',

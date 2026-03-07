@@ -1,38 +1,54 @@
 /**
  * Opens the subscription invalidation stream and triggers refetch for
  * any subscription_id received. Mount when authenticated so invalidations
- * are dispatched to the subscription registry.
+ * are dispatched to the subscription registry. Sets stream connection
+ * status (ready → connected, stream end → disconnected).
  *
- * @see subscriptionRegistry, useEntitySubscription (Epic 8)
+ * @see subscriptionRegistry, useEntitySubscription, useLiveRefreshTrigger (Epic 8)
  */
-
 import { useEffect } from 'react'
 import { Effect, Stream } from 'effect'
-import { useAuthentication } from '../context/AuthenticationContext'
-import { trigger } from '../lib/subscriptionRegistry'
-import { runApp } from '../lib/appRuntime'
-import { SubscriptionStream } from '../services/SubscriptionStream'
+import { useAuthenticationStateReactiveStore } from '@/features/authentication/stores'
+import { Option } from 'effect'
+import { getApplicationLayer } from '@/lib/appLayer'
+import { trigger } from '@/lib/subscriptionRegistry'
+import { SubscriptionStreamStatusStoreTag } from '@/lib/subscriptionStreamStatusStore'
+import { SubscriptionStream } from '@/services/SubscriptionStream'
 
 export function SubscriptionStreamRunner() {
-  const { token } = useAuthentication()
+  const auth = useAuthenticationStateReactiveStore()
+  const hasToken = Option.isSome(auth.token)
 
   useEffect(() => {
-    if (!token) return
+    if (!hasToken) return
+
+    const layer = getApplicationLayer()
 
     const program = Effect.gen(function* () {
       const svc = yield* SubscriptionStream
+      const statusStore = yield* SubscriptionStreamStatusStoreTag
       const stream = yield* svc.openStream()
+
       yield* Effect.fork(
         Stream.runForEach(stream, (e) =>
-          Effect.sync(() => {
-            if ('subscription_id' in e) trigger(e.subscription_id)
+          Effect.gen(function* () {
+            if ('type' in e && e.type === 'ready') {
+              yield* statusStore.update(() => ({ connected: true }))
+            }
+            if ('subscription_id' in e) {
+              trigger(e.subscription_id)
+            }
           }),
+        ).pipe(
+          Effect.ensuring(
+            statusStore.update(() => ({ connected: false })),
+          ),
         ),
       )
     })
 
-    runApp(program)
-  }, [token])
+    Effect.runFork(program.pipe(Effect.provide(layer)))
+  }, [hasToken])
 
   return null
 }

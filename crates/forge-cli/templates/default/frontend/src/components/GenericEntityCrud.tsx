@@ -39,8 +39,7 @@ import {
   isFailure,
   isPending,
 } from 'react-effect-hooks'
-import { runApp } from '../lib/appRuntime'
-import type { AppServices } from '../lib/appLayer'
+import { runWithAppLayer, type AppServices } from '@/lib/appLayer'
 import { Effect } from 'effect'
 import { EntityApi } from '../services/EntityApi'
 import type { ListQueryParams } from '../services/EntityApi'
@@ -178,12 +177,12 @@ export default function GenericEntityCrud({
   })
 
   useEffect(() => {
-    runApp(refreshEffect)
+    runWithAppLayer(refreshEffect)
   }, [entityId, JSON.stringify(listQueryParams ?? {}), setListStateAsEffect])
 
   const handleCreateSubmit = useCallback(
     (body: Record<string, unknown>) => {
-      runApp(
+      runWithAppLayer(
         runStreamInto(
           streamWithPendingState(
             Effect.gen(function* () {
@@ -205,7 +204,7 @@ export default function GenericEntityCrud({
     (body: Record<string, unknown>) => {
       if (!editItem) return
       const id = getRowId(editItem)
-      runApp(
+      runWithAppLayer(
         runStreamInto(
           streamWithPendingState(
             Effect.gen(function* () {
@@ -227,7 +226,7 @@ export default function GenericEntityCrud({
     (id: string) => {
       setDeletingId(id)
       setDeleteConfirmId(null)
-      runApp(
+      runWithAppLayer(
         runStreamInto(
           streamWithPendingState(
             Effect.gen(function* () {
@@ -247,7 +246,7 @@ export default function GenericEntityCrud({
   // On create/update/delete success: refresh list state
   useEffect(() => {
     if (!isSuccess(createState)) return
-    runApp(
+    runWithAppLayer(
       Effect.gen(function* () {
         yield* setListStateAsEffect(asyncSuccess(createState.value))
         yield* setCreateStateAsEffect(idle())
@@ -256,7 +255,7 @@ export default function GenericEntityCrud({
   }, [createState, setListStateAsEffect, setCreateStateAsEffect])
   useEffect(() => {
     if (!isSuccess(updateState)) return
-    runApp(
+    runWithAppLayer(
       Effect.gen(function* () {
         yield* setListStateAsEffect(asyncSuccess(updateState.value))
         yield* setUpdateStateAsEffect(idle())
@@ -265,7 +264,7 @@ export default function GenericEntityCrud({
   }, [updateState, setListStateAsEffect, setUpdateStateAsEffect])
   useEffect(() => {
     if (!isSuccess(deleteState)) return
-    runApp(
+    runWithAppLayer(
       Effect.gen(function* () {
         yield* setListStateAsEffect(asyncSuccess(deleteState.value))
         yield* setDeleteStateAsEffect(idle())
@@ -325,7 +324,7 @@ export default function GenericEntityCrud({
         <ErrorAlert
           message={errorMessage}
           onClose={() => {
-            runApp(refreshEffect)
+            runWithAppLayer(refreshEffect)
           }}
         />
       )}

@@ -5,41 +5,42 @@
  *
  * @see subscriptionRegistry, SubscriptionStream, RpcApi (Epic 8)
  */
-
 import { useEffect, useRef } from 'react'
-import { useAuthentication } from '../context/AuthenticationContext'
-import { register, unregister } from '../lib/subscriptionRegistry'
-import type { ListQueryParams } from '../services/EntityApi'
-import { runApp } from '../lib/appRuntime'
-import { Effect } from 'effect'
-import { RpcApi } from '../services/RpcApi'
+import { Effect, Option } from 'effect'
+import { useAuthenticationStateReactiveStore } from '@/features/authentication/stores'
+import { register, unregister } from '@/lib/subscriptionRegistry'
+import { useRunWithAppLayer } from '@/lib/appLayer'
+import { RpcApi } from '@/services/RpcApi'
+import type { ListQueryParams } from '@/services/EntityApi'
 
 export function useEntitySubscription(
   entityId: string,
   params: ListQueryParams | undefined,
   onRefetch: () => void,
 ): void {
-  const { token } = useAuthentication()
+  const auth = useAuthenticationStateReactiveStore()
+  const hasToken = Option.isSome(auth.token)
   const subscriptionIdRef = useRef<string | null>(null)
   const onRefetchRef = useRef(onRefetch)
   onRefetchRef.current = onRefetch
+  const { run } = useRunWithAppLayer()
 
   useEffect(() => {
-    if (!token) return
+    if (!hasToken) return
 
     const subscribeEffect = Effect.gen(function* () {
       const rpc = yield* RpcApi
       return yield* rpc.subscribe(entityId, params)
     })
 
-    runApp(subscribeEffect).then((result) => {
+    run(subscribeEffect).then((result) => {
       subscriptionIdRef.current = result.subscription_id
       register(result.subscription_id, {
         entityId,
-        params,
+        params: params ?? undefined,
         onInvalidate: () => onRefetchRef.current(),
       })
-    })
+    }).catch(() => {})
 
     return () => {
       const id = subscriptionIdRef.current
@@ -48,5 +49,5 @@ export function useEntitySubscription(
         subscriptionIdRef.current = null
       }
     }
-  }, [entityId, token, JSON.stringify(params ?? {})])
+  }, [entityId, hasToken, run, JSON.stringify(params ?? {})])
 }

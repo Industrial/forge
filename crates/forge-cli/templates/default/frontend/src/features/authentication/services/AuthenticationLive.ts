@@ -48,6 +48,15 @@ function getNeedsScopeSelect(body: unknown): Option.Option<boolean> {
   return typeof v === 'boolean' ? Option.some(v) : Option.none()
 }
 
+function getPermissions(body: unknown): readonly string[] {
+  if (body == null || typeof body !== 'object' || !('user' in body)) {
+    return []
+  }
+  const u = (body as { user?: { permissions?: unknown } }).user
+  if (u == null || !Array.isArray(u.permissions)) return []
+  return u.permissions.filter((p): p is string => typeof p === 'string')
+}
+
 export const AuthenticationLive = Layer.effect(
   Authentication,
   Effect.gen(function* () {
@@ -78,6 +87,7 @@ export const AuthenticationLive = Layer.effect(
           token: Option.some(token),
           user,
           needsScopeSelect,
+          permissions: getPermissions(body),
         }
         yield* store.update(() => newState)
         return user

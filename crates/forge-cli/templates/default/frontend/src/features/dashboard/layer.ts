@@ -1,31 +1,11 @@
 /**
  * Dashboard feature layer.
  *
- * Provides {@link HttpClient} (with auth: baseUrl and request-time auth/scope) and
- * {@link AuthenticationStore}. Call with config at app root (baseUrl).
+ * The app uses the single application layer from {@link getApplicationLayer} / {@link buildApplicationLayer}
+ * which provides HttpClient, entity/RPC APIs, subscription stream, and dashboard services.
+ * This module is kept for compatibility; use the app layer for all dashboard-related effects.
  */
 import { Layer } from 'effect'
-import { AuthStateRefLayer } from '../../lib/authStateRef'
-import {
-  httpClientWithAuthLayer,
-  type HttpClientWithAuthConfig,
-} from '../../lib/httpClientWithAuth'
-import { AuthenticationStoreLive } from '../authentication/services/AuthenticationStoreLive'
 
-/**
- * Builds the dashboard feature layer: HttpClient (with auth) + AuthenticationStore.
- * Supply config when composing at app root; token/scope are read at request time from AuthStateRef.
- */
-export const DashboardFeatureLayer = (config: HttpClientWithAuthConfig) => {
-  const authRefLayer = AuthStateRefLayer
-  const httpLayer = httpClientWithAuthLayer(config.baseUrl).pipe(
-    Layer.provide(authRefLayer),
-  )
-  return Layer.merge(
-    httpLayer,
-    AuthenticationStoreLive.pipe(
-      Layer.provide(httpLayer),
-      Layer.provide(authRefLayer),
-    ),
-  )
-}
+/** Stub: use getApplicationLayer() for dashboard effects. */
+export const DashboardFeatureLayer = () => Layer.empty
