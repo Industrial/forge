@@ -8,7 +8,8 @@ use std::time::Duration;
 /// Wait until the HTTP server is accepting connections. No timeout — waits as long as needed.
 fn wait_for_server(host: &str, port: u16) -> Result<(), Box<dyn std::error::Error>> {
   let addr = (host, port)
-    .to_socket_addrs()?
+    .to_socket_addrs()
+    .map_err(|e| format!("could not resolve server address: {}", e))?
     .next()
     .ok_or("could not resolve server address")?;
   loop {
@@ -305,7 +306,6 @@ mod tests {
 
     /// BDD-style tests focusing on behavior rather than implementation.
     /// Tests are organized by feature/behavior area with descriptive names.
-
     mod project_validation_behavior {
       use super::*;
 
@@ -447,7 +447,10 @@ mod tests {
         // Then: FORGE_ENVIRONMENT should be set to "development"
         // Verification: the code sets env var in Command::env("FORGE_ENVIRONMENT", "development")
         // This is verified by code inspection - the env var is set before spawning cargo
-        assert_eq!(config.app.environment, None, "Config environment should be None by default");
+        assert_eq!(
+          config.app.environment, None,
+          "Config environment should be None by default"
+        );
       }
 
       #[test]
@@ -505,7 +508,10 @@ mod tests {
 
         // Then: frontend should be detected
         let _ = std::env::set_current_dir(orig);
-        assert!(has_frontend, "Frontend should be detected when package.json exists");
+        assert!(
+          has_frontend,
+          "Frontend should be detected when package.json exists"
+        );
       }
 
       #[test]
@@ -523,7 +529,10 @@ mod tests {
 
         // Then: frontend should not be detected
         let _ = std::env::set_current_dir(orig);
-        assert!(!has_frontend, "Frontend should not be detected when package.json is missing");
+        assert!(
+          !has_frontend,
+          "Frontend should not be detected when package.json is missing"
+        );
       }
     }
 
@@ -551,22 +560,32 @@ mod tests {
 
       #[test]
       fn should_handle_valid_hostname_resolution() {
+        use std::net::ToSocketAddrs;
+        
         // Given: a valid hostname (localhost)
         let host = "127.0.0.1";
         let port = 8080;
 
-        // When: attempting to wait for server (which may not be running)
-        // Then: should not panic on resolution (function will wait indefinitely if server not up)
-        // Note: This test verifies the function handles valid addresses correctly
-        // The function will wait indefinitely, so we just verify it doesn't panic immediately
-        let _ = wait_for_server(host, port);
-        // If we get here without panic, resolution worked (even if connection fails)
+        // When: attempting to resolve the address
+        // Then: should resolve successfully (this is what wait_for_server checks first)
+        // Note: We only test resolution, not connection, since there's no server running
+        let addr_result = (host, port).to_socket_addrs();
+        assert!(addr_result.is_ok(), "Should resolve valid hostname");
+        let addr = addr_result.unwrap().next();
+        assert!(addr.is_some(), "Should produce at least one socket address");
+        
+        // Verify the resolved address matches expectations
+        let socket_addr = addr.unwrap();
+        assert_eq!(socket_addr.port(), port, "Port should match");
+        // IP address should be 127.0.0.1 (or ::1 for IPv6, both are valid)
+        assert!(
+          socket_addr.ip().is_loopback(),
+          "Should resolve to loopback address"
+        );
       }
     }
 
     mod backend_url_construction_behavior {
-      use super::*;
-
       #[test]
       fn should_convert_0_0_0_0_to_127_0_0_1_for_backend_url() {
         // Given: host is 0.0.0.0
@@ -582,8 +601,7 @@ mod tests {
 
         // Then: should use 127.0.0.1
         assert_eq!(
-          backend_url,
-          "http://127.0.0.1:3000",
+          backend_url, "http://127.0.0.1:3000",
           "Should convert 0.0.0.0 to 127.0.0.1 for backend URL"
         );
       }
@@ -603,8 +621,7 @@ mod tests {
 
         // Then: should use original host
         assert_eq!(
-          backend_url,
-          "http://localhost:8080",
+          backend_url, "http://localhost:8080",
           "Should use original host when not 0.0.0.0"
         );
       }
@@ -620,8 +637,7 @@ mod tests {
 
         // Then: should include port
         assert_eq!(
-          backend_url,
-          "http://127.0.0.1:5000",
+          backend_url, "http://127.0.0.1:5000",
           "Backend URL should include port"
         );
       }
@@ -639,7 +655,10 @@ mod tests {
         // The actual behavior is in the run() function: if wait_for_server fails, it kills cargo_child
         let config = default_config();
         // Verify config is accessible for error handling
-        assert!(config.server.port > 0, "Config should be valid for error handling");
+        assert!(
+          config.server.port > 0,
+          "Config should be valid for error handling"
+        );
       }
 
       #[test]

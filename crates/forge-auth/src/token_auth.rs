@@ -247,9 +247,11 @@ where
 
 #[cfg(test)]
 mod tests {
-  use super::{extract_bearer, extract_token_from_query, RequireAuth, OptionalRequireAuth, TokenUser};
+  use super::{
+    OptionalRequireAuth, RequireAuth, TokenUser, extract_bearer, extract_token_from_query,
+  };
   use crate::authz::{AuthzContext, RequestScope};
-  use axum::http::{Extensions, HeaderValue, StatusCode};
+  use axum::http::{Extensions, HeaderValue};
   use axum_login::AuthUser;
   use uuid::Uuid;
 
@@ -567,7 +569,7 @@ mod tests {
     fn extract_bearer_returns_token_when_valid_bearer_header() {
       // Given an Authorization header with "Bearer <token>"
       let header = HeaderValue::from_static("Bearer my-secret-token");
-      
+
       // When I extract the Bearer token
       let result = extract_bearer(Some(&header));
 
@@ -579,7 +581,7 @@ mod tests {
     fn extract_bearer_strips_whitespace_around_token() {
       // Given an Authorization header with whitespace around the token
       let header = HeaderValue::from_static("Bearer   token-with-spaces   ");
-      
+
       // When I extract the Bearer token
       let result = extract_bearer(Some(&header));
 
@@ -591,7 +593,7 @@ mod tests {
     fn extract_bearer_returns_none_for_non_bearer_scheme() {
       // Given an Authorization header with a different scheme (e.g., Basic)
       let header = HeaderValue::from_static("Basic dXNlcjpwYXNz");
-      
+
       // When I try to extract a Bearer token
       let result = extract_bearer(Some(&header));
 
@@ -617,7 +619,7 @@ mod tests {
     fn extract_token_from_query_returns_token_when_present() {
       // Given a query string with a token parameter
       let query = "token=my-api-token";
-      
+
       // When I extract the token
       let result = extract_token_from_query(Some(query));
 
@@ -629,7 +631,7 @@ mod tests {
     fn extract_token_from_query_handles_multiple_parameters() {
       // Given a query string with multiple parameters including token
       let query = "foo=bar&token=secret-value&baz=quux";
-      
+
       // When I extract the token
       let result = extract_token_from_query(Some(query));
 
@@ -641,7 +643,7 @@ mod tests {
     fn extract_token_from_query_returns_none_when_token_is_empty() {
       // Given a query string with an empty token parameter
       let query = "token=";
-      
+
       // When I try to extract the token
       let result = extract_token_from_query(Some(query));
 
@@ -653,7 +655,7 @@ mod tests {
     fn extract_token_from_query_returns_none_when_token_key_is_absent() {
       // Given a query string without a token parameter
       let query = "other=value&another=param";
-      
+
       // When I try to extract the token
       let result = extract_token_from_query(Some(query));
 
@@ -665,11 +667,12 @@ mod tests {
   mod require_auth_extractor {
     use super::*;
     use async_trait::async_trait;
+    use axum::extract::FromRequestParts;
     use axum::http::{Request, StatusCode};
     use axum_login::{AuthnBackend, UserId};
 
     // Mock backend type for testing
-    #[derive(Clone)]
+    #[derive(Clone, Debug)]
     struct MockBackend;
 
     #[async_trait]
@@ -736,6 +739,7 @@ mod tests {
   mod optional_require_auth_extractor {
     use super::*;
     use async_trait::async_trait;
+    use axum::extract::FromRequestParts;
     use axum::http::Request;
     use axum_login::{AuthnBackend, UserId};
 

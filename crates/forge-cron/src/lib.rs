@@ -228,7 +228,6 @@ mod bdd_tests {
 
   /// BDD-style tests focusing on behavior rather than implementation.
   /// Tests are organized by feature/behavior area with descriptive names.
-
   mod cron_schedule_enum_behavior {
     use super::*;
 
@@ -530,18 +529,22 @@ mod bdd_tests {
     #[test]
     fn should_accept_multiple_tasks() {
       // Given: multiple cron tasks
-      let task1: CronTaskBox = Box::new(|_db: DbConnection| {
-        Box::pin(async move { Ok(()) })
-      });
-      let task2: CronTaskBox = Box::new(|_db: DbConnection| {
-        Box::pin(async move { Ok(()) })
-      });
+      let task1: CronTaskBox = Box::new(|_db: DbConnection| Box::pin(async move { Ok(()) }));
+      let task2: CronTaskBox = Box::new(|_db: DbConnection| Box::pin(async move { Ok(()) }));
 
       // When: creating CronRunner with multiple tasks
       let runner = CronRunner {
         tasks: vec![
-          ("task1".to_string(), CronSchedule::Interval(Duration::from_secs(60)), task1),
-          ("task2".to_string(), CronSchedule::Hourly { minute: 0 }, task2),
+          (
+            "task1".to_string(),
+            CronSchedule::Interval(Duration::from_secs(60)),
+            task1,
+          ),
+          (
+            "task2".to_string(),
+            CronSchedule::Hourly { minute: 0 },
+            task2,
+          ),
         ],
         job_pool_url: "sqlite::memory:".to_string(),
       };
@@ -557,7 +560,7 @@ mod bdd_tests {
     #[test]
     fn should_accept_async_task_function() {
       // Given: an async task function
-      let task: CronTaskBox = Box::new(|_db: DbConnection| {
+      let _task: CronTaskBox = Box::new(|_db: DbConnection| {
         Box::pin(async move {
           // Simulate some async work
           Ok(())
@@ -566,21 +569,16 @@ mod bdd_tests {
 
       // When: using the task type
       // Then: should compile and be usable
-      assert!(true, "CronTaskBox type is valid");
     }
 
     #[test]
     fn should_allow_error_return() {
       // Given: a task that can return an error
-      let task: CronTaskBox = Box::new(|_db: DbConnection| {
-        Box::pin(async move {
-          Err("test error".into())
-        })
-      });
+      let _task: CronTaskBox =
+        Box::new(|_db: DbConnection| Box::pin(async move { Err("test error".into()) }));
 
       // When: using the task type
       // Then: should accept error return type
-      assert!(true, "CronTaskBox allows error returns");
     }
   }
 }

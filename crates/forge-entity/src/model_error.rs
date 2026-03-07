@@ -40,7 +40,6 @@ mod bdd_tests {
 
   /// BDD-style tests focusing on behavior rather than implementation.
   /// Tests are organized by feature/behavior area with descriptive names.
-
   mod display_formatting_behavior {
     use super::*;
 
@@ -94,7 +93,7 @@ mod bdd_tests {
       let formatted = format!("{}", error);
 
       // Then: should format the underlying database error
-      assert!(formatted.contains("Connection timeout") || formatted.len() > 0);
+      assert!(formatted.contains("Connection timeout") || !formatted.is_empty());
     }
   }
 
@@ -109,7 +108,6 @@ mod bdd_tests {
       // When: using Error trait methods
       // Then: should work correctly (compilation test)
       let _description = error.to_string();
-      assert!(true, "ModelError implements std::error::Error");
     }
 
     #[test]
@@ -124,7 +122,6 @@ mod bdd_tests {
       // Then: should provide source if available
       let _error_ref: &dyn std::error::Error = &error;
       // Source may or may not be available depending on DbErr implementation
-      assert!(true, "Error trait is implemented");
     }
   }
 
@@ -143,7 +140,7 @@ mod bdd_tests {
 
       // Then: should be Database variant
       match model_error {
-        ModelError::Database(_) => assert!(true),
+        ModelError::Database(_) => {}
         _ => panic!("Expected Database variant"),
       }
     }
@@ -151,16 +148,14 @@ mod bdd_tests {
     #[test]
     fn should_convert_query_error_to_database_error() {
       // Given: DbErr query error
-      let db_err = sea_orm::DbErr::Query(sea_orm::RuntimeErr::Internal(
-        "Query failed".to_string(),
-      ));
+      let db_err = sea_orm::DbErr::Query(sea_orm::RuntimeErr::Internal("Query failed".to_string()));
 
       // When: converting to ModelError
       let model_error: ModelError = db_err.into();
 
       // Then: should be Database variant
       match model_error {
-        ModelError::Database(_) => assert!(true),
+        ModelError::Database(_) => {}
         _ => panic!("Expected Database variant"),
       }
     }
@@ -177,7 +172,7 @@ mod bdd_tests {
 
       // Then: should be Database variant
       match model_error {
-        ModelError::Database(_) => assert!(true),
+        ModelError::Database(_) => {}
         _ => panic!("Expected Database variant"),
       }
     }
@@ -186,9 +181,8 @@ mod bdd_tests {
     fn should_preserve_database_error_details() {
       // Given: DbErr with specific message
       let original_message = "Database connection timeout";
-      let db_err = sea_orm::DbErr::Conn(sea_orm::RuntimeErr::Internal(
-        original_message.to_string(),
-      ));
+      let db_err =
+        sea_orm::DbErr::Conn(sea_orm::RuntimeErr::Internal(original_message.to_string()));
 
       // When: converting to ModelError and formatting
       let model_error: ModelError = db_err.into();
@@ -196,7 +190,7 @@ mod bdd_tests {
 
       // Then: should preserve error details in formatted output
       // (exact format depends on DbErr Display implementation)
-      assert!(formatted.len() > 0, "Error should have formatted output");
+      assert!(!formatted.is_empty(), "Error should have formatted output");
     }
   }
 
@@ -211,7 +205,7 @@ mod bdd_tests {
       // When: matching on the variant
       // Then: should match UnknownModel
       match error {
-        ModelError::UnknownModel => assert!(true),
+        ModelError::UnknownModel => {}
         _ => panic!("Expected UnknownModel variant"),
       }
     }
@@ -247,15 +241,13 @@ mod bdd_tests {
     #[test]
     fn should_have_database_variant_with_dberr() {
       // Given: Database variant with DbErr
-      let db_err = sea_orm::DbErr::Conn(sea_orm::RuntimeErr::Internal(
-        "Error".to_string(),
-      ));
+      let db_err = sea_orm::DbErr::Conn(sea_orm::RuntimeErr::Internal("Error".to_string()));
       let error = ModelError::Database(db_err);
 
       // When: matching on the variant
       // Then: should extract the DbErr
       match error {
-        ModelError::Database(_) => assert!(true),
+        ModelError::Database(_) => {}
         _ => panic!("Expected Database variant"),
       }
     }

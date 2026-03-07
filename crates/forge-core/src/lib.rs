@@ -11,39 +11,37 @@ pub use validation::{Valid, Validate};
 
 #[cfg(test)]
 mod bdd_tests {
-  use super::*;
-
   /// BDD-style tests focusing on behavior rather than implementation.
   /// Tests are organized by feature/behavior area with descriptive names.
-
   mod public_api_exports_behavior {
-    use super::*;
+    use super::super::*;
 
     #[test]
     fn should_export_error_type() {
       // Given: forge-core crate
       // When: using Error type
-      // Then: should be accessible and usable
-      // This is verified by successful compilation
-      assert!(true, "Error type is exported");
+      // Then: should be accessible and usable (verified by compilation)
+      let _: Error = Error::Generic("test".to_string());
     }
 
     #[test]
     fn should_export_valid_type() {
       // Given: forge-core crate
       // When: using Valid type
-      // Then: should be accessible
-      // This is verified by successful compilation
-      assert!(true, "Valid type is exported");
+      // Then: should be accessible (verified by compilation)
+      let _: Valid<String> = Valid("ok".to_string());
     }
 
     #[test]
     fn should_export_validate_trait() {
       // Given: forge-core crate
       // When: using Validate trait
-      // Then: should be accessible for deriving
-      // This is verified by successful compilation of Validate derive
-      assert!(true, "Validate trait is exported");
+      // Then: should be accessible for deriving (verified by compilation)
+      #[derive(Debug, Validate)]
+      struct _T {
+        #[validate(length(min = 1))]
+        _f: String,
+      }
     }
   }
 
@@ -54,7 +52,6 @@ mod bdd_tests {
       // When: checking module organization
       // Then: error module should exist
       // This is verified by successful compilation and import
-      assert!(true, "error module exists");
     }
 
     #[test]
@@ -63,7 +60,6 @@ mod bdd_tests {
       // When: checking module organization
       // Then: validation module should exist
       // This is verified by successful compilation and import
-      assert!(true, "validation module exists");
     }
 
     #[test]
@@ -72,7 +68,6 @@ mod bdd_tests {
       // When: importing from the crate root
       // Then: should provide access to Error, Valid, and Validate
       // This is verified by successful compilation of this test module
-      assert!(true, "Unified API is provided through lib.rs");
     }
 
     #[test]
@@ -81,7 +76,6 @@ mod bdd_tests {
       // When: checking dependencies
       // Then: should not depend on HTTP, database, or auth
       // This is verified by the crate's design goal and successful compilation
-      assert!(true, "Core has minimal dependencies");
     }
   }
 }

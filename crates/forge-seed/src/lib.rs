@@ -62,7 +62,6 @@ mod tests {
 
     /// BDD-style tests focusing on behavior rather than implementation.
     /// Tests verify seeder orchestration, error handling, and database connection passing.
-
     mod seeder_execution_behavior {
       use super::*;
 
@@ -158,7 +157,10 @@ mod tests {
         .await;
 
         // Then: should return error
-        assert!(result.is_err(), "Seeder should propagate seed function errors");
+        assert!(
+          result.is_err(),
+          "Seeder should propagate seed function errors"
+        );
       }
 
       #[tokio::test]
@@ -199,13 +201,7 @@ mod tests {
         })
         .await;
         let result2 = Seeder::run(&db, |_| {
-          Box::pin(async {
-            Err::<(), _>(std::io::Error::new(
-              std::io::ErrorKind::Other,
-              "io error",
-            )
-            .into())
-          })
+          Box::pin(async { Err::<(), _>(std::io::Error::other("io error").into()) })
         })
         .await;
 

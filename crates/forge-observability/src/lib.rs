@@ -321,7 +321,6 @@ mod tests {
 
     /// BDD-style tests focusing on behavior rather than implementation.
     /// Tests verify trace ID extraction, trace context propagation, and OpenTelemetry initialization behavior.
-
     mod trace_id_extraction_behavior {
       use super::*;
 
@@ -527,7 +526,6 @@ mod tests {
         // Then: global propagator should be set
         global::get_text_map_propagator(|_p| {
           // If we can get the propagator, it's initialized
-          assert!(true, "Global propagator should be initialized");
         });
       }
 
@@ -539,7 +537,6 @@ mod tests {
 
         // Then: global tracer provider should be set
         let _provider = global::tracer_provider();
-        assert!(true, "Global tracer provider should be initialized");
       }
 
       #[test]
@@ -551,7 +548,6 @@ mod tests {
         let _layer = otel_layer();
 
         // Then: layer should be created without panic
-        assert!(true, "OTel layer should be built successfully");
       }
     }
 
@@ -624,7 +620,6 @@ mod tests {
 
         // Then: should use default filter (info level)
         // If function returns without error, default is used
-        assert!(true, "Should use default filter when env unset");
       }
 
       #[test]
@@ -640,7 +635,6 @@ mod tests {
 
         // Then: should use RUST_LOG value
         // If function returns without error, env value is used
-        assert!(true, "Should use RUST_LOG when set");
 
         // Cleanup
         unsafe {
@@ -658,7 +652,6 @@ mod tests {
         // The directive is added in env_filter() implementation
         // If function returns without error, directive is added
         let _ = filter;
-        assert!(true, "Should add axum_tracing_opentelemetry directive");
       }
     }
   }

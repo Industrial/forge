@@ -751,7 +751,6 @@ auto_seed = false
 
     /// BDD-style tests focusing on behavior rather than implementation.
     /// Tests are organized by feature/behavior area with descriptive names.
-
     mod app_creation_behavior {
       use super::*;
 
@@ -1116,7 +1115,10 @@ auto_seed = false
 
         // Then: live query backend should be configured
         // When live query is enabled, a cron runner should be created for sweep task
-        assert!(cron_runner.is_some(), "Cron runner should exist when live query enabled");
+        assert!(
+          cron_runner.is_some(),
+          "Cron runner should exist when live query enabled"
+        );
 
         std::env::set_current_dir(original_cwd).unwrap();
       }
@@ -1135,7 +1137,10 @@ auto_seed = false
         let (_router, cron_runner) = app.into_router().await;
 
         // Then: the provided backend should be used
-        assert!(cron_runner.is_some(), "Cron runner should exist when live query enabled");
+        assert!(
+          cron_runner.is_some(),
+          "Cron runner should exist when live query enabled"
+        );
 
         std::env::set_current_dir(original_cwd).unwrap();
       }
@@ -1157,7 +1162,10 @@ auto_seed = false
         let (router, cron_runner) = app.into_router().await;
 
         // Then: router should be built successfully
-        assert!(cron_runner.is_none() || cron_runner.is_some(), "Router should build");
+        assert!(
+          cron_runner.is_none() || cron_runner.is_some(),
+          "Router should build"
+        );
         // Router type is Router<()> after into_router
         let _router: Router<()> = router;
 
@@ -1180,8 +1188,14 @@ auto_seed = false
         let _router: Router<DbConnection> = router;
         // db_conn is DbConnection, not Option<DbConnection>, so it always exists
         let _db: DbConnection = db_conn;
-        assert!(cron_runner.is_none() || cron_runner.is_some(), "Cron runner may or may not exist");
-        assert!(cache_layer.is_none() || cache_layer.is_some(), "Cache layer may or may not exist");
+        assert!(
+          cron_runner.is_none() || cron_runner.is_some(),
+          "Cron runner may or may not exist"
+        );
+        assert!(
+          cache_layer.is_none() || cache_layer.is_some(),
+          "Cache layer may or may not exist"
+        );
 
         std::env::set_current_dir(original_cwd).unwrap();
       }
@@ -1199,7 +1213,10 @@ auto_seed = false
         let (_router, cron_runner) = app.into_router().await;
 
         // Then: cron runner should be created
-        assert!(cron_runner.is_some(), "Cron runner should exist when live query enabled");
+        assert!(
+          cron_runner.is_some(),
+          "Cron runner should exist when live query enabled"
+        );
         let (db, runner) = cron_runner.unwrap();
         // db is DbConnection, not Option<DbConnection>, so it always exists
         let _db_conn: DbConnection = db;

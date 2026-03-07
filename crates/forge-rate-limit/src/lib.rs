@@ -378,7 +378,6 @@ mod tests {
 
     /// BDD-style tests focusing on behavior rather than implementation.
     /// Tests verify RequesterOrgKey structure, key extraction, and rate limiting key generation behavior.
-
     mod requester_org_key_structure_behavior {
       use super::*;
 
@@ -451,7 +450,10 @@ mod tests {
 
         // When: comparing keys
         // Then: keys should be different
-        assert_ne!(key1, key2, "Keys with different organizations should be different");
+        assert_ne!(
+          key1, key2,
+          "Keys with different organizations should be different"
+        );
       }
 
       #[test]
@@ -510,7 +512,11 @@ mod tests {
         let key = requester_org_key_from_user::<MockUserWithOrg>(None);
 
         // Then: should return key with nil user_id and no organization
-        assert_eq!(key.user_id, uuid::Uuid::nil(), "Should use nil UUID for missing user");
+        assert_eq!(
+          key.user_id,
+          uuid::Uuid::nil(),
+          "Should use nil UUID for missing user"
+        );
         assert_eq!(key.organization_id, None, "Should have no organization");
       }
 
@@ -562,7 +568,6 @@ mod tests {
         // Then: extractor should be created
         // Type check - if it compiles, it's created
         let _ = extractor;
-        assert!(true, "Extractor should be created");
       }
 
       #[test]
@@ -573,7 +578,6 @@ mod tests {
 
         // Then: extractor should be created
         let _ = extractor;
-        assert!(true, "Extractor should be created via Default");
       }
 
       #[test]

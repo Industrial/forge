@@ -140,7 +140,6 @@ mod bdd_tests {
 
   /// BDD-style tests focusing on behavior rather than implementation.
   /// Tests are organized by feature/behavior area with descriptive names.
-
   mod connection_id_behavior {
     use super::*;
 
@@ -190,7 +189,7 @@ mod bdd_tests {
       let id = ConnectionId(Uuid::new_v4());
 
       // When: cloning it
-      let cloned = id.clone();
+      let cloned = id;
 
       // Then: should have same value
       assert_eq!(id, cloned);
@@ -208,7 +207,6 @@ mod bdd_tests {
       // When: checking initial state
       // Then: should have no connections or channels
       // (verified by successful creation and ability to use)
-      assert!(true, "Backend created successfully");
     }
 
     #[test]
@@ -218,7 +216,6 @@ mod bdd_tests {
       let _backend: InMemoryLiveBackend = Default::default();
 
       // Then: should be equivalent to new()
-      assert!(true, "Default implementation works");
     }
   }
 
@@ -251,7 +248,6 @@ mod bdd_tests {
       // (verified by ability to subscribe after registration)
       let channel = Channel::raw("test");
       backend.subscribe(id, channel);
-      assert!(true, "Connection registered and can subscribe");
     }
 
     #[test]
@@ -287,7 +283,6 @@ mod bdd_tests {
       // (verified by no panic and ability to register again)
       let (tx2, _rx2) = mpsc::unbounded_channel();
       let _id2 = backend.register_connection(tx2);
-      assert!(true, "Unregistration succeeded");
     }
 
     #[test]
@@ -306,7 +301,6 @@ mod bdd_tests {
 
       // Then: connection should be removed from all channels
       // (verified by successful unregistration)
-      assert!(true, "Connection removed from all channels");
     }
   }
 
@@ -327,8 +321,7 @@ mod bdd_tests {
       // Then: connection should be subscribed
       // (verified by ability to broadcast to it)
       let payload = b"test";
-      let _ = backend.broadcast(&channel, payload);
-      assert!(true, "Subscription succeeded");
+      drop(backend.broadcast(&channel, payload));
     }
 
     #[test]
@@ -347,8 +340,7 @@ mod bdd_tests {
 
       // Then: both should be subscribed
       let payload = b"broadcast";
-      let _ = backend.broadcast(&channel, payload);
-      assert!(true, "Multiple connections subscribed");
+      drop(backend.broadcast(&channel, payload));
     }
 
     #[test]
@@ -366,9 +358,8 @@ mod bdd_tests {
 
       // Then: connection should be subscribed to both
       let payload = b"test";
-      let _ = backend.broadcast(&channel1, payload);
-      let _ = backend.broadcast(&channel2, payload);
-      assert!(true, "Connection subscribed to multiple channels");
+      drop(backend.broadcast(&channel1, payload));
+      drop(backend.broadcast(&channel2, payload));
     }
   }
 
@@ -389,7 +380,6 @@ mod bdd_tests {
 
       // Then: connection should no longer receive broadcasts
       // (verified by successful unsubscription)
-      assert!(true, "Unsubscription succeeded");
     }
 
     #[test]
@@ -408,8 +398,7 @@ mod bdd_tests {
 
       // Then: should still be subscribed to other channels
       let payload = b"test";
-      let _ = backend.broadcast(&channel2, payload);
-      assert!(true, "Other channels unaffected");
+      drop(backend.broadcast(&channel2, payload));
     }
   }
 
@@ -446,7 +435,7 @@ mod bdd_tests {
       let (tx1, mut rx1) = mpsc::unbounded_channel();
       let (tx2, mut rx2) = mpsc::unbounded_channel();
       let id1 = backend.register_connection(tx1);
-      let id2 = backend.register_connection(tx2);
+      let _id2 = backend.register_connection(tx2);
       let channel = Channel::raw("test-channel");
       backend.subscribe(id1, channel.clone());
       // id2 is not subscribed
@@ -492,7 +481,6 @@ mod bdd_tests {
 
       // Then: should not panic
       backend.broadcast(&channel, payload).await;
-      assert!(true, "Empty channel handled gracefully");
     }
 
     #[tokio::test]
@@ -515,15 +503,12 @@ mod bdd_tests {
   }
 
   mod live_backend_trait_contract_behavior {
-    use super::*;
-
     #[test]
     fn should_require_register_connection_implementation() {
       // Given: LiveBackend trait
       // When: implementing the trait
       // Then: register_connection() must be implemented
       // This is enforced by the trait definition
-      assert!(true, "Trait requires register_connection()");
     }
 
     #[test]
@@ -531,7 +516,6 @@ mod bdd_tests {
       // Given: LiveBackend trait
       // When: implementing the trait
       // Then: unregister_connection() must be implemented
-      assert!(true, "Trait requires unregister_connection()");
     }
 
     #[test]
@@ -539,7 +523,6 @@ mod bdd_tests {
       // Given: LiveBackend trait
       // When: implementing the trait
       // Then: subscribe() must be implemented
-      assert!(true, "Trait requires subscribe()");
     }
 
     #[test]
@@ -547,7 +530,6 @@ mod bdd_tests {
       // Given: LiveBackend trait
       // When: implementing the trait
       // Then: unsubscribe() must be implemented
-      assert!(true, "Trait requires unsubscribe()");
     }
 
     #[test]
@@ -555,7 +537,6 @@ mod bdd_tests {
       // Given: LiveBackend trait
       // When: implementing the trait
       // Then: broadcast() must be async and implemented
-      assert!(true, "Trait requires async broadcast()");
     }
   }
 }

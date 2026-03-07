@@ -136,7 +136,6 @@ auto_seed = false
 
     /// BDD-style tests focusing on behavior rather than implementation.
     /// Tests verify that lib.rs correctly re-exports all public API items.
-
     mod public_api_export_behavior {
       use super::*;
 
@@ -209,9 +208,18 @@ auto_seed = false
         let app_from_module = app::App::new();
 
         // Then: they should have identical behavior
-        assert_eq!(app_from_lib.config().app.name, app_from_module.config().app.name);
-        assert_eq!(app_from_lib.config().server.host, app_from_module.config().server.host);
-        assert_eq!(app_from_lib.config().server.port, app_from_module.config().server.port);
+        assert_eq!(
+          app_from_lib.config().app.name,
+          app_from_module.config().app.name
+        );
+        assert_eq!(
+          app_from_lib.config().server.host,
+          app_from_module.config().server.host
+        );
+        assert_eq!(
+          app_from_lib.config().server.port,
+          app_from_module.config().server.port
+        );
 
         std::env::set_current_dir(original_cwd).unwrap();
       }
@@ -244,9 +252,7 @@ auto_seed = false
         setup_test_config(&std::env::current_dir().unwrap(), "fluent_api_test");
 
         // When: I use the fluent API methods
-        let app = App::new()
-          .with_health_routes()
-          .with_rate_limit_per_ip(60);
+        let app = App::new().with_health_routes().with_rate_limit_per_ip(60);
 
         // Then: all methods should work correctly
         let (router, _) = app.into_router().await;
@@ -288,7 +294,10 @@ auto_seed = false
         let app_from_module = app::App::new();
 
         // Then: both should work identically
-        assert_eq!(app_from_lib.config().app.name, app_from_module.config().app.name);
+        assert_eq!(
+          app_from_lib.config().app.name,
+          app_from_module.config().app.name
+        );
 
         std::env::set_current_dir(original_cwd).unwrap();
       }

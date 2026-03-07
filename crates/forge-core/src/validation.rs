@@ -42,7 +42,6 @@ mod bdd_tests {
 
   /// BDD-style tests focusing on behavior rather than implementation.
   /// Tests are organized by feature/behavior area with descriptive names.
-
   mod validation_exports_behavior {
     use super::*;
 
@@ -50,18 +49,20 @@ mod bdd_tests {
     fn should_export_valid_type() {
       // Given: forge-core validation module
       // When: using Valid type
-      // Then: should be accessible
-      // This is verified by successful compilation
-      assert!(true, "Valid type is exported");
+      // Then: should be accessible (verified by compilation)
+      let _: Valid<String> = Valid("ok".to_string());
     }
 
     #[test]
     fn should_export_validate_trait() {
       // Given: forge-core validation module
       // When: using Validate trait
-      // Then: should be accessible for deriving
-      // This is verified by successful compilation of Validate derive
-      assert!(true, "Validate trait is exported");
+      // Then: should be accessible for deriving (verified by compilation)
+      #[derive(Debug, Validate)]
+      struct _T {
+        #[validate(length(min = 1))]
+        _f: String,
+      }
     }
   }
 

@@ -102,7 +102,6 @@ mod bdd_tests {
 
   /// BDD-style tests focusing on behavior rather than implementation.
   /// Tests are organized by feature/behavior area with descriptive names.
-
   mod liveness_endpoint_behavior {
     use super::*;
 
@@ -217,7 +216,9 @@ mod bdd_tests {
     fn should_map_any_database_error_to_503() {
       // Given: various types of database errors
       let errors = vec![
-        sea_orm::DbErr::Conn(sea_orm::RuntimeErr::Internal("connection error".to_string())),
+        sea_orm::DbErr::Conn(sea_orm::RuntimeErr::Internal(
+          "connection error".to_string(),
+        )),
         sea_orm::DbErr::Query(sea_orm::RuntimeErr::Internal("query error".to_string())),
         sea_orm::DbErr::Exec(sea_orm::RuntimeErr::Internal("exec error".to_string())),
       ];

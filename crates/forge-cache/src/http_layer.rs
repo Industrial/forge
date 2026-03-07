@@ -550,7 +550,6 @@ mod tests {
 
     /// BDD-style tests focusing on behavior rather than implementation.
     /// Tests are organized by feature/behavior area with descriptive names.
-
     mod layer_creation_behavior {
       use super::*;
 
@@ -571,7 +570,10 @@ mod tests {
         let layer = HttpResponseCacheLayer::from_config(&cfg);
 
         // Then: layer should be created successfully
-        assert!(layer.is_some(), "Layer should be created when config is enabled");
+        assert!(
+          layer.is_some(),
+          "Layer should be created when config is enabled"
+        );
       }
 
       #[test]
@@ -591,7 +593,10 @@ mod tests {
         let layer = HttpResponseCacheLayer::from_config(&cfg);
 
         // Then: layer should not be created
-        assert!(layer.is_none(), "Layer should not be created when cache is disabled");
+        assert!(
+          layer.is_none(),
+          "Layer should not be created when cache is disabled"
+        );
       }
 
       #[test]
@@ -611,7 +616,10 @@ mod tests {
         let layer = HttpResponseCacheLayer::from_config(&cfg);
 
         // Then: layer should not be created
-        assert!(layer.is_none(), "Layer should not be created when http_response is disabled");
+        assert!(
+          layer.is_none(),
+          "Layer should not be created when http_response is disabled"
+        );
       }
 
       #[test]
@@ -627,7 +635,10 @@ mod tests {
         let layer = HttpResponseCacheLayer::from_config(&cfg);
 
         // Then: layer should not be created
-        assert!(layer.is_none(), "Layer should not be created when http_response config is missing");
+        assert!(
+          layer.is_none(),
+          "Layer should not be created when http_response config is missing"
+        );
       }
     }
 
@@ -891,7 +902,12 @@ mod tests {
         // Then: response should have cache-control header added
         assert_eq!(res.status(), StatusCode::OK);
         assert!(res.headers().contains_key("cache-control"));
-        let cache_control = res.headers().get("cache-control").unwrap().to_str().unwrap();
+        let cache_control = res
+          .headers()
+          .get("cache-control")
+          .unwrap()
+          .to_str()
+          .unwrap();
         assert!(cache_control.contains("public"));
         assert!(cache_control.contains("max-age=300"));
       }
@@ -968,1274 +984,1352 @@ mod tests {
         let res = svc.ready().await.unwrap().call(req).await.unwrap();
 
         // Then: response should be 500 Internal Server Error
-    assert_eq!(res.status(), StatusCode::INTERNAL_SERVER_ERROR);
-  }
-
-  mod bdd_tests {
-    use super::*;
-
-    /// BDD-style tests focusing on behavior rather than implementation.
-    /// Tests are organized by feature/behavior area with descriptive names.
-
-    mod configuration_behavior {
-      use super::*;
-
-      #[test]
-      fn should_create_layer_when_config_enabled() {
-        // Given: cache configuration is enabled
-        let cfg = CacheConfig {
-          enabled: true,
-          application: None,
-          http_response: Some(HttpResponseCacheConfig {
-            enabled: true,
-            default_ttl_secs: 120,
-            no_cache_paths: Some(vec!["/healthz".into()]),
-          }),
-        };
-
-        // When: creating layer from config
-        let layer = HttpResponseCacheLayer::from_config(&cfg);
-
-        // Then: layer should be created successfully
-        assert!(layer.is_some(), "Layer should be created when config is enabled");
+        assert_eq!(res.status(), StatusCode::INTERNAL_SERVER_ERROR);
       }
 
-      #[test]
-      fn should_return_none_when_cache_disabled() {
-        // Given: cache configuration is disabled
-        let cfg = CacheConfig {
-          enabled: false,
-          application: None,
-          http_response: Some(HttpResponseCacheConfig {
-            enabled: true,
-            default_ttl_secs: 60,
-            no_cache_paths: None,
-          }),
-        };
-
-        // When: creating layer from config
-        let layer = HttpResponseCacheLayer::from_config(&cfg);
-
-        // Then: layer should not be created
-        assert!(layer.is_none(), "Layer should not be created when cache is disabled");
-      }
-
-      #[test]
-      fn should_return_none_when_http_response_config_missing() {
-        // Given: cache is enabled but http_response config is missing
-        let cfg = CacheConfig {
-          enabled: true,
-          application: None,
-          http_response: None,
-        };
-
-        // When: creating layer from config
-        let layer = HttpResponseCacheLayer::from_config(&cfg);
-
-        // Then: layer should not be created
-        assert!(layer.is_none(), "Layer should not be created when http_response config is missing");
-      }
-
-      #[test]
-      fn should_return_none_when_http_response_disabled() {
-        // Given: cache is enabled but http_response is disabled
-        let cfg = CacheConfig {
-          enabled: true,
-          application: None,
-          http_response: Some(HttpResponseCacheConfig {
-            enabled: false,
-            default_ttl_secs: 60,
-            no_cache_paths: None,
-          }),
-        };
-
-        // When: creating layer from config
-        let layer = HttpResponseCacheLayer::from_config(&cfg);
-
-        // Then: layer should not be created
-        assert!(layer.is_none(), "Layer should not be created when http_response is disabled");
-      }
-    }
-
-    mod caching_behavior {
-      use super::*;
-
-      #[tokio::test]
-      async fn should_cache_get_responses_when_successful() {
-        // Given: a cache layer and a GET request
-        let cfg = CacheConfig {
-          enabled: true,
-          application: None,
-          http_response: Some(HttpResponseCacheConfig {
-            enabled: true,
-            default_ttl_secs: 300,
-            no_cache_paths: None,
-          }),
-        };
-        let layer = HttpResponseCacheLayer::from_config(&cfg).unwrap();
-        let mut svc = layer.layer(MockInner::ok("cached-response"));
-
-        // When: making a GET request
-        let req = Request::builder()
-          .method(Method::GET)
-          .uri("/api/data")
-          .body(Body::empty())
-          .unwrap();
-        let res1 = svc.ready().await.unwrap().call(req).await.unwrap();
-
-        // Then: response should be cached and subsequent requests should hit cache
-        assert_eq!(res1.status(), StatusCode::OK);
-        let body1 = to_bytes(res1.into_body(), 1024).await.unwrap();
-        assert_eq!(body1.as_ref(), b"cached-response");
-
-        // Second request should hit cache
-        let req2 = Request::builder()
-          .method(Method::GET)
-          .uri("/api/data")
-          .body(Body::empty())
-          .unwrap();
-        let res2 = svc.ready().await.unwrap().call(req2).await.unwrap();
-        assert_eq!(res2.status(), StatusCode::OK);
-        let body2 = to_bytes(res2.into_body(), 1024).await.unwrap();
-        assert_eq!(body2.as_ref(), b"cached-response");
-      }
-
-      #[tokio::test]
-      async fn should_not_cache_non_get_requests() {
-        // Given: a cache layer and a POST request
-        let cfg = CacheConfig {
-          enabled: true,
-          application: None,
-          http_response: Some(HttpResponseCacheConfig {
-            enabled: true,
-            default_ttl_secs: 300,
-            no_cache_paths: None,
-          }),
-        };
-        let layer = HttpResponseCacheLayer::from_config(&cfg).unwrap();
-        let mut svc = layer.layer(MockInner::ok("post-response"));
-
-        // When: making a POST request
-        let req = Request::builder()
-          .method(Method::POST)
-          .uri("/api/data")
-          .body(Body::empty())
-          .unwrap();
-        let res = svc.ready().await.unwrap().call(req).await.unwrap();
-
-        // Then: response should not be cached (passes through to inner service)
-        assert_eq!(res.status(), StatusCode::OK);
-        let body = to_bytes(res.into_body(), 1024).await.unwrap();
-        assert_eq!(body.as_ref(), b"post-response");
-      }
-
-      #[tokio::test]
-      async fn should_not_cache_non_success_responses() {
-        // Given: a cache layer and a request that returns error
-        let cfg = CacheConfig {
-          enabled: true,
-          application: None,
-          http_response: Some(HttpResponseCacheConfig {
-            enabled: true,
-            default_ttl_secs: 300,
-            no_cache_paths: None,
-          }),
-        };
-        let layer = HttpResponseCacheLayer::from_config(&cfg).unwrap();
-        let mut svc = layer.layer(MockInner::with_status(StatusCode::NOT_FOUND));
-
-        // When: making a GET request that returns 404
-        let req = Request::builder()
-          .method(Method::GET)
-          .uri("/api/missing")
-          .body(Body::empty())
-          .unwrap();
-        let res = svc.ready().await.unwrap().call(req).await.unwrap();
-
-        // Then: error response should not be cached
-        assert_eq!(res.status(), StatusCode::NOT_FOUND);
-      }
-
-      #[tokio::test]
-      async fn should_cache_by_full_uri_including_query_string() {
-        // Given: a cache layer
-        let cfg = CacheConfig {
-          enabled: true,
-          application: None,
-          http_response: Some(HttpResponseCacheConfig {
-            enabled: true,
-            default_ttl_secs: 300,
-            no_cache_paths: None,
-          }),
-        };
-        let layer = HttpResponseCacheLayer::from_config(&cfg).unwrap();
-        let mut svc = layer.layer(MockInner::ok("query-response"));
-
-        // When: making GET requests with different query strings
-        let req1 = Request::builder()
-          .method(Method::GET)
-          .uri("/api/search?q=test")
-          .body(Body::empty())
-          .unwrap();
-        let res1 = svc.ready().await.unwrap().call(req1).await.unwrap();
-        assert_eq!(res1.status(), StatusCode::OK);
-
-        // Then: requests with same query should hit cache, different query should miss
-        let req2 = Request::builder()
-          .method(Method::GET)
-          .uri("/api/search?q=test")
-          .body(Body::empty())
-          .unwrap();
-        let res2 = svc.ready().await.unwrap().call(req2).await.unwrap();
-        assert_eq!(res2.status(), StatusCode::OK);
-        let body2 = to_bytes(res2.into_body(), 1024).await.unwrap();
-        assert_eq!(body2.as_ref(), b"query-response");
-      }
-    }
-
-    mod path_exclusion_behavior {
-      use super::*;
-
-      #[tokio::test]
-      async fn should_skip_caching_when_path_in_no_cache_list() {
-        // Given: a cache layer with excluded paths
-        let cfg = CacheConfig {
-          enabled: true,
-          application: None,
-          http_response: Some(HttpResponseCacheConfig {
-            enabled: true,
-            default_ttl_secs: 300,
-            no_cache_paths: Some(vec!["/health".into()]),
-          }),
-        };
-        let layer = HttpResponseCacheLayer::from_config(&cfg).unwrap();
-        let mut svc = layer.layer(MockInner::ok("health-response"));
-
-        // When: making a GET request to excluded path
-        let req = Request::builder()
-          .method(Method::GET)
-          .uri("/health")
-          .body(Body::empty())
-          .unwrap();
-        let res = svc.ready().await.unwrap().call(req).await.unwrap();
-
-        // Then: response should not be cached (passes through)
-        assert_eq!(res.status(), StatusCode::OK);
-        let body = to_bytes(res.into_body(), 1024).await.unwrap();
-        assert_eq!(body.as_ref(), b"health-response");
-      }
-
-      #[tokio::test]
-      async fn should_skip_caching_when_path_prefix_matches() {
-        // Given: a cache layer with excluded path prefix
-        let cfg = CacheConfig {
-          enabled: true,
-          application: None,
-          http_response: Some(HttpResponseCacheConfig {
-            enabled: true,
-            default_ttl_secs: 300,
-            no_cache_paths: Some(vec!["/api/admin".into()]),
-          }),
-        };
-        let layer = HttpResponseCacheLayer::from_config(&cfg).unwrap();
-        let mut svc = layer.layer(MockInner::ok("admin-response"));
-
-        // When: making a GET request to path with matching prefix
-        let req = Request::builder()
-          .method(Method::GET)
-          .uri("/api/admin/users")
-          .body(Body::empty())
-          .unwrap();
-        let res = svc.ready().await.unwrap().call(req).await.unwrap();
-
-        // Then: response should not be cached
-        assert_eq!(res.status(), StatusCode::OK);
-        let body = to_bytes(res.into_body(), 1024).await.unwrap();
-        assert_eq!(body.as_ref(), b"admin-response");
-      }
-
-      #[tokio::test]
-      async fn should_match_root_path_exactly_when_excluded() {
-        // Given: a cache layer with root path excluded
-        let cfg = CacheConfig {
-          enabled: true,
-          application: None,
-          http_response: Some(HttpResponseCacheConfig {
-            enabled: true,
-            default_ttl_secs: 300,
-            no_cache_paths: Some(vec!["/".into()]),
-          }),
-        };
-        let layer = HttpResponseCacheLayer::from_config(&cfg).unwrap();
-        let mut svc = layer.layer(MockInner::ok("root-response"));
-
-        // When: making a GET request to root path
-        let req = Request::builder()
-          .method(Method::GET)
-          .uri("/")
-          .body(Body::empty())
-          .unwrap();
-        let res = svc.ready().await.unwrap().call(req).await.unwrap();
-
-        // Then: root path should not be cached
-        assert_eq!(res.status(), StatusCode::OK);
-        let body = to_bytes(res.into_body(), 1024).await.unwrap();
-        assert_eq!(body.as_ref(), b"root-response");
-      }
-    }
-
-    mod cache_control_header_behavior {
-      use super::*;
-
-      #[tokio::test]
-      async fn should_add_cache_control_header_when_caching_response() {
-        // Given: a cache layer
-        let cfg = CacheConfig {
-          enabled: true,
-          application: None,
-          http_response: Some(HttpResponseCacheConfig {
-            enabled: true,
-            default_ttl_secs: 300,
-            no_cache_paths: None,
-          }),
-        };
-        let layer = HttpResponseCacheLayer::from_config(&cfg).unwrap();
-        let mut svc = layer.layer(MockInner::ok("cached"));
-
-        // When: making a GET request
-        let req = Request::builder()
-          .method(Method::GET)
-          .uri("/api/data")
-          .body(Body::empty())
-          .unwrap();
-        let res = svc.ready().await.unwrap().call(req).await.unwrap();
-
-        // Then: response should have cache-control header
-        assert!(res.headers().contains_key("cache-control"));
-        let cache_control = res.headers().get("cache-control").unwrap();
-        assert!(cache_control.to_str().unwrap().contains("max-age=300"));
-      }
-
-      #[tokio::test]
-      async fn should_add_cache_control_on_cache_hit_when_missing() {
-        // Given: a cache layer with a cached response without cache-control
-        let cfg = CacheConfig {
-          enabled: true,
-          application: None,
-          http_response: Some(HttpResponseCacheConfig {
-            enabled: true,
-            default_ttl_secs: 300,
-            no_cache_paths: None,
-          }),
-        };
-        let layer = HttpResponseCacheLayer::from_config(&cfg).unwrap();
-        layer
-          .test_insert_raw(
-            "GET:/api/raw",
-            StatusCode::OK,
-            HeaderMap::new(),
-            Bytes::from("raw"),
-          )
-          .await;
-        let mut svc = layer.layer(MockInner::ok("ignored"));
-
-        // When: making a GET request that hits cache
-        let req = Request::builder()
-          .method(Method::GET)
-          .uri("/api/raw")
-          .body(Body::empty())
-          .unwrap();
-        let res = svc.ready().await.unwrap().call(req).await.unwrap();
-
-        // Then: cache-control header should be added
-        assert!(res.headers().contains_key("cache-control"));
-        let body = to_bytes(res.into_body(), 1024).await.unwrap();
-        assert_eq!(body.as_ref(), b"raw");
-      }
-    }
-
-    mod error_handling_behavior {
-      use super::*;
-
-      #[tokio::test]
-      async fn should_return_500_when_response_body_exceeds_limit() {
-        // Given: a cache layer and a response with oversized body
-        const BODY_LIMIT: usize = 10 * 1024 * 1024;
-        let oversized = vec![0u8; BODY_LIMIT + 1];
-        let cfg = CacheConfig {
-          enabled: true,
-          application: None,
-          http_response: Some(HttpResponseCacheConfig {
-            enabled: true,
-            default_ttl_secs: 300,
-            no_cache_paths: None,
-          }),
-        };
-        let layer = HttpResponseCacheLayer::from_config(&cfg).unwrap();
-        let inner = MockInner {
-          status: StatusCode::OK,
-          body: Bytes::from(oversized),
-        };
-        let mut svc = layer.layer(inner);
-
-        // When: making a GET request that returns oversized body
-        let req = Request::builder()
-          .method(Method::GET)
-          .uri("/api/large")
-          .body(Body::empty())
-          .unwrap();
-        let res = svc.ready().await.unwrap().call(req).await.unwrap();
-
-        // Then: should return 500 error instead of caching
-    assert_eq!(res.status(), StatusCode::INTERNAL_SERVER_ERROR);
-  }
-}
-
-#[cfg(test)]
-mod bdd_tests {
-  use super::*;
-  use forge_config::HttpResponseCacheConfig;
-  use std::task::Poll;
-  use tower::ServiceExt;
-
-  /// BDD-style tests focusing on behavior rather than implementation.
-  /// Tests are organized by feature/behavior area with descriptive names.
-
-  mod layer_creation_behavior {
-    use super::*;
-
-    #[test]
-    fn should_create_layer_when_config_enabled() {
-      // Given: a cache config with enabled set to true
-      let cfg = CacheConfig {
-        enabled: true,
-        application: None,
-        http_response: Some(HttpResponseCacheConfig {
-          enabled: true,
-          default_ttl_secs: 120,
-          no_cache_paths: Some(vec!["/healthz".into()]),
-        }),
-      };
-
-      // When: creating layer from config
-      let layer = HttpResponseCacheLayer::from_config(&cfg);
-
-      // Then: layer should be created successfully
-      assert!(layer.is_some(), "Layer should be created when config is enabled");
-    }
-
-    #[test]
-    fn should_not_create_layer_when_cache_disabled() {
-      // Given: a cache config with enabled set to false
-      let cfg = CacheConfig {
-        enabled: false,
-        application: None,
-        http_response: Some(HttpResponseCacheConfig {
-          enabled: true,
-          default_ttl_secs: 60,
-          no_cache_paths: None,
-        }),
-      };
-
-      // When: creating layer from config
-      let layer = HttpResponseCacheLayer::from_config(&cfg);
-
-      // Then: layer should not be created
-      assert!(layer.is_none(), "Layer should not be created when cache is disabled");
-    }
-
-    #[test]
-    fn should_not_create_layer_when_http_response_config_missing() {
-      // Given: a cache config without http_response section
-      let cfg = CacheConfig {
-        enabled: true,
-        application: None,
-        http_response: None,
-      };
-
-      // When: creating layer from config
-      let layer = HttpResponseCacheLayer::from_config(&cfg);
-
-      // Then: layer should not be created
-      assert!(layer.is_none(), "Layer should not be created when http_response config is missing");
-    }
-
-    #[test]
-    fn should_not_create_layer_when_http_response_disabled() {
-      // Given: a cache config with http_response enabled set to false
-      let cfg = CacheConfig {
-        enabled: true,
-        application: None,
-        http_response: Some(HttpResponseCacheConfig {
-          enabled: false,
-          default_ttl_secs: 60,
-          no_cache_paths: None,
-        }),
-      };
-
-      // When: creating layer from config
-      let layer = HttpResponseCacheLayer::from_config(&cfg);
-
-      // Then: layer should not be created
-      assert!(
-        layer.is_none(),
-        "Layer should not be created when http_response is disabled"
-      );
-    }
-
-    #[test]
-    fn should_configure_no_cache_paths_when_provided() {
-      // Given: a cache config with no_cache_paths specified
-      let cfg = CacheConfig {
-        enabled: true,
-        application: None,
-        http_response: Some(HttpResponseCacheConfig {
-          enabled: true,
-          default_ttl_secs: 300,
-          no_cache_paths: Some(vec!["/api/private".into(), "/admin".into()]),
-        }),
-      };
-
-      // When: creating layer from config
-      let layer = HttpResponseCacheLayer::from_config(&cfg).unwrap();
-
-      // Then: layer should be configured with no_cache_paths
-      // Verified by using the layer in skip path tests
-      let _layer = layer;
-    }
-  }
-
-  mod cache_key_generation_behavior {
-    use super::*;
-
-    #[test]
-    fn should_generate_key_with_path_only_when_no_query() {
-      // Given: a path without query string
-      let path = "/api/users";
-      let query = None;
-
-      // When: generating cache key
-      let key = HttpResponseCacheLayer::cache_key(path, query);
-
-      // Then: key should be "GET:/api/users"
-      assert_eq!(key, "GET:/api/users", "Cache key should include method and path");
-    }
-
-    #[test]
-    fn should_generate_key_with_query_when_query_present() {
-      // Given: a path with query string
-      let path = "/api/users";
-      let query = Some("page=1&limit=10");
-
-      // When: generating cache key
-      let key = HttpResponseCacheLayer::cache_key(path, query);
-
-      // Then: key should include query string
-      assert_eq!(key, "GET:/api/users?page=1&limit=10", "Cache key should include query string");
-    }
-
-    #[test]
-    fn should_generate_different_keys_for_different_queries() {
-      // Given: same path with different query strings
-      let path = "/api/search";
-      let query1 = Some("q=test");
-      let query2 = Some("q=other");
-
-      // When: generating cache keys
-      let key1 = HttpResponseCacheLayer::cache_key(path, query1);
-      let key2 = HttpResponseCacheLayer::cache_key(path, query2);
-
-      // Then: keys should be different
-      assert_ne!(key1, key2, "Different queries should generate different cache keys");
-    }
-  }
-
-  mod caching_behavior {
-    use super::*;
-
-    #[derive(Clone)]
-    struct MockInner {
-      status: StatusCode,
-      body: Bytes,
-    }
-
-    impl MockInner {
-      fn ok(body: &str) -> Self {
-        Self {
-          status: StatusCode::OK,
-          body: Bytes::from(body.to_string()),
+      mod bdd_tests {
+        use super::*;
+
+        /// BDD-style tests focusing on behavior rather than implementation.
+        /// Tests are organized by feature/behavior area with descriptive names.
+        mod configuration_behavior {
+          use super::*;
+
+          #[test]
+          fn should_create_layer_when_config_enabled() {
+            // Given: cache configuration is enabled
+            let cfg = CacheConfig {
+              enabled: true,
+              application: None,
+              http_response: Some(HttpResponseCacheConfig {
+                enabled: true,
+                default_ttl_secs: 120,
+                no_cache_paths: Some(vec!["/healthz".into()]),
+              }),
+            };
+
+            // When: creating layer from config
+            let layer = HttpResponseCacheLayer::from_config(&cfg);
+
+            // Then: layer should be created successfully
+            assert!(
+              layer.is_some(),
+              "Layer should be created when config is enabled"
+            );
+          }
+
+          #[test]
+          fn should_return_none_when_cache_disabled() {
+            // Given: cache configuration is disabled
+            let cfg = CacheConfig {
+              enabled: false,
+              application: None,
+              http_response: Some(HttpResponseCacheConfig {
+                enabled: true,
+                default_ttl_secs: 60,
+                no_cache_paths: None,
+              }),
+            };
+
+            // When: creating layer from config
+            let layer = HttpResponseCacheLayer::from_config(&cfg);
+
+            // Then: layer should not be created
+            assert!(
+              layer.is_none(),
+              "Layer should not be created when cache is disabled"
+            );
+          }
+
+          #[test]
+          fn should_return_none_when_http_response_config_missing() {
+            // Given: cache is enabled but http_response config is missing
+            let cfg = CacheConfig {
+              enabled: true,
+              application: None,
+              http_response: None,
+            };
+
+            // When: creating layer from config
+            let layer = HttpResponseCacheLayer::from_config(&cfg);
+
+            // Then: layer should not be created
+            assert!(
+              layer.is_none(),
+              "Layer should not be created when http_response config is missing"
+            );
+          }
+
+          #[test]
+          fn should_return_none_when_http_response_disabled() {
+            // Given: cache is enabled but http_response is disabled
+            let cfg = CacheConfig {
+              enabled: true,
+              application: None,
+              http_response: Some(HttpResponseCacheConfig {
+                enabled: false,
+                default_ttl_secs: 60,
+                no_cache_paths: None,
+              }),
+            };
+
+            // When: creating layer from config
+            let layer = HttpResponseCacheLayer::from_config(&cfg);
+
+            // Then: layer should not be created
+            assert!(
+              layer.is_none(),
+              "Layer should not be created when http_response is disabled"
+            );
+          }
+        }
+
+        mod caching_behavior {
+          use super::*;
+
+          #[tokio::test]
+          async fn should_cache_get_responses_when_successful() {
+            // Given: a cache layer and a GET request
+            let cfg = CacheConfig {
+              enabled: true,
+              application: None,
+              http_response: Some(HttpResponseCacheConfig {
+                enabled: true,
+                default_ttl_secs: 300,
+                no_cache_paths: None,
+              }),
+            };
+            let layer = HttpResponseCacheLayer::from_config(&cfg).unwrap();
+            let mut svc = layer.layer(MockInner::ok("cached-response"));
+
+            // When: making a GET request
+            let req = Request::builder()
+              .method(Method::GET)
+              .uri("/api/data")
+              .body(Body::empty())
+              .unwrap();
+            let res1 = svc.ready().await.unwrap().call(req).await.unwrap();
+
+            // Then: response should be cached and subsequent requests should hit cache
+            assert_eq!(res1.status(), StatusCode::OK);
+            let body1 = to_bytes(res1.into_body(), 1024).await.unwrap();
+            assert_eq!(body1.as_ref(), b"cached-response");
+
+            // Second request should hit cache
+            let req2 = Request::builder()
+              .method(Method::GET)
+              .uri("/api/data")
+              .body(Body::empty())
+              .unwrap();
+            let res2 = svc.ready().await.unwrap().call(req2).await.unwrap();
+            assert_eq!(res2.status(), StatusCode::OK);
+            let body2 = to_bytes(res2.into_body(), 1024).await.unwrap();
+            assert_eq!(body2.as_ref(), b"cached-response");
+          }
+
+          #[tokio::test]
+          async fn should_not_cache_non_get_requests() {
+            // Given: a cache layer and a POST request
+            let cfg = CacheConfig {
+              enabled: true,
+              application: None,
+              http_response: Some(HttpResponseCacheConfig {
+                enabled: true,
+                default_ttl_secs: 300,
+                no_cache_paths: None,
+              }),
+            };
+            let layer = HttpResponseCacheLayer::from_config(&cfg).unwrap();
+            let mut svc = layer.layer(MockInner::ok("post-response"));
+
+            // When: making a POST request
+            let req = Request::builder()
+              .method(Method::POST)
+              .uri("/api/data")
+              .body(Body::empty())
+              .unwrap();
+            let res = svc.ready().await.unwrap().call(req).await.unwrap();
+
+            // Then: response should not be cached (passes through to inner service)
+            assert_eq!(res.status(), StatusCode::OK);
+            let body = to_bytes(res.into_body(), 1024).await.unwrap();
+            assert_eq!(body.as_ref(), b"post-response");
+          }
+
+          #[tokio::test]
+          async fn should_not_cache_non_success_responses() {
+            // Given: a cache layer and a request that returns error
+            let cfg = CacheConfig {
+              enabled: true,
+              application: None,
+              http_response: Some(HttpResponseCacheConfig {
+                enabled: true,
+                default_ttl_secs: 300,
+                no_cache_paths: None,
+              }),
+            };
+            let layer = HttpResponseCacheLayer::from_config(&cfg).unwrap();
+            let mut svc = layer.layer(MockInner::with_status(StatusCode::NOT_FOUND));
+
+            // When: making a GET request that returns 404
+            let req = Request::builder()
+              .method(Method::GET)
+              .uri("/api/missing")
+              .body(Body::empty())
+              .unwrap();
+            let res = svc.ready().await.unwrap().call(req).await.unwrap();
+
+            // Then: error response should not be cached
+            assert_eq!(res.status(), StatusCode::NOT_FOUND);
+          }
+
+          #[tokio::test]
+          async fn should_cache_by_full_uri_including_query_string() {
+            // Given: a cache layer
+            let cfg = CacheConfig {
+              enabled: true,
+              application: None,
+              http_response: Some(HttpResponseCacheConfig {
+                enabled: true,
+                default_ttl_secs: 300,
+                no_cache_paths: None,
+              }),
+            };
+            let layer = HttpResponseCacheLayer::from_config(&cfg).unwrap();
+            let mut svc = layer.layer(MockInner::ok("query-response"));
+
+            // When: making GET requests with different query strings
+            let req1 = Request::builder()
+              .method(Method::GET)
+              .uri("/api/search?q=test")
+              .body(Body::empty())
+              .unwrap();
+            let res1 = svc.ready().await.unwrap().call(req1).await.unwrap();
+            assert_eq!(res1.status(), StatusCode::OK);
+
+            // Then: requests with same query should hit cache, different query should miss
+            let req2 = Request::builder()
+              .method(Method::GET)
+              .uri("/api/search?q=test")
+              .body(Body::empty())
+              .unwrap();
+            let res2 = svc.ready().await.unwrap().call(req2).await.unwrap();
+            assert_eq!(res2.status(), StatusCode::OK);
+            let body2 = to_bytes(res2.into_body(), 1024).await.unwrap();
+            assert_eq!(body2.as_ref(), b"query-response");
+          }
+        }
+
+        mod path_exclusion_behavior {
+          use super::*;
+
+          #[tokio::test]
+          async fn should_skip_caching_when_path_in_no_cache_list() {
+            // Given: a cache layer with excluded paths
+            let cfg = CacheConfig {
+              enabled: true,
+              application: None,
+              http_response: Some(HttpResponseCacheConfig {
+                enabled: true,
+                default_ttl_secs: 300,
+                no_cache_paths: Some(vec!["/health".into()]),
+              }),
+            };
+            let layer = HttpResponseCacheLayer::from_config(&cfg).unwrap();
+            let mut svc = layer.layer(MockInner::ok("health-response"));
+
+            // When: making a GET request to excluded path
+            let req = Request::builder()
+              .method(Method::GET)
+              .uri("/health")
+              .body(Body::empty())
+              .unwrap();
+            let res = svc.ready().await.unwrap().call(req).await.unwrap();
+
+            // Then: response should not be cached (passes through)
+            assert_eq!(res.status(), StatusCode::OK);
+            let body = to_bytes(res.into_body(), 1024).await.unwrap();
+            assert_eq!(body.as_ref(), b"health-response");
+          }
+
+          #[tokio::test]
+          async fn should_skip_caching_when_path_prefix_matches() {
+            // Given: a cache layer with excluded path prefix
+            let cfg = CacheConfig {
+              enabled: true,
+              application: None,
+              http_response: Some(HttpResponseCacheConfig {
+                enabled: true,
+                default_ttl_secs: 300,
+                no_cache_paths: Some(vec!["/api/admin".into()]),
+              }),
+            };
+            let layer = HttpResponseCacheLayer::from_config(&cfg).unwrap();
+            let mut svc = layer.layer(MockInner::ok("admin-response"));
+
+            // When: making a GET request to path with matching prefix
+            let req = Request::builder()
+              .method(Method::GET)
+              .uri("/api/admin/users")
+              .body(Body::empty())
+              .unwrap();
+            let res = svc.ready().await.unwrap().call(req).await.unwrap();
+
+            // Then: response should not be cached
+            assert_eq!(res.status(), StatusCode::OK);
+            let body = to_bytes(res.into_body(), 1024).await.unwrap();
+            assert_eq!(body.as_ref(), b"admin-response");
+          }
+
+          #[tokio::test]
+          async fn should_match_root_path_exactly_when_excluded() {
+            // Given: a cache layer with root path excluded
+            let cfg = CacheConfig {
+              enabled: true,
+              application: None,
+              http_response: Some(HttpResponseCacheConfig {
+                enabled: true,
+                default_ttl_secs: 300,
+                no_cache_paths: Some(vec!["/".into()]),
+              }),
+            };
+            let layer = HttpResponseCacheLayer::from_config(&cfg).unwrap();
+            let mut svc = layer.layer(MockInner::ok("root-response"));
+
+            // When: making a GET request to root path
+            let req = Request::builder()
+              .method(Method::GET)
+              .uri("/")
+              .body(Body::empty())
+              .unwrap();
+            let res = svc.ready().await.unwrap().call(req).await.unwrap();
+
+            // Then: root path should not be cached
+            assert_eq!(res.status(), StatusCode::OK);
+            let body = to_bytes(res.into_body(), 1024).await.unwrap();
+            assert_eq!(body.as_ref(), b"root-response");
+          }
+        }
+
+        mod cache_control_header_behavior {
+          use super::*;
+
+          #[tokio::test]
+          async fn should_add_cache_control_header_when_caching_response() {
+            // Given: a cache layer
+            let cfg = CacheConfig {
+              enabled: true,
+              application: None,
+              http_response: Some(HttpResponseCacheConfig {
+                enabled: true,
+                default_ttl_secs: 300,
+                no_cache_paths: None,
+              }),
+            };
+            let layer = HttpResponseCacheLayer::from_config(&cfg).unwrap();
+            let mut svc = layer.layer(MockInner::ok("cached"));
+
+            // When: making a GET request
+            let req = Request::builder()
+              .method(Method::GET)
+              .uri("/api/data")
+              .body(Body::empty())
+              .unwrap();
+            let res = svc.ready().await.unwrap().call(req).await.unwrap();
+
+            // Then: response should have cache-control header
+            assert!(res.headers().contains_key("cache-control"));
+            let cache_control = res.headers().get("cache-control").unwrap();
+            assert!(cache_control.to_str().unwrap().contains("max-age=300"));
+          }
+
+          #[tokio::test]
+          async fn should_add_cache_control_on_cache_hit_when_missing() {
+            // Given: a cache layer with a cached response without cache-control
+            let cfg = CacheConfig {
+              enabled: true,
+              application: None,
+              http_response: Some(HttpResponseCacheConfig {
+                enabled: true,
+                default_ttl_secs: 300,
+                no_cache_paths: None,
+              }),
+            };
+            let layer = HttpResponseCacheLayer::from_config(&cfg).unwrap();
+            layer
+              .test_insert_raw(
+                "GET:/api/raw",
+                StatusCode::OK,
+                HeaderMap::new(),
+                Bytes::from("raw"),
+              )
+              .await;
+            let mut svc = layer.layer(MockInner::ok("ignored"));
+
+            // When: making a GET request that hits cache
+            let req = Request::builder()
+              .method(Method::GET)
+              .uri("/api/raw")
+              .body(Body::empty())
+              .unwrap();
+            let res = svc.ready().await.unwrap().call(req).await.unwrap();
+
+            // Then: cache-control header should be added
+            assert!(res.headers().contains_key("cache-control"));
+            let body = to_bytes(res.into_body(), 1024).await.unwrap();
+            assert_eq!(body.as_ref(), b"raw");
+          }
+        }
+
+        mod error_handling_behavior {
+          use super::*;
+
+          #[tokio::test]
+          async fn should_return_500_when_response_body_exceeds_limit() {
+            // Given: a cache layer and a response with oversized body
+            const BODY_LIMIT: usize = 10 * 1024 * 1024;
+            let oversized = vec![0u8; BODY_LIMIT + 1];
+            let cfg = CacheConfig {
+              enabled: true,
+              application: None,
+              http_response: Some(HttpResponseCacheConfig {
+                enabled: true,
+                default_ttl_secs: 300,
+                no_cache_paths: None,
+              }),
+            };
+            let layer = HttpResponseCacheLayer::from_config(&cfg).unwrap();
+            let inner = MockInner {
+              status: StatusCode::OK,
+              body: Bytes::from(oversized),
+            };
+            let mut svc = layer.layer(inner);
+
+            // When: making a GET request that returns oversized body
+            let req = Request::builder()
+              .method(Method::GET)
+              .uri("/api/large")
+              .body(Body::empty())
+              .unwrap();
+            let res = svc.ready().await.unwrap().call(req).await.unwrap();
+
+            // Then: should return 500 error instead of caching
+            assert_eq!(res.status(), StatusCode::INTERNAL_SERVER_ERROR);
+          }
+        }
+
+        #[cfg(test)]
+        mod http_layer_bdd_tests {
+          use super::*;
+          use forge_config::HttpResponseCacheConfig;
+          use std::task::Poll;
+          use tower::ServiceExt;
+
+          /// BDD-style tests focusing on behavior rather than implementation.
+          /// Tests are organized by feature/behavior area with descriptive names.
+          mod layer_creation_behavior {
+            use super::*;
+
+            #[test]
+            fn should_create_layer_when_config_enabled() {
+              // Given: a cache config with enabled set to true
+              let cfg = CacheConfig {
+                enabled: true,
+                application: None,
+                http_response: Some(HttpResponseCacheConfig {
+                  enabled: true,
+                  default_ttl_secs: 120,
+                  no_cache_paths: Some(vec!["/healthz".into()]),
+                }),
+              };
+
+              // When: creating layer from config
+              let layer = HttpResponseCacheLayer::from_config(&cfg);
+
+              // Then: layer should be created successfully
+              assert!(
+                layer.is_some(),
+                "Layer should be created when config is enabled"
+              );
+            }
+
+            #[test]
+            fn should_not_create_layer_when_cache_disabled() {
+              // Given: a cache config with enabled set to false
+              let cfg = CacheConfig {
+                enabled: false,
+                application: None,
+                http_response: Some(HttpResponseCacheConfig {
+                  enabled: true,
+                  default_ttl_secs: 60,
+                  no_cache_paths: None,
+                }),
+              };
+
+              // When: creating layer from config
+              let layer = HttpResponseCacheLayer::from_config(&cfg);
+
+              // Then: layer should not be created
+              assert!(
+                layer.is_none(),
+                "Layer should not be created when cache is disabled"
+              );
+            }
+
+            #[test]
+            fn should_not_create_layer_when_http_response_config_missing() {
+              // Given: a cache config without http_response section
+              let cfg = CacheConfig {
+                enabled: true,
+                application: None,
+                http_response: None,
+              };
+
+              // When: creating layer from config
+              let layer = HttpResponseCacheLayer::from_config(&cfg);
+
+              // Then: layer should not be created
+              assert!(
+                layer.is_none(),
+                "Layer should not be created when http_response config is missing"
+              );
+            }
+
+            #[test]
+            fn should_not_create_layer_when_http_response_disabled() {
+              // Given: a cache config with http_response enabled set to false
+              let cfg = CacheConfig {
+                enabled: true,
+                application: None,
+                http_response: Some(HttpResponseCacheConfig {
+                  enabled: false,
+                  default_ttl_secs: 60,
+                  no_cache_paths: None,
+                }),
+              };
+
+              // When: creating layer from config
+              let layer = HttpResponseCacheLayer::from_config(&cfg);
+
+              // Then: layer should not be created
+              assert!(
+                layer.is_none(),
+                "Layer should not be created when http_response is disabled"
+              );
+            }
+
+            #[test]
+            fn should_configure_no_cache_paths_when_provided() {
+              // Given: a cache config with no_cache_paths specified
+              let cfg = CacheConfig {
+                enabled: true,
+                application: None,
+                http_response: Some(HttpResponseCacheConfig {
+                  enabled: true,
+                  default_ttl_secs: 300,
+                  no_cache_paths: Some(vec!["/api/private".into(), "/admin".into()]),
+                }),
+              };
+
+              // When: creating layer from config
+              let layer = HttpResponseCacheLayer::from_config(&cfg).unwrap();
+
+              // Then: layer should be configured with no_cache_paths
+              // Verified by using the layer in skip path tests
+              let _layer = layer;
+            }
+          }
+
+          mod cache_key_generation_behavior {
+            use super::*;
+
+            #[test]
+            fn should_generate_key_with_path_only_when_no_query() {
+              // Given: a path without query string
+              let path = "/api/users";
+              let query = None;
+
+              // When: generating cache key
+              let key = HttpResponseCacheLayer::cache_key(path, query);
+
+              // Then: key should be "GET:/api/users"
+              assert_eq!(
+                key, "GET:/api/users",
+                "Cache key should include method and path"
+              );
+            }
+
+            #[test]
+            fn should_generate_key_with_query_when_query_present() {
+              // Given: a path with query string
+              let path = "/api/users";
+              let query = Some("page=1&limit=10");
+
+              // When: generating cache key
+              let key = HttpResponseCacheLayer::cache_key(path, query);
+
+              // Then: key should include query string
+              assert_eq!(
+                key, "GET:/api/users?page=1&limit=10",
+                "Cache key should include query string"
+              );
+            }
+
+            #[test]
+            fn should_generate_different_keys_for_different_queries() {
+              // Given: same path with different query strings
+              let path = "/api/search";
+              let query1 = Some("q=test");
+              let query2 = Some("q=other");
+
+              // When: generating cache keys
+              let key1 = HttpResponseCacheLayer::cache_key(path, query1);
+              let key2 = HttpResponseCacheLayer::cache_key(path, query2);
+
+              // Then: keys should be different
+              assert_ne!(
+                key1, key2,
+                "Different queries should generate different cache keys"
+              );
+            }
+          }
+
+          mod caching_behavior {
+            use super::*;
+
+            #[derive(Clone)]
+            struct MockInner {
+              status: StatusCode,
+              body: Bytes,
+            }
+
+            impl MockInner {
+              fn ok(body: &str) -> Self {
+                Self {
+                  status: StatusCode::OK,
+                  body: Bytes::from(body.to_string()),
+                }
+              }
+            }
+
+            impl Service<Request<Body>> for MockInner {
+              type Response = Response<Body>;
+              type Error = std::convert::Infallible;
+              type Future = std::future::Ready<Result<Self::Response, Self::Error>>;
+
+              fn poll_ready(
+                &mut self,
+                _cx: &mut std::task::Context<'_>,
+              ) -> Poll<Result<(), Self::Error>> {
+                Poll::Ready(Ok(()))
+              }
+
+              fn call(&mut self, _req: Request<Body>) -> Self::Future {
+                let res = Response::builder()
+                  .status(self.status)
+                  .body(Body::from(self.body.clone()))
+                  .unwrap();
+                std::future::ready(Ok(res))
+              }
+            }
+
+            #[tokio::test]
+            async fn should_cache_response_on_first_request() {
+              // Given: a cache layer and a GET request
+              let cfg = CacheConfig {
+                enabled: true,
+                application: None,
+                http_response: Some(HttpResponseCacheConfig {
+                  enabled: true,
+                  default_ttl_secs: 300,
+                  no_cache_paths: None,
+                }),
+              };
+              let layer = HttpResponseCacheLayer::from_config(&cfg).unwrap();
+              let mut svc = layer.layer(MockInner::ok("cached-content"));
+
+              // When: making first GET request
+              let req = Request::builder()
+                .method(Method::GET)
+                .uri("/api/data")
+                .body(Body::empty())
+                .unwrap();
+              let res = svc.ready().await.unwrap().call(req).await.unwrap();
+
+              // Then: response should be successful
+              assert_eq!(res.status(), StatusCode::OK, "First request should succeed");
+            }
+
+            #[tokio::test]
+            async fn should_return_cached_response_on_second_request() {
+              // Given: a cache layer that has cached a response
+              let cfg = CacheConfig {
+                enabled: true,
+                application: None,
+                http_response: Some(HttpResponseCacheConfig {
+                  enabled: true,
+                  default_ttl_secs: 300,
+                  no_cache_paths: None,
+                }),
+              };
+              let layer = HttpResponseCacheLayer::from_config(&cfg).unwrap();
+              let mut svc = layer.layer(MockInner::ok("original-content"));
+
+              // When: making first request (cache miss)
+              let req1 = Request::builder()
+                .method(Method::GET)
+                .uri("/api/cache-test")
+                .body(Body::empty())
+                .unwrap();
+              let res1 = svc.ready().await.unwrap().call(req1).await.unwrap();
+              let body1 = to_bytes(res1.into_body(), 1024).await.unwrap();
+
+              // And: making second request with same path (cache hit)
+              let req2 = Request::builder()
+                .method(Method::GET)
+                .uri("/api/cache-test")
+                .body(Body::empty())
+                .unwrap();
+              let res2 = svc.ready().await.unwrap().call(req2).await.unwrap();
+              let body2 = to_bytes(res2.into_body(), 1024).await.unwrap();
+
+              // Then: both responses should have same content
+              assert_eq!(body1, body2, "Cached response should match original");
+              assert_eq!(
+                body1.as_ref(),
+                b"original-content",
+                "Response body should match"
+              );
+            }
+
+            #[tokio::test]
+            async fn should_add_cache_control_header_to_cached_responses() {
+              // Given: a cache layer with cached response
+              let cfg = CacheConfig {
+                enabled: true,
+                application: None,
+                http_response: Some(HttpResponseCacheConfig {
+                  enabled: true,
+                  default_ttl_secs: 300,
+                  no_cache_paths: None,
+                }),
+              };
+              let layer = HttpResponseCacheLayer::from_config(&cfg).unwrap();
+              let mut svc = layer.layer(MockInner::ok("test"));
+
+              // When: making first request
+              let req1 = Request::builder()
+                .method(Method::GET)
+                .uri("/api/cache-control-test")
+                .body(Body::empty())
+                .unwrap();
+              let _res1 = svc.ready().await.unwrap().call(req1).await.unwrap();
+
+              // And: making second request (cache hit)
+              let req2 = Request::builder()
+                .method(Method::GET)
+                .uri("/api/cache-control-test")
+                .body(Body::empty())
+                .unwrap();
+              let res2 = svc.ready().await.unwrap().call(req2).await.unwrap();
+
+              // Then: response should have cache-control header
+              assert!(
+                res2.headers().contains_key("cache-control"),
+                "Cached response should have cache-control header"
+              );
+            }
+          }
+
+          mod skip_path_behavior {
+            use super::*;
+
+            #[derive(Clone)]
+            struct MockInner {
+              body: Bytes,
+            }
+
+            impl Service<Request<Body>> for MockInner {
+              type Response = Response<Body>;
+              type Error = std::convert::Infallible;
+              type Future = std::future::Ready<Result<Self::Response, Self::Error>>;
+
+              fn poll_ready(
+                &mut self,
+                _cx: &mut std::task::Context<'_>,
+              ) -> Poll<Result<(), Self::Error>> {
+                Poll::Ready(Ok(()))
+              }
+
+              fn call(&mut self, _req: Request<Body>) -> Self::Future {
+                let res = Response::builder()
+                  .status(StatusCode::OK)
+                  .body(Body::from(self.body.clone()))
+                  .unwrap();
+                std::future::ready(Ok(res))
+              }
+            }
+
+            #[tokio::test]
+            async fn should_skip_caching_for_paths_in_no_cache_list() {
+              // Given: a cache layer with no_cache_paths configured
+              let cfg = CacheConfig {
+                enabled: true,
+                application: None,
+                http_response: Some(HttpResponseCacheConfig {
+                  enabled: true,
+                  default_ttl_secs: 300,
+                  no_cache_paths: Some(vec!["/health".into()]),
+                }),
+              };
+              let layer = HttpResponseCacheLayer::from_config(&cfg).unwrap();
+              let mut svc = layer.layer(MockInner {
+                body: Bytes::from("health-check"),
+              });
+
+              // When: making GET request to skipped path
+              let req1 = Request::builder()
+                .method(Method::GET)
+                .uri("/health")
+                .body(Body::empty())
+                .unwrap();
+              let res1 = svc.ready().await.unwrap().call(req1).await.unwrap();
+
+              // And: making second request to same path
+              let req2 = Request::builder()
+                .method(Method::GET)
+                .uri("/health")
+                .body(Body::empty())
+                .unwrap();
+              let res2 = svc.ready().await.unwrap().call(req2).await.unwrap();
+
+              // Then: both requests should go through (not cached)
+              let body1 = to_bytes(res1.into_body(), 1024).await.unwrap();
+              let body2 = to_bytes(res2.into_body(), 1024).await.unwrap();
+              assert_eq!(body1, body2, "Responses should match");
+              // Note: In a real scenario, we'd verify inner service was called twice
+            }
+
+            #[tokio::test]
+            async fn should_skip_caching_for_root_path_when_configured() {
+              // Given: a cache layer with root path in no_cache_paths
+              let cfg = CacheConfig {
+                enabled: true,
+                application: None,
+                http_response: Some(HttpResponseCacheConfig {
+                  enabled: true,
+                  default_ttl_secs: 300,
+                  no_cache_paths: Some(vec!["/".into()]),
+                }),
+              };
+              let layer = HttpResponseCacheLayer::from_config(&cfg).unwrap();
+              let mut svc = layer.layer(MockInner {
+                body: Bytes::from("root"),
+              });
+
+              // When: making GET request to root path
+              let req = Request::builder()
+                .method(Method::GET)
+                .uri("/")
+                .body(Body::empty())
+                .unwrap();
+              let res = svc.ready().await.unwrap().call(req).await.unwrap();
+
+              // Then: request should be processed (not cached)
+              assert_eq!(
+                res.status(),
+                StatusCode::OK,
+                "Root path request should succeed"
+              );
+            }
+
+            #[tokio::test]
+            async fn should_cache_paths_not_in_skip_list() {
+              // Given: a cache layer with specific skip paths
+              let cfg = CacheConfig {
+                enabled: true,
+                application: None,
+                http_response: Some(HttpResponseCacheConfig {
+                  enabled: true,
+                  default_ttl_secs: 300,
+                  no_cache_paths: Some(vec!["/health".into()]),
+                }),
+              };
+              let layer = HttpResponseCacheLayer::from_config(&cfg).unwrap();
+              let mut svc = layer.layer(MockInner {
+                body: Bytes::from("cacheable"),
+              });
+
+              // When: making GET request to path not in skip list
+              let req1 = Request::builder()
+                .method(Method::GET)
+                .uri("/api/data")
+                .body(Body::empty())
+                .unwrap();
+              let _res1 = svc.ready().await.unwrap().call(req1).await.unwrap();
+
+              // And: making second request to same path
+              let req2 = Request::builder()
+                .method(Method::GET)
+                .uri("/api/data")
+                .body(Body::empty())
+                .unwrap();
+              let res2 = svc.ready().await.unwrap().call(req2).await.unwrap();
+
+              // Then: second request should be cached (have cache-control header)
+              assert!(
+                res2.headers().contains_key("cache-control"),
+                "Non-skipped paths should be cached"
+              );
+            }
+          }
+
+          mod request_method_behavior {
+            use super::*;
+
+            #[derive(Clone)]
+            struct MockInner {
+              body: Bytes,
+            }
+
+            impl Service<Request<Body>> for MockInner {
+              type Response = Response<Body>;
+              type Error = std::convert::Infallible;
+              type Future = std::future::Ready<Result<Self::Response, Self::Error>>;
+
+              fn poll_ready(
+                &mut self,
+                _cx: &mut std::task::Context<'_>,
+              ) -> Poll<Result<(), Self::Error>> {
+                Poll::Ready(Ok(()))
+              }
+
+              fn call(&mut self, _req: Request<Body>) -> Self::Future {
+                let res = Response::builder()
+                  .status(StatusCode::OK)
+                  .body(Body::from(self.body.clone()))
+                  .unwrap();
+                std::future::ready(Ok(res))
+              }
+            }
+
+            #[tokio::test]
+            async fn should_pass_through_non_get_requests() {
+              // Given: a cache layer
+              let cfg = CacheConfig {
+                enabled: true,
+                application: None,
+                http_response: Some(HttpResponseCacheConfig {
+                  enabled: true,
+                  default_ttl_secs: 300,
+                  no_cache_paths: None,
+                }),
+              };
+              let layer = HttpResponseCacheLayer::from_config(&cfg).unwrap();
+              let mut svc = layer.layer(MockInner {
+                body: Bytes::from("post-response"),
+              });
+
+              // When: making POST request
+              let req = Request::builder()
+                .method(Method::POST)
+                .uri("/api/data")
+                .body(Body::empty())
+                .unwrap();
+              let res = svc.ready().await.unwrap().call(req).await.unwrap();
+
+              // Then: request should be processed without caching
+              assert_eq!(res.status(), StatusCode::OK, "POST request should succeed");
+              let body = to_bytes(res.into_body(), 1024).await.unwrap();
+              assert_eq!(
+                body.as_ref(),
+                b"post-response",
+                "POST response should match"
+              );
+            }
+
+            #[tokio::test]
+            async fn should_only_cache_get_requests() {
+              // Given: a cache layer
+              let cfg = CacheConfig {
+                enabled: true,
+                application: None,
+                http_response: Some(HttpResponseCacheConfig {
+                  enabled: true,
+                  default_ttl_secs: 300,
+                  no_cache_paths: None,
+                }),
+              };
+              let layer = HttpResponseCacheLayer::from_config(&cfg).unwrap();
+              let mut svc = layer.layer(MockInner {
+                body: Bytes::from("response"),
+              });
+
+              // When: making PUT request
+              let req = Request::builder()
+                .method(Method::PUT)
+                .uri("/api/resource")
+                .body(Body::empty())
+                .unwrap();
+              let res = svc.ready().await.unwrap().call(req).await.unwrap();
+
+              // Then: response should not have cache-control header (not cached)
+              assert!(
+                !res.headers().contains_key("cache-control"),
+                "Non-GET requests should not be cached"
+              );
+            }
+          }
+
+          mod status_code_behavior {
+            use super::*;
+
+            #[derive(Clone)]
+            struct MockInner {
+              status: StatusCode,
+              body: Bytes,
+            }
+
+            impl Service<Request<Body>> for MockInner {
+              type Response = Response<Body>;
+              type Error = std::convert::Infallible;
+              type Future = std::future::Ready<Result<Self::Response, Self::Error>>;
+
+              fn poll_ready(
+                &mut self,
+                _cx: &mut std::task::Context<'_>,
+              ) -> Poll<Result<(), Self::Error>> {
+                Poll::Ready(Ok(()))
+              }
+
+              fn call(&mut self, _req: Request<Body>) -> Self::Future {
+                let res = Response::builder()
+                  .status(self.status)
+                  .body(Body::from(self.body.clone()))
+                  .unwrap();
+                std::future::ready(Ok(res))
+              }
+            }
+
+            #[tokio::test]
+            async fn should_not_cache_non_success_responses() {
+              // Given: a cache layer and inner service returning error status
+              let cfg = CacheConfig {
+                enabled: true,
+                application: None,
+                http_response: Some(HttpResponseCacheConfig {
+                  enabled: true,
+                  default_ttl_secs: 300,
+                  no_cache_paths: None,
+                }),
+              };
+              let layer = HttpResponseCacheLayer::from_config(&cfg).unwrap();
+              let mut svc = layer.layer(MockInner {
+                status: StatusCode::NOT_FOUND,
+                body: Bytes::new(),
+              });
+
+              // When: making GET request that returns error
+              let req1 = Request::builder()
+                .method(Method::GET)
+                .uri("/api/missing")
+                .body(Body::empty())
+                .unwrap();
+              let res1 = svc.ready().await.unwrap().call(req1).await.unwrap();
+
+              // And: making second request to same path
+              let req2 = Request::builder()
+                .method(Method::GET)
+                .uri("/api/missing")
+                .body(Body::empty())
+                .unwrap();
+              let res2 = svc.ready().await.unwrap().call(req2).await.unwrap();
+
+              // Then: both should return error status (not cached)
+              assert_eq!(
+                res1.status(),
+                StatusCode::NOT_FOUND,
+                "First request should return error"
+              );
+              assert_eq!(
+                res2.status(),
+                StatusCode::NOT_FOUND,
+                "Second request should return error"
+              );
+              // Note: In real scenario, we'd verify inner was called twice
+            }
+
+            #[tokio::test]
+            async fn should_cache_success_responses() {
+              // Given: a cache layer and inner service returning success
+              let cfg = CacheConfig {
+                enabled: true,
+                application: None,
+                http_response: Some(HttpResponseCacheConfig {
+                  enabled: true,
+                  default_ttl_secs: 300,
+                  no_cache_paths: None,
+                }),
+              };
+              let layer = HttpResponseCacheLayer::from_config(&cfg).unwrap();
+              let mut svc = layer.layer(MockInner {
+                status: StatusCode::OK,
+                body: Bytes::from("success"),
+              });
+
+              // When: making GET request that returns success
+              let req1 = Request::builder()
+                .method(Method::GET)
+                .uri("/api/success")
+                .body(Body::empty())
+                .unwrap();
+              let _res1 = svc.ready().await.unwrap().call(req1).await.unwrap();
+
+              // And: making second request to same path
+              let req2 = Request::builder()
+                .method(Method::GET)
+                .uri("/api/success")
+                .body(Body::empty())
+                .unwrap();
+              let res2 = svc.ready().await.unwrap().call(req2).await.unwrap();
+
+              // Then: second request should be cached (have cache-control)
+              assert_eq!(
+                res2.status(),
+                StatusCode::OK,
+                "Cached response should be success"
+              );
+              assert!(
+                res2.headers().contains_key("cache-control"),
+                "Success responses should be cached"
+              );
+            }
+          }
+
+          mod query_string_behavior {
+            use super::*;
+
+            #[derive(Clone)]
+            struct MockInner {
+              body: Bytes,
+            }
+
+            impl Service<Request<Body>> for MockInner {
+              type Response = Response<Body>;
+              type Error = std::convert::Infallible;
+              type Future = std::future::Ready<Result<Self::Response, Self::Error>>;
+
+              fn poll_ready(
+                &mut self,
+                _cx: &mut std::task::Context<'_>,
+              ) -> Poll<Result<(), Self::Error>> {
+                Poll::Ready(Ok(()))
+              }
+
+              fn call(&mut self, _req: Request<Body>) -> Self::Future {
+                let res = Response::builder()
+                  .status(StatusCode::OK)
+                  .body(Body::from(self.body.clone()))
+                  .unwrap();
+                std::future::ready(Ok(res))
+              }
+            }
+
+            #[tokio::test]
+            async fn should_cache_different_query_strings_separately() {
+              // Given: a cache layer
+              let cfg = CacheConfig {
+                enabled: true,
+                application: None,
+                http_response: Some(HttpResponseCacheConfig {
+                  enabled: true,
+                  default_ttl_secs: 300,
+                  no_cache_paths: None,
+                }),
+              };
+              let layer = HttpResponseCacheLayer::from_config(&cfg).unwrap();
+              let mut svc = layer.layer(MockInner {
+                body: Bytes::from("query-response"),
+              });
+
+              // When: making GET request with query string
+              let req1 = Request::builder()
+                .method(Method::GET)
+                .uri("/api/search?q=test")
+                .body(Body::empty())
+                .unwrap();
+              let _res1 = svc.ready().await.unwrap().call(req1).await.unwrap();
+
+              // And: making second request with same query string
+              let req2 = Request::builder()
+                .method(Method::GET)
+                .uri("/api/search?q=test")
+                .body(Body::empty())
+                .unwrap();
+              let res2 = svc.ready().await.unwrap().call(req2).await.unwrap();
+
+              // Then: second request should be cached
+              assert!(
+                res2.headers().contains_key("cache-control"),
+                "Requests with query strings should be cached"
+              );
+            }
+
+            #[tokio::test]
+            async fn should_treat_different_query_strings_as_different_cache_keys() {
+              // Given: a cache layer
+              let cfg = CacheConfig {
+                enabled: true,
+                application: None,
+                http_response: Some(HttpResponseCacheConfig {
+                  enabled: true,
+                  default_ttl_secs: 300,
+                  no_cache_paths: None,
+                }),
+              };
+              let layer = HttpResponseCacheLayer::from_config(&cfg).unwrap();
+              let mut svc = layer.layer(MockInner {
+                body: Bytes::from("response"),
+              });
+
+              // When: making GET request with first query string
+              let req1 = Request::builder()
+                .method(Method::GET)
+                .uri("/api/data?page=1")
+                .body(Body::empty())
+                .unwrap();
+              let _res1 = svc.ready().await.unwrap().call(req1).await.unwrap();
+
+              // And: making GET request with different query string
+              let req2 = Request::builder()
+                .method(Method::GET)
+                .uri("/api/data?page=2")
+                .body(Body::empty())
+                .unwrap();
+              let res2 = svc.ready().await.unwrap().call(req2).await.unwrap();
+
+              // Then: second request should not be cached (different query = cache miss)
+              // Note: This test verifies that different queries create different cache keys
+              // In practice, both would be cache misses on first request
+              assert_eq!(
+                res2.status(),
+                StatusCode::OK,
+                "Different query should be processed"
+              );
+            }
+          }
+
+          mod body_size_behavior {
+            use super::*;
+
+            #[derive(Clone)]
+            struct MockInner {
+              body: Bytes,
+            }
+
+            impl Service<Request<Body>> for MockInner {
+              type Response = Response<Body>;
+              type Error = std::convert::Infallible;
+              type Future = std::future::Ready<Result<Self::Response, Self::Error>>;
+
+              fn poll_ready(
+                &mut self,
+                _cx: &mut std::task::Context<'_>,
+              ) -> Poll<Result<(), Self::Error>> {
+                Poll::Ready(Ok(()))
+              }
+
+              fn call(&mut self, _req: Request<Body>) -> Self::Future {
+                let res = Response::builder()
+                  .status(StatusCode::OK)
+                  .body(Body::from(self.body.clone()))
+                  .unwrap();
+                std::future::ready(Ok(res))
+              }
+            }
+
+            #[tokio::test]
+            async fn should_return_error_when_body_exceeds_limit() {
+              // Given: a cache layer and response body exceeding limit
+              const BODY_LIMIT: usize = 10 * 1024 * 1024;
+              let oversized = vec![0u8; BODY_LIMIT + 1];
+              let cfg = CacheConfig {
+                enabled: true,
+                application: None,
+                http_response: Some(HttpResponseCacheConfig {
+                  enabled: true,
+                  default_ttl_secs: 300,
+                  no_cache_paths: None,
+                }),
+              };
+              let layer = HttpResponseCacheLayer::from_config(&cfg).unwrap();
+              let mut svc = layer.layer(MockInner {
+                body: Bytes::from(oversized),
+              });
+
+              // When: making GET request with oversized body
+              let req = Request::builder()
+                .method(Method::GET)
+                .uri("/api/large")
+                .body(Body::empty())
+                .unwrap();
+              let res = svc.ready().await.unwrap().call(req).await.unwrap();
+
+              // Then: should return 500 error
+              assert_eq!(
+                res.status(),
+                StatusCode::INTERNAL_SERVER_ERROR,
+                "Oversized body should return error"
+              );
+            }
+
+            #[tokio::test]
+            async fn should_cache_responses_within_size_limit() {
+              // Given: a cache layer and response body within limit
+              let cfg = CacheConfig {
+                enabled: true,
+                application: None,
+                http_response: Some(HttpResponseCacheConfig {
+                  enabled: true,
+                  default_ttl_secs: 300,
+                  no_cache_paths: None,
+                }),
+              };
+              let layer = HttpResponseCacheLayer::from_config(&cfg).unwrap();
+              let mut svc = layer.layer(MockInner {
+                body: Bytes::from("small response"),
+              });
+
+              // When: making GET request with normal-sized body
+              let req1 = Request::builder()
+                .method(Method::GET)
+                .uri("/api/normal")
+                .body(Body::empty())
+                .unwrap();
+              let _res1 = svc.ready().await.unwrap().call(req1).await.unwrap();
+
+              // And: making second request
+              let req2 = Request::builder()
+                .method(Method::GET)
+                .uri("/api/normal")
+                .body(Body::empty())
+                .unwrap();
+              let res2 = svc.ready().await.unwrap().call(req2).await.unwrap();
+
+              // Then: second request should be cached
+              assert_eq!(
+                res2.status(),
+                StatusCode::OK,
+                "Normal-sized response should succeed"
+              );
+              assert!(
+                res2.headers().contains_key("cache-control"),
+                "Normal-sized responses should be cached"
+              );
+            }
+          }
         }
       }
     }
-
-    impl Service<Request<Body>> for MockInner {
-      type Response = Response<Body>;
-      type Error = std::convert::Infallible;
-      type Future = std::future::Ready<Result<Self::Response, Self::Error>>;
-
-      fn poll_ready(&mut self, _cx: &mut std::task::Context<'_>) -> Poll<Result<(), Self::Error>> {
-        Poll::Ready(Ok(()))
-      }
-
-      fn call(&mut self, _req: Request<Body>) -> Self::Future {
-        let res = Response::builder()
-          .status(self.status)
-          .body(Body::from(self.body.clone()))
-          .unwrap();
-        std::future::ready(Ok(res))
-      }
-    }
-
-    #[tokio::test]
-    async fn should_cache_response_on_first_request() {
-      // Given: a cache layer and a GET request
-      let cfg = CacheConfig {
-        enabled: true,
-        application: None,
-        http_response: Some(HttpResponseCacheConfig {
-          enabled: true,
-          default_ttl_secs: 300,
-          no_cache_paths: None,
-        }),
-      };
-      let layer = HttpResponseCacheLayer::from_config(&cfg).unwrap();
-      let mut svc = layer.layer(MockInner::ok("cached-content"));
-
-      // When: making first GET request
-      let req = Request::builder()
-        .method(Method::GET)
-        .uri("/api/data")
-        .body(Body::empty())
-        .unwrap();
-      let res = svc.ready().await.unwrap().call(req).await.unwrap();
-
-      // Then: response should be successful
-      assert_eq!(res.status(), StatusCode::OK, "First request should succeed");
-    }
-
-    #[tokio::test]
-    async fn should_return_cached_response_on_second_request() {
-      // Given: a cache layer that has cached a response
-      let cfg = CacheConfig {
-        enabled: true,
-        application: None,
-        http_response: Some(HttpResponseCacheConfig {
-          enabled: true,
-          default_ttl_secs: 300,
-          no_cache_paths: None,
-        }),
-      };
-      let layer = HttpResponseCacheLayer::from_config(&cfg).unwrap();
-      let mut svc = layer.layer(MockInner::ok("original-content"));
-
-      // When: making first request (cache miss)
-      let req1 = Request::builder()
-        .method(Method::GET)
-        .uri("/api/cache-test")
-        .body(Body::empty())
-        .unwrap();
-      let res1 = svc.ready().await.unwrap().call(req1).await.unwrap();
-      let body1 = to_bytes(res1.into_body(), 1024).await.unwrap();
-
-      // And: making second request with same path (cache hit)
-      let req2 = Request::builder()
-        .method(Method::GET)
-        .uri("/api/cache-test")
-        .body(Body::empty())
-        .unwrap();
-      let res2 = svc.ready().await.unwrap().call(req2).await.unwrap();
-      let body2 = to_bytes(res2.into_body(), 1024).await.unwrap();
-
-      // Then: both responses should have same content
-      assert_eq!(body1, body2, "Cached response should match original");
-      assert_eq!(body1.as_ref(), b"original-content", "Response body should match");
-    }
-
-    #[tokio::test]
-    async fn should_add_cache_control_header_to_cached_responses() {
-      // Given: a cache layer with cached response
-      let cfg = CacheConfig {
-        enabled: true,
-        application: None,
-        http_response: Some(HttpResponseCacheConfig {
-          enabled: true,
-          default_ttl_secs: 300,
-          no_cache_paths: None,
-        }),
-      };
-      let layer = HttpResponseCacheLayer::from_config(&cfg).unwrap();
-      let mut svc = layer.layer(MockInner::ok("test"));
-
-      // When: making first request
-      let req1 = Request::builder()
-        .method(Method::GET)
-        .uri("/api/cache-control-test")
-        .body(Body::empty())
-        .unwrap();
-      let _res1 = svc.ready().await.unwrap().call(req1).await.unwrap();
-
-      // And: making second request (cache hit)
-      let req2 = Request::builder()
-        .method(Method::GET)
-        .uri("/api/cache-control-test")
-        .body(Body::empty())
-        .unwrap();
-      let res2 = svc.ready().await.unwrap().call(req2).await.unwrap();
-
-      // Then: response should have cache-control header
-      assert!(
-        res2.headers().contains_key("cache-control"),
-        "Cached response should have cache-control header"
-      );
-    }
-  }
-
-  mod skip_path_behavior {
-    use super::*;
-
-    #[derive(Clone)]
-    struct MockInner {
-      body: Bytes,
-    }
-
-    impl Service<Request<Body>> for MockInner {
-      type Response = Response<Body>;
-      type Error = std::convert::Infallible;
-      type Future = std::future::Ready<Result<Self::Response, Self::Error>>;
-
-      fn poll_ready(&mut self, _cx: &mut std::task::Context<'_>) -> Poll<Result<(), Self::Error>> {
-        Poll::Ready(Ok(()))
-      }
-
-      fn call(&mut self, _req: Request<Body>) -> Self::Future {
-        let res = Response::builder()
-          .status(StatusCode::OK)
-          .body(Body::from(self.body.clone()))
-          .unwrap();
-        std::future::ready(Ok(res))
-      }
-    }
-
-    #[tokio::test]
-    async fn should_skip_caching_for_paths_in_no_cache_list() {
-      // Given: a cache layer with no_cache_paths configured
-      let cfg = CacheConfig {
-        enabled: true,
-        application: None,
-        http_response: Some(HttpResponseCacheConfig {
-          enabled: true,
-          default_ttl_secs: 300,
-          no_cache_paths: Some(vec!["/health".into()]),
-        }),
-      };
-      let layer = HttpResponseCacheLayer::from_config(&cfg).unwrap();
-      let mut svc = layer.layer(MockInner {
-        body: Bytes::from("health-check"),
-      });
-
-      // When: making GET request to skipped path
-      let req1 = Request::builder()
-        .method(Method::GET)
-        .uri("/health")
-        .body(Body::empty())
-        .unwrap();
-      let res1 = svc.ready().await.unwrap().call(req1).await.unwrap();
-
-      // And: making second request to same path
-      let req2 = Request::builder()
-        .method(Method::GET)
-        .uri("/health")
-        .body(Body::empty())
-        .unwrap();
-      let res2 = svc.ready().await.unwrap().call(req2).await.unwrap();
-
-      // Then: both requests should go through (not cached)
-      let body1 = to_bytes(res1.into_body(), 1024).await.unwrap();
-      let body2 = to_bytes(res2.into_body(), 1024).await.unwrap();
-      assert_eq!(body1, body2, "Responses should match");
-      // Note: In a real scenario, we'd verify inner service was called twice
-    }
-
-    #[tokio::test]
-    async fn should_skip_caching_for_root_path_when_configured() {
-      // Given: a cache layer with root path in no_cache_paths
-      let cfg = CacheConfig {
-        enabled: true,
-        application: None,
-        http_response: Some(HttpResponseCacheConfig {
-          enabled: true,
-          default_ttl_secs: 300,
-          no_cache_paths: Some(vec!["/".into()]),
-        }),
-      };
-      let layer = HttpResponseCacheLayer::from_config(&cfg).unwrap();
-      let mut svc = layer.layer(MockInner {
-        body: Bytes::from("root"),
-      });
-
-      // When: making GET request to root path
-      let req = Request::builder()
-        .method(Method::GET)
-        .uri("/")
-        .body(Body::empty())
-        .unwrap();
-      let res = svc.ready().await.unwrap().call(req).await.unwrap();
-
-      // Then: request should be processed (not cached)
-      assert_eq!(res.status(), StatusCode::OK, "Root path request should succeed");
-    }
-
-    #[tokio::test]
-    async fn should_cache_paths_not_in_skip_list() {
-      // Given: a cache layer with specific skip paths
-      let cfg = CacheConfig {
-        enabled: true,
-        application: None,
-        http_response: Some(HttpResponseCacheConfig {
-          enabled: true,
-          default_ttl_secs: 300,
-          no_cache_paths: Some(vec!["/health".into()]),
-        }),
-      };
-      let layer = HttpResponseCacheLayer::from_config(&cfg).unwrap();
-      let mut svc = layer.layer(MockInner {
-        body: Bytes::from("cacheable"),
-      });
-
-      // When: making GET request to path not in skip list
-      let req1 = Request::builder()
-        .method(Method::GET)
-        .uri("/api/data")
-        .body(Body::empty())
-        .unwrap();
-      let _res1 = svc.ready().await.unwrap().call(req1).await.unwrap();
-
-      // And: making second request to same path
-      let req2 = Request::builder()
-        .method(Method::GET)
-        .uri("/api/data")
-        .body(Body::empty())
-        .unwrap();
-      let res2 = svc.ready().await.unwrap().call(req2).await.unwrap();
-
-      // Then: second request should be cached (have cache-control header)
-      assert!(
-        res2.headers().contains_key("cache-control"),
-        "Non-skipped paths should be cached"
-      );
-    }
-  }
-
-  mod request_method_behavior {
-    use super::*;
-
-    #[derive(Clone)]
-    struct MockInner {
-      body: Bytes,
-    }
-
-    impl Service<Request<Body>> for MockInner {
-      type Response = Response<Body>;
-      type Error = std::convert::Infallible;
-      type Future = std::future::Ready<Result<Self::Response, Self::Error>>;
-
-      fn poll_ready(&mut self, _cx: &mut std::task::Context<'_>) -> Poll<Result<(), Self::Error>> {
-        Poll::Ready(Ok(()))
-      }
-
-      fn call(&mut self, _req: Request<Body>) -> Self::Future {
-        let res = Response::builder()
-          .status(StatusCode::OK)
-          .body(Body::from(self.body.clone()))
-          .unwrap();
-        std::future::ready(Ok(res))
-      }
-    }
-
-    #[tokio::test]
-    async fn should_pass_through_non_get_requests() {
-      // Given: a cache layer
-      let cfg = CacheConfig {
-        enabled: true,
-        application: None,
-        http_response: Some(HttpResponseCacheConfig {
-          enabled: true,
-          default_ttl_secs: 300,
-          no_cache_paths: None,
-        }),
-      };
-      let layer = HttpResponseCacheLayer::from_config(&cfg).unwrap();
-      let mut svc = layer.layer(MockInner {
-        body: Bytes::from("post-response"),
-      });
-
-      // When: making POST request
-      let req = Request::builder()
-        .method(Method::POST)
-        .uri("/api/data")
-        .body(Body::empty())
-        .unwrap();
-      let res = svc.ready().await.unwrap().call(req).await.unwrap();
-
-      // Then: request should be processed without caching
-      assert_eq!(res.status(), StatusCode::OK, "POST request should succeed");
-      let body = to_bytes(res.into_body(), 1024).await.unwrap();
-      assert_eq!(body.as_ref(), b"post-response", "POST response should match");
-    }
-
-    #[tokio::test]
-    async fn should_only_cache_get_requests() {
-      // Given: a cache layer
-      let cfg = CacheConfig {
-        enabled: true,
-        application: None,
-        http_response: Some(HttpResponseCacheConfig {
-          enabled: true,
-          default_ttl_secs: 300,
-          no_cache_paths: None,
-        }),
-      };
-      let layer = HttpResponseCacheLayer::from_config(&cfg).unwrap();
-      let mut svc = layer.layer(MockInner {
-        body: Bytes::from("response"),
-      });
-
-      // When: making PUT request
-      let req = Request::builder()
-        .method(Method::PUT)
-        .uri("/api/resource")
-        .body(Body::empty())
-        .unwrap();
-      let res = svc.ready().await.unwrap().call(req).await.unwrap();
-
-      // Then: response should not have cache-control header (not cached)
-      assert!(
-        !res.headers().contains_key("cache-control"),
-        "Non-GET requests should not be cached"
-      );
-    }
-  }
-
-  mod status_code_behavior {
-    use super::*;
-
-    #[derive(Clone)]
-    struct MockInner {
-      status: StatusCode,
-      body: Bytes,
-    }
-
-    impl Service<Request<Body>> for MockInner {
-      type Response = Response<Body>;
-      type Error = std::convert::Infallible;
-      type Future = std::future::Ready<Result<Self::Response, Self::Error>>;
-
-      fn poll_ready(&mut self, _cx: &mut std::task::Context<'_>) -> Poll<Result<(), Self::Error>> {
-        Poll::Ready(Ok(()))
-      }
-
-      fn call(&mut self, _req: Request<Body>) -> Self::Future {
-        let res = Response::builder()
-          .status(self.status)
-          .body(Body::from(self.body.clone()))
-          .unwrap();
-        std::future::ready(Ok(res))
-      }
-    }
-
-    #[tokio::test]
-    async fn should_not_cache_non_success_responses() {
-      // Given: a cache layer and inner service returning error status
-      let cfg = CacheConfig {
-        enabled: true,
-        application: None,
-        http_response: Some(HttpResponseCacheConfig {
-          enabled: true,
-          default_ttl_secs: 300,
-          no_cache_paths: None,
-        }),
-      };
-      let layer = HttpResponseCacheLayer::from_config(&cfg).unwrap();
-      let mut svc = layer.layer(MockInner {
-        status: StatusCode::NOT_FOUND,
-        body: Bytes::new(),
-      });
-
-      // When: making GET request that returns error
-      let req1 = Request::builder()
-        .method(Method::GET)
-        .uri("/api/missing")
-        .body(Body::empty())
-        .unwrap();
-      let res1 = svc.ready().await.unwrap().call(req1).await.unwrap();
-
-      // And: making second request to same path
-      let req2 = Request::builder()
-        .method(Method::GET)
-        .uri("/api/missing")
-        .body(Body::empty())
-        .unwrap();
-      let res2 = svc.ready().await.unwrap().call(req2).await.unwrap();
-
-      // Then: both should return error status (not cached)
-      assert_eq!(res1.status(), StatusCode::NOT_FOUND, "First request should return error");
-      assert_eq!(res2.status(), StatusCode::NOT_FOUND, "Second request should return error");
-      // Note: In real scenario, we'd verify inner was called twice
-    }
-
-    #[tokio::test]
-    async fn should_cache_success_responses() {
-      // Given: a cache layer and inner service returning success
-      let cfg = CacheConfig {
-        enabled: true,
-        application: None,
-        http_response: Some(HttpResponseCacheConfig {
-          enabled: true,
-          default_ttl_secs: 300,
-          no_cache_paths: None,
-        }),
-      };
-      let layer = HttpResponseCacheLayer::from_config(&cfg).unwrap();
-      let mut svc = layer.layer(MockInner {
-        status: StatusCode::OK,
-        body: Bytes::from("success"),
-      });
-
-      // When: making GET request that returns success
-      let req1 = Request::builder()
-        .method(Method::GET)
-        .uri("/api/success")
-        .body(Body::empty())
-        .unwrap();
-      let _res1 = svc.ready().await.unwrap().call(req1).await.unwrap();
-
-      // And: making second request to same path
-      let req2 = Request::builder()
-        .method(Method::GET)
-        .uri("/api/success")
-        .body(Body::empty())
-        .unwrap();
-      let res2 = svc.ready().await.unwrap().call(req2).await.unwrap();
-
-      // Then: second request should be cached (have cache-control)
-      assert_eq!(res2.status(), StatusCode::OK, "Cached response should be success");
-      assert!(
-        res2.headers().contains_key("cache-control"),
-        "Success responses should be cached"
-      );
-    }
-  }
-
-  mod query_string_behavior {
-    use super::*;
-
-    #[derive(Clone)]
-    struct MockInner {
-      body: Bytes,
-    }
-
-    impl Service<Request<Body>> for MockInner {
-      type Response = Response<Body>;
-      type Error = std::convert::Infallible;
-      type Future = std::future::Ready<Result<Self::Response, Self::Error>>;
-
-      fn poll_ready(&mut self, _cx: &mut std::task::Context<'_>) -> Poll<Result<(), Self::Error>> {
-        Poll::Ready(Ok(()))
-      }
-
-      fn call(&mut self, _req: Request<Body>) -> Self::Future {
-        let res = Response::builder()
-          .status(StatusCode::OK)
-          .body(Body::from(self.body.clone()))
-          .unwrap();
-        std::future::ready(Ok(res))
-      }
-    }
-
-    #[tokio::test]
-    async fn should_cache_different_query_strings_separately() {
-      // Given: a cache layer
-      let cfg = CacheConfig {
-        enabled: true,
-        application: None,
-        http_response: Some(HttpResponseCacheConfig {
-          enabled: true,
-          default_ttl_secs: 300,
-          no_cache_paths: None,
-        }),
-      };
-      let layer = HttpResponseCacheLayer::from_config(&cfg).unwrap();
-      let mut svc = layer.layer(MockInner {
-        body: Bytes::from("query-response"),
-      });
-
-      // When: making GET request with query string
-      let req1 = Request::builder()
-        .method(Method::GET)
-        .uri("/api/search?q=test")
-        .body(Body::empty())
-        .unwrap();
-      let _res1 = svc.ready().await.unwrap().call(req1).await.unwrap();
-
-      // And: making second request with same query string
-      let req2 = Request::builder()
-        .method(Method::GET)
-        .uri("/api/search?q=test")
-        .body(Body::empty())
-        .unwrap();
-      let res2 = svc.ready().await.unwrap().call(req2).await.unwrap();
-
-      // Then: second request should be cached
-      assert!(
-        res2.headers().contains_key("cache-control"),
-        "Requests with query strings should be cached"
-      );
-    }
-
-    #[tokio::test]
-    async fn should_treat_different_query_strings_as_different_cache_keys() {
-      // Given: a cache layer
-      let cfg = CacheConfig {
-        enabled: true,
-        application: None,
-        http_response: Some(HttpResponseCacheConfig {
-          enabled: true,
-          default_ttl_secs: 300,
-          no_cache_paths: None,
-        }),
-      };
-      let layer = HttpResponseCacheLayer::from_config(&cfg).unwrap();
-      let mut svc = layer.layer(MockInner {
-        body: Bytes::from("response"),
-      });
-
-      // When: making GET request with first query string
-      let req1 = Request::builder()
-        .method(Method::GET)
-        .uri("/api/data?page=1")
-        .body(Body::empty())
-        .unwrap();
-      let _res1 = svc.ready().await.unwrap().call(req1).await.unwrap();
-
-      // And: making GET request with different query string
-      let req2 = Request::builder()
-        .method(Method::GET)
-        .uri("/api/data?page=2")
-        .body(Body::empty())
-        .unwrap();
-      let res2 = svc.ready().await.unwrap().call(req2).await.unwrap();
-
-      // Then: second request should not be cached (different query = cache miss)
-      // Note: This test verifies that different queries create different cache keys
-      // In practice, both would be cache misses on first request
-      assert_eq!(res2.status(), StatusCode::OK, "Different query should be processed");
-    }
-  }
-
-  mod body_size_behavior {
-    use super::*;
-
-    #[derive(Clone)]
-    struct MockInner {
-      body: Bytes,
-    }
-
-    impl Service<Request<Body>> for MockInner {
-      type Response = Response<Body>;
-      type Error = std::convert::Infallible;
-      type Future = std::future::Ready<Result<Self::Response, Self::Error>>;
-
-      fn poll_ready(&mut self, _cx: &mut std::task::Context<'_>) -> Poll<Result<(), Self::Error>> {
-        Poll::Ready(Ok(()))
-      }
-
-      fn call(&mut self, _req: Request<Body>) -> Self::Future {
-        let res = Response::builder()
-          .status(StatusCode::OK)
-          .body(Body::from(self.body.clone()))
-          .unwrap();
-        std::future::ready(Ok(res))
-      }
-    }
-
-    #[tokio::test]
-    async fn should_return_error_when_body_exceeds_limit() {
-      // Given: a cache layer and response body exceeding limit
-      const BODY_LIMIT: usize = 10 * 1024 * 1024;
-      let oversized = vec![0u8; BODY_LIMIT + 1];
-      let cfg = CacheConfig {
-        enabled: true,
-        application: None,
-        http_response: Some(HttpResponseCacheConfig {
-          enabled: true,
-          default_ttl_secs: 300,
-          no_cache_paths: None,
-        }),
-      };
-      let layer = HttpResponseCacheLayer::from_config(&cfg).unwrap();
-      let mut svc = layer.layer(MockInner {
-        body: Bytes::from(oversized),
-      });
-
-      // When: making GET request with oversized body
-      let req = Request::builder()
-        .method(Method::GET)
-        .uri("/api/large")
-        .body(Body::empty())
-        .unwrap();
-      let res = svc.ready().await.unwrap().call(req).await.unwrap();
-
-      // Then: should return 500 error
-      assert_eq!(
-        res.status(),
-        StatusCode::INTERNAL_SERVER_ERROR,
-        "Oversized body should return error"
-      );
-    }
-
-    #[tokio::test]
-    async fn should_cache_responses_within_size_limit() {
-      // Given: a cache layer and response body within limit
-      let cfg = CacheConfig {
-        enabled: true,
-        application: None,
-        http_response: Some(HttpResponseCacheConfig {
-          enabled: true,
-          default_ttl_secs: 300,
-          no_cache_paths: None,
-        }),
-      };
-      let layer = HttpResponseCacheLayer::from_config(&cfg).unwrap();
-      let mut svc = layer.layer(MockInner {
-        body: Bytes::from("small response"),
-      });
-
-      // When: making GET request with normal-sized body
-      let req1 = Request::builder()
-        .method(Method::GET)
-        .uri("/api/normal")
-        .body(Body::empty())
-        .unwrap();
-      let _res1 = svc.ready().await.unwrap().call(req1).await.unwrap();
-
-      // And: making second request
-      let req2 = Request::builder()
-        .method(Method::GET)
-        .uri("/api/normal")
-        .body(Body::empty())
-        .unwrap();
-      let res2 = svc.ready().await.unwrap().call(req2).await.unwrap();
-
-      // Then: second request should be cached
-      assert_eq!(res2.status(), StatusCode::OK, "Normal-sized response should succeed");
-      assert!(
-        res2.headers().contains_key("cache-control"),
-        "Normal-sized responses should be cached"
-      );
-    }
-  }
-}
-  }
-}
   }
 }

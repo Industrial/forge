@@ -21,7 +21,6 @@ mod bdd_tests {
 
   /// BDD-style tests focusing on behavior rather than implementation.
   /// Tests verify that all public API re-exports are accessible and functional.
-
   mod public_api_exports {
     use super::*;
 
@@ -74,7 +73,10 @@ mod bdd_tests {
       // RequireAuth and OptionalRequireAuth are structs with trait bounds
       // We verify they're exported by checking they can be used in type positions
       fn _test_require_auth<B: Backend<User = U>, U: AuthUser>(_auth: RequireAuth<B, U>) {}
-      fn _test_optional_require_auth<B: Backend<User = U>, U: AuthUser>(_auth: OptionalRequireAuth<B, U>) {}
+      fn _test_optional_require_auth<B: Backend<User = U>, U: AuthUser>(
+        _auth: OptionalRequireAuth<B, U>,
+      ) {
+      }
 
       // Then: all types should be accessible and usable
       // (compilation success means types are exported correctly)
@@ -84,8 +86,8 @@ mod bdd_tests {
     fn should_export_password_functions() {
       // Given: lib.rs re-exports password hashing functions
       // When: I reference the re-exported functions
-      let _hash_password_fn: fn(&str) -> String = hash_password;
-      let _verify_password_fn: fn(&str, &str) -> bool = verify_password;
+      let _hash_password_fn: fn(&str) -> Result<String, forge_core::Error> = hash_password;
+      let _verify_password_fn: fn(&str, &str) -> Result<bool, forge_core::Error> = verify_password;
 
       // Then: all functions should be accessible and callable
       // (compilation success means functions are exported correctly)
@@ -129,7 +131,7 @@ mod bdd_tests {
       // Given: I import password functions from lib.rs
       // When: I call hash_password with a password
       let password = "test_password_123";
-      let hashed = hash_password(password);
+      let hashed = hash_password(password).expect("hash should succeed");
 
       // Then: it should return a hashed password string
       assert!(!hashed.is_empty());
@@ -137,7 +139,7 @@ mod bdd_tests {
       assert!(hashed.starts_with("$argon2"));
 
       // When: I verify the password against the hash
-      let is_valid = verify_password(password, &hashed);
+      let is_valid = verify_password(password, &hashed).expect("verify should succeed");
 
       // Then: verification should succeed
       assert!(is_valid);
@@ -150,10 +152,10 @@ mod bdd_tests {
       let token = "test_api_token_456";
       let hashed = hash_api_token(token);
 
-      // Then: it should return a hashed token string
+      // Then: it should return a hashed token string (SHA-256 hex, not Argon2)
       assert!(!hashed.is_empty());
       assert_ne!(hashed, token);
-      assert!(hashed.starts_with("$argon2"));
+      assert_eq!(hashed.len(), 64, "SHA-256 hex digest is 64 chars");
 
       // When: I verify the token against the hash
       let is_valid = verify_api_token(token, &hashed);
@@ -166,10 +168,10 @@ mod bdd_tests {
     fn should_reject_invalid_password_verification() {
       // Given: I have a hashed password
       let password = "correct_password";
-      let hashed = hash_password(password);
+      let hashed = hash_password(password).expect("hash should succeed");
 
       // When: I verify with an incorrect password
-      let is_valid = verify_password("wrong_password", &hashed);
+      let is_valid = verify_password("wrong_password", &hashed).expect("verify should succeed");
 
       // Then: verification should fail
       assert!(!is_valid);

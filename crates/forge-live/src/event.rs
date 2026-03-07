@@ -38,7 +38,6 @@ mod tests {
 
     /// BDD-style tests focusing on behavior rather than implementation.
     /// Tests verify LiveEvent enum variants, serialization, and field handling.
-
     mod users_updated_event_behavior {
       use super::*;
 
@@ -81,7 +80,7 @@ mod tests {
           LiveEvent::UsersUpdated {
             user_id: None,
             org_id: None,
-          } => assert!(true, "Event should accept None values"),
+          } => {}
           _ => panic!("Expected UsersUpdated event with None values"),
         }
       }

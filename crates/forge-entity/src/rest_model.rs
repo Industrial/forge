@@ -131,7 +131,6 @@ mod bdd_tests {
 
   /// BDD-style tests focusing on behavior rather than implementation.
   /// Tests are organized by feature/behavior area with descriptive names.
-
   mod rest_actions_constant_behavior {
     use super::*;
 
@@ -211,7 +210,6 @@ mod bdd_tests {
       // When: implementing the trait
       // Then: model_id() must return a static string identifier
       // This is enforced by the trait definition - implementations must provide this
-      assert!(true);
     }
 
     #[test]
@@ -220,7 +218,6 @@ mod bdd_tests {
       // When: implementing the trait
       // Then: filter_fields() must return allowed filter fields (can be empty)
       // This is enforced by the trait definition
-      assert!(true);
     }
 
     #[test]
@@ -229,7 +226,6 @@ mod bdd_tests {
       // When: implementing the trait
       // Then: sort_fields() must return allowed sort fields (can be empty)
       // This is enforced by the trait definition
-      assert!(true);
     }
 
     #[test]
@@ -238,7 +234,6 @@ mod bdd_tests {
       // When: implementing the trait
       // Then: response_columns() must return column allow-list
       // This is enforced by the trait definition
-      assert!(true);
     }
 
     #[test]
@@ -247,7 +242,6 @@ mod bdd_tests {
       // When: implementing the trait
       // Then: display_name() can return None (optional)
       // This is enforced by the trait definition returning Option<&'static str>
-      assert!(true);
     }
 
     #[test]
@@ -256,7 +250,6 @@ mod bdd_tests {
       // When: implementing the trait
       // Then: supported_actions() must return subset of REST_ACTIONS
       // This is enforced by the trait definition
-      assert!(true);
     }
 
     #[test]
@@ -265,7 +258,6 @@ mod bdd_tests {
       // When: implementing the trait
       // Then: list() has default implementation using hooks
       // The default implementation uses apply_filter, default_sort/apply_sort, and row_to_json
-      assert!(true);
     }
 
     #[test]
@@ -274,7 +266,6 @@ mod bdd_tests {
       // When: implementing the trait
       // Then: get() has default implementation using Entity::find_by_id and row_to_json
       // The default implementation finds by id and converts to JSON
-      assert!(true);
     }
 
     #[test]
@@ -283,7 +274,6 @@ mod bdd_tests {
       // When: implementing the trait
       // Then: row_to_json() must serialize model to JSON
       // This is required for list() and get() default implementations
-      assert!(true);
     }
 
     #[test]
@@ -292,7 +282,6 @@ mod bdd_tests {
       // When: implementing the trait
       // Then: apply_filter() must apply filter condition to select query
       // This is used by default list() implementation
-      assert!(true);
     }
 
     #[test]
@@ -301,7 +290,6 @@ mod bdd_tests {
       // When: implementing the trait
       // Then: default_sort() must apply default ordering when no sort specified
       // This is used by default list() implementation
-      assert!(true);
     }
 
     #[test]
@@ -310,7 +298,6 @@ mod bdd_tests {
       // When: implementing the trait
       // Then: apply_sort() must apply sort spec to select query
       // This is used by default list() implementation when sort is provided
-      assert!(true);
     }
   }
 }

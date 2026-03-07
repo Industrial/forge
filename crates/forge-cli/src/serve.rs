@@ -161,7 +161,6 @@ mod tests {
 
     /// BDD-style tests focusing on behavior rather than implementation.
     /// Tests verify that serve::run correctly validates project structure and handles production mode.
-
     mod project_validation_behavior {
       use super::*;
 
@@ -452,7 +451,9 @@ mod tests {
         if let Err(e) = result {
           // Either bun not found or build failed
           assert!(
-            e.to_string().contains("bun") || e.to_string().contains("build") || e.to_string().contains("Cargo run"),
+            e.to_string().contains("bun")
+              || e.to_string().contains("build")
+              || e.to_string().contains("Cargo run"),
             "Should attempt frontend build: {}",
             e
           );

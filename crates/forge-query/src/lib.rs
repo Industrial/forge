@@ -267,7 +267,6 @@ mod bdd_tests {
 
   /// BDD-style tests focusing on behavior rather than implementation.
   /// Tests are organized by feature/behavior area with descriptive names.
-
   mod filter_operator_behavior {
     use super::*;
 
@@ -336,7 +335,10 @@ mod bdd_tests {
       // When: using FromStr trait
       // Then: should parse correctly
       assert_eq!("eq".parse::<FilterOperator>(), Ok(FilterOperator::Eq));
-      assert_eq!("is_null".parse::<FilterOperator>(), Ok(FilterOperator::IsNull));
+      assert_eq!(
+        "is_null".parse::<FilterOperator>(),
+        Ok(FilterOperator::IsNull)
+      );
       assert_eq!("invalid".parse::<FilterOperator>(), Err(()));
     }
 

@@ -471,7 +471,6 @@ mod tests {
 
     /// BDD-style tests focusing on behavior rather than implementation.
     /// Tests are organized by feature/behavior area with descriptive names.
-
     mod main_function_behavior {
       use super::*;
 
@@ -532,8 +531,7 @@ mod tests {
       fn should_return_success_when_new_command_succeeds() {
         // Given: Args with New command and valid project name
         let _guard = CREATE_PROJECT_LOCK.lock().unwrap();
-        let template_parent =
-          std::path::Path::new(env!("CARGO_MANIFEST_DIR")).join("templates");
+        let template_parent = std::path::Path::new(env!("CARGO_MANIFEST_DIR")).join("templates");
         let _env_guard = RestoreForgeTemplatesDir(std::env::var("FORGE_TEMPLATES_DIR").ok());
         unsafe {
           std::env::set_var("FORGE_TEMPLATES_DIR", &template_parent);

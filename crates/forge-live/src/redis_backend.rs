@@ -211,7 +211,6 @@ mod tests {
     /// BDD-style tests focusing on behavior rather than implementation.
     /// Tests verify RedisLiveBackend's local state management and LiveBackend trait implementation.
     /// Note: Full Redis integration tests require a Redis instance and are tested in integration tests.
-
     mod connection_registration_behavior {
       use super::*;
 
@@ -258,7 +257,6 @@ mod tests {
         backend.unregister_connection(id1);
         backend.unregister_connection(id2);
         // If connections weren't tracked, unregister would panic or fail
-        assert!(true, "Connections should be tracked internally");
       }
     }
 
@@ -281,7 +279,6 @@ mod tests {
         let backend_clone = backend.clone();
         RedisLiveBackend::fan_out_local(&backend_clone, "test-channel", b"test");
         // Message should be delivered (we can't easily verify without receiving, but the structure is correct)
-        assert!(true, "Subscription should add connection to channel");
       }
 
       #[test]
@@ -301,7 +298,6 @@ mod tests {
         let backend_clone = backend.clone();
         RedisLiveBackend::fan_out_local(&backend_clone, "channel-1", b"msg1");
         RedisLiveBackend::fan_out_local(&backend_clone, "channel-2", b"msg2");
-        assert!(true, "Multiple channels should be tracked per connection");
       }
 
       #[test]
@@ -321,7 +317,6 @@ mod tests {
         // Then: both connections should receive messages (verified by fan_out_local)
         let backend_clone = backend.clone();
         RedisLiveBackend::fan_out_local(&backend_clone, "shared-channel", b"broadcast");
-        assert!(true, "Multiple connections should be tracked per channel");
       }
     }
 
@@ -346,7 +341,10 @@ mod tests {
         let result = tokio::runtime::Runtime::new().unwrap().block_on(async {
           tokio::time::timeout(tokio::time::Duration::from_millis(10), rx.recv()).await
         });
-        assert!(result.is_err() || result.unwrap().is_none(), "Unsubscribed connection should not receive messages");
+        assert!(
+          result.is_err() || result.unwrap().is_none(),
+          "Unsubscribed connection should not receive messages"
+        );
       }
 
       #[test]
@@ -367,7 +365,6 @@ mod tests {
         // Verified by fan_out_local still delivering to channel2
         let backend_clone = backend.clone();
         RedisLiveBackend::fan_out_local(&backend_clone, "channel-2", b"test");
-        assert!(true, "Unsubscription should remove channel from connection tracking but keep other channels");
       }
     }
 
@@ -394,7 +391,10 @@ mod tests {
         let result = tokio::runtime::Runtime::new().unwrap().block_on(async {
           tokio::time::timeout(tokio::time::Duration::from_millis(10), rx.recv()).await
         });
-        assert!(result.is_err() || result.unwrap().is_none(), "Unregistered connection should not receive messages");
+        assert!(
+          result.is_err() || result.unwrap().is_none(),
+          "Unregistered connection should not receive messages"
+        );
       }
 
       #[test]
@@ -417,7 +417,6 @@ mod tests {
         RedisLiveBackend::fan_out_local(&backend_clone, "channel-1", b"test");
         RedisLiveBackend::fan_out_local(&backend_clone, "channel-2", b"test");
         // If connection wasn't removed, it would receive messages, but it shouldn't
-        assert!(true, "Unregistration should remove connection from all channels");
       }
     }
 
@@ -447,8 +446,14 @@ mod tests {
         let msg2 = rt.block_on(async {
           tokio::time::timeout(tokio::time::Duration::from_millis(100), rx2.recv()).await
         });
-        assert!(msg1.is_ok() && msg1.unwrap().is_some(), "Message should be delivered to first connection");
-        assert!(msg2.is_ok() && msg2.unwrap().is_some(), "Message should be delivered to second connection");
+        assert!(
+          msg1.is_ok() && msg1.unwrap().is_some(),
+          "Message should be delivered to first connection"
+        );
+        assert!(
+          msg2.is_ok() && msg2.unwrap().is_some(),
+          "Message should be delivered to second connection"
+        );
       }
 
       #[test]
@@ -459,7 +464,6 @@ mod tests {
         // When: fan_out_local is called for that channel
         // Then: should complete without error (no connections to deliver to)
         RedisLiveBackend::fan_out_local(&backend, "empty-channel", b"test");
-        assert!(true, "fan_out_local should handle empty channels gracefully");
       }
 
       #[test]
@@ -476,7 +480,6 @@ mod tests {
         // When: fan_out_local tries to deliver to that connection
         // Then: should skip missing connection without error
         RedisLiveBackend::fan_out_local(&backend, "test-channel", b"test");
-        assert!(true, "fan_out_local should handle missing connections gracefully");
       }
     }
 
@@ -497,7 +500,6 @@ mod tests {
         // Then: Subscribe command should be sent to Redis task (command_tx should have message)
         // Note: We can't easily verify the command was sent without consuming from command_rx,
         // but the implementation sends RedisCommand::Subscribe, which is verified by compilation
-        assert!(true, "Subscription should send Subscribe command");
       }
 
       #[tokio::test]
@@ -512,7 +514,6 @@ mod tests {
         // Then: Publish command should be sent to Redis task
         // Note: We can't easily verify the command was sent without consuming from command_rx,
         // but the implementation sends RedisCommand::Publish, which is verified by compilation
-        assert!(true, "Broadcast should send Publish command");
       }
     }
 
@@ -529,7 +530,10 @@ mod tests {
         let id = backend.register_connection(tx);
 
         // Then: should return a ConnectionId
-        assert!(matches!(id, ConnectionId(_)), "RedisLiveBackend should implement register_connection()");
+        assert!(
+          matches!(id, ConnectionId(_)),
+          "RedisLiveBackend should implement register_connection()"
+        );
       }
 
       #[test]
@@ -543,7 +547,6 @@ mod tests {
         backend.unregister_connection(conn_id);
 
         // Then: should complete without error
-        assert!(true, "RedisLiveBackend should implement unregister_connection()");
       }
 
       #[test]
@@ -558,7 +561,6 @@ mod tests {
         backend.subscribe(conn_id, channel);
 
         // Then: should complete without error
-        assert!(true, "RedisLiveBackend should implement subscribe()");
       }
 
       #[test]
@@ -574,7 +576,6 @@ mod tests {
         backend.unsubscribe(conn_id, &channel);
 
         // Then: should complete without error
-        assert!(true, "RedisLiveBackend should implement unsubscribe()");
       }
 
       #[tokio::test]
@@ -587,7 +588,6 @@ mod tests {
         backend.broadcast(&channel, b"payload").await;
 
         // Then: should complete without error
-        assert!(true, "RedisLiveBackend should implement async broadcast()");
       }
     }
 
@@ -603,7 +603,6 @@ mod tests {
         // This test verifies the API contract
         let _redis_url: &str = "redis://127.0.0.1/";
         // The function signature requires &str, which is verified by compilation
-        assert!(true, "connect() should accept Redis URL");
       }
 
       #[tokio::test]
@@ -613,7 +612,10 @@ mod tests {
         let result = RedisLiveBackend::connect("invalid://bad-url").await;
 
         // Then: should return RedisError
-        assert!(result.is_err(), "connect() should return error on invalid URL");
+        assert!(
+          result.is_err(),
+          "connect() should return error on invalid URL"
+        );
         // Error type is redis::RedisError, verified by the function signature
       }
 
@@ -624,7 +626,6 @@ mod tests {
         // Then: background task should be spawned to handle Redis pub/sub
         // Verified by the implementation - tokio::spawn() creates background task
         // Note: This is verified by code inspection, full test requires Redis instance
-        assert!(true, "connect() should spawn background Redis task");
       }
     }
   }

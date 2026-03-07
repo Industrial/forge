@@ -519,7 +519,10 @@ auto_seed = false
         // Then: should return error mentioning app.toml
         assert!(result.is_err(), "Should fail when app.toml is missing");
         let err_msg = result.unwrap_err().to_string();
-        assert!(err_msg.contains("app.toml"), "Error should mention app.toml");
+        assert!(
+          err_msg.contains("app.toml"),
+          "Error should mention app.toml"
+        );
       }
 
       #[test]
@@ -603,7 +606,10 @@ auto_seed = false
         // Then: should succeed with cache as None
         assert!(result.is_ok(), "Should load config without cache");
         let config = result.unwrap();
-        assert!(config.cache.is_none(), "Cache should be None when not present");
+        assert!(
+          config.cache.is_none(),
+          "Cache should be None when not present"
+        );
       }
 
       #[test]
@@ -624,7 +630,10 @@ auto_seed = false
         // Then: should return parse error
         assert!(result.is_err(), "Should fail on invalid TOML");
         let err_msg = result.unwrap_err().to_string();
-        assert!(err_msg.contains("Failed to parse"), "Error should mention parse failure");
+        assert!(
+          err_msg.contains("Failed to parse"),
+          "Error should mention parse failure"
+        );
       }
 
       #[test]
@@ -740,7 +749,10 @@ auto_seed = false
         let env = effective_environment_from_config(&config);
 
         // Then: should prefer config value
-        assert_eq!(env, "staging", "Should prefer config.environment over env var");
+        assert_eq!(
+          env, "staging",
+          "Should prefer config.environment over env var"
+        );
 
         // Restore environment
         if let Some(p) = prev {
@@ -827,7 +839,10 @@ auto_seed = false
 
         // Then: should default to development (or use env if set by other tests)
         // Since tests may run in parallel, we verify it's a valid environment string
-        assert!(!env.is_empty(), "Should return a non-empty environment string");
+        assert!(
+          !env.is_empty(),
+          "Should return a non-empty environment string"
+        );
         // The actual value depends on whether FORGE_ENVIRONMENT was set by other tests
         // We verify the function works correctly rather than asserting a specific value
 
@@ -950,7 +965,10 @@ auto_seed = false
         // Then: should return error mentioning cache.toml
         assert!(result.is_err(), "Should fail on invalid cache.toml");
         let err_msg = result.unwrap_err().to_string();
-        assert!(err_msg.contains("cache.toml"), "Error should mention cache.toml");
+        assert!(
+          err_msg.contains("cache.toml"),
+          "Error should mention cache.toml"
+        );
       }
     }
 
@@ -993,8 +1011,8 @@ auto_seed = false
         assert_eq!(config.database.min_connections, Some(5));
         assert_eq!(config.database.connect_timeout, Some(10));
         assert_eq!(config.database.idle_timeout, Some(30));
-        assert_eq!(config.database.auto_migrate, true);
-        assert_eq!(config.database.auto_seed, false);
+        assert!(config.database.auto_migrate);
+        assert!(!config.database.auto_seed);
       }
 
       #[test]
@@ -1047,7 +1065,10 @@ auto_seed = false
         let config = load_config_from_dir(dir.path()).unwrap();
 
         // Then: environment should be None
-        assert!(config.app.environment.is_none(), "Environment should default to None");
+        assert!(
+          config.app.environment.is_none(),
+          "Environment should default to None"
+        );
       }
     }
   }

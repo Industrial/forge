@@ -119,7 +119,6 @@ mod tests {
 
     /// BDD-style tests focusing on behavior rather than implementation.
     /// Tests are organized by feature/behavior area with descriptive names.
-
     mod password_hashing_behavior {
       use super::*;
 
@@ -151,9 +150,18 @@ mod tests {
         let hash3 = hash_password(password).unwrap();
 
         // Then: each hash should be unique due to random salt
-        assert_ne!(hash1, hash2, "Different salts should produce different hashes");
-        assert_ne!(hash2, hash3, "Different salts should produce different hashes");
-        assert_ne!(hash1, hash3, "Different salts should produce different hashes");
+        assert_ne!(
+          hash1, hash2,
+          "Different salts should produce different hashes"
+        );
+        assert_ne!(
+          hash2, hash3,
+          "Different salts should produce different hashes"
+        );
+        assert_ne!(
+          hash1, hash3,
+          "Different salts should produce different hashes"
+        );
       }
 
       #[test]
@@ -165,7 +173,10 @@ mod tests {
         let result = hash_password(password);
 
         // Then: should still produce a valid hash
-        assert!(result.is_ok(), "Empty password should still hash successfully");
+        assert!(
+          result.is_ok(),
+          "Empty password should still hash successfully"
+        );
         let hash = result.unwrap();
         assert!(
           hash.starts_with("$argon2"),
@@ -199,7 +210,10 @@ mod tests {
         let result = hash_password(password);
 
         // Then: should produce a valid hash
-        assert!(result.is_ok(), "Password with special characters should hash successfully");
+        assert!(
+          result.is_ok(),
+          "Password with special characters should hash successfully"
+        );
         let hash = result.unwrap();
         assert!(
           hash.starts_with("$argon2"),
@@ -240,10 +254,7 @@ mod tests {
 
         // Then: should return false indicating verification failure
         assert!(result.is_ok(), "Verification should complete without error");
-        assert!(
-          !result.unwrap(),
-          "Wrong password should be rejected"
-        );
+        assert!(!result.unwrap(), "Wrong password should be rejected");
       }
 
       #[test]
@@ -256,10 +267,7 @@ mod tests {
         let result = verify_password(password, invalid_hash);
 
         // Then: should return an error
-        assert!(
-          result.is_err(),
-          "Invalid hash format should return error"
-        );
+        assert!(result.is_err(), "Invalid hash format should return error");
       }
 
       #[test]
@@ -273,10 +281,7 @@ mod tests {
 
         // Then: should return true
         assert!(result.is_ok(), "Verification should succeed");
-        assert!(
-          result.unwrap(),
-          "Empty password should verify successfully"
-        );
+        assert!(result.unwrap(), "Empty password should verify successfully");
       }
 
       #[test]
@@ -362,7 +367,10 @@ mod tests {
         let hash2 = hash_api_token(token2);
 
         // Then: hashes should be different
-        assert_ne!(hash1, hash2, "Different tokens should produce different hashes");
+        assert_ne!(
+          hash1, hash2,
+          "Different tokens should produce different hashes"
+        );
       }
 
       #[test]
@@ -374,7 +382,11 @@ mod tests {
         let hash = hash_api_token(token);
 
         // Then: should still produce a valid 64-character hex hash
-        assert_eq!(hash.len(), 64, "Empty token should still produce 64-char hash");
+        assert_eq!(
+          hash.len(),
+          64,
+          "Empty token should still produce 64-char hash"
+        );
         assert!(
           hash.chars().all(|c| c.is_ascii_hexdigit()),
           "Empty token hash should be hex encoded"
@@ -406,7 +418,11 @@ mod tests {
         let hash = hash_api_token(token);
 
         // Then: should produce a deterministic hex hash
-        assert_eq!(hash.len(), 64, "Special character token should produce 64-char hash");
+        assert_eq!(
+          hash.len(),
+          64,
+          "Special character token should produce 64-char hash"
+        );
         assert!(
           hash.chars().all(|c| c.is_ascii_hexdigit()),
           "Special character token hash should be hex encoded"

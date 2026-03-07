@@ -226,7 +226,6 @@ mod bdd_tests {
 
   /// BDD-style tests focusing on behavior rather than implementation.
   /// Tests are organized by feature/behavior area with descriptive names.
-
   mod scheduled_task_job_behavior {
     use super::*;
 
@@ -389,21 +388,16 @@ mod bdd_tests {
 
       // When: using the task type
       // Then: should compile and be usable
-      assert!(true, "TaskFn type is valid");
     }
 
     #[test]
     fn should_allow_error_return() {
       // Given: a task that can return an error
-      let _task: TaskFn = Box::new(|_db: DbConnection| {
-        Box::pin(async move {
-          Err("task error".into())
-        })
-      });
+      let _task: TaskFn =
+        Box::new(|_db: DbConnection| Box::pin(async move { Err("task error".into()) }));
 
       // When: using the task type
       // Then: should accept error return type
-      assert!(true, "TaskFn allows error returns");
     }
 
     #[test]
@@ -421,7 +415,6 @@ mod bdd_tests {
 
       // When: using the task type
       // Then: should accept DbConnection parameter
-      assert!(true, "TaskFn accepts DbConnection");
     }
   }
 
@@ -474,7 +467,6 @@ mod bdd_tests {
 
       // Then: should be cloneable (for use in multiple places)
       let _clone = storage.clone();
-      assert!(true, "Storage is cloneable");
     }
   }
 

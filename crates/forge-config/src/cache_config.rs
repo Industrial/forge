@@ -48,11 +48,13 @@ pub struct HttpResponseCacheConfig {
 #[cfg(test)]
 mod bdd_tests {
   use super::*;
-  use figment::{Figment, providers::{Format, Toml}};
+  use figment::{
+    Figment,
+    providers::{Format, Toml},
+  };
 
   /// BDD-style tests focusing on behavior rather than implementation.
   /// Tests are organized by feature/behavior area with descriptive names.
-
   mod cache_config_behavior {
     use super::*;
 
@@ -60,10 +62,7 @@ mod bdd_tests {
     fn should_default_to_enabled_when_not_specified() {
       // Given: CacheConfig with enabled not specified
       let toml = r#""#;
-      let config: CacheConfig = Figment::new()
-        .merge(Toml::string(toml))
-        .extract()
-        .unwrap();
+      let config: CacheConfig = Figment::new().merge(Toml::string(toml)).extract().unwrap();
 
       // When: checking enabled field
       // Then: should default to true
@@ -74,42 +73,42 @@ mod bdd_tests {
     fn should_allow_disabling_cache() {
       // Given: CacheConfig with enabled = false
       let toml = r#"enabled = false"#;
-      let config: CacheConfig = Figment::new()
-        .merge(Toml::string(toml))
-        .extract()
-        .unwrap();
+      let config: CacheConfig = Figment::new().merge(Toml::string(toml)).extract().unwrap();
 
       // When: checking enabled field
       // Then: should be false
-      assert!(!config.enabled, "Cache should be disabled when set to false");
+      assert!(
+        !config.enabled,
+        "Cache should be disabled when set to false"
+      );
     }
 
     #[test]
     fn should_have_optional_application_cache_config() {
       // Given: CacheConfig without application section
       let toml = r#"enabled = true"#;
-      let config: CacheConfig = Figment::new()
-        .merge(Toml::string(toml))
-        .extract()
-        .unwrap();
+      let config: CacheConfig = Figment::new().merge(Toml::string(toml)).extract().unwrap();
 
       // When: checking application field
       // Then: should be None
-      assert!(config.application.is_none(), "Application cache should be optional");
+      assert!(
+        config.application.is_none(),
+        "Application cache should be optional"
+      );
     }
 
     #[test]
     fn should_have_optional_http_response_cache_config() {
       // Given: CacheConfig without http_response section
       let toml = r#"enabled = true"#;
-      let config: CacheConfig = Figment::new()
-        .merge(Toml::string(toml))
-        .extract()
-        .unwrap();
+      let config: CacheConfig = Figment::new().merge(Toml::string(toml)).extract().unwrap();
 
       // When: checking http_response field
       // Then: should be None
-      assert!(config.http_response.is_none(), "HTTP response cache should be optional");
+      assert!(
+        config.http_response.is_none(),
+        "HTTP response cache should be optional"
+      );
     }
 
     #[test]
@@ -122,10 +121,7 @@ enabled = true
 max_capacity = 5000
 default_ttl_secs = 120
 "#;
-      let config: CacheConfig = Figment::new()
-        .merge(Toml::string(toml))
-        .extract()
-        .unwrap();
+      let config: CacheConfig = Figment::new().merge(Toml::string(toml)).extract().unwrap();
 
       // When: checking application config
       // Then: should be Some with correct values
@@ -145,10 +141,7 @@ enabled = true
 default_ttl_secs = 90
 no_cache_paths = ["/health", "/ready"]
 "#;
-      let config: CacheConfig = Figment::new()
-        .merge(Toml::string(toml))
-        .extract()
-        .unwrap();
+      let config: CacheConfig = Figment::new().merge(Toml::string(toml)).extract().unwrap();
 
       // When: checking http_response config
       // Then: should be Some with correct values
@@ -169,10 +162,7 @@ enabled = true
 [application]
 enabled = true
 "#;
-      let config: CacheConfig = Figment::new()
-        .merge(Toml::string(toml))
-        .extract()
-        .unwrap();
+      let config: CacheConfig = Figment::new().merge(Toml::string(toml)).extract().unwrap();
 
       // When: cloning it
       let cloned = config.clone();
@@ -186,10 +176,7 @@ enabled = true
     fn should_be_debuggable() {
       // Given: a CacheConfig instance
       let toml = r#"enabled = true"#;
-      let config: CacheConfig = Figment::new()
-        .merge(Toml::string(toml))
-        .extract()
-        .unwrap();
+      let config: CacheConfig = Figment::new().merge(Toml::string(toml)).extract().unwrap();
 
       // When: formatting for debug
       let debug_str = format!("{:?}", config);
@@ -210,7 +197,10 @@ enabled = true
       // Since we have #[derive(Default)], it uses the type's default
       // But we also have #[serde(default = "default_true")] which only applies during deserialization
       // So Default::default() will use bool::default() which is false
-      assert!(!config.enabled, "Default should use bool::default() == false");
+      assert!(
+        !config.enabled,
+        "Default should use bool::default() == false"
+      );
       assert!(config.application.is_none());
       assert!(config.http_response.is_none());
     }
@@ -226,14 +216,15 @@ enabled = true
 max_capacity = 1000
 default_ttl_secs = 200
 "#;
-      let config: ApplicationCacheConfig = Figment::new()
-        .merge(Toml::string(toml))
-        .extract()
-        .unwrap();
+      let config: ApplicationCacheConfig =
+        Figment::new().merge(Toml::string(toml)).extract().unwrap();
 
       // When: checking enabled field
       // Then: should default to true
-      assert!(config.enabled, "Application cache should default to enabled");
+      assert!(
+        config.enabled,
+        "Application cache should default to enabled"
+      );
     }
 
     #[test]
@@ -243,10 +234,8 @@ default_ttl_secs = 200
 enabled = true
 default_ttl_secs = 200
 "#;
-      let config: ApplicationCacheConfig = Figment::new()
-        .merge(Toml::string(toml))
-        .extract()
-        .unwrap();
+      let config: ApplicationCacheConfig =
+        Figment::new().merge(Toml::string(toml)).extract().unwrap();
 
       // When: checking max_capacity
       // Then: should default to 10_000
@@ -260,14 +249,15 @@ default_ttl_secs = 200
 enabled = true
 max_capacity = 5000
 "#;
-      let config: ApplicationCacheConfig = Figment::new()
-        .merge(Toml::string(toml))
-        .extract()
-        .unwrap();
+      let config: ApplicationCacheConfig =
+        Figment::new().merge(Toml::string(toml)).extract().unwrap();
 
       // When: checking default_ttl_secs
       // Then: should default to 300
-      assert_eq!(config.default_ttl_secs, 300, "Should default to 300 seconds");
+      assert_eq!(
+        config.default_ttl_secs, 300,
+        "Should default to 300 seconds"
+      );
     }
 
     #[test]
@@ -278,10 +268,8 @@ enabled = false
 max_capacity = 20000
 default_ttl_secs = 600
 "#;
-      let config: ApplicationCacheConfig = Figment::new()
-        .merge(Toml::string(toml))
-        .extract()
-        .unwrap();
+      let config: ApplicationCacheConfig =
+        Figment::new().merge(Toml::string(toml)).extract().unwrap();
 
       // When: checking all fields
       // Then: should have correct values
@@ -298,10 +286,8 @@ enabled = true
 max_capacity = 5000
 default_ttl_secs = 120
 "#;
-      let config: ApplicationCacheConfig = Figment::new()
-        .merge(Toml::string(toml))
-        .extract()
-        .unwrap();
+      let config: ApplicationCacheConfig =
+        Figment::new().merge(Toml::string(toml)).extract().unwrap();
 
       // When: cloning it
       let cloned = config.clone();
@@ -316,10 +302,8 @@ default_ttl_secs = 120
     fn should_be_debuggable() {
       // Given: an ApplicationCacheConfig instance
       let toml = r#"enabled = true"#;
-      let config: ApplicationCacheConfig = Figment::new()
-        .merge(Toml::string(toml))
-        .extract()
-        .unwrap();
+      let config: ApplicationCacheConfig =
+        Figment::new().merge(Toml::string(toml)).extract().unwrap();
 
       // When: formatting for debug
       let debug_str = format!("{:?}", config);
@@ -338,24 +322,23 @@ default_ttl_secs = 120
       let toml = r#"
 default_ttl_secs = 90
 "#;
-      let config: HttpResponseCacheConfig = Figment::new()
-        .merge(Toml::string(toml))
-        .extract()
-        .unwrap();
+      let config: HttpResponseCacheConfig =
+        Figment::new().merge(Toml::string(toml)).extract().unwrap();
 
       // When: checking enabled field
       // Then: should default to true
-      assert!(config.enabled, "HTTP response cache should default to enabled");
+      assert!(
+        config.enabled,
+        "HTTP response cache should default to enabled"
+      );
     }
 
     #[test]
     fn should_use_default_http_ttl_when_not_specified() {
       // Given: HttpResponseCacheConfig without default_ttl_secs
       let toml = r#"enabled = true"#;
-      let config: HttpResponseCacheConfig = Figment::new()
-        .merge(Toml::string(toml))
-        .extract()
-        .unwrap();
+      let config: HttpResponseCacheConfig =
+        Figment::new().merge(Toml::string(toml)).extract().unwrap();
 
       // When: checking default_ttl_secs
       // Then: should default to 60
@@ -369,14 +352,15 @@ default_ttl_secs = 90
 enabled = true
 default_ttl_secs = 90
 "#;
-      let config: HttpResponseCacheConfig = Figment::new()
-        .merge(Toml::string(toml))
-        .extract()
-        .unwrap();
+      let config: HttpResponseCacheConfig =
+        Figment::new().merge(Toml::string(toml)).extract().unwrap();
 
       // When: checking no_cache_paths
       // Then: should be None
-      assert!(config.no_cache_paths.is_none(), "no_cache_paths should be optional");
+      assert!(
+        config.no_cache_paths.is_none(),
+        "no_cache_paths should be optional"
+      );
     }
 
     #[test]
@@ -387,10 +371,8 @@ enabled = true
 default_ttl_secs = 90
 no_cache_paths = ["/health", "/ready", "/metrics"]
 "#;
-      let config: HttpResponseCacheConfig = Figment::new()
-        .merge(Toml::string(toml))
-        .extract()
-        .unwrap();
+      let config: HttpResponseCacheConfig =
+        Figment::new().merge(Toml::string(toml)).extract().unwrap();
 
       // When: checking no_cache_paths
       // Then: should contain specified paths
@@ -409,10 +391,8 @@ enabled = false
 default_ttl_secs = 120
 no_cache_paths = ["/api/health"]
 "#;
-      let config: HttpResponseCacheConfig = Figment::new()
-        .merge(Toml::string(toml))
-        .extract()
-        .unwrap();
+      let config: HttpResponseCacheConfig =
+        Figment::new().merge(Toml::string(toml)).extract().unwrap();
 
       // When: checking all fields
       // Then: should have correct values
@@ -432,10 +412,8 @@ enabled = true
 default_ttl_secs = 90
 no_cache_paths = ["/health"]
 "#;
-      let config: HttpResponseCacheConfig = Figment::new()
-        .merge(Toml::string(toml))
-        .extract()
-        .unwrap();
+      let config: HttpResponseCacheConfig =
+        Figment::new().merge(Toml::string(toml)).extract().unwrap();
 
       // When: cloning it
       let cloned = config.clone();
@@ -450,10 +428,8 @@ no_cache_paths = ["/health"]
     fn should_be_debuggable() {
       // Given: an HttpResponseCacheConfig instance
       let toml = r#"enabled = true"#;
-      let config: HttpResponseCacheConfig = Figment::new()
-        .merge(Toml::string(toml))
-        .extract()
-        .unwrap();
+      let config: HttpResponseCacheConfig =
+        Figment::new().merge(Toml::string(toml)).extract().unwrap();
 
       // When: formatting for debug
       let debug_str = format!("{:?}", config);

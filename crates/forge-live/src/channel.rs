@@ -47,7 +47,6 @@ mod bdd_tests {
 
   /// BDD-style tests focusing on behavior rather than implementation.
   /// Tests are organized by feature/behavior area with descriptive names.
-
   mod org_channel_creation_behavior {
     use super::*;
 
@@ -382,7 +381,10 @@ mod bdd_tests {
 
       // When: comparing channels
       // Then: should be equal
-      assert_eq!(channel1, channel2, "Channels with same name should be equal");
+      assert_eq!(
+        channel1, channel2,
+        "Channels with same name should be equal"
+      );
     }
 
     #[test]
@@ -478,7 +480,6 @@ mod tests {
 
     /// BDD-style tests focusing on behavior rather than implementation.
     /// Tests verify Channel creation methods, trait implementations, and serialization.
-
     mod org_channel_behavior {
       use super::*;
 
@@ -814,7 +815,10 @@ mod tests {
         // Then: all should clone correctly
         assert_eq!(org_clone.as_str(), format!("org:{}", org_id));
         assert_eq!(org_resource_clone.as_str(), format!("org:{}:users", org_id));
-        assert_eq!(resource_clone.as_str(), format!("resource:users:{}", resource_id));
+        assert_eq!(
+          resource_clone.as_str(),
+          format!("resource:users:{}", resource_id)
+        );
         assert_eq!(raw_clone.as_str(), "custom");
       }
     }

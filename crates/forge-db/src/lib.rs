@@ -153,7 +153,6 @@ mod tests {
 
     /// BDD-style tests focusing on behavior rather than implementation.
     /// Tests are organized by feature/behavior area with descriptive names.
-
     mod database_initialization_behavior {
       use super::*;
 
@@ -178,7 +177,10 @@ mod tests {
         let result = initialize_database(&config).await;
 
         // Then: should succeed
-        assert!(result.is_ok(), "Database initialization should succeed with memory database");
+        assert!(
+          result.is_ok(),
+          "Database initialization should succeed with memory database"
+        );
       }
 
       #[tokio::test]
@@ -212,7 +214,10 @@ mod tests {
         let result = initialize_database(&config).await;
 
         // Then: should return an error
-        assert!(result.is_err(), "Should return error for invalid database URL");
+        assert!(
+          result.is_err(),
+          "Should return error for invalid database URL"
+        );
       }
     }
 
@@ -236,7 +241,10 @@ mod tests {
         let result = initialize_database(&config).await;
 
         // Then: should succeed (max_connections is applied)
-        assert!(result.is_ok(), "Should succeed with max_connections configured");
+        assert!(
+          result.is_ok(),
+          "Should succeed with max_connections configured"
+        );
       }
 
       #[tokio::test]
@@ -256,7 +264,10 @@ mod tests {
         let result = initialize_database(&config).await;
 
         // Then: should succeed (min_connections is applied)
-        assert!(result.is_ok(), "Should succeed with min_connections configured");
+        assert!(
+          result.is_ok(),
+          "Should succeed with min_connections configured"
+        );
       }
 
       #[tokio::test]
@@ -276,7 +287,10 @@ mod tests {
         let result = initialize_database(&config).await;
 
         // Then: should succeed with all options applied
-        assert!(result.is_ok(), "Should succeed with all connection pool options configured");
+        assert!(
+          result.is_ok(),
+          "Should succeed with all connection pool options configured"
+        );
       }
 
       #[tokio::test]
@@ -296,7 +310,10 @@ mod tests {
         let result = initialize_database(&config).await;
 
         // Then: should succeed with default pool settings
-        assert!(result.is_ok(), "Should succeed with default connection pool settings");
+        assert!(
+          result.is_ok(),
+          "Should succeed with default connection pool settings"
+        );
       }
     }
 
@@ -320,7 +337,10 @@ mod tests {
         let result = initialize_database(&config).await;
 
         // Then: should succeed (connect_timeout is applied)
-        assert!(result.is_ok(), "Should succeed with connect_timeout configured");
+        assert!(
+          result.is_ok(),
+          "Should succeed with connect_timeout configured"
+        );
       }
 
       #[tokio::test]
@@ -340,7 +360,10 @@ mod tests {
         let result = initialize_database(&config).await;
 
         // Then: should succeed (idle_timeout is applied)
-        assert!(result.is_ok(), "Should succeed with idle_timeout configured");
+        assert!(
+          result.is_ok(),
+          "Should succeed with idle_timeout configured"
+        );
       }
     }
 
@@ -373,7 +396,7 @@ mod tests {
 
         // Then: should succeed with SQL logging enabled
         assert!(result.is_ok(), "Should succeed with SQL logging enabled");
-        
+
         // Restore environment
         if let Some(p) = prev.as_deref() {
           unsafe { std::env::set_var("FORGE_SQL_DEBUG", p) };
@@ -396,7 +419,7 @@ mod tests {
 
         // Then: should succeed with SQL logging enabled
         assert!(result.is_ok(), "Should succeed with SQL logging enabled");
-        
+
         // Restore environment
         if let Some(p) = prev.as_deref() {
           unsafe { std::env::set_var("FORGE_SQL_DEBUG", p) };
@@ -419,7 +442,7 @@ mod tests {
 
         // Then: should succeed without SQL logging
         assert!(result.is_ok(), "Should succeed without SQL logging");
-        
+
         // Restore environment
         if let Some(p) = prev.as_deref() {
           unsafe { std::env::set_var("FORGE_SQL_DEBUG", p) };
@@ -441,8 +464,11 @@ mod tests {
         let result = initialize_database(&config).await;
 
         // Then: should succeed without SQL logging
-        assert!(result.is_ok(), "Should succeed without SQL logging when env var is not '1' or 'true'");
-        
+        assert!(
+          result.is_ok(),
+          "Should succeed without SQL logging when env var is not '1' or 'true'"
+        );
+
         // Restore environment
         if let Some(p) = prev.as_deref() {
           unsafe { std::env::set_var("FORGE_SQL_DEBUG", p) };
@@ -475,7 +501,6 @@ mod tests {
         // Then: should return a DbConnection (TracedConnection)
         // Type is verified by successful assignment
         let _db: DbConnection = traced_conn;
-        assert!(true, "Should wrap connection with tracing");
       }
 
       #[test]
@@ -484,7 +509,6 @@ mod tests {
         // When: checking the type
         // Then: should be TracedConnection
         // Verified by compilation - DbConnection is pub use sea_orm_tracing::TracedConnection
-        assert!(true, "DbConnection should be available as type alias");
       }
     }
   }

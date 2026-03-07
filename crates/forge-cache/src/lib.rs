@@ -13,7 +13,6 @@ mod bdd_tests {
 
   /// BDD-style tests focusing on behavior rather than implementation.
   /// Tests verify that public API re-exports are accessible and functional.
-
   mod public_api_exports_behavior {
     use super::*;
 
@@ -25,7 +24,6 @@ mod bdd_tests {
       let _noop_cache: NoOpAppCache = NoOpAppCache;
 
       // Then: types should be accessible and usable
-      assert!(true, "AppCache and NoOpAppCache should be accessible from crate root");
     }
 
     #[test]
@@ -41,7 +39,6 @@ mod bdd_tests {
       let _http_cache_config: Option<HttpResponseCacheConfig> = None;
 
       // Then: config types should be accessible and constructible
-      assert!(true, "Config types should be accessible from crate root");
     }
 
     #[test]
@@ -51,7 +48,6 @@ mod bdd_tests {
       let _layer_type: Option<HttpResponseCacheLayer> = None;
 
       // Then: HttpResponseCacheLayer should be accessible
-      assert!(true, "HttpResponseCacheLayer should be accessible from crate root");
     }
 
     #[tokio::test]
@@ -71,7 +67,10 @@ mod bdd_tests {
       let cache = AppCache::from_config(&config);
 
       // Then: cache should be created successfully
-      assert!(cache.is_some(), "AppCache should be created from exported config type");
+      assert!(
+        cache.is_some(),
+        "AppCache should be created from exported config type"
+      );
     }
 
     #[tokio::test]
@@ -106,7 +105,10 @@ mod bdd_tests {
       let result = cache.get("test-key").await;
 
       // Then: should return None (no-op behavior)
-      assert!(result.is_none(), "NoOpAppCache should return None for all keys");
+      assert!(
+        result.is_none(),
+        "NoOpAppCache should return None for all keys"
+      );
     }
 
     #[test]
@@ -129,8 +131,14 @@ mod bdd_tests {
 
       // Then: config should be valid and usable
       assert!(config.enabled, "Config should be enabled");
-      assert!(config.application.is_some(), "Application config should be present");
-      assert!(config.http_response.is_some(), "HTTP response config should be present");
+      assert!(
+        config.application.is_some(),
+        "Application config should be present"
+      );
+      assert!(
+        config.http_response.is_some(),
+        "HTTP response config should be present"
+      );
     }
   }
 }

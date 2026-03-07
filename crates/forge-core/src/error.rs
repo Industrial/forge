@@ -154,7 +154,6 @@ mod bdd_tests {
 
   /// BDD-style tests focusing on behavior rather than implementation.
   /// Tests are organized by feature/behavior area with descriptive names.
-
   mod error_variant_behavior {
     use super::*;
 
@@ -168,7 +167,7 @@ mod bdd_tests {
 
       // Then: should be Io variant
       match error {
-        Error::Io(_) => assert!(true),
+        Error::Io(_) => {}
         Error::Generic(_) => panic!("Expected Io variant"),
       }
     }
@@ -266,7 +265,6 @@ mod bdd_tests {
       // When: using Error trait methods
       // Then: should work correctly (compilation test)
       let _description = error.to_string();
-      assert!(true, "Error implements std::error::Error");
     }
 
     #[test]
@@ -384,7 +382,7 @@ mod bdd_tests {
     fn should_be_usable_with_question_mark_operator() {
       // Given: a function that propagates errors
       fn propagate_io() -> Result<(), Error> {
-        let io_err = io::Error::new(io::ErrorKind::Other, "propagated");
+        let io_err = io::Error::other("propagated");
         Err(io_err.into())
       }
 
@@ -394,7 +392,7 @@ mod bdd_tests {
       // Then: should propagate the error correctly
       assert!(result.is_err());
       match result.unwrap_err() {
-        Error::Io(_) => assert!(true),
+        Error::Io(_) => {}
         Error::Generic(_) => panic!("Expected Io variant"),
       }
     }

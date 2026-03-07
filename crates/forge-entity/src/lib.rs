@@ -13,7 +13,6 @@ mod bdd_tests {
 
   /// BDD-style tests focusing on behavior rather than implementation.
   /// Tests are organized by feature/behavior area with descriptive names.
-
   mod public_api_exports_behavior {
     use super::*;
 
@@ -23,7 +22,6 @@ mod bdd_tests {
       // When: using ModelError
       // Then: should be accessible and usable
       let _error: ModelError = ModelError::UnknownModel;
-      assert!(true, "ModelError is exported");
     }
 
     #[test]
@@ -31,8 +29,7 @@ mod bdd_tests {
       // Given: forge-entity crate
       // When: checking if RestModel trait is exported
       // Then: should be accessible (verified by successful compilation)
-      // The trait is exported and can be used by implementations
-      assert!(true, "RestModel trait is exported");
+      // The trait is exported and can be used by implementations (verified by compilation)
     }
 
     #[test]
@@ -55,10 +52,9 @@ mod bdd_tests {
       let _unknown = ModelError::UnknownModel;
       let _validation = ModelError::Validation("test".to_string());
       let _not_found = ModelError::NotFound("test".to_string());
-      let _database = ModelError::Database(sea_orm::DbErr::Conn(
-        sea_orm::RuntimeErr::Internal("test".to_string()),
-      ));
-      assert!(true, "All ModelError variants are accessible");
+      let _database = ModelError::Database(sea_orm::DbErr::Conn(sea_orm::RuntimeErr::Internal(
+        "test".to_string(),
+      )));
     }
   }
 
@@ -69,7 +65,6 @@ mod bdd_tests {
       // When: checking module organization
       // Then: model_error module should exist
       // This is verified by successful compilation and import
-      assert!(true, "model_error module exists");
     }
 
     #[test]
@@ -78,7 +73,6 @@ mod bdd_tests {
       // When: checking module organization
       // Then: rest_model module should exist
       // This is verified by successful compilation and import
-      assert!(true, "rest_model module exists");
     }
 
     #[test]
@@ -87,7 +81,6 @@ mod bdd_tests {
       // When: importing from the crate root
       // Then: should provide access to ModelError and RestModel
       // This is verified by successful compilation of this test module
-      assert!(true, "Unified API is provided through lib.rs");
     }
   }
 }

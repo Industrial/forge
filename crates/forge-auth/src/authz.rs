@@ -261,7 +261,10 @@ mod bdd_tests {
 
       // When: comparing them
       // Then: they should not be equal
-      assert_ne!(read_action, create_action, "Different action variants should not be equal");
+      assert_ne!(
+        read_action, create_action,
+        "Different action variants should not be equal"
+      );
     }
 
     #[test]
@@ -443,7 +446,11 @@ mod bdd_tests {
       let id = ctx.organization_id();
 
       // Then: should return Some(organization_id)
-      assert_eq!(id, Some(org_id), "Should return organization ID when present");
+      assert_eq!(
+        id,
+        Some(org_id),
+        "Should return organization ID when present"
+      );
     }
 
     #[test]
@@ -459,7 +466,10 @@ mod bdd_tests {
       let id = ctx.organization_id();
 
       // Then: should return None
-      assert_eq!(id, None, "Should return None when organization ID not present");
+      assert_eq!(
+        id, None,
+        "Should return None when organization ID not present"
+      );
     }
   }
 
@@ -524,7 +534,10 @@ mod bdd_tests {
       };
 
       // Then: should store all values correctly
-      assert_eq!(scope.organization_id, org_id, "Should store organization_id");
+      assert_eq!(
+        scope.organization_id, org_id,
+        "Should store organization_id"
+      );
       assert_eq!(scope.role_id, role_id, "Should store role_id");
       assert_eq!(scope.role_name, role_name, "Should store role_name");
     }

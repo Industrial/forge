@@ -17,6 +17,9 @@ fn template_dir() -> PathBuf {
     if p.is_dir() {
       return p;
     }
+    // If FORGE_TEMPLATES_DIR is set but path doesn't exist, return it anyway
+    // so create_new_project can detect and return an error
+    return p.join("default");
   }
   PathBuf::from(env!("CARGO_MANIFEST_DIR"))
     .join("templates")
@@ -270,7 +273,6 @@ mod tests {
 
     /// BDD-style tests focusing on behavior rather than implementation.
     /// Tests are organized by feature/behavior area with descriptive names.
-
     mod directory_skipping_behavior {
       use super::*;
 
@@ -309,6 +311,25 @@ mod tests {
 
     mod project_creation_validation_behavior {
       use super::*;
+      use std::sync::Mutex;
+
+      static ENV_LOCK: Mutex<()> = Mutex::new(());
+
+      /// Restores FORGE_TEMPLATES_DIR on drop (so test can restore env even on panic).
+      struct RestoreForgeTemplatesDir(Option<String>);
+      impl Drop for RestoreForgeTemplatesDir {
+        fn drop(&mut self) {
+          if let Some(ref v) = self.0 {
+            unsafe {
+              std::env::set_var("FORGE_TEMPLATES_DIR", v);
+            }
+          } else {
+            unsafe {
+              std::env::remove_var("FORGE_TEMPLATES_DIR");
+            }
+          }
+        }
+      }
 
       #[test]
       fn should_reject_creation_when_directory_already_exists() {
@@ -332,6 +353,9 @@ mod tests {
 
       #[test]
       fn should_reject_creation_when_template_directory_not_found() {
+        let _guard = ENV_LOCK.lock().unwrap();
+        let _env_guard = RestoreForgeTemplatesDir(std::env::var("FORGE_TEMPLATES_DIR").ok());
+        
         // Given: FORGE_TEMPLATES_DIR pointing to nonexistent path
         let tmp = tempfile::tempdir().unwrap();
         let missing = tmp.path().join("nonexistent_templates");
@@ -346,9 +370,6 @@ mod tests {
         let result = create_new_project(project_path.to_str().unwrap());
 
         // Then: should return error indicating template directory not found
-        unsafe {
-          std::env::remove_var("FORGE_TEMPLATES_DIR");
-        }
         assert!(result.is_err());
         let err_msg = result.unwrap_err().to_string();
         assert!(

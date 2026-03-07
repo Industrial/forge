@@ -59,7 +59,6 @@ mod bdd_tests {
 
   /// BDD-style tests focusing on behavior rather than implementation.
   /// Tests are organized by feature/behavior area with descriptive names.
-
   mod org_channel_creation_behavior {
     use super::*;
 
@@ -142,7 +141,10 @@ mod bdd_tests {
       // Then: should succeed and connection should receive the event
       assert!(result.is_ok(), "Broadcast should succeed");
       let received = rx.try_recv().ok();
-      assert!(received.is_some(), "Connection should receive broadcasted event");
+      assert!(
+        received.is_some(),
+        "Connection should receive broadcasted event"
+      );
     }
 
     #[tokio::test]
@@ -213,7 +215,10 @@ mod bdd_tests {
       let received1 = rx1.try_recv().ok();
       let received2 = rx2.try_recv().ok();
       assert!(received1.is_some(), "First connection should receive event");
-      assert!(received2.is_some(), "Second connection should receive event");
+      assert!(
+        received2.is_some(),
+        "Second connection should receive event"
+      );
     }
   }
 
@@ -240,7 +245,10 @@ mod bdd_tests {
       // Then: should succeed and connection should receive event
       assert!(result.is_ok(), "Broadcast to org should succeed");
       let received = rx.try_recv().ok();
-      assert!(received.is_some(), "Connection should receive org broadcast");
+      assert!(
+        received.is_some(),
+        "Connection should receive org broadcast"
+      );
     }
 
     #[tokio::test]
@@ -287,7 +295,10 @@ mod bdd_tests {
       let received1 = rx1.try_recv().ok();
       let received2 = rx2.try_recv().ok();
       assert!(received1.is_some(), "Org1 connection should receive event");
-      assert!(received2.is_none(), "Org2 connection should not receive event");
+      assert!(
+        received2.is_none(),
+        "Org2 connection should not receive event"
+      );
     }
   }
 
@@ -304,7 +315,6 @@ mod bdd_tests {
 
       // Then: should complete without error (no-op for in-memory)
       // If we reach here, the function completed successfully
-      assert!(true, "Sweep should complete without error");
     }
 
     #[test]
@@ -316,7 +326,6 @@ mod bdd_tests {
       // When: calling sweep_expired_connections
       // Then: should accept any type (generic parameter)
       // Verification: function signature accepts generic C parameter
-      assert!(true, "Function should accept any connection type");
     }
   }
 
@@ -337,7 +346,10 @@ mod bdd_tests {
       // Then: should succeed and contain event type
       assert!(json.is_ok());
       let json_str = json.unwrap();
-      assert!(json_str.contains("users_updated"), "Should contain event type");
+      assert!(
+        json_str.contains("users_updated"),
+        "Should contain event type"
+      );
     }
 
     #[test]
@@ -355,7 +367,10 @@ mod bdd_tests {
       // Then: should succeed and contain resource information
       assert!(json.is_ok());
       let json_str = json.unwrap();
-      assert!(json_str.contains("resource_changed"), "Should contain event type");
+      assert!(
+        json_str.contains("resource_changed"),
+        "Should contain event type"
+      );
       assert!(json_str.contains("task"), "Should contain resource type");
     }
 

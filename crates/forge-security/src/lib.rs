@@ -117,7 +117,6 @@ mod tests {
 
     /// BDD-style tests focusing on behavior rather than implementation.
     /// Tests verify OWASP security headers, header removal, and response modification behavior.
-
     mod security_headers_addition_behavior {
       use super::*;
 
@@ -204,7 +203,9 @@ mod tests {
         // Then: should include Permissions-Policy header restricting geolocation, camera, microphone
         let headers = res.headers();
         assert_eq!(
-          headers.get("permissions-policy").and_then(|v| v.to_str().ok()),
+          headers
+            .get("permissions-policy")
+            .and_then(|v| v.to_str().ok()),
           Some("geolocation=(), camera=(), microphone=()"),
           "Should set Permissions-Policy to restrict geolocation, camera, microphone"
         );
@@ -262,7 +263,10 @@ mod tests {
           headers.get("x-content-type-options").is_some(),
           "Should include X-Content-Type-Options"
         );
-        assert!(headers.get("x-frame-options").is_some(), "Should include X-Frame-Options");
+        assert!(
+          headers.get("x-frame-options").is_some(),
+          "Should include X-Frame-Options"
+        );
         assert!(
           headers.get("referrer-policy").is_some(),
           "Should include Referrer-Policy"
@@ -453,10 +457,7 @@ mod tests {
       #[test]
       fn should_return_response_with_same_body_type() {
         // Given: a response with body
-        let res: Response<Body> = Response::builder()
-          .status(200)
-          .body(Body::empty())
-          .unwrap();
+        let res: Response<Body> = Response::builder().status(200).body(Body::empty()).unwrap();
 
         // When: adding security headers
         let res = add_security_headers(res);

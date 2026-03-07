@@ -140,7 +140,6 @@ mod bdd_tests {
 
   /// BDD-style tests focusing on behavior rather than implementation.
   /// Tests are organized by feature/behavior area with descriptive names.
-
   mod subscription_registration_behavior {
     use super::*;
 
@@ -251,7 +250,10 @@ mod bdd_tests {
       let removed = store.unsubscribe(nonexistent_id);
 
       // Then: should return false
-      assert!(!removed, "Should return false when subscription doesn't exist");
+      assert!(
+        !removed,
+        "Should return false when subscription doesn't exist"
+      );
     }
 
     #[test]
@@ -277,8 +279,14 @@ mod bdd_tests {
       store.unsubscribe(id1);
 
       // Then: other subscription should still exist
-      assert!(store.get(id1).is_none(), "First subscription should be removed");
-      assert!(store.get(id2).is_some(), "Second subscription should still exist");
+      assert!(
+        store.get(id1).is_none(),
+        "First subscription should be removed"
+      );
+      assert!(
+        store.get(id2).is_some(),
+        "Second subscription should still exist"
+      );
     }
   }
 
@@ -437,8 +445,12 @@ mod bdd_tests {
       let id2 = Uuid::new_v4();
 
       // When: sending multiple invalidation events
-      store.send_invalidation(InvalidationEvent { subscription_id: id1 });
-      store.send_invalidation(InvalidationEvent { subscription_id: id2 });
+      store.send_invalidation(InvalidationEvent {
+        subscription_id: id1,
+      });
+      store.send_invalidation(InvalidationEvent {
+        subscription_id: id2,
+      });
 
       // Then: receiver should receive both events
       let event1 = rx.recv().await.unwrap();
@@ -613,7 +625,6 @@ mod tests {
 
     /// BDD-style tests focusing on behavior rather than implementation.
     /// Tests verify subscription management, change event handling, and invalidation event delivery behavior.
-
     mod change_event_behavior {
       use super::*;
 
@@ -755,7 +766,6 @@ mod tests {
         // Then: store should be created
         // Type check - if it compiles, it's created
         let _ = store;
-        assert!(true, "Store should be created");
       }
 
       #[test]
@@ -766,7 +776,6 @@ mod tests {
 
         // Then: store should be created
         let _ = store;
-        assert!(true, "Store should be created via Default");
       }
 
       #[test]
@@ -899,7 +908,10 @@ mod tests {
         let retrieved = store.get(nonexistent_id);
 
         // Then: should return None
-        assert!(retrieved.is_none(), "Should return None for nonexistent subscription");
+        assert!(
+          retrieved.is_none(),
+          "Should return None for nonexistent subscription"
+        );
       }
     }
 
@@ -922,7 +934,6 @@ mod tests {
 
         // Then: should publish without error
         // publish_change is fire-and-forget, so we just verify it doesn't panic
-        assert!(true, "Should publish change event");
       }
 
       #[tokio::test]
@@ -964,7 +975,6 @@ mod tests {
 
         // Then: should send without error
         // send_invalidation is fire-and-forget, so we just verify it doesn't panic
-        assert!(true, "Should send invalidation event");
       }
 
       #[tokio::test]
@@ -1010,7 +1020,10 @@ mod tests {
         let affected = store.subscriptions_affected_by(&event);
 
         // Then: should match the subscription
-        assert!(affected.contains(&subscription_id), "Should match subscription");
+        assert!(
+          affected.contains(&subscription_id),
+          "Should match subscription"
+        );
       }
 
       #[test]
@@ -1127,7 +1140,6 @@ mod tests {
         // Then: method should be callable (if it compiles, it exists)
         // Note: Actual spawning requires tokio runtime, tested in integration tests
         let _store = store;
-        assert!(true, "spawn_change_worker method should exist");
       }
 
       #[test]
@@ -1154,7 +1166,6 @@ mod tests {
 
         // Then: should send invalidation events (fire-and-forget, so we just verify it doesn't panic)
         // The actual delivery is tested via subscribe_invalidations in async tests
-        assert!(true, "Should notify affected subscriptions");
       }
     }
   }
