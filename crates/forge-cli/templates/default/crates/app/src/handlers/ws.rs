@@ -392,8 +392,6 @@ mod ws_bdd_tests {
   }
 
   mod task_state_integration_behavior {
-    use super::*;
-
     #[test]
     fn should_read_task_state_when_tasks_channel_subscribed() {
       // Given: "tasks" channel is subscribed
@@ -442,7 +440,6 @@ mod ws_bdd_tests {
 #[cfg(test)]
 mod tests {
   use super::*;
-  use axum::http::HeaderMap;
 
   mod websocket_handler_behavior {
     use super::*;
@@ -674,8 +671,6 @@ mod tests {
   }
 
   mod task_state_initialization_behavior {
-    use super::*;
-
     #[test]
     fn should_send_initial_tasks_when_tasks_channel_subscribed() {
       // Given: tasks channel is subscribed and task state exists
@@ -921,8 +916,6 @@ mod ws_integration_tests {
   }
 
   mod websocket_upgrade_behavior {
-    use super::*;
-
     #[test]
     fn should_upgrade_http_connection_to_websocket() {
       // Given: a WebSocketUpgrade request
@@ -943,8 +936,6 @@ mod ws_integration_tests {
   }
 
   mod error_handling_behavior {
-    use super::*;
-
     #[test]
     fn should_abort_forward_task_on_connection_close() {
       // Given: a forward task is running

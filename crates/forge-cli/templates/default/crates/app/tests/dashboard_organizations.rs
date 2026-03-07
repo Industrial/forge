@@ -101,7 +101,7 @@ mod bdd_tests {
       ];
 
       // When: requesting GET /api/dashboard/organizations
-      let (status, body) =
+      let (status, _body) =
         app::test_request(&client, "GET", ORGS_PATH, Some(&token), None, Some(&scope))
           .await
           .unwrap();

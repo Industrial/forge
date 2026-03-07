@@ -9,7 +9,6 @@ pub async fn handler(State(_db): State<DbConnection>) -> impl IntoResponse {
 
 #[cfg(test)]
 mod bdd_tests {
-  use super::*;
   use crate::build_router_for_test;
   use axum::body::Body;
   use axum::http::{Request, StatusCode};

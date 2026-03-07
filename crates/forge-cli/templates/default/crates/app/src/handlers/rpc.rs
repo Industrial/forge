@@ -669,8 +669,6 @@ mod bdd_tests {
   }
 
   mod method_validation_behavior {
-    use super::*;
-
     #[test]
     fn should_accept_entity_list_method() {
       // Given: method is "entity.list"
@@ -856,8 +854,6 @@ mod bdd_tests {
   }
 
   mod correlation_id_behavior {
-    use super::*;
-
     #[test]
     fn should_accept_numeric_correlation_id() {
       // Given: correlation id as number

@@ -564,8 +564,6 @@ mod tests {
     }
 
     mod module_structure_behavior {
-      use super::*;
-
       #[test]
       fn should_expose_error_module() {
         // Given: error module is public
@@ -577,49 +575,51 @@ mod tests {
       }
 
       #[test]
+      #[allow(unused_imports)]
       fn should_expose_handlers_module() {
         // Given: handlers module is public
         // When: accessing handlers module
         // Then: handlers module should be accessible
-        use crate::handlers;
+        use crate::handlers as _;
         // Module exists if import succeeds
         assert!(true, "handlers module should be accessible");
       }
 
       #[test]
+      #[allow(unused_imports)]
       fn should_expose_permissions_module() {
         // Given: permissions module is public
         // When: accessing permissions module
         // Then: permissions module should be accessible
-        use crate::permissions;
+        use crate::permissions as _;
         // Module exists if import succeeds
         assert!(true, "permissions module should be accessible");
       }
 
       #[test]
+      #[allow(unused_imports)]
       fn should_expose_scoped_query_module() {
         // Given: scoped_query module is public
         // When: accessing scoped_query module
         // Then: scoped_query module should be accessible
-        use crate::scoped_query;
+        use crate::scoped_query as _;
         // Module exists if import succeeds
         assert!(true, "scoped_query module should be accessible");
       }
 
       #[test]
+      #[allow(unused_imports)]
       fn should_expose_tasks_module() {
         // Given: tasks module is public
         // When: accessing tasks module
         // Then: tasks module should be accessible
-        use crate::tasks;
+        use crate::tasks as _;
         // Module exists if import succeeds
         assert!(true, "tasks module should be accessible");
       }
     }
 
     mod test_env_guard_behavior {
-      use super::*;
-
       #[test]
       fn should_store_original_cwd_in_guard() {
         // Given: TestEnvGuard structure
@@ -644,8 +644,6 @@ mod tests {
     }
 
     mod route_registration_behavior {
-      use super::*;
-
       #[test]
       fn should_register_auth_routes() {
         // Given: make_app function
@@ -729,8 +727,6 @@ mod tests {
     }
 
     mod test_client_behavior {
-      use super::*;
-
       #[test]
       fn should_support_http_client_variant() {
         // Given: TestClient enum

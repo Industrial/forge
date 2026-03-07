@@ -463,7 +463,7 @@ mod unit_tests {
 
       // Then it should return a JSON object with permissions array
       assert!(result.is_ok());
-      let response = result.unwrap();
+      let _response = result.unwrap();
       // The response should contain dashboard permissions
       // Note: We can't easily extract the JSON here without more setup,
       // but we verify the function executes successfully

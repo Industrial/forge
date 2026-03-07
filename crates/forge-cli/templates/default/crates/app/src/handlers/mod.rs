@@ -43,27 +43,30 @@ mod tests {
     }
 
     #[test]
+    #[allow(unused_imports)]
     fn should_allow_importing_from_auth_module() {
       // Given: the handlers module
       // When: importing from auth module
-      use auth;
+      use auth as _;
       // Then: auth module should be accessible
       // (compilation success verifies module exists)
     }
 
     #[test]
+    #[allow(unused_imports)]
     fn should_allow_importing_from_i18n_module() {
       // Given: the handlers module
       // When: importing from i18n module
-      use i18n;
+      use i18n as _;
       // Then: i18n module should be accessible
     }
 
     #[test]
+    #[allow(unused_imports)]
     fn should_allow_importing_from_dashboard_module() {
       // Given: the handlers module
       // When: importing from dashboard module
-      use dashboard;
+      use dashboard as _;
       // Then: dashboard module should be accessible
     }
   }

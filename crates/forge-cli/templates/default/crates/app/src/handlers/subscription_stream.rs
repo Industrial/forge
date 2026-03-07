@@ -52,8 +52,6 @@ mod tests {
     /// Tests verify SSE format, response headers, and stream structure.
 
     mod sse_format_behavior {
-      use super::*;
-
       #[test]
       fn should_format_ready_message_with_sse_prefix() {
         // Given: a ready message
@@ -109,8 +107,6 @@ mod tests {
     }
 
     mod response_header_behavior {
-      use super::*;
-
       #[test]
       fn should_set_content_type_to_event_stream() {
         // Given: SSE response headers
@@ -211,8 +207,6 @@ mod tests {
     }
 
     mod handler_contract_behavior {
-      use super::*;
-
       #[test]
       fn should_return_into_response_implementation() {
         // Given: subscription_stream_handler returns Response
