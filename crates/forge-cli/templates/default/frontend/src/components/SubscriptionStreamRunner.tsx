@@ -8,7 +8,7 @@
  */
 import { useEffect } from 'react'
 import { Effect, Stream } from 'effect'
-import { useAuthenticationStateReactiveStore } from '@/features/authentication/hooks/useAuthenticationStateReactiveStore'
+import { useAuthStore } from '@/features/authentication/stores'
 import { Option } from 'effect'
 import { getApplicationLayer } from '@/lib/appLayer'
 import { trigger } from '@/lib/subscriptionRegistry'
@@ -16,7 +16,7 @@ import { SubscriptionStreamStatusStoreTag } from '@/lib/subscriptionStreamStatus
 import { SubscriptionStream } from '@/services/SubscriptionStream'
 
 export function SubscriptionStreamRunner() {
-  const { authentication } = useAuthenticationStateReactiveStore()
+  const authentication = useAuthStore()
   const hasToken = Option.isSome(authentication.token)
 
   useEffect(() => {

@@ -274,7 +274,7 @@ type ExternalStoreShape<A> = ReturnType<typeof createExternalStore<A>>
 function createDerivedExternalStore<A, B>(
   tag: Context.Tag<ReactiveStore<A>, ReactiveStore<A>>,
   initialB: B,
-  run: RunEffect,
+  _run: RunEffect,
   runFork: RunFork,
   derive: (stream: Stream.Stream<A, never, never>) => Stream.Stream<B, never, never>,
 ): {
@@ -285,7 +285,6 @@ function createDerivedExternalStore<A, B>(
   let cache: B = initialB
   let initialized = false
   const listeners = new Set<() => void>()
-  let fiber: Fiber.RuntimeFiber<unknown, never> | null = null
   let started = false
 
   const setCache = (b: B) => {
@@ -303,7 +302,7 @@ function createDerivedExternalStore<A, B>(
         const derived = derive(store.changes)
         yield* Stream.runForEach(derived, (b) => Effect.sync(() => setCache(b)))
       })
-      fiber = runFork(streamEffect)
+      runFork(streamEffect)
     }
     return () => {
       listeners.delete(onStoreChange)

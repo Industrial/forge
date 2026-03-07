@@ -7,7 +7,7 @@
  */
 import { useEffect, useRef } from 'react'
 import { Effect, Option } from 'effect'
-import { useAuthenticationStateReactiveStore } from '@/features/authentication/stores'
+import { useAuthStore } from '@/features/authentication/stores'
 import { register, unregister } from '@/lib/subscriptionRegistry'
 import { useRunWithAppLayer } from '@/lib/appLayer'
 import { RpcApi } from '@/services/RpcApi'
@@ -18,7 +18,7 @@ export function useEntitySubscription(
   params: ListQueryParams | undefined,
   onRefetch: () => void,
 ): void {
-  const { authentication } = useAuthenticationStateReactiveStore()
+  const authentication = useAuthStore()
   const hasToken = Option.isSome(authentication.token)
   const subscriptionIdRef = useRef<string | null>(null)
   const onRefetchRef = useRef(onRefetch)

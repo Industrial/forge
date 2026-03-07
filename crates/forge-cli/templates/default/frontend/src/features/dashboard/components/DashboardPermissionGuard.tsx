@@ -2,7 +2,7 @@ import React from 'react'
 import { Navigate } from 'react-router-dom'
 import { Option } from 'effect'
 
-import { useAuthenticationStateReactiveStore } from '@/features/authentication/stores'
+import { useAuthStore } from '@/features/authentication/stores'
 import { hasPermission } from '@/lib/permissions'
 
 type DashboardPermissionGuardProps = {
@@ -19,7 +19,7 @@ export default function DashboardPermissionGuard({
   permission,
   children,
 }: DashboardPermissionGuardProps) {
-  const { authentication } = useAuthenticationStateReactiveStore()
+  const authentication = useAuthStore()
   const user = Option.getOrElse(authentication.user, () => null)
   // Permissions not in reactive store yet; extend store/me API and set permissions here.
   const permissions: readonly string[] = user != null ? [] : []

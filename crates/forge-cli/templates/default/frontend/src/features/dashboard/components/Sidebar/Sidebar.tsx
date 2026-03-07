@@ -13,7 +13,7 @@ import People from '@mui/icons-material/People'
 import Badge from '@mui/icons-material/Badge'
 import Lock from '@mui/icons-material/Lock'
 import History from '@mui/icons-material/History'
-import { useAuthenticationStateReactiveStore } from '@/features/authentication/hooks/useAuthenticationStateReactiveStore'
+import { useAuthStore } from '@/features/authentication/stores'
 import { hasPermission } from '@/lib/permissions'
 
 /** §7: Entity-based permissions. Show nav item if user has any of these (read or write for section). */
@@ -81,7 +81,7 @@ export default function Sidebar({
   fullWidth = false,
 }: SidebarProps) {
   const width = fullWidth ? '100%' : expanded ? 240 : 72
-  const { authentication } = useAuthenticationStateReactiveStore()
+  const authentication = useAuthStore()
   const permissions = authentication.permissions
   const navItems = NAV_ITEMS.filter((item) =>
     hasPermission(permissions, item.permissions),

@@ -8,14 +8,14 @@ import { Effect, Option } from 'effect'
 import { useCallback, useState } from 'react'
 
 import { getApplicationLayer } from '@/lib/appLayer'
-import { useAuthenticationStateReactiveStore } from '@/features/authentication/stores'
+import { useAuthStore } from '@/features/authentication/stores'
 import { Authentication } from '@/features/authentication/services/Authentication'
 import { ScopeError } from '../../errors'
 
 export default function SelectScopePage() {
   const navigate = useNavigate()
   const location = useLocation()
-  const { authentication } = useAuthenticationStateReactiveStore()
+  const authentication = useAuthStore()
   const [submitting, setSubmitting] = useState(false)
   const [errorMessage, setErrorMessage] = useState<string | null>(null)
 

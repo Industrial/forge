@@ -18,7 +18,7 @@ import { AuthenticationUser } from '@/features/authentication/domain/Authenticat
 import { AuthenticationError } from '@/features/authentication/errors/AuthenticationError'
 import { ScopeError } from '@/features/authentication/errors'
 import {
-  AuthenticationStateReactiveStoreTag,
+  AuthStoreTag,
   initialAuthenticationState,
   type AuthenticationState,
 } from '@/features/authentication/stores/AuthenticationStateReactiveStore'
@@ -60,7 +60,7 @@ export const AuthenticationLive = Layer.effect(
   Authentication,
   Effect.gen(function* () {
     const client = yield* HttpClient.HttpClient
-    const store = yield* AuthenticationStateReactiveStoreTag
+    const store = yield* AuthStoreTag
     const tokenStorage = yield* TokenStorage
     const baseUrl = getBaseUrl()
 

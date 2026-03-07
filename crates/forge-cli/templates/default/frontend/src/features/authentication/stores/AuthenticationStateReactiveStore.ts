@@ -1,7 +1,6 @@
 /**
  * Authentication state as a reactive store. Single source of truth for auth in the Effect layer.
- * Built with defineStore (Layer.sync, in-memory). Use getAuthenticationStateStoreLayer() for app composition.
- * Subscribe via useAuthStore(), useAuthStoreWithInit(), or useAuthenticationStateReactiveStore().
+ * DSL: define once, merge layer in app layer, use useAuthStore() / useAuthStoreWithInit() in React.
  */
 import { Option } from 'effect'
 
@@ -23,21 +22,24 @@ export const initialAuthenticationState: AuthenticationState = {
   permissions: [],
 }
 
-const store = defineStore(
+/** DSL: one store definition; use .tag in Effect, .layer in app layer, useAuthStore in React. */
+export const AuthStore = defineStore(
   '@forge/AuthenticationStateReactiveStore',
   initialAuthenticationState,
 )
 
-export const AuthenticationStateReactiveStoreTag = store.tag
-const authenticationStateStoreLayer = store.layer
+export const AuthStoreTag = AuthStore.tag
+export const authStoreLayer = AuthStore.layer
+
+/** @deprecated Use AuthStoreTag. */
+export const AuthenticationStateReactiveStoreTag = AuthStoreTag
 
 export type AuthenticationStateReactiveStore =
   ReactiveStore<AuthenticationState>
 
 /**
  * Returns the auth state store layer. Use from buildApplicationLayer / getApplicationLayer.
- * The layer is created once (by makeReactiveStore) and shared.
  */
 export function getAuthenticationStateStoreLayer() {
-  return authenticationStateStoreLayer
+  return authStoreLayer
 }

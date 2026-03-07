@@ -1,4 +1,4 @@
-import { useAuthenticationStateReactiveStore } from '@/features/authentication/stores'
+import { useAuthStore } from '@/features/authentication/stores'
 import { hasPermission } from '@/lib/permissions'
 
 /**
@@ -9,6 +9,6 @@ import { hasPermission } from '@/lib/permissions'
  * @returns true if the user has at least one of the required keys (or equivalent / all.read / all.write).
  */
 export function usePermission(required: string | readonly string[]): boolean {
-  const { authentication } = useAuthenticationStateReactiveStore()
+  const authentication = useAuthStore()
   return hasPermission(authentication.permissions, required)
 }

@@ -2,7 +2,7 @@ import React from 'react'
 import { Navigate } from 'react-router-dom'
 import { Option } from 'effect'
 
-import { useAuthenticationStateReactiveStore } from '@/features/authentication/stores'
+import { useAuthStore } from '@/features/authentication/stores'
 
 type SelectScopeOnlyGuardProps = { children: React.ReactNode }
 
@@ -15,7 +15,7 @@ type SelectScopeOnlyGuardProps = { children: React.ReactNode }
 export default function SelectScopeOnlyGuard({
   children,
 }: SelectScopeOnlyGuardProps) {
-  const { authentication } = useAuthenticationStateReactiveStore()
+  const authentication = useAuthStore()
   const user = Option.getOrElse(authentication.user, () => null)
   const needs_scope_select = Option.getOrElse(
     authentication.needsScopeSelect,

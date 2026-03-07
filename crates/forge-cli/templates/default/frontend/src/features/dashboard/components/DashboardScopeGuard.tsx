@@ -4,7 +4,7 @@ import { Effect, Option } from 'effect'
 import Box from '@mui/material/Box'
 import LoadingSpinner from '../../../components/LoadingSpinner'
 import { getApplicationLayer } from '@/lib/appLayer'
-import { useAuthenticationStateReactiveStore } from '@/features/authentication/stores'
+import { useAuthStore } from '@/features/authentication/stores'
 import { Authentication } from '@/features/authentication/services/Authentication'
 
 export type DashboardScopeGuardProps = {
@@ -16,10 +16,10 @@ export type DashboardScopeGuardProps = {
  * auto-selects the single scope so single-org users do not see the selection screen (§7.5).
  * Use inside ProtectedRoute so it only runs for authenticated users.
  */
-export default function DashboardScopeGuard({
+function DashboardScopeGuard({
   children,
 }: DashboardScopeGuardProps) {
-  const { authentication } = useAuthenticationStateReactiveStore()
+  const authentication = useAuthStore()
   const isUserAuthenticated = Option.isSome(authentication.user)
   const needsScopeSelect = Option.getOrElse(
     authentication.needsScopeSelect,
@@ -33,28 +33,27 @@ export default function DashboardScopeGuard({
   const [autoSelecting, setAutoSelecting] = useState(false)
 
   useEffect(() => {
-    Effect.runPromise(
-      Effect.gen(function* () {
-        if (
-          !loading &&
-          isUserAuthenticated &&
-          needsScopeSelect &&
-          scopes.length === 1 &&
-          !autoSelecting
-        ) {
+    if (
+      !loading &&
+      isUserAuthenticated &&
+      needsScopeSelect &&
+      scopes.length === 1 &&
+      !autoSelecting
+    ) {
+      setAutoSelecting(true)
+      Effect.runPromise(
+        Effect.gen(function* () {
           const p = scopes[0]
           const orgId = p.org_id
           const roleId = p.role_id ?? ''
-          setAutoSelecting(true)
           const auth = yield* Authentication
           yield* auth.selectScope(orgId, roleId)
-          setAutoSelecting(false)
-        }
-      }).pipe(
-        Effect.mapError(() => setAutoSelecting(false)),
-        Effect.provide(getApplicationLayer()),
-      ),
-    )
+        }).pipe(
+          Effect.provide(getApplicationLayer()),
+          Effect.ensuring(Effect.sync(() => setAutoSelecting(false))),
+        ),
+      ).finally(() => setAutoSelecting(false))
+    }
   }, [
     loading,
     isUserAuthenticated,
@@ -84,3 +83,5 @@ export default function DashboardScopeGuard({
   }
   return <>{children}</>
 }
+
+export default DashboardScopeGuard

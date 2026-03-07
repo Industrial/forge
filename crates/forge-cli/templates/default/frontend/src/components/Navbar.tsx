@@ -15,7 +15,7 @@ import { useNavigate } from 'react-router-dom'
 import { useState } from 'react'
 import { Option } from 'effect'
 
-import { useAuthenticationStateReactiveStore } from '@/features/authentication/stores'
+import { useAuthStore } from '@/features/authentication/stores'
 
 type NavbarProps = {
   appName?: string
@@ -74,7 +74,7 @@ export default function Navbar({
 
   const navigate = useNavigate()
 
-  const { authentication } = useAuthenticationStateReactiveStore()
+  const authentication = useAuthStore()
   const canAccessDashboard = false
   const [anchorEl, setAnchorEl] = useState<null | HTMLElement>(null)
   const open = Boolean(anchorEl)
