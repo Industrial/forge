@@ -104,10 +104,9 @@ describe('ErrorAlert component', () => {
       const handleClose = () => {
         closeCalled = true
       }
-      render(
-        <ErrorAlert message="Error" onClose={handleClose} />,
-        { wrapper: createWrapper() },
-      )
+      render(<ErrorAlert message="Error" onClose={handleClose} />, {
+        wrapper: createWrapper(),
+      })
       await waitFor(() => {})
       expect(typeof handleClose).toBe('function')
       handleClose()
@@ -168,10 +167,9 @@ describe('ErrorAlert component', () => {
       const handleClose = () => {
         closeCalled = true
       }
-      render(
-        <ErrorAlert message="Error" onClose={handleClose} />,
-        { wrapper: createWrapper() },
-      )
+      render(<ErrorAlert message="Error" onClose={handleClose} />, {
+        wrapper: createWrapper(),
+      })
       await waitFor(() => {})
       expect(typeof handleClose).toBe('function')
     })

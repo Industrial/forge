@@ -62,11 +62,7 @@ describe('FormTextField component', () => {
   describe('rendering behavior', () => {
     test('should render TextField', async () => {
       const { container } = render(
-        <FormTextField
-          value=""
-          onChange={() => {}}
-          label="Test"
-        />,
+        <FormTextField value="" onChange={() => {}} label="Test" />,
         { wrapper: createWrapper() },
       )
       await waitFor(() => {})
@@ -75,11 +71,7 @@ describe('FormTextField component', () => {
 
     test('should render with label', async () => {
       const { container } = render(
-        <FormTextField
-          value=""
-          onChange={() => {}}
-          label="Test Label"
-        />,
+        <FormTextField value="" onChange={() => {}} label="Test Label" />,
         { wrapper: createWrapper() },
       )
       await waitFor(() => {})
@@ -88,11 +80,7 @@ describe('FormTextField component', () => {
 
     test('should render with value', async () => {
       const { container } = render(
-        <FormTextField
-          value="test value"
-          onChange={() => {}}
-          label="Test"
-        />,
+        <FormTextField value="test value" onChange={() => {}} label="Test" />,
         { wrapper: createWrapper() },
       )
       await waitFor(() => {})
@@ -103,11 +91,7 @@ describe('FormTextField component', () => {
   describe('props handling behavior', () => {
     test('should accept value prop', async () => {
       const { container } = render(
-        <FormTextField
-          value="test"
-          onChange={() => {}}
-          label="Test"
-        />,
+        <FormTextField value="test" onChange={() => {}} label="Test" />,
         { wrapper: createWrapper() },
       )
       await waitFor(() => {})
@@ -119,14 +103,9 @@ describe('FormTextField component', () => {
       const handleChange = () => {
         changeCalled = true
       }
-      render(
-        <FormTextField
-          value=""
-          onChange={handleChange}
-          label="Test"
-        />,
-        { wrapper: createWrapper() },
-      )
+      render(<FormTextField value="" onChange={handleChange} label="Test" />, {
+        wrapper: createWrapper(),
+      })
       await waitFor(() => {})
       expect(typeof handleChange).toBe('function')
       handleChange('new value')
@@ -183,11 +162,7 @@ describe('FormTextField component', () => {
 
     test('should use default error value', async () => {
       const { container } = render(
-        <FormTextField
-          value=""
-          onChange={() => {}}
-          label="Test"
-        />,
+        <FormTextField value="" onChange={() => {}} label="Test" />,
         { wrapper: createWrapper() },
       )
       await waitFor(() => {})
@@ -198,11 +173,7 @@ describe('FormTextField component', () => {
   describe('MUI integration behavior', () => {
     test('should use TextField from MUI', async () => {
       const { container } = render(
-        <FormTextField
-          value=""
-          onChange={() => {}}
-          label="Test"
-        />,
+        <FormTextField value="" onChange={() => {}} label="Test" />,
         { wrapper: createWrapper() },
       )
       await waitFor(() => {})
@@ -211,11 +182,7 @@ describe('FormTextField component', () => {
 
     test('should apply fullWidth by default', async () => {
       const { container } = render(
-        <FormTextField
-          value=""
-          onChange={() => {}}
-          label="Test"
-        />,
+        <FormTextField value="" onChange={() => {}} label="Test" />,
         { wrapper: createWrapper() },
       )
       await waitFor(() => {})

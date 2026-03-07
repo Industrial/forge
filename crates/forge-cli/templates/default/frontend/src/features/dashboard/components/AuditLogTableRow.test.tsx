@@ -76,10 +76,9 @@ describe('AuditLogTableRow component', () => {
         outcome: 'success',
         reason: null,
       }
-      const { container } = render(
-        <AuditLogTableRow entry={entry} />,
-        { wrapper: createWrapper() },
-      )
+      const { container } = render(<AuditLogTableRow entry={entry} />, {
+        wrapper: createWrapper(),
+      })
       expect(container).toBeDefined()
     })
 
@@ -94,10 +93,9 @@ describe('AuditLogTableRow component', () => {
         outcome: 'success',
         reason: null,
       }
-      const { container } = render(
-        <AuditLogTableRow entry={entry} />,
-        { wrapper: createWrapper() },
-      )
+      const { container } = render(<AuditLogTableRow entry={entry} />, {
+        wrapper: createWrapper(),
+      })
       expect(container.textContent).toContain('actor-12…')
     })
 
@@ -112,10 +110,9 @@ describe('AuditLogTableRow component', () => {
         outcome: 'success',
         reason: null,
       }
-      const { container } = render(
-        <AuditLogTableRow entry={entry} />,
-        { wrapper: createWrapper() },
-      )
+      const { container } = render(<AuditLogTableRow entry={entry} />, {
+        wrapper: createWrapper(),
+      })
       expect(container.textContent).toContain('auth')
     })
 
@@ -130,10 +127,9 @@ describe('AuditLogTableRow component', () => {
         outcome: 'success',
         reason: 'Test reason',
       }
-      const { container } = render(
-        <AuditLogTableRow entry={entry} />,
-        { wrapper: createWrapper() },
-      )
+      const { container } = render(<AuditLogTableRow entry={entry} />, {
+        wrapper: createWrapper(),
+      })
       expect(container.textContent).toContain('Test reason')
     })
 
@@ -148,10 +144,9 @@ describe('AuditLogTableRow component', () => {
         outcome: 'success',
         reason: null,
       }
-      const { container } = render(
-        <AuditLogTableRow entry={entry} />,
-        { wrapper: createWrapper() },
-      )
+      const { container } = render(<AuditLogTableRow entry={entry} />, {
+        wrapper: createWrapper(),
+      })
       expect(container.textContent).toContain('—')
     })
   })
@@ -168,10 +163,9 @@ describe('AuditLogTableRow component', () => {
         outcome: 'success',
         reason: null,
       }
-      const { container } = render(
-        <AuditLogTableRow entry={entry} />,
-        { wrapper: createWrapper() },
-      )
+      const { container } = render(<AuditLogTableRow entry={entry} />, {
+        wrapper: createWrapper(),
+      })
       expect(container).toBeDefined()
     })
   })

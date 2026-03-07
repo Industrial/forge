@@ -617,10 +617,7 @@ mod bdd_tests {
       assert_eq!(json["id"].as_str().unwrap(), id.to_string());
       assert_eq!(json["event_kind"].as_str().unwrap(), "user.created");
       assert_eq!(json["actor_id"].as_str().unwrap(), actor_id.to_string());
-      assert_eq!(
-        json["subject_id"].as_str().unwrap(),
-        subject_id.to_string()
-      );
+      assert_eq!(json["subject_id"].as_str().unwrap(), subject_id.to_string());
       assert_eq!(
         json["organization_id"].as_str().unwrap(),
         org_id.to_string()

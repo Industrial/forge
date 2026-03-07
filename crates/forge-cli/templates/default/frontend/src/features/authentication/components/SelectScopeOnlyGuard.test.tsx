@@ -158,7 +158,9 @@ describe('SelectScopeOnlyGuard component', () => {
       // Then: children should be rendered (wait for store to initialize)
       await waitFor(
         () => {
-          expect(container.querySelector('[data-testid="content"]')).not.toBeNull()
+          expect(
+            container.querySelector('[data-testid="content"]'),
+          ).not.toBeNull()
         },
         { timeout: 5000 },
       )
@@ -235,7 +237,9 @@ describe('SelectScopeOnlyGuard component', () => {
       // Then: children should be rendered (no redirect, wait for store to initialize)
       await waitFor(
         () => {
-          expect(container.querySelector('[data-testid="content"]')).not.toBeNull()
+          expect(
+            container.querySelector('[data-testid="content"]'),
+          ).not.toBeNull()
         },
         { timeout: 5000 },
       )
@@ -261,7 +265,9 @@ describe('SelectScopeOnlyGuard component', () => {
       // Then: children should be rendered when conditions are met (wait for store to initialize)
       await waitFor(
         () => {
-          expect(container.querySelector('[data-testid="children"]')).not.toBeNull()
+          expect(
+            container.querySelector('[data-testid="children"]'),
+          ).not.toBeNull()
         },
         { timeout: 5000 },
       )

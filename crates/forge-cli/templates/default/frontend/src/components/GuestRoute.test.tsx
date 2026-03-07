@@ -2,7 +2,14 @@
  * BDD component tests for GuestRoute.tsx
  * Tests verify component rendering, authentication checking, and redirect behavior
  */
-import { describe, test, expect, beforeAll, beforeEach, afterEach } from 'bun:test'
+import {
+  describe,
+  test,
+  expect,
+  beforeAll,
+  beforeEach,
+  afterEach,
+} from 'bun:test'
 import { render, waitFor, screen } from '@testing-library/react'
 import { BrowserRouter } from 'react-router-dom'
 import { ThemeProvider, createTheme } from '@mui/material/styles'
@@ -20,7 +27,10 @@ import {
 import { clearReactiveStoreCacheForTesting } from '@/lib/ReactiveStore'
 import type { ReactiveStore } from '@/lib/ReactiveStore'
 import type { AuthenticationState } from '@/features/authentication/stores/AuthenticationStateReactiveStore'
-import { AuthStoreTag, initialAuthenticationState } from '@/features/authentication/stores/AuthenticationStateReactiveStore'
+import {
+  AuthStoreTag,
+  initialAuthenticationState,
+} from '@/features/authentication/stores/AuthenticationStateReactiveStore'
 import { AuthenticationUser } from '@/features/authentication/domain/AuthenticationUser'
 import { RpcApiMock } from '@/services/RpcApiMock'
 
@@ -137,7 +147,9 @@ describe('GuestRoute component', () => {
       )
       await waitFor(
         () => {
-          expect(container.querySelector('[data-testid="content"]')).not.toBeNull()
+          expect(
+            container.querySelector('[data-testid="content"]'),
+          ).not.toBeNull()
         },
         { timeout: 5000, interval: 100 },
       )
@@ -170,10 +182,9 @@ describe('GuestRoute component', () => {
   describe('props handling behavior', () => {
     test('should accept children prop', async () => {
       const children = <div data-testid="children">Children</div>
-      const { container } = render(
-        <GuestRoute>{children}</GuestRoute>,
-        { wrapper: createWrapper(null) },
-      )
+      const { container } = render(<GuestRoute>{children}</GuestRoute>, {
+        wrapper: createWrapper(null),
+      })
       await waitFor(() => {})
       expect(container.querySelector('[data-testid="children"]')).not.toBeNull()
     })

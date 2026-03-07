@@ -2,7 +2,14 @@
  * BDD component tests for AuditLogPage.tsx
  * Tests verify component rendering, audit log display, and filtering
  */
-import { describe, test, expect, beforeAll, beforeEach, afterEach } from 'bun:test'
+import {
+  describe,
+  test,
+  expect,
+  beforeAll,
+  beforeEach,
+  afterEach,
+} from 'bun:test'
 import { render, waitFor } from '@testing-library/react'
 import { BrowserRouter } from 'react-router-dom'
 import { ThemeProvider, createTheme } from '@mui/material/styles'
@@ -69,9 +76,7 @@ const createWrapper = () => {
     return (
       <BrowserRouter>
         <EffectRuntimeProvider runtime={runtime}>
-          <Providers theme={theme}>
-            {children}
-          </Providers>
+          <Providers theme={theme}>{children}</Providers>
         </EffectRuntimeProvider>
       </BrowserRouter>
     )
@@ -159,8 +164,10 @@ describe('AuditLogPage component', () => {
       await waitFor(
         () => {
           const text = container.textContent ?? ''
-          const hasEntries = text.includes('user.created') && text.includes('success')
-          const hasEmptyOrLoading = text.includes('No entries') || text.includes('Audit log')
+          const hasEntries =
+            text.includes('user.created') && text.includes('success')
+          const hasEmptyOrLoading =
+            text.includes('No entries') || text.includes('Audit log')
           expect(hasEntries || hasEmptyOrLoading).toBe(true)
         },
         { timeout: 10000, interval: 100 },
@@ -192,7 +199,9 @@ describe('AuditLogPage component', () => {
       await waitFor(
         () => {
           const text = container.textContent ?? ''
-          expect(text.includes('user.created') || text.includes('Audit log')).toBe(true)
+          expect(
+            text.includes('user.created') || text.includes('Audit log'),
+          ).toBe(true)
         },
         { timeout: 10000, interval: 100 },
       )
@@ -213,13 +222,9 @@ describe('AuditLogPage component', () => {
   describe('error handling behavior', () => {
     test('should render ErrorAlert on error', async () => {
       const baseLayer = buildApplicationLayer()
-      const errorMock = Layer.succeed(
-        AuditLog,
-        {
-          list: () =>
-            Effect.fail(new Error('Test error message')) as any,
-        },
-      )
+      const errorMock = Layer.succeed(AuditLog, {
+        list: () => Effect.fail(new Error('Test error message')) as any,
+      })
       const testLayer = Layer.mergeAll(errorMock, baseLayer, RpcApiMock)
       setApplicationLayerOverrideForTesting(testLayer)
 
@@ -230,7 +235,9 @@ describe('AuditLogPage component', () => {
       await waitFor(
         () => {
           const text = container.textContent ?? ''
-          expect(text.includes('Test error message') || text.includes('Audit log')).toBe(true)
+          expect(
+            text.includes('Test error message') || text.includes('Audit log'),
+          ).toBe(true)
         },
         { timeout: 10000, interval: 100 },
       )

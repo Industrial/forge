@@ -3,7 +3,12 @@
  * Tests verify registration, unregistration, and triggering of subscription invalidations
  */
 import { describe, test, expect, beforeEach } from 'bun:test'
-import { register, unregister, trigger, type SubscriptionEntry } from './subscriptionRegistry'
+import {
+  register,
+  unregister,
+  trigger,
+  type SubscriptionEntry,
+} from './subscriptionRegistry'
 
 describe('subscriptionRegistry', () => {
   beforeEach(() => {

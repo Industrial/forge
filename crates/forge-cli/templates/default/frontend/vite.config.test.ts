@@ -46,7 +46,7 @@ describe('vite.config.ts', () => {
       // Then: should have alias '@' pointing to src directory
       const configPath = join(process.cwd(), 'vite.config.ts')
       const configContent = readFileSync(configPath, 'utf-8')
-      expect(configContent).toContain("alias")
+      expect(configContent).toContain('alias')
       expect(configContent).toContain("'@'")
       expect(configContent).toContain('src')
     })

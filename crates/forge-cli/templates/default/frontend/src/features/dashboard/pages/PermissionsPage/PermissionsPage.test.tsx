@@ -2,7 +2,14 @@
  * BDD component tests for PermissionsPage.tsx
  * Tests verify component rendering, permissions management, and Effect integration
  */
-import { describe, test, expect, beforeAll, beforeEach, afterEach } from 'bun:test'
+import {
+  describe,
+  test,
+  expect,
+  beforeAll,
+  beforeEach,
+  afterEach,
+} from 'bun:test'
 import { render, waitFor } from '@testing-library/react'
 import { BrowserRouter } from 'react-router-dom'
 import { ThemeProvider, createTheme } from '@mui/material/styles'
@@ -93,18 +100,20 @@ describe('PermissionsPage component', () => {
   describe('rendering behavior', () => {
     test('should render PageHeader', async () => {
       const { container } = render(<PermissionsPage />, {
-        wrapper: createWrapper() },
-      )
+        wrapper: createWrapper(),
+      })
       await waitFor(() => {
         expect(container.textContent).toContain('Permissions')
       })
-      expect(container.textContent).toContain('View and manage role–permission assignments')
+      expect(container.textContent).toContain(
+        'View and manage role–permission assignments',
+      )
     })
 
     test('should render PermissionsAddBar', async () => {
       const { container } = render(<PermissionsPage />, {
-        wrapper: createWrapper() },
-      )
+        wrapper: createWrapper(),
+      })
       await waitFor(
         () => {
           expect(container.textContent).toContain('Permissions')
@@ -117,8 +126,8 @@ describe('PermissionsPage component', () => {
 
     test('should render LoadingSpinner when loading', async () => {
       const { container } = render(<PermissionsPage />, {
-        wrapper: createWrapper() },
-      )
+        wrapper: createWrapper(),
+      })
       // Component starts in loading state
       expect(container).toBeDefined()
       // Wait for loading to complete
@@ -132,8 +141,8 @@ describe('PermissionsPage component', () => {
 
     test('should render TableEmptyRow when no assignments', async () => {
       const { container } = render(<PermissionsPage />, {
-        wrapper: createWrapper() },
-      )
+        wrapper: createWrapper(),
+      })
       await waitFor(
         () => {
           expect(container.textContent).toContain('No assignments')
@@ -167,8 +176,8 @@ describe('PermissionsPage component', () => {
       )
 
       const { container } = render(<PermissionsPage />, {
-        wrapper: createWrapper() },
-      )
+        wrapper: createWrapper(),
+      })
       await waitFor(
         () => {
           expect(container.textContent).toContain('admin')
@@ -184,8 +193,8 @@ describe('PermissionsPage component', () => {
   describe('permissions management behavior', () => {
     test('should use Permissions service', async () => {
       const { container } = render(<PermissionsPage />, {
-        wrapper: createWrapper() },
-      )
+        wrapper: createWrapper(),
+      })
       await waitFor(
         () => {
           expect(container.textContent).toContain('Permissions')
@@ -198,8 +207,8 @@ describe('PermissionsPage component', () => {
 
     test('should load permissions data on mount', async () => {
       const { container } = render(<PermissionsPage />, {
-        wrapper: createWrapper() },
-      )
+        wrapper: createWrapper(),
+      })
       await waitFor(
         () => {
           expect(container.textContent).toContain('Permissions')
@@ -212,8 +221,8 @@ describe('PermissionsPage component', () => {
 
     test('should handle adding permissions', async () => {
       const { container } = render(<PermissionsPage />, {
-        wrapper: createWrapper() },
-      )
+        wrapper: createWrapper(),
+      })
       await waitFor(
         () => {
           expect(container.textContent).toContain('Permissions')
@@ -241,8 +250,8 @@ describe('PermissionsPage component', () => {
       )
 
       const { container } = render(<PermissionsPage />, {
-        wrapper: createWrapper() },
-      )
+        wrapper: createWrapper(),
+      })
       await waitFor(
         () => {
           expect(container.textContent).toContain('admin')
@@ -257,8 +266,8 @@ describe('PermissionsPage component', () => {
   describe('error handling behavior', () => {
     test('should render ErrorAlert on error', async () => {
       const { container } = render(<PermissionsPage />, {
-        wrapper: createWrapper() },
-      )
+        wrapper: createWrapper(),
+      })
       await waitFor(
         () => {
           expect(container.textContent).toContain('Permissions')

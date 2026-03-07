@@ -2,7 +2,14 @@
  * BDD component tests for OrganizationsPage.tsx
  * Tests verify component rendering, organization management, and CRUD operations
  */
-import { describe, test, expect, beforeAll, beforeEach, afterEach } from 'bun:test'
+import {
+  describe,
+  test,
+  expect,
+  beforeAll,
+  beforeEach,
+  afterEach,
+} from 'bun:test'
 import { render, waitFor } from '@testing-library/react'
 import { BrowserRouter } from 'react-router-dom'
 import { ThemeProvider, createTheme } from '@mui/material/styles'
@@ -95,7 +102,11 @@ function createEntityApiMock(
       return Effect.succeed({})
     },
 
-    update: (_entityId: string, _id: string, _body: Record<string, unknown>) => {
+    update: (
+      _entityId: string,
+      _id: string,
+      _body: Record<string, unknown>,
+    ) => {
       if (_entityId === 'organization') {
         const idx = organizations.findIndex((o) => String(o.id) === _id)
         if (idx >= 0) {
@@ -177,9 +188,7 @@ describe('OrganizationsPage component', () => {
         },
         { timeout: 3000 },
       )
-      expect(container.textContent).toContain(
-        'View and manage organizations',
-      )
+      expect(container.textContent).toContain('View and manage organizations')
     })
 
     test('should render OrganizationsFilters', async () => {

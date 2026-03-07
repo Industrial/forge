@@ -72,7 +72,7 @@ enum Organization {
 #[cfg(test)]
 mod bdd_tests {
   use super::*;
-  use sea_orm::{Database, ConnectionTrait};
+  use sea_orm::{ConnectionTrait, Database};
   use sea_orm_migration::prelude::*;
 
   async fn test_db() -> sea_orm::DatabaseConnection {

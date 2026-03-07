@@ -87,7 +87,7 @@ impl MigrationTrait for Migration {
 #[cfg(test)]
 mod bdd_tests {
   use super::*;
-  use sea_orm::{Database, ConnectionTrait};
+  use sea_orm::{ConnectionTrait, Database};
   use sea_orm_migration::prelude::*;
 
   async fn test_db() -> sea_orm::DatabaseConnection {
@@ -108,10 +108,7 @@ mod bdd_tests {
       let name = migration.name();
 
       // Then: should return the correct name
-      assert_eq!(
-        name,
-        "m20220101_000007_add_org_id_to_role_permission"
-      );
+      assert_eq!(name, "m20220101_000007_add_org_id_to_role_permission");
     }
   }
 

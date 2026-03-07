@@ -152,7 +152,9 @@ describe('DashboardScopeGuard component', () => {
       )
       await waitFor(
         () => {
-          expect(container.querySelector('[data-testid="content"]')).not.toBeNull()
+          expect(
+            container.querySelector('[data-testid="content"]'),
+          ).not.toBeNull()
         },
         { timeout: 3000 },
       )
@@ -217,7 +219,9 @@ describe('DashboardScopeGuard component', () => {
       )
       await waitFor(
         () => {
-          expect(container.querySelector('[data-testid="children"]')).not.toBeNull()
+          expect(
+            container.querySelector('[data-testid="children"]'),
+          ).not.toBeNull()
         },
         { timeout: 3000 },
       )

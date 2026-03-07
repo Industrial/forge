@@ -30,7 +30,10 @@ beforeAll(() => {
     global.document = document
     global.localStorage = window.localStorage
     global.navigator = window.navigator
-    if (typeof globalThis.DocumentFragment === 'undefined' && (window as any).DocumentFragment) {
+    if (
+      typeof globalThis.DocumentFragment === 'undefined' &&
+      (window as any).DocumentFragment
+    ) {
       ;(global as any).DocumentFragment = (window as any).DocumentFragment
     }
     if (!document.body) {
@@ -57,7 +60,10 @@ beforeAll(() => {
     ensureScrollProperties(document.documentElement)
     // Always set SyntaxError on new window instance
     ;(window as any).SyntaxError = global.SyntaxError
-    if (typeof (globalThis as any).DocumentFragment === 'undefined' && (window as any).DocumentFragment) {
+    if (
+      typeof (globalThis as any).DocumentFragment === 'undefined' &&
+      (window as any).DocumentFragment
+    ) {
       ;(global as any).DocumentFragment = (window as any).DocumentFragment
     }
   } else {
@@ -65,8 +71,13 @@ beforeAll(() => {
     if (!(globalThis.window as any).SyntaxError) {
       ;(globalThis.window as any).SyntaxError = global.SyntaxError
     }
-    if (typeof (globalThis as any).DocumentFragment === 'undefined' && (globalThis.window as any).DocumentFragment) {
-      ;(global as any).DocumentFragment = (globalThis.window as any).DocumentFragment
+    if (
+      typeof (globalThis as any).DocumentFragment === 'undefined' &&
+      (globalThis.window as any).DocumentFragment
+    ) {
+      ;(global as any).DocumentFragment = (
+        globalThis.window as any
+      ).DocumentFragment
     }
     // Ensure scroll properties exist
     const ensureScrollProperties = (element: HTMLElement | null) => {
@@ -124,9 +135,11 @@ beforeAll(() => {
     defineScrollProperty(Element.prototype, 'scrollLeft')
   }
 
-
   // Use MutationObserver to ensure all new elements have scroll properties
-  if (typeof MutationObserver !== 'undefined' && typeof document !== 'undefined') {
+  if (
+    typeof MutationObserver !== 'undefined' &&
+    typeof document !== 'undefined'
+  ) {
     const observer = new MutationObserver((mutations) => {
       mutations.forEach((mutation) => {
         mutation.addedNodes.forEach((node) => {
@@ -222,10 +235,12 @@ beforeAll(() => {
   const originalUnhandledRejection = globalThis.onunhandledrejection
   globalThis.onunhandledrejection = (event: any) => {
     const error = event.reason || event
-    const errorMessage =
-      error?.message || error?.toString() || String(error)
+    const errorMessage = error?.message || error?.toString() || String(error)
     // Suppress errors related to scrollTop
-    if (errorMessage.includes('scrollTop') || errorMessage.includes('null is not an object')) {
+    if (
+      errorMessage.includes('scrollTop') ||
+      errorMessage.includes('null is not an object')
+    ) {
       event.preventDefault?.()
       return
     }
@@ -448,7 +463,9 @@ describe('FormDialog component', () => {
         </FormDialog>,
         { wrapper: createWrapper() },
       )
-      const cancelButton = await waitFor(() => within(baseElement).getByText('Cancel'))
+      const cancelButton = await waitFor(() =>
+        within(baseElement).getByText('Cancel'),
+      )
       fireEvent.click(cancelButton)
       expect(closeCalled).toBe(true)
     })
@@ -471,7 +488,9 @@ describe('FormDialog component', () => {
         </FormDialog>,
         { wrapper: createWrapper() },
       )
-      const submitButton = await waitFor(() => within(baseElement).getByText('Submit'))
+      const submitButton = await waitFor(() =>
+        within(baseElement).getByText('Submit'),
+      )
       fireEvent.click(submitButton)
       expect(submitCalled).toBe(true)
     })
@@ -490,8 +509,13 @@ describe('FormDialog component', () => {
         </FormDialog>,
         { wrapper: createWrapper() },
       )
-      const submitButton = await waitFor(() => within(baseElement).getByText('Submit'))
-      expect(submitButton.hasAttribute('disabled') || submitButton.getAttribute('aria-disabled') === 'true').toBe(true)
+      const submitButton = await waitFor(() =>
+        within(baseElement).getByText('Submit'),
+      )
+      expect(
+        submitButton.hasAttribute('disabled') ||
+          submitButton.getAttribute('aria-disabled') === 'true',
+      ).toBe(true)
     })
 
     test('should show submittingLabel when submitting', async () => {
@@ -576,7 +600,9 @@ describe('FormDialog component', () => {
         </FormDialog>,
         { wrapper: createWrapper() },
       )
-      const cancelButton = await waitFor(() => within(baseElement).getByText('Cancel'))
+      const cancelButton = await waitFor(() =>
+        within(baseElement).getByText('Cancel'),
+      )
       fireEvent.click(cancelButton)
       expect(closeCalled).toBe(false)
     })
@@ -596,8 +622,13 @@ describe('FormDialog component', () => {
         </FormDialog>,
         { wrapper: createWrapper() },
       )
-      const cancelButton = await waitFor(() => within(baseElement).getByText('Cancel'))
-      expect(cancelButton.hasAttribute('disabled') || cancelButton.getAttribute('aria-disabled') === 'true').toBe(true)
+      const cancelButton = await waitFor(() =>
+        within(baseElement).getByText('Cancel'),
+      )
+      expect(
+        cancelButton.hasAttribute('disabled') ||
+          cancelButton.getAttribute('aria-disabled') === 'true',
+      ).toBe(true)
     })
   })
 })

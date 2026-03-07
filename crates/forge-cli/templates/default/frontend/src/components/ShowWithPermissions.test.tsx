@@ -20,7 +20,10 @@ import {
 import { clearReactiveStoreCacheForTesting } from '@/lib/ReactiveStore'
 import type { ReactiveStore } from '@/lib/ReactiveStore'
 import type { AuthenticationState } from '@/features/authentication/stores/AuthenticationStateReactiveStore'
-import { AuthStoreTag, initialAuthenticationState } from '@/features/authentication/stores/AuthenticationStateReactiveStore'
+import {
+  AuthStoreTag,
+  initialAuthenticationState,
+} from '@/features/authentication/stores/AuthenticationStateReactiveStore'
 import { RpcApiMock } from '@/services/RpcApiMock'
 
 beforeAll(() => {
@@ -141,7 +144,9 @@ describe('ShowWithPermissions component', () => {
       )
       await waitFor(
         () => {
-          expect(container.querySelector('[data-testid="content"]')).not.toBeNull()
+          expect(
+            container.querySelector('[data-testid="content"]'),
+          ).not.toBeNull()
         },
         { timeout: 3000 },
       )
@@ -181,7 +186,9 @@ describe('ShowWithPermissions component', () => {
       )
       await waitFor(
         () => {
-          expect(container.querySelector('[data-testid="children"]')).not.toBeNull()
+          expect(
+            container.querySelector('[data-testid="children"]'),
+          ).not.toBeNull()
         },
         { timeout: 3000 },
       )

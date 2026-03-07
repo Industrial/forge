@@ -64,7 +64,7 @@ impl MigrationTrait for Migration {
 #[cfg(test)]
 mod bdd_tests {
   use super::*;
-  use sea_orm::{Database, ConnectionTrait, EntityTrait};
+  use sea_orm::{ConnectionTrait, Database, EntityTrait};
   use sea_orm_migration::prelude::*;
 
   async fn test_db() -> sea_orm::DatabaseConnection {
@@ -94,7 +94,10 @@ mod bdd_tests {
       // Given: a test database
       let db = test_db().await;
       let migration = Migration;
-      migration.up(&SchemaManager::new(&db)).await.expect("migrate");
+      migration
+        .up(&SchemaManager::new(&db))
+        .await
+        .expect("migrate");
 
       // When: checking table structure
       // Then: table should exist with all columns
@@ -109,14 +112,17 @@ mod bdd_tests {
       // Given: a test database
       let db = test_db().await;
       let migration = Migration;
-      migration.up(&SchemaManager::new(&db)).await.expect("migrate");
+      migration
+        .up(&SchemaManager::new(&db))
+        .await
+        .expect("migrate");
 
       // When: inserting user with id
       // Then: should succeed (primary key constraint)
       use crate::models::user;
+      use chrono::Utc;
       use sea_orm::Set;
       use uuid::Uuid;
-      use chrono::Utc;
 
       let result = user::Entity::insert(user::ActiveModel {
         id: Set(Uuid::new_v4()),
@@ -140,12 +146,15 @@ mod bdd_tests {
       // Given: a test database with user table
       let db = test_db().await;
       let migration = Migration;
-      migration.up(&SchemaManager::new(&db)).await.expect("migrate");
+      migration
+        .up(&SchemaManager::new(&db))
+        .await
+        .expect("migrate");
 
       use crate::models::user;
+      use chrono::Utc;
       use sea_orm::Set;
       use uuid::Uuid;
-      use chrono::Utc;
 
       let email = "unique@example.com".to_string();
       let now = Utc::now().naive_utc();
@@ -193,7 +202,10 @@ mod bdd_tests {
       // Given: a test database with user table created
       let db = test_db().await;
       let migration = Migration;
-      migration.up(&SchemaManager::new(&db)).await.expect("migrate up");
+      migration
+        .up(&SchemaManager::new(&db))
+        .await
+        .expect("migrate up");
 
       // When: running migration down
       let result = migration.down(&SchemaManager::new(&db)).await;
@@ -207,8 +219,14 @@ mod bdd_tests {
       // Given: a test database with user table
       let db = test_db().await;
       let migration = Migration;
-      migration.up(&SchemaManager::new(&db)).await.expect("migrate up");
-      migration.down(&SchemaManager::new(&db)).await.expect("migrate down");
+      migration
+        .up(&SchemaManager::new(&db))
+        .await
+        .expect("migrate up");
+      migration
+        .down(&SchemaManager::new(&db))
+        .await
+        .expect("migrate down");
 
       // When: trying to query user table
       // Then: should fail (table doesn't exist)

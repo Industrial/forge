@@ -8,7 +8,11 @@ import { ThemeProvider, createTheme } from '@mui/material/styles'
 import { Window } from 'happy-dom'
 import React from 'react'
 
-import AuditLogFilters, { OUTCOMES, EVENT_KINDS, ACTIONS } from './AuditLogFilters'
+import AuditLogFilters, {
+  OUTCOMES,
+  EVENT_KINDS,
+  ACTIONS,
+} from './AuditLogFilters'
 
 beforeAll(() => {
   // Ensure SyntaxError exists globally first

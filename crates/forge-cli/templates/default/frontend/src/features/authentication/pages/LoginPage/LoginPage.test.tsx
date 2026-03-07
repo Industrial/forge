@@ -79,7 +79,9 @@ describe('LoginPage component', () => {
   describe('rendering behavior', () => {
     test('should render login form', () => {
       const { container } = render(<LoginPage />, { wrapper: createWrapper() })
-      expect(container.querySelector('[data-testid="login-form"]')).not.toBeNull()
+      expect(
+        container.querySelector('[data-testid="login-form"]'),
+      ).not.toBeNull()
     })
 
     test('should render "Log in" heading', () => {
@@ -89,17 +91,23 @@ describe('LoginPage component', () => {
 
     test('should render email field', () => {
       const { container } = render(<LoginPage />, { wrapper: createWrapper() })
-      expect(container.querySelector('[data-testid="login-email"]')).not.toBeNull()
+      expect(
+        container.querySelector('[data-testid="login-email"]'),
+      ).not.toBeNull()
     })
 
     test('should render password field', () => {
       const { container } = render(<LoginPage />, { wrapper: createWrapper() })
-      expect(container.querySelector('[data-testid="login-password"]')).not.toBeNull()
+      expect(
+        container.querySelector('[data-testid="login-password"]'),
+      ).not.toBeNull()
     })
 
     test('should render submit button', () => {
       const { container } = render(<LoginPage />, { wrapper: createWrapper() })
-      expect(container.querySelector('[data-testid="login-submit"]')).not.toBeNull()
+      expect(
+        container.querySelector('[data-testid="login-submit"]'),
+      ).not.toBeNull()
     })
 
     test('should render register link', () => {

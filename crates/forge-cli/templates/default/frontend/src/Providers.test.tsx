@@ -77,7 +77,9 @@ describe('Providers component', () => {
       )
       // Then: children should be rendered
       expect(container).toBeDefined()
-      expect(container.querySelector('[data-testid="test-child"]')).not.toBeNull()
+      expect(
+        container.querySelector('[data-testid="test-child"]'),
+      ).not.toBeNull()
     })
 
     test('should render with ThemeProvider', () => {
@@ -209,9 +211,7 @@ describe('Providers component', () => {
       // Given: Providers component with null children
       const theme = createTheme({ palette: { mode: 'light' } })
       // When: rendering Providers with null children
-      const { container } = render(
-        <Providers theme={theme}>{null}</Providers>,
-      )
+      const { container } = render(<Providers theme={theme}>{null}</Providers>)
       // Then: component should still render
       expect(container).toBeDefined()
     })
@@ -231,9 +231,7 @@ describe('Providers component', () => {
       // Given: Providers component with empty fragment
       const theme = createTheme({ palette: { mode: 'light' } })
       // When: rendering Providers with empty children
-      const { container } = render(
-        <Providers theme={theme}></Providers>,
-      )
+      const { container } = render(<Providers theme={theme}></Providers>)
       // Then: component should still render
       expect(container).toBeDefined()
     })

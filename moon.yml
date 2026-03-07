@@ -8,7 +8,18 @@ tasks:
   format:
     command: 'treefmt'
     inputs:
-      - '**/*'
+      - 'treefmt.toml'
+      - '.git/**/*'
+      - '**/*.rs'
+      - '**/*.nix'
+      - '**/*.sh'
+      - '**/*.{js,jsx,ts,tsx,json}'
+      - '**/*.{yml,yaml}'
+      - '**/*.toml'
+      - '.github/workflows/*.yml'
+    options:
+      cache: false
+      persistent: true
   # Audit workspace dependencies
   audit:
     command: 'cargo'

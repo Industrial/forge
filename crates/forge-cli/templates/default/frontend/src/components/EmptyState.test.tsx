@@ -62,97 +62,86 @@ describe('EmptyState component', () => {
 
   describe('rendering behavior', () => {
     test('should render message', () => {
-      const { container } = render(
-        <EmptyState message="No items found" />,
-        { wrapper: createWrapper() },
-      )
+      const { container } = render(<EmptyState message="No items found" />, {
+        wrapper: createWrapper(),
+      })
       expect(container.textContent).toContain('No items found')
     })
 
     test('should render Paper component', () => {
-      const { container } = render(
-        <EmptyState message="Empty" />,
-        { wrapper: createWrapper() },
-      )
+      const { container } = render(<EmptyState message="Empty" />, {
+        wrapper: createWrapper(),
+      })
       expect(container).toBeDefined()
     })
 
     test('should render Typography with message', () => {
-      const { container } = render(
-        <EmptyState message="Test message" />,
-        { wrapper: createWrapper() },
-      )
+      const { container } = render(<EmptyState message="Test message" />, {
+        wrapper: createWrapper(),
+      })
       expect(container.textContent).toContain('Test message')
     })
   })
 
   describe('props handling behavior', () => {
     test('should accept message prop', () => {
-      const { container } = render(
-        <EmptyState message="Custom message" />,
-        { wrapper: createWrapper() },
-      )
+      const { container } = render(<EmptyState message="Custom message" />, {
+        wrapper: createWrapper(),
+      })
       expect(container.textContent).toContain('Custom message')
     })
 
     test('should handle empty message', () => {
-      const { container } = render(
-        <EmptyState message="" />,
-        { wrapper: createWrapper() },
-      )
+      const { container } = render(<EmptyState message="" />, {
+        wrapper: createWrapper(),
+      })
       expect(container).toBeDefined()
     })
 
     test('should handle long message', () => {
       const longMessage = 'A'.repeat(1000)
-      const { container } = render(
-        <EmptyState message={longMessage} />,
-        { wrapper: createWrapper() },
-      )
+      const { container } = render(<EmptyState message={longMessage} />, {
+        wrapper: createWrapper(),
+      })
       expect(container.textContent).toContain(longMessage)
     })
   })
 
   describe('MUI integration behavior', () => {
     test('should use Paper from MUI', () => {
-      const { container } = render(
-        <EmptyState message="Test" />,
-        { wrapper: createWrapper() },
-      )
+      const { container } = render(<EmptyState message="Test" />, {
+        wrapper: createWrapper(),
+      })
       expect(container).toBeDefined()
     })
 
     test('should use Typography from MUI', () => {
-      const { container } = render(
-        <EmptyState message="Test" />,
-        { wrapper: createWrapper() },
-      )
+      const { container } = render(<EmptyState message="Test" />, {
+        wrapper: createWrapper(),
+      })
       expect(container).toBeDefined()
     })
 
     test('should apply text.secondary color', () => {
-      const { container } = render(
-        <EmptyState message="Test" />,
-        { wrapper: createWrapper() },
-      )
+      const { container } = render(<EmptyState message="Test" />, {
+        wrapper: createWrapper(),
+      })
       expect(container).toBeDefined()
     })
   })
 
   describe('structure behavior', () => {
     test('should center text', () => {
-      const { container } = render(
-        <EmptyState message="Test" />,
-        { wrapper: createWrapper() },
-      )
+      const { container } = render(<EmptyState message="Test" />, {
+        wrapper: createWrapper(),
+      })
       expect(container).toBeDefined()
     })
 
     test('should apply padding', () => {
-      const { container } = render(
-        <EmptyState message="Test" />,
-        { wrapper: createWrapper() },
-      )
+      const { container } = render(<EmptyState message="Test" />, {
+        wrapper: createWrapper(),
+      })
       expect(container).toBeDefined()
     })
   })

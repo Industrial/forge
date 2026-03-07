@@ -2,7 +2,14 @@
  * BDD component tests for RolesPage.tsx
  * Tests verify component rendering, role management, and CRUD operations
  */
-import { describe, test, expect, beforeAll, beforeEach, afterEach } from 'bun:test'
+import {
+  describe,
+  test,
+  expect,
+  beforeAll,
+  beforeEach,
+  afterEach,
+} from 'bun:test'
 import { render, waitFor, screen } from '@testing-library/react'
 import { BrowserRouter } from 'react-router-dom'
 import { ThemeProvider, createTheme } from '@mui/material/styles'
@@ -102,20 +109,18 @@ describe('RolesPage component', () => {
   describe('rendering behavior', () => {
     test('should render PageHeader', async () => {
       const { container } = render(<RolesPage />, {
-        wrapper: createWrapper() },
-      )
+        wrapper: createWrapper(),
+      })
       await waitFor(() => {
         expect(container.textContent).toContain('Roles')
       })
-      expect(container.textContent).toContain(
-        'Manage organization roles',
-      )
+      expect(container.textContent).toContain('Manage organization roles')
     })
 
     test('should render LoadingSpinner when loading', async () => {
       const { container } = render(<RolesPage />, {
-        wrapper: createWrapper() },
-      )
+        wrapper: createWrapper(),
+      })
       // Component starts in loading state, should show spinner initially
       // Note: LoadingSpinner may render as a circular progress indicator
       expect(container).toBeDefined()
@@ -130,8 +135,8 @@ describe('RolesPage component', () => {
 
     test('should render EmptyState when no roles', async () => {
       const { container } = render(<RolesPage />, {
-        wrapper: createWrapper() },
-      )
+        wrapper: createWrapper(),
+      })
       await waitFor(
         () => {
           expect(container.textContent).toContain('No roles')
@@ -168,12 +173,17 @@ describe('RolesPage component', () => {
         }),
       ])
       setApplicationLayerOverrideForTesting(
-        Layer.mergeAll(baseLayer, rolesMockLayer, dashboardMockLayer, RpcApiMock),
+        Layer.mergeAll(
+          baseLayer,
+          rolesMockLayer,
+          dashboardMockLayer,
+          RpcApiMock,
+        ),
       )
 
       const { container } = render(<RolesPage />, {
-        wrapper: createWrapper() },
-      )
+        wrapper: createWrapper(),
+      })
       await waitFor(
         () => {
           expect(container.textContent).toContain('admin')
@@ -189,8 +199,8 @@ describe('RolesPage component', () => {
   describe('role management behavior', () => {
     test('should use EntityApi for CRUD operations', async () => {
       const { container } = render(<RolesPage />, {
-        wrapper: createWrapper() },
-      )
+        wrapper: createWrapper(),
+      })
       await waitFor(
         () => {
           expect(container.textContent).toContain('Roles')
@@ -203,8 +213,8 @@ describe('RolesPage component', () => {
 
     test('should handle creating roles', async () => {
       const { container } = render(<RolesPage />, {
-        wrapper: createWrapper() },
-      )
+        wrapper: createWrapper(),
+      })
       await waitFor(
         () => {
           expect(container.textContent).toContain('Add role')
@@ -232,12 +242,17 @@ describe('RolesPage component', () => {
         }),
       ])
       setApplicationLayerOverrideForTesting(
-        Layer.mergeAll(baseLayer, rolesMockLayer, dashboardMockLayer, RpcApiMock),
+        Layer.mergeAll(
+          baseLayer,
+          rolesMockLayer,
+          dashboardMockLayer,
+          RpcApiMock,
+        ),
       )
 
       const { container } = render(<RolesPage />, {
-        wrapper: createWrapper() },
-      )
+        wrapper: createWrapper(),
+      })
       await waitFor(
         () => {
           expect(container.textContent).toContain('admin')
@@ -265,12 +280,17 @@ describe('RolesPage component', () => {
         }),
       ])
       setApplicationLayerOverrideForTesting(
-        Layer.mergeAll(baseLayer, rolesMockLayer, dashboardMockLayer, RpcApiMock),
+        Layer.mergeAll(
+          baseLayer,
+          rolesMockLayer,
+          dashboardMockLayer,
+          RpcApiMock,
+        ),
       )
 
       const { container } = render(<RolesPage />, {
-        wrapper: createWrapper() },
-      )
+        wrapper: createWrapper(),
+      })
       await waitFor(
         () => {
           expect(container.textContent).toContain('admin')
@@ -285,8 +305,8 @@ describe('RolesPage component', () => {
   describe('error handling behavior', () => {
     test('should render ErrorAlert on error', async () => {
       const { container } = render(<RolesPage />, {
-        wrapper: createWrapper() },
-      )
+        wrapper: createWrapper(),
+      })
       await waitFor(
         () => {
           expect(container.textContent).toContain('Roles')

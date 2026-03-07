@@ -62,10 +62,9 @@ describe('PageHeader component', () => {
 
   describe('rendering behavior', () => {
     test('should render title', async () => {
-      const { container } = render(
-        <PageHeader title="Test Page" />,
-        { wrapper: createWrapper() },
-      )
+      const { container } = render(<PageHeader title="Test Page" />, {
+        wrapper: createWrapper(),
+      })
       await waitFor(() => {})
       expect(container.textContent).toContain('Test Page')
     })
@@ -80,10 +79,9 @@ describe('PageHeader component', () => {
     })
 
     test('should not render description when not provided', async () => {
-      const { container } = render(
-        <PageHeader title="Test" />,
-        { wrapper: createWrapper() },
-      )
+      const { container } = render(<PageHeader title="Test" />, {
+        wrapper: createWrapper(),
+      })
       await waitFor(() => {})
       expect(container.textContent).not.toContain('Description')
     })
@@ -109,10 +107,9 @@ describe('PageHeader component', () => {
 
   describe('props handling behavior', () => {
     test('should accept title prop', async () => {
-      const { container } = render(
-        <PageHeader title="Custom Title" />,
-        { wrapper: createWrapper() },
-      )
+      const { container } = render(<PageHeader title="Custom Title" />, {
+        wrapper: createWrapper(),
+      })
       await waitFor(() => {})
       expect(container.textContent).toContain('Custom Title')
     })
@@ -146,10 +143,9 @@ describe('PageHeader component', () => {
     })
 
     test('should use default liveConnected value', async () => {
-      const { container } = render(
-        <PageHeader title="Test" />,
-        { wrapper: createWrapper() },
-      )
+      const { container } = render(<PageHeader title="Test" />, {
+        wrapper: createWrapper(),
+      })
       await waitFor(() => {})
       expect(container.textContent).not.toContain('Live')
     })
@@ -157,19 +153,17 @@ describe('PageHeader component', () => {
 
   describe('MUI integration behavior', () => {
     test('should use Typography for title', async () => {
-      const { container } = render(
-        <PageHeader title="Test" />,
-        { wrapper: createWrapper() },
-      )
+      const { container } = render(<PageHeader title="Test" />, {
+        wrapper: createWrapper(),
+      })
       await waitFor(() => {})
       expect(container).toBeDefined()
     })
 
     test('should use Box for layout', async () => {
-      const { container } = render(
-        <PageHeader title="Test" />,
-        { wrapper: createWrapper() },
-      )
+      const { container } = render(<PageHeader title="Test" />, {
+        wrapper: createWrapper(),
+      })
       await waitFor(() => {})
       expect(container).toBeDefined()
     })
@@ -186,10 +180,9 @@ describe('PageHeader component', () => {
 
   describe('structure behavior', () => {
     test('should render h1 heading', async () => {
-      const { container } = render(
-        <PageHeader title="Test" />,
-        { wrapper: createWrapper() },
-      )
+      const { container } = render(<PageHeader title="Test" />, {
+        wrapper: createWrapper(),
+      })
       await waitFor(() => {})
       const heading = container.querySelector('h1')
       expect(heading).not.toBeNull()
@@ -197,10 +190,9 @@ describe('PageHeader component', () => {
     })
 
     test('should apply flex layout', async () => {
-      const { container } = render(
-        <PageHeader title="Test" />,
-        { wrapper: createWrapper() },
-      )
+      const { container } = render(<PageHeader title="Test" />, {
+        wrapper: createWrapper(),
+      })
       await waitFor(() => {})
       expect(container).toBeDefined()
     })
@@ -217,10 +209,9 @@ describe('PageHeader component', () => {
 
   describe('edge cases', () => {
     test('should handle empty title', async () => {
-      const { container } = render(
-        <PageHeader title="" />,
-        { wrapper: createWrapper() },
-      )
+      const { container } = render(<PageHeader title="" />, {
+        wrapper: createWrapper(),
+      })
       await waitFor(() => {})
       expect(container).toBeDefined()
     })

@@ -20,7 +20,10 @@ import {
 import { clearReactiveStoreCacheForTesting } from '@/lib/ReactiveStore'
 import type { ReactiveStore } from '@/lib/ReactiveStore'
 import type { AuthenticationState } from '@/features/authentication/stores/AuthenticationStateReactiveStore'
-import { AuthStoreTag, initialAuthenticationState } from '@/features/authentication/stores/AuthenticationStateReactiveStore'
+import {
+  AuthStoreTag,
+  initialAuthenticationState,
+} from '@/features/authentication/stores/AuthenticationStateReactiveStore'
 import { RpcApiMock } from '@/services/RpcApiMock'
 
 beforeAll(() => {
@@ -105,7 +108,7 @@ const createWrapper = (permissions: string[] = []) => {
   setApplicationLayerOverrideForTesting(
     Layer.mergeAll(baseLayer, mockStoreLayer, RpcApiMock),
   )
-  
+
   return ({ children }: { children: React.ReactNode }) => (
     <BrowserRouter>
       <Providers theme={theme}>{children}</Providers>
@@ -151,7 +154,9 @@ describe('HideWithPermissions component', () => {
       )
       await waitFor(
         () => {
-          expect(container.querySelector('[data-testid="content"]')).not.toBeNull()
+          expect(
+            container.querySelector('[data-testid="content"]'),
+          ).not.toBeNull()
         },
         { timeout: 5000, interval: 100 },
       )

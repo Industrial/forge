@@ -55,9 +55,7 @@ mod bdd_tests {
     let conn = Database::connect(sea_orm::ConnectOptions::new("sqlite::memory:".to_string()))
       .await
       .unwrap();
-    Migrator::up(&conn, None)
-      .await
-      .expect("migrate");
+    Migrator::up(&conn, None).await.expect("migrate");
     forge_db::wrap_traced(conn)
   }
 
@@ -79,10 +77,7 @@ mod bdd_tests {
       // When: checking migrations
       // Then: should include create_user_table migration
       let migrations = Migrator::migrations();
-      let names: Vec<String> = migrations
-        .iter()
-        .map(|m| m.name().to_string())
-        .collect();
+      let names: Vec<String> = migrations.iter().map(|m| m.name().to_string()).collect();
       assert!(names.iter().any(|n| n.contains("create_user_table")));
     }
 
@@ -92,11 +87,12 @@ mod bdd_tests {
       // When: checking migrations
       // Then: should include create_organizations_table migration
       let migrations = Migrator::migrations();
-      let names: Vec<String> = migrations
-        .iter()
-        .map(|m| m.name().to_string())
-        .collect();
-      assert!(names.iter().any(|n| n.contains("create_organizations_table")));
+      let names: Vec<String> = migrations.iter().map(|m| m.name().to_string()).collect();
+      assert!(
+        names
+          .iter()
+          .any(|n| n.contains("create_organizations_table"))
+      );
     }
 
     #[tokio::test]
@@ -156,7 +152,7 @@ mod bdd_tests {
       let org_id = Uuid::new_v4();
       let now = chrono::Utc::now().naive_utc();
 
-      use crate::models::{organization, org_role};
+      use crate::models::{org_role, organization};
       use sea_orm::Set;
 
       organization::Entity::insert(organization::ActiveModel {

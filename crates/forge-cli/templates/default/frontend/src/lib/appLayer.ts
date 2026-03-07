@@ -192,15 +192,11 @@ export function useRunWithAppLayer(): { run: RunEffect; runFork: RunFork } {
     return {
       run: <A, E, R>(effect: Effect.Effect<A, E, R>): Promise<A> =>
         Effect.runPromise(
-          effect.pipe(
-            Effect.provide(getLayer()),
-          ) as Effect.Effect<A, E, never>,
+          effect.pipe(Effect.provide(getLayer())) as Effect.Effect<A, E, never>,
         ),
       runFork: <A, E, R>(effect: Effect.Effect<A, E, R>) =>
         Effect.runFork(
-          effect.pipe(
-            Effect.provide(getLayer()),
-          ) as Effect.Effect<A, E, never>,
+          effect.pipe(Effect.provide(getLayer())) as Effect.Effect<A, E, never>,
         ),
     }
   }, [])

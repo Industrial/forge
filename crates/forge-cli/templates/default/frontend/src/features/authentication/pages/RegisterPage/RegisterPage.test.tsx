@@ -78,88 +78,130 @@ describe('RegisterPage component', () => {
 
   describe('rendering behavior', () => {
     test('should render registration form', () => {
-      const { container } = render(<RegisterPage />, { wrapper: createWrapper() })
-      expect(container.querySelector('[data-testid="register-form"]')).not.toBeNull()
+      const { container } = render(<RegisterPage />, {
+        wrapper: createWrapper(),
+      })
+      expect(
+        container.querySelector('[data-testid="register-form"]'),
+      ).not.toBeNull()
     })
 
     test('should render "Create an account" heading', () => {
-      const { container } = render(<RegisterPage />, { wrapper: createWrapper() })
+      const { container } = render(<RegisterPage />, {
+        wrapper: createWrapper(),
+      })
       expect(container.textContent).toContain('Create an account')
     })
 
     test('should render email field', () => {
-      const { container } = render(<RegisterPage />, { wrapper: createWrapper() })
-      expect(container.querySelector('[data-testid="register-email"]')).not.toBeNull()
+      const { container } = render(<RegisterPage />, {
+        wrapper: createWrapper(),
+      })
+      expect(
+        container.querySelector('[data-testid="register-email"]'),
+      ).not.toBeNull()
     })
 
     test('should render password field', () => {
-      const { container } = render(<RegisterPage />, { wrapper: createWrapper() })
-      expect(container.querySelector('[data-testid="register-password"]')).not.toBeNull()
+      const { container } = render(<RegisterPage />, {
+        wrapper: createWrapper(),
+      })
+      expect(
+        container.querySelector('[data-testid="register-password"]'),
+      ).not.toBeNull()
     })
 
     test('should render submit button', () => {
-      const { container } = render(<RegisterPage />, { wrapper: createWrapper() })
-      expect(container.querySelector('[data-testid="register-submit"]')).not.toBeNull()
+      const { container } = render(<RegisterPage />, {
+        wrapper: createWrapper(),
+      })
+      expect(
+        container.querySelector('[data-testid="register-submit"]'),
+      ).not.toBeNull()
     })
 
     test('should render login link', () => {
-      const { container } = render(<RegisterPage />, { wrapper: createWrapper() })
+      const { container } = render(<RegisterPage />, {
+        wrapper: createWrapper(),
+      })
       expect(container.textContent).toContain('Already have an account?')
     })
   })
 
   describe('form handling behavior', () => {
     test('should use react-hook-form', () => {
-      const { container } = render(<RegisterPage />, { wrapper: createWrapper() })
+      const { container } = render(<RegisterPage />, {
+        wrapper: createWrapper(),
+      })
       expect(container.querySelector('form')).not.toBeNull()
     })
 
     test('should use effectSchemaResolver', () => {
-      const { container } = render(<RegisterPage />, { wrapper: createWrapper() })
+      const { container } = render(<RegisterPage />, {
+        wrapper: createWrapper(),
+      })
       expect(container).toBeDefined()
     })
 
     test('should have default form values', () => {
-      const { container } = render(<RegisterPage />, { wrapper: createWrapper() })
+      const { container } = render(<RegisterPage />, {
+        wrapper: createWrapper(),
+      })
       expect(container).toBeDefined()
     })
 
     test('should handle form submission', () => {
-      const { container } = render(<RegisterPage />, { wrapper: createWrapper() })
+      const { container } = render(<RegisterPage />, {
+        wrapper: createWrapper(),
+      })
       expect(container.querySelector('form')).not.toBeNull()
     })
   })
 
   describe('authentication integration behavior', () => {
     test('should use Authentication service', () => {
-      const { container } = render(<RegisterPage />, { wrapper: createWrapper() })
+      const { container } = render(<RegisterPage />, {
+        wrapper: createWrapper(),
+      })
       expect(container).toBeDefined()
     })
 
     test('should handle registration success', () => {
-      const { container } = render(<RegisterPage />, { wrapper: createWrapper() })
+      const { container } = render(<RegisterPage />, {
+        wrapper: createWrapper(),
+      })
       expect(container).toBeDefined()
     })
 
     test('should handle registration error', () => {
-      const { container } = render(<RegisterPage />, { wrapper: createWrapper() })
+      const { container } = render(<RegisterPage />, {
+        wrapper: createWrapper(),
+      })
       expect(container).toBeDefined()
     })
 
     test('should display error message on failure', () => {
-      const { container } = render(<RegisterPage />, { wrapper: createWrapper() })
-      expect(container.querySelector('[data-testid="register-error"]')).toBeNull()
+      const { container } = render(<RegisterPage />, {
+        wrapper: createWrapper(),
+      })
+      expect(
+        container.querySelector('[data-testid="register-error"]'),
+      ).toBeNull()
     })
   })
 
   describe('navigation behavior', () => {
     test('should navigate to login on successful registration', () => {
-      const { container } = render(<RegisterPage />, { wrapper: createWrapper() })
+      const { container } = render(<RegisterPage />, {
+        wrapper: createWrapper(),
+      })
       expect(container).toBeDefined()
     })
 
     test('should link to login page', () => {
-      const { container } = render(<RegisterPage />, { wrapper: createWrapper() })
+      const { container } = render(<RegisterPage />, {
+        wrapper: createWrapper(),
+      })
       expect(container.textContent).toContain('Log in')
     })
   })

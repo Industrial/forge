@@ -20,7 +20,10 @@ import {
 import { clearReactiveStoreCacheForTesting } from '@/lib/ReactiveStore'
 import type { ReactiveStore } from '@/lib/ReactiveStore'
 import type { AuthenticationState } from '@/features/authentication/stores/AuthenticationStateReactiveStore'
-import { AuthStoreTag, initialAuthenticationState } from '@/features/authentication/stores/AuthenticationStateReactiveStore'
+import {
+  AuthStoreTag,
+  initialAuthenticationState,
+} from '@/features/authentication/stores/AuthenticationStateReactiveStore'
 import { Authentication } from '@/features/authentication/services/Authentication'
 import { createMockAuthentication } from '@/features/authentication/services/AuthenticationMock'
 import { AuthenticationUser } from '@/features/authentication/domain/AuthenticationUser'
@@ -122,7 +125,7 @@ const createWrapper = (
   setApplicationLayerOverrideForTesting(appLayer)
 
   const theme = createTheme({ palette: { mode: 'light' } })
-  
+
   // Return a stable wrapper component
   return ({ children }: { children: React.ReactNode }) => (
     <MemoryRouter initialEntries={['/authentication/select-scope']}>
@@ -168,7 +171,9 @@ describe('SelectScopePage component', () => {
       await waitFor(
         () => {
           const text = container.textContent ?? ''
-          const hasSelectScope = text.includes('Select scope') && text.includes('No scopes available')
+          const hasSelectScope =
+            text.includes('Select scope') &&
+            text.includes('No scopes available')
           const hasLogin = text.includes('Login Page')
           expect(hasSelectScope || hasLogin).toBe(true)
         },
@@ -229,7 +234,9 @@ describe('SelectScopePage component', () => {
       await waitFor(
         () => {
           const text = container.textContent ?? ''
-          expect(text.includes('No scopes available') || text.includes('Login Page')).toBe(true)
+          expect(
+            text.includes('No scopes available') || text.includes('Login Page'),
+          ).toBe(true)
         },
         { timeout: 5000, interval: 100 },
       )
@@ -268,7 +275,9 @@ describe('SelectScopePage component', () => {
       await waitFor(
         () => {
           const text = container.textContent ?? ''
-          expect(text.includes('Select scope') || text.includes('Login Page')).toBe(true)
+          expect(
+            text.includes('Select scope') || text.includes('Login Page'),
+          ).toBe(true)
         },
         { timeout: 5000, interval: 100 },
       )

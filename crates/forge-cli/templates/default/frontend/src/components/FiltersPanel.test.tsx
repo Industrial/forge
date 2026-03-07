@@ -104,10 +104,9 @@ describe('FiltersPanel component', () => {
 
     test('should accept children prop', () => {
       const children = <div data-testid="children">Children</div>
-      const { container } = render(
-        <FiltersPanel>{children}</FiltersPanel>,
-        { wrapper: createWrapper() },
-      )
+      const { container } = render(<FiltersPanel>{children}</FiltersPanel>, {
+        wrapper: createWrapper(),
+      })
       expect(container.querySelector('[data-testid="children"]')).not.toBeNull()
     })
 

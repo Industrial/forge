@@ -65,7 +65,7 @@ impl MigrationTrait for Migration {
 #[cfg(test)]
 mod bdd_tests {
   use super::*;
-  use sea_orm::{Database, ConnectionTrait, EntityTrait};
+  use sea_orm::{ConnectionTrait, Database, EntityTrait};
   use sea_orm_migration::prelude::*;
 
   async fn test_db() -> sea_orm::DatabaseConnection {
@@ -95,7 +95,10 @@ mod bdd_tests {
       // Given: a test database
       let db = test_db().await;
       let migration = Migration;
-      migration.up(&SchemaManager::new(&db)).await.expect("migrate");
+      migration
+        .up(&SchemaManager::new(&db))
+        .await
+        .expect("migrate");
 
       // When: checking table structure
       // Then: table should exist with all columns
@@ -109,14 +112,17 @@ mod bdd_tests {
       // Given: a test database
       let db = test_db().await;
       let migration = Migration;
-      migration.up(&SchemaManager::new(&db)).await.expect("migrate");
+      migration
+        .up(&SchemaManager::new(&db))
+        .await
+        .expect("migrate");
 
       // When: inserting api token with id
       // Then: should succeed
       use crate::models::api_token;
+      use chrono::Utc;
       use sea_orm::Set;
       use uuid::Uuid;
-      use chrono::Utc;
 
       let result = api_token::Entity::insert(api_token::ActiveModel {
         id: Set(Uuid::new_v4()),
@@ -156,7 +162,10 @@ mod bdd_tests {
       // Given: a test database with api_tokens table created
       let db = test_db().await;
       let migration = Migration;
-      migration.up(&SchemaManager::new(&db)).await.expect("migrate up");
+      migration
+        .up(&SchemaManager::new(&db))
+        .await
+        .expect("migrate up");
 
       // When: running migration down
       let result = migration.down(&SchemaManager::new(&db)).await;
@@ -170,8 +179,14 @@ mod bdd_tests {
       // Given: a test database with api_tokens table
       let db = test_db().await;
       let migration = Migration;
-      migration.up(&SchemaManager::new(&db)).await.expect("migrate up");
-      migration.down(&SchemaManager::new(&db)).await.expect("migrate down");
+      migration
+        .up(&SchemaManager::new(&db))
+        .await
+        .expect("migrate up");
+      migration
+        .down(&SchemaManager::new(&db))
+        .await
+        .expect("migrate down");
 
       // When: trying to query api_tokens table
       // Then: should fail (table doesn't exist)

@@ -2,7 +2,14 @@
  * BDD component tests for ProtectedRoute.tsx
  * Tests verify component rendering, authentication checking, and redirect behavior
  */
-import { describe, test, expect, beforeAll, beforeEach, afterEach } from 'bun:test'
+import {
+  describe,
+  test,
+  expect,
+  beforeAll,
+  beforeEach,
+  afterEach,
+} from 'bun:test'
 import { render, waitFor, screen } from '@testing-library/react'
 import { BrowserRouter } from 'react-router-dom'
 import { ThemeProvider, createTheme } from '@mui/material/styles'
@@ -148,7 +155,9 @@ describe('ProtectedRoute component', () => {
       )
       await waitFor(
         () => {
-          expect(container.querySelector('[data-testid="content"]')).not.toBeNull()
+          expect(
+            container.querySelector('[data-testid="content"]'),
+          ).not.toBeNull()
         },
         { timeout: 5000, interval: 100 },
       )
@@ -202,7 +211,9 @@ describe('ProtectedRoute component', () => {
       )
       await waitFor(
         () => {
-          expect(container.querySelector('[data-testid="children"]')).not.toBeNull()
+          expect(
+            container.querySelector('[data-testid="children"]'),
+          ).not.toBeNull()
         },
         { timeout: 5000, interval: 100 },
       )

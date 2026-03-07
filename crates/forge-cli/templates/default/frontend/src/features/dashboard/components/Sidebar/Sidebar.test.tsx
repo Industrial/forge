@@ -8,7 +8,7 @@ import { BrowserRouter } from 'react-router-dom'
 import { ThemeProvider, createTheme } from '@mui/material/styles'
 import { Window } from 'happy-dom'
 import React from 'react'
-import { Effect, Layer, Option , Stream, Chunk} from 'effect'
+import { Effect, Layer, Option, Stream, Chunk } from 'effect'
 
 import Sidebar from './Sidebar'
 import { Providers } from '@/Providers'
@@ -18,7 +18,10 @@ import type { AuthenticationState } from '@/features/authentication/stores/Authe
 import type { ReactiveStore } from '@/lib/ReactiveStore'
 import type { AuthenticationState } from '@/features/authentication/stores/AuthenticationStateReactiveStore'
 import { Authentication } from '@/features/authentication/services/Authentication'
-import { AuthStoreTag, initialAuthenticationState } from '@/features/authentication/stores/AuthenticationStateReactiveStore'
+import {
+  AuthStoreTag,
+  initialAuthenticationState,
+} from '@/features/authentication/stores/AuthenticationStateReactiveStore'
 import { createMockAuthentication } from '@/features/authentication/services/AuthenticationMock'
 
 beforeAll(() => {

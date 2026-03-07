@@ -61,39 +61,55 @@ describe('DashboardPage component', () => {
 
   describe('rendering behavior', () => {
     test('should render PageHeader', () => {
-      const { container } = render(<DashboardPage />, { wrapper: createWrapper() })
+      const { container } = render(<DashboardPage />, {
+        wrapper: createWrapper(),
+      })
       expect(container).toBeDefined()
     })
 
     test('should render "Dashboard" title', () => {
-      const { container } = render(<DashboardPage />, { wrapper: createWrapper() })
+      const { container } = render(<DashboardPage />, {
+        wrapper: createWrapper(),
+      })
       expect(container.textContent).toContain('Dashboard')
     })
 
     test('should render welcome description', () => {
-      const { container } = render(<DashboardPage />, { wrapper: createWrapper() })
+      const { container } = render(<DashboardPage />, {
+        wrapper: createWrapper(),
+      })
       expect(container.textContent).toContain('Welcome to your dashboard')
     })
 
     test('should have data-testid on heading', () => {
-      const { container } = render(<DashboardPage />, { wrapper: createWrapper() })
-      expect(container.querySelector('[data-testid="dashboard-heading"]')).not.toBeNull()
+      const { container } = render(<DashboardPage />, {
+        wrapper: createWrapper(),
+      })
+      expect(
+        container.querySelector('[data-testid="dashboard-heading"]'),
+      ).not.toBeNull()
     })
   })
 
   describe('PageHeader integration behavior', () => {
     test('should use PageHeader component', () => {
-      const { container } = render(<DashboardPage />, { wrapper: createWrapper() })
+      const { container } = render(<DashboardPage />, {
+        wrapper: createWrapper(),
+      })
       expect(container).toBeDefined()
     })
 
     test('should pass title prop to PageHeader', () => {
-      const { container } = render(<DashboardPage />, { wrapper: createWrapper() })
+      const { container } = render(<DashboardPage />, {
+        wrapper: createWrapper(),
+      })
       expect(container.textContent).toContain('Dashboard')
     })
 
     test('should pass description prop to PageHeader', () => {
-      const { container } = render(<DashboardPage />, { wrapper: createWrapper() })
+      const { container } = render(<DashboardPage />, {
+        wrapper: createWrapper(),
+      })
       expect(container.textContent).toContain('Welcome')
     })
   })

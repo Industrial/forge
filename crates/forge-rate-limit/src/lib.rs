@@ -40,8 +40,8 @@ where
 /// or from the user's context.
 #[derive(Clone, Debug)]
 pub struct RequesterOrgKeyExtractor<B> {
-   /// Phantom data to track the backend type.
-   _backend: std::marker::PhantomData<B>,
+  /// Phantom data to track the backend type.
+  _backend: std::marker::PhantomData<B>,
 }
 
 impl<B> RequesterOrgKeyExtractor<B> {

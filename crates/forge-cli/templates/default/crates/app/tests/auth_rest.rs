@@ -42,9 +42,10 @@ mod bdd_tests {
       let token = token_for(&client, "viewer@default.org").await;
 
       // When: requesting logout
-      let (status, _) = app::test_request(&client, "GET", "/api/auth/logout", Some(&token), None, None)
-        .await
-        .unwrap();
+      let (status, _) =
+        app::test_request(&client, "GET", "/api/auth/logout", Some(&token), None, None)
+          .await
+          .unwrap();
 
       // Then: should return 200 OK
       assert_eq!(status, StatusCode::OK);
@@ -156,9 +157,10 @@ mod bdd_tests {
       let client = app::test_client().await.expect("test_client");
 
       // When: creating a token without authentication
-      let (status, _) = app::test_request(&client, "POST", "/api/auth/tokens", None, Some("{}"), None)
-        .await
-        .unwrap();
+      let (status, _) =
+        app::test_request(&client, "POST", "/api/auth/tokens", None, Some("{}"), None)
+          .await
+          .unwrap();
 
       // Then: should return 401 Unauthorized
       assert_eq!(status, StatusCode::UNAUTHORIZED);
@@ -211,9 +213,10 @@ mod bdd_tests {
       let token = token_for(&client, "viewer@default.org").await;
 
       // When: requesting /api/auth/admin
-      let (status, _) = app::test_request(&client, "GET", "/api/auth/admin", Some(&token), None, None)
-        .await
-        .unwrap();
+      let (status, _) =
+        app::test_request(&client, "GET", "/api/auth/admin", Some(&token), None, None)
+          .await
+          .unwrap();
 
       // Then: should return 403 Forbidden
       assert_eq!(status, StatusCode::FORBIDDEN);
@@ -226,9 +229,10 @@ mod bdd_tests {
       let token = token_for(&client, "admin@admin.com").await;
 
       // When: requesting /api/auth/admin
-      let (status, _) = app::test_request(&client, "GET", "/api/auth/admin", Some(&token), None, None)
-        .await
-        .unwrap();
+      let (status, _) =
+        app::test_request(&client, "GET", "/api/auth/admin", Some(&token), None, None)
+          .await
+          .unwrap();
 
       // Then: should return 200 OK
       assert_eq!(status, StatusCode::OK);

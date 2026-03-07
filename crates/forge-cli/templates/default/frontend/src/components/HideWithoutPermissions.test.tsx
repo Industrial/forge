@@ -2,7 +2,14 @@
  * BDD component tests for HideWithoutPermissions.tsx
  * Tests verify component rendering, permission checking, and conditional visibility
  */
-import { describe, test, expect, beforeAll, beforeEach, afterEach } from 'bun:test'
+import {
+  describe,
+  test,
+  expect,
+  beforeAll,
+  beforeEach,
+  afterEach,
+} from 'bun:test'
 import { render, waitFor, screen } from '@testing-library/react'
 import { BrowserRouter } from 'react-router-dom'
 import { ThemeProvider, createTheme } from '@mui/material/styles'
@@ -21,7 +28,10 @@ import { clearReactiveStoreCacheForTesting } from '@/lib/ReactiveStore'
 import type { ReactiveStore } from '@/lib/ReactiveStore'
 import type { AuthenticationState } from '@/features/authentication/stores/AuthenticationStateReactiveStore'
 import { Authentication } from '@/features/authentication/services/Authentication'
-import { AuthStoreTag, initialAuthenticationState } from '@/features/authentication/stores/AuthenticationStateReactiveStore'
+import {
+  AuthStoreTag,
+  initialAuthenticationState,
+} from '@/features/authentication/stores/AuthenticationStateReactiveStore'
 import { createMockAuthentication } from '@/features/authentication/services/AuthenticationMock'
 import { RpcApiMock } from '@/services/RpcApiMock'
 
@@ -60,7 +70,6 @@ beforeAll(() => {
     }
   }
 })
-
 
 // Helper to create a mock auth store with permissions
 function createMockAuthStoreWithPermissions(permissions: string[]) {
@@ -105,16 +114,16 @@ function createMockAuthStoreWithPermissions(permissions: string[]) {
 const createWrapper = (permissions: string[] = []) => {
   const theme = createTheme({ palette: { mode: 'light' } })
   const mockAuth = createMockAuthentication()
-  
+
   // Create mock auth store with permissions
   const mockAuthStoreLayer = createMockAuthStoreWithPermissions(permissions)
-  
+
   // Build base application layer
   const baseLayer = buildApplicationLayer()
-  
+
   // Clear reactive store cache for testing
   clearReactiveStoreCacheForTesting(AuthStoreTag)
-  
+
   // Set up the application layer override with mock store and auth service
   // Merge baseLayer with mock layers so mock layers override baseLayer's services
   setApplicationLayerOverrideForTesting(
@@ -125,7 +134,7 @@ const createWrapper = (permissions: string[] = []) => {
       RpcApiMock,
     ),
   )
-  
+
   return ({ children }: { children: React.ReactNode }) => (
     <BrowserRouter>
       <Providers theme={theme}>{children}</Providers>
@@ -160,7 +169,9 @@ describe('HideWithoutPermissions component', () => {
       // Then: children should be rendered
       await waitFor(
         () => {
-          expect(container.querySelector('[data-testid="content"]')).not.toBeNull()
+          expect(
+            container.querySelector('[data-testid="content"]'),
+          ).not.toBeNull()
         },
         { timeout: 5000, interval: 100 },
       )
@@ -196,7 +207,9 @@ describe('HideWithoutPermissions component', () => {
       // Then: children should be rendered (user has permission2)
       await waitFor(
         () => {
-          expect(container.querySelector('[data-testid="content"]')).not.toBeNull()
+          expect(
+            container.querySelector('[data-testid="content"]'),
+          ).not.toBeNull()
         },
         { timeout: 5000, interval: 100 },
       )
@@ -233,7 +246,9 @@ describe('HideWithoutPermissions component', () => {
       // Then: children should be rendered
       await waitFor(
         () => {
-          expect(container.querySelector('[data-testid="children"]')).not.toBeNull()
+          expect(
+            container.querySelector('[data-testid="children"]'),
+          ).not.toBeNull()
         },
         { timeout: 5000, interval: 100 },
       )
@@ -259,9 +274,7 @@ describe('HideWithoutPermissions component', () => {
     test('should handle multiple permissions', async () => {
       // Given: HideWithoutPermissions component with multiple permissions
       const { container } = render(
-        <HideWithoutPermissions
-          permissions={['perm1', 'perm2', 'perm3']}
-        >
+        <HideWithoutPermissions permissions={['perm1', 'perm2', 'perm3']}>
           <div data-testid="content">Content</div>
         </HideWithoutPermissions>,
         { wrapper: createWrapper(['perm2']) },
@@ -269,7 +282,9 @@ describe('HideWithoutPermissions component', () => {
       // Then: children should be rendered (user has perm2)
       await waitFor(
         () => {
-          expect(container.querySelector('[data-testid="content"]')).not.toBeNull()
+          expect(
+            container.querySelector('[data-testid="content"]'),
+          ).not.toBeNull()
         },
         { timeout: 5000, interval: 100 },
       )
@@ -308,9 +323,7 @@ describe('HideWithoutPermissions component', () => {
     test('should hide when none of the permissions match', async () => {
       // Given: HideWithoutPermissions component with permissions
       const { container } = render(
-        <HideWithoutPermissions
-          permissions={['perm1', 'perm2']}
-        >
+        <HideWithoutPermissions permissions={['perm1', 'perm2']}>
           <div data-testid="content">Content</div>
         </HideWithoutPermissions>,
         { wrapper: createWrapper(['perm3', 'perm4']) },

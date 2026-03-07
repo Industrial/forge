@@ -2,7 +2,14 @@
  * BDD component tests for PermissionGuard.tsx
  * Tests verify component rendering, permission checking, and redirect behavior
  */
-import { describe, test, expect, beforeAll, beforeEach, afterEach } from 'bun:test'
+import {
+  describe,
+  test,
+  expect,
+  beforeAll,
+  beforeEach,
+  afterEach,
+} from 'bun:test'
 import { render, waitFor } from '@testing-library/react'
 import { BrowserRouter } from 'react-router-dom'
 import { ThemeProvider, createTheme } from '@mui/material/styles'
@@ -20,7 +27,10 @@ import {
 import { clearReactiveStoreCacheForTesting } from '@/lib/ReactiveStore'
 import type { ReactiveStore } from '@/lib/ReactiveStore'
 import type { AuthenticationState } from '@/features/authentication/stores/AuthenticationStateReactiveStore'
-import { AuthStoreTag, initialAuthenticationState } from '@/features/authentication/stores/AuthenticationStateReactiveStore'
+import {
+  AuthStoreTag,
+  initialAuthenticationState,
+} from '@/features/authentication/stores/AuthenticationStateReactiveStore'
 import { RpcApiMock } from '@/services/RpcApiMock'
 
 beforeAll(() => {
@@ -174,10 +184,7 @@ describe('PermissionGuard component', () => {
 
     test('should use custom redirectTo when provided', async () => {
       const { container } = render(
-        <PermissionGuard
-          permissions={['test.permission']}
-          redirectTo="/custom"
-        >
+        <PermissionGuard permissions={['test.permission']} redirectTo="/custom">
           <div data-testid="content">Content</div>
         </PermissionGuard>,
         { wrapper: createWrapper([]) },
@@ -201,10 +208,7 @@ describe('PermissionGuard component', () => {
 
     test('should accept redirectTo prop', async () => {
       const { container } = render(
-        <PermissionGuard
-          permissions={['test.permission']}
-          redirectTo="/custom"
-        >
+        <PermissionGuard permissions={['test.permission']} redirectTo="/custom">
           <div>Content</div>
         </PermissionGuard>,
         { wrapper: createWrapper([]) },

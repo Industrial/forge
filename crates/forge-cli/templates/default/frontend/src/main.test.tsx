@@ -37,9 +37,7 @@ beforeEach(() => {
   document.body.appendChild(rootElement)
 
   const baseLayer = buildApplicationLayer()
-  setApplicationLayerOverrideForTesting(
-    Layer.mergeAll(baseLayer, RpcApiMock),
-  )
+  setApplicationLayerOverrideForTesting(Layer.mergeAll(baseLayer, RpcApiMock))
 })
 
 afterEach(() => {
