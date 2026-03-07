@@ -13,18 +13,25 @@ use moka::future::Cache;
 use tower::{Layer, Service};
 use tracing::debug;
 
+/// Cached HTTP response data.
 #[derive(Clone)]
 struct CachedResponse {
+  /// HTTP status code.
   status: StatusCode,
+  /// HTTP response headers.
   headers: HeaderMap,
+  /// Response body bytes.
   body: Bytes,
 }
 
 /// Tower layer that caches full HTTP responses for GET requests.
 #[derive(Clone)]
 pub struct HttpResponseCacheLayer {
+  /// The underlying cache storage.
   cache: Arc<Cache<String, CachedResponse>>,
+  /// Time-to-live for cached responses in seconds.
   ttl_secs: u64,
+  /// Path prefixes that should not be cached.
   no_cache_paths: Vec<String>,
 }
 
@@ -46,6 +53,7 @@ impl HttpResponseCacheLayer {
     })
   }
 
+  /// Generates a cache key from the request path and optional query string.
   fn cache_key(path: &str, query: Option<&str>) -> String {
     if let Some(q) = query {
       format!("GET:{}?{}", path, q)
@@ -90,15 +98,21 @@ impl<S> Layer<S> for HttpResponseCacheLayer {
   }
 }
 
+/// Tower service that caches HTTP responses.
 #[derive(Clone)]
 pub struct HttpResponseCacheService<S> {
+  /// The inner service being wrapped.
   inner: S,
+  /// The underlying cache storage.
   cache: Arc<Cache<String, CachedResponse>>,
+  /// Time-to-live for cached responses in seconds.
   ttl_secs: u64,
+  /// Path prefixes that should not be cached.
   no_cache_paths: Vec<String>,
 }
 
 impl<S> HttpResponseCacheService<S> {
+  /// Checks if a path should be skipped for caching.
   fn should_skip(&self, path: &str) -> bool {
     self.no_cache_paths.iter().any(|prefix| {
       if prefix == "/" {

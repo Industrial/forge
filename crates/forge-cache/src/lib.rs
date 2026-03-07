@@ -1,5 +1,6 @@
 //! Application cache (Moka) and HTTP response cache layer for the Forge framework.
 
+/// Application cache implementation.
 mod app_cache;
 mod http_layer;
 

@@ -7,6 +7,7 @@ use moka::future::Cache;
 /// In-process application cache (key-value). When cache is disabled, use [NoOpAppCache].
 #[derive(Clone)]
 pub struct AppCache {
+  /// The underlying Moka cache instance.
   inner: Arc<Cache<String, String>>,
 }
 

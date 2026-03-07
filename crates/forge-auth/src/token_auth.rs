@@ -74,9 +74,13 @@ where
 /// Tower layer: if `Authorization: Bearer <token>` is present, looks up user and inserts TokenUser.
 #[derive(Clone)]
 pub struct TokenAuthLayer<B, U> {
+  /// Phantom data to track the user type.
   _user: std::marker::PhantomData<U>,
+  /// Database connection for token lookups.
   db: DbConnection,
+  /// Authentication backend for user retrieval.
   backend: Arc<B>,
+  /// Function to look up user ID from token.
   lookup: TokenLookupFn,
 }
 
@@ -109,11 +113,17 @@ where
   }
 }
 
+/// Tower service that performs token-based authentication.
 pub struct TokenAuthService<B, U, S> {
+  /// Phantom data to track the user type.
   _user: std::marker::PhantomData<U>,
+  /// Database connection for token lookups.
   db: DbConnection,
+  /// Authentication backend for user retrieval.
   backend: Arc<B>,
+  /// Function to look up user ID from token.
   lookup: TokenLookupFn,
+  /// The inner service being wrapped.
   inner: S,
 }
 
@@ -174,6 +184,7 @@ where
   }
 }
 
+/// Extracts the Bearer token from an Authorization header value.
 pub(crate) fn extract_bearer(value: Option<&axum::http::HeaderValue>) -> Option<String> {
   let v = value?.to_str().ok()?;
   let prefix = "Bearer ";

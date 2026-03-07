@@ -24,6 +24,8 @@ pub type TaskFn = Box<
     + Sync,
 >;
 
+/// Normalizes SQLite database URLs for the job pool.
+/// Converts `sqlite::memory:` to `sqlite://:memory:` for compatibility.
 fn normalize_job_pool_url(url: &str) -> &str {
   if url == "sqlite::memory:" {
     "sqlite://:memory:"
@@ -70,6 +72,7 @@ pub async fn run_worker(
   Ok(())
 }
 
+/// Executes a scheduled task by looking it up in the registry and running it.
 async fn run_scheduled_task(
   job: ScheduledTaskJob,
   data: Data<(Arc<HashMap<String, TaskFn>>, DbConnection)>,
