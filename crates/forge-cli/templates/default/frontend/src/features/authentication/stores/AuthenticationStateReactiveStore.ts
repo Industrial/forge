@@ -1,11 +1,11 @@
 /**
  * Authentication state as a reactive store. Single source of truth for auth in the Effect layer.
- * Built with makeReactiveStore. Use getAuthenticationStateStoreLayer() for app composition.
- * Subscribe via useAuthenticationStateReactiveStore() or useReactiveStore(AuthenticationStateReactiveStoreTag, initialAuthenticationState). No store in context.
+ * Built with defineStore (Layer.sync, in-memory). Use getAuthenticationStateStoreLayer() for app composition.
+ * Subscribe via useAuthStore(), useAuthStoreWithInit(), or useAuthenticationStateReactiveStore().
  */
 import { Option } from 'effect'
 
-import { makeReactiveStore, type ReactiveStore } from '@/lib/ReactiveStore'
+import { defineStore, type ReactiveStore } from '@/lib/ReactiveStore'
 import type { AuthenticationUser } from '@/features/authentication/domain/AuthenticationUser'
 
 export interface AuthenticationState {
@@ -23,7 +23,7 @@ export const initialAuthenticationState: AuthenticationState = {
   permissions: [],
 }
 
-const store = makeReactiveStore(
+const store = defineStore(
   '@forge/AuthenticationStateReactiveStore',
   initialAuthenticationState,
 )

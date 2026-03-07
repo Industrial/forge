@@ -3,14 +3,14 @@
  *
  * @packageDocumentation
  *
- * Built from Effect's {@link https://effect.website/docs/guides/essentials/refs | SubscriptionRef}
- * (a Ref plus a stream of changes). Use {@link makeReactiveStore} to create a layer and a
- * context tag; add the layer to your app layer. Use {@link useReactiveStore} in React to
- * subscribe and re-render when the store changes; the caller must pass {@link run} and
- * {@link runFork} that provide the layer containing the store (e.g. from an app-level hook).
+ * Use {@link defineStore} (or {@link makeReactiveStore}) to create a store with in-memory
+ * state and a {@link Layer.sync} so the same instance is shared by restoreSession and React.
+ * Add the returned layer to your app layer; use {@link useReactiveStore} in React (or a
+ * bound hook from your store module) to subscribe. No ref/scoped wiring in main.
  */
 import { useMemo, useSyncExternalStore } from 'react'
 import {
+  Chunk,
   Context,
   Effect,
   Fiber,
@@ -18,13 +18,12 @@ import {
   Option,
   pipe,
   Stream,
-  SubscriptionRef,
 } from 'effect'
 
 /**
  * Reactive store interface: current value, updates, and a stream of changes.
  *
- * Implementations are created by {@link makeReactiveStore}. Subscribers run the
+ * Implementations are created by {@link defineStore} or {@link makeReactiveStore}. Subscribers run the
  * `changes` stream (e.g. via {@link useReactiveStore}) to react to updates.
  *
  * Sync notifier: when the React external store is created it registers a setter in a
@@ -44,32 +43,24 @@ export interface ReactiveStore<A> {
   readonly changes: Stream.Stream<A, never, never>
 }
 
-/**
- * Creates a layer that provides a {@link ReactiveStore}<A> with the given initial value.
- *
- * Use the returned `tag` in effects (`yield* tag`) and include the returned `layer` in your
- * app's layer composition (e.g. merge into the application layer). In React components,
- * use the same `tag` with {@link useReactiveStore}(tag, initial) to read and subscribe.
- *
- * @param name - Unique name for the store (used as the context tag identifier).
- * @param initial - Initial value of the store.
- * @returns An object with `tag` (for requiring the store in effects and for
- *   {@link useReactiveStore}) and `layer` (to merge into your app layer).
- *
- * @example
- * ```ts
- * const { tag, layer } = makeReactiveStore('MyStore', initialValue)
- * // In app layer: Layer.mergeAll(..., layer)
- * // In component: const value = useReactiveStore(tag, initialValue)
- * ```
- */
 /** Registry so the layer can push to the React cache as soon as the external store exists (no subscribe needed). */
 const syncRegistryByTag = new WeakMap<
   object,
   { setter: ((a: unknown) => void) | null }
 >()
 
-export function makeReactiveStore<A>(
+/**
+ * Defines a reactive store with in-memory state and a {@link Layer.sync} so the same
+ * instance is shared by every {@link Effect.provide} (e.g. restoreSession and React).
+ * No ref or scoped wiring; add the returned layer to your app layer once.
+ *
+ * @param name - Unique name for the store (context tag identifier).
+ * @param initial - Initial value of the store.
+ * @returns `{ tag, layer }`. Use `tag` in effects (`yield* tag`) and merge `layer` into
+ *   your app layer. In React, use {@link useReactiveStore}(tag, initial, run, runFork) or
+ *   a bound hook in your store module that calls useRunWithAppLayer + useReactiveStore.
+ */
+export function defineStore<A>(
   name: string,
   initial: A,
 ): {
@@ -83,66 +74,47 @@ export function makeReactiveStore<A>(
     registry as { setter: ((a: unknown) => void) | null },
   )
 
-  const layer: Layer.Layer<ReactiveStore<A>, never, never> = Layer.scoped(
-    tag,
-    SubscriptionRef.make(initial).pipe(
-      Effect.map((ref) => ({
-        get: () => ref.get,
-        update: (f: (a: A) => A) =>
-          pipe(
-            SubscriptionRef.update(ref, f),
-            Effect.flatMap(() => ref.get),
-            Effect.tap((value) =>
-              Effect.sync(() => {
-                const setter = registry.setter
-                if (setter) {
-                  if (DEBUG) log(`sync update (registry) notifying React cache`)
-                  setter(value)
-                }
-              }),
-            ),
-            Effect.asVoid,
-          ),
-        changes: ref.changes,
-      })),
-    ),
-  )
+  let current: A = initial
+  const changeListeners = new Set<(a: A) => void>()
 
+  const notify = (a: A) => {
+    current = a
+    if (registry.setter) {
+      if (DEBUG) log(`sync update (registry) notifying React cache`)
+      registry.setter(a)
+    }
+    changeListeners.forEach((l) => l(a))
+  }
+
+  const changes = Stream.async<A, never, never>((emit) => {
+    emit(Effect.succeed(Chunk.of(current)))
+    const listener = (a: A) => {
+      emit(Effect.succeed(Chunk.of(a)))
+    }
+    changeListeners.add(listener)
+    return Effect.sync(() => {
+      changeListeners.delete(listener)
+    })
+  })
+
+  const store: ReactiveStore<A> = {
+    get: () => Effect.succeed(current),
+    update: (f: (a: A) => A) =>
+      Effect.sync(() => {
+        notify(f(current))
+      }),
+    changes,
+  }
+
+  const layer = Layer.sync(tag, () => store)
   return { tag, layer }
 }
 
 /**
- * Builds a {@link ReactiveStore} from an existing SubscriptionRef, using the same
- * tag (and thus the same sync registry) as {@link makeReactiveStore}. Use this when
- * you need one shared ref for the app lifetime (e.g. create ref in a long-lived scope,
- * then use this store so restoreSession and React both see the same state).
+ * Creates a layer that provides a {@link ReactiveStore}<A> with the given initial value.
+ * Alias for {@link defineStore}; same in-memory state and {@link Layer.sync} behavior.
  */
-export function createReactiveStoreFromRef<A>(
-  ref: SubscriptionRef.SubscriptionRef<A>,
-  tag: Context.Tag<ReactiveStore<A>, ReactiveStore<A>>,
-): ReactiveStore<A> {
-  const registry = syncRegistryByTag.get(tag as object) as
-    | { setter: ((a: A) => void) | null }
-    | undefined
-  return {
-    get: () => ref.get,
-    update: (f: (a: A) => A) =>
-      pipe(
-        SubscriptionRef.update(ref, f),
-        Effect.flatMap(() => ref.get),
-        Effect.tap((value) =>
-          Effect.sync(() => {
-            if (registry?.setter) {
-              if (DEBUG) log(`sync update (registry) notifying React cache`)
-              registry.setter(value)
-            }
-          }),
-        ),
-        Effect.asVoid,
-      ),
-    changes: ref.changes,
-  }
-}
+export const makeReactiveStore = defineStore
 
 /** Run an effect to completion (e.g. at the boundary with the app layer). */
 export type RunEffect = <A, E, R>(effect: Effect.Effect<A, E, R>) => Promise<A>
@@ -295,11 +267,152 @@ function createExternalStore<A>(
 type ExternalStoreShape<A> = ReturnType<typeof createExternalStore<A>>
 
 /**
+ * Builds a `useSyncExternalStore`-compatible store that subscribes to a derived stream:
+ * `pipe(store.changes, Stream.map(...), Stream.filter(...), ...)`. Use with
+ * {@link useDerivedReactiveStore} so components can derive values without creating new stores.
+ */
+function createDerivedExternalStore<A, B>(
+  tag: Context.Tag<ReactiveStore<A>, ReactiveStore<A>>,
+  initialB: B,
+  run: RunEffect,
+  runFork: RunFork,
+  derive: (stream: Stream.Stream<A, never, never>) => Stream.Stream<B, never, never>,
+): {
+  subscribe: (onStoreChange: () => void) => () => void
+  getSnapshot: () => ReactiveStoreSnapshot<B>
+  getServerSnapshot: () => ReactiveStoreSnapshot<B>
+} {
+  let cache: B = initialB
+  let initialized = false
+  const listeners = new Set<() => void>()
+  let fiber: Fiber.RuntimeFiber<unknown, never> | null = null
+  let started = false
+
+  const setCache = (b: B) => {
+    cache = b
+    initialized = true
+    listeners.forEach((l) => l())
+  }
+
+  const subscribe = (onStoreChange: () => void) => {
+    listeners.add(onStoreChange)
+    if (!started) {
+      started = true
+      const streamEffect = Effect.gen(function* () {
+        const store = yield* tag
+        const derived = derive(store.changes)
+        yield* Stream.runForEach(derived, (b) => Effect.sync(() => setCache(b)))
+      })
+      fiber = runFork(streamEffect)
+    }
+    return () => {
+      listeners.delete(onStoreChange)
+    }
+  }
+
+  let lastSnapshot: ReactiveStoreSnapshot<B> | null = null
+  const serverSnapshot: ReactiveStoreSnapshot<B> = {
+    value: initialB,
+    initialized: false,
+  }
+  const getSnapshot = (): ReactiveStoreSnapshot<B> => {
+    if (
+      lastSnapshot !== null &&
+      lastSnapshot.value === cache &&
+      lastSnapshot.initialized === initialized
+    ) {
+      return lastSnapshot
+    }
+    lastSnapshot = { value: cache, initialized }
+    return lastSnapshot
+  }
+  const getServerSnapshot = (): ReactiveStoreSnapshot<B> => serverSnapshot
+
+  return {
+    subscribe,
+    getSnapshot,
+    getServerSnapshot,
+  }
+}
+
+/**
+ * Cache for derived external stores: keyed by tag then by derivationKey.
+ * Same (tag, derivationKey) shares one subscription and cache.
+ */
+const derivedStoreCache = new WeakMap<
+  object,
+  Map<string, ReturnType<typeof createDerivedExternalStore<unknown, unknown>>>
+>()
+
+/**
  * One external store per tag so all components share the same cache and subscription.
  * Key is the tag (object); value is the store. Using `object` for the key avoids
  * tag type casts; we assert the stored value to ExternalStoreShape<A> when reading.
  */
 const externalStoreCache = new WeakMap<object, ExternalStoreShape<unknown>>()
+
+/**
+ * Returns the current derived value from a reactive store by subscribing to a
+ * transformed stream. Use `pipe(store.changes, Stream.map(...), Stream.filter(...))`
+ * so components can map/filter/reduce without creating new stores.
+ *
+ * The same `derivationKey` across components shares one subscription and cache.
+ * Use a stable string that describes the derivation (e.g. `"user"`, `"visibleIds"`).
+ *
+ * @param tag - Context tag for the source store.
+ * @param initialB - Value shown before the first emission from the derived stream.
+ * @param run - Run effect to completion (from e.g. useRunWithAppLayer).
+ * @param runFork - Run effect in background (from e.g. useRunWithAppLayer).
+ * @param derivationKey - Stable string identifying this derivation (used for cache sharing).
+ * @param derive - Function that takes the store's `changes` stream and returns a derived stream.
+ * @returns The current value of type `B`.
+ *
+ * @example
+ * ```ts
+ * const { run, runFork } = useRunWithAppLayer()
+ * const user = useDerivedReactiveStore(
+ *   AuthStoreTag,
+ *   Option.none(),
+ *   run,
+ *   runFork,
+ *   'user',
+ *   (s) => pipe(s, Stream.map((a) => a.user)),
+ * )
+ * ```
+ */
+export function useDerivedReactiveStore<A, B>(
+  tag: Context.Tag<ReactiveStore<A>, ReactiveStore<A>>,
+  initialB: B,
+  run: RunEffect,
+  runFork: RunFork,
+  derivationKey: string,
+  derive: (stream: Stream.Stream<A, never, never>) => Stream.Stream<B, never, never>,
+): B {
+  const store = useMemo(() => {
+    let byKey = derivedStoreCache.get(tag as object)
+    if (!byKey) {
+      byKey = new Map()
+      derivedStoreCache.set(tag as object, byKey)
+    }
+    let cached = byKey.get(derivationKey) as ReturnType<
+      typeof createDerivedExternalStore<A, B>
+    > | undefined
+    if (!cached) {
+      cached = createDerivedExternalStore(tag, initialB, run, runFork, derive)
+      byKey.set(derivationKey, cached as ReturnType<
+        typeof createDerivedExternalStore<unknown, unknown>
+      >)
+    }
+    return cached
+  }, [tag, initialB, run, runFork, derivationKey, derive])
+
+  const snapshot = useSyncExternalStore(
+    store.subscribe,
+    store.getSnapshot,
+    store.getServerSnapshot,
+  )
+  return snapshot.value
+}
 
 /**
  * Returns the current value of the reactive store and re-renders when it changes.
