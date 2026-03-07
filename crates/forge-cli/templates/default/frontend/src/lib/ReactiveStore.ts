@@ -10,7 +10,16 @@
  * {@link runFork} that provide the layer containing the store (e.g. from an app-level hook).
  */
 import { useMemo, useSyncExternalStore } from 'react'
-import { Context, Effect, Fiber, Layer, Stream, SubscriptionRef } from 'effect'
+import {
+  Context,
+  Effect,
+  Fiber,
+  Layer,
+  Option,
+  pipe,
+  Stream,
+  SubscriptionRef,
+} from 'effect'
 
 /**
  * Reactive store interface: current value, updates, and a stream of changes.
@@ -158,6 +167,16 @@ function createExternalStore<A>(
   }
 }
 
+/** Shape of the external store returned by createExternalStore (used for cache typing). */
+type ExternalStoreShape<A> = ReturnType<typeof createExternalStore<A>>
+
+/**
+ * One external store per tag so all components share the same cache and subscription.
+ * Key is the tag (object); value is the store. Using `object` for the key avoids
+ * tag type casts; we assert the stored value to ExternalStoreShape<A> when reading.
+ */
+const externalStoreCache = new WeakMap<object, ExternalStoreShape<unknown>>()
+
 /**
  * Returns the current value of the reactive store and re-renders when it changes.
  *
@@ -188,7 +207,18 @@ export function useReactiveStore<A>(
   runFork: RunFork,
 ): A {
   const store = useMemo(
-    () => createExternalStore(tag, initial, run, runFork),
+    () =>
+      pipe(
+        Option.fromNullable(externalStoreCache.get(tag)),
+        Option.match({
+          onSome: (cached) => cached as ExternalStoreShape<A>,
+          onNone: () => {
+            const created = createExternalStore(tag, initial, run, runFork)
+            externalStoreCache.set(tag, created)
+            return created
+          },
+        }),
+      ),
     [tag, initial, run, runFork],
   )
 
