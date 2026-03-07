@@ -70,7 +70,10 @@ mod tests {
       let keys = allowed_permission_keys();
 
       // Then it should return a non-empty slice
-      assert!(!keys.is_empty(), "Should return at least some permission keys");
+      assert!(
+        !keys.is_empty(),
+        "Should return at least some permission keys"
+      );
     }
 
     #[test]
@@ -80,10 +83,7 @@ mod tests {
       let keys = allowed_permission_keys();
 
       // Then it should include the wildcard keys
-      assert!(
-        keys.contains(&ALL_READ),
-        "Should include all.read wildcard"
-      );
+      assert!(keys.contains(&ALL_READ), "Should include all.read wildcard");
       assert!(
         keys.contains(&ALL_WRITE),
         "Should include all.write wildcard"
@@ -246,7 +246,10 @@ mod tests {
       let equivalents = permission_equivalents(key);
 
       // Then it should return an empty slice
-      assert!(equivalents.is_empty(), "Unknown keys should return empty slice");
+      assert!(
+        equivalents.is_empty(),
+        "Unknown keys should return empty slice"
+      );
     }
 
     #[test]

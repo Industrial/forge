@@ -48,7 +48,9 @@ describe('AuthenticationStateReactiveStore', () => {
       // Given the initialAuthenticationState
       // When I check the needsScopeSelect field
       // Then it should be Option.none()
-      expect(Option.isNone(initialAuthenticationState.needsScopeSelect)).toBe(true)
+      expect(Option.isNone(initialAuthenticationState.needsScopeSelect)).toBe(
+        true,
+      )
     })
 
     test('should have empty permissions array', () => {
@@ -113,7 +115,7 @@ describe('AuthenticationStateReactiveStore', () => {
       })
 
       store = await Effect.runPromise(
-        program.pipe(Effect.provide(authStoreLayer))
+        program.pipe(Effect.provide(authStoreLayer)),
       )
     })
 
@@ -138,7 +140,7 @@ describe('AuthenticationStateReactiveStore', () => {
         store.update((state) => ({
           ...state,
           token: Option.some(newToken),
-        }))
+        })),
       )
 
       const state = await Effect.runPromise(store.get())
@@ -160,7 +162,7 @@ describe('AuthenticationStateReactiveStore', () => {
         store.update((state) => ({
           ...state,
           user: Option.some(testUser),
-        }))
+        })),
       )
 
       const state = await Effect.runPromise(store.get())
@@ -179,7 +181,7 @@ describe('AuthenticationStateReactiveStore', () => {
         store.update((state) => ({
           ...state,
           needsScopeSelect: Option.some(true),
-        }))
+        })),
       )
 
       const state = await Effect.runPromise(store.get())
@@ -196,7 +198,7 @@ describe('AuthenticationStateReactiveStore', () => {
         store.update((state) => ({
           ...state,
           permissions: newPermissions,
-        }))
+        })),
       )
 
       const state = await Effect.runPromise(store.get())
@@ -221,7 +223,7 @@ describe('AuthenticationStateReactiveStore', () => {
           user: Option.some(testUser),
           needsScopeSelect: Option.some(false),
           permissions: ['read:users'],
-        }))
+        })),
       )
 
       const state = await Effect.runPromise(store.get())
@@ -243,7 +245,7 @@ describe('AuthenticationStateReactiveStore', () => {
       })
 
       const stream = await Effect.runPromise(
-        program.pipe(Effect.provide(authStoreLayer))
+        program.pipe(Effect.provide(authStoreLayer)),
       )
 
       expect(stream).toBeDefined()
@@ -281,13 +283,13 @@ describe('AuthenticationStateReactiveStore', () => {
       })
 
       const result = await Effect.runPromise(
-        program.pipe(Effect.provide(authStoreLayer))
+        program.pipe(Effect.provide(authStoreLayer)),
       )
 
       expect(result.hasChangesStream).toBe(true)
       expect(Option.isSome(result.afterState.token)).toBe(true)
       expect(Option.getOrUndefined(result.afterState.token)).toBe(
-        result.testToken
+        result.testToken,
       )
       // Verify the state actually changed
       expect(result.afterState.token).not.toEqual(result.beforeState.token)
@@ -307,7 +309,7 @@ describe('AuthenticationStateReactiveStore', () => {
       })
 
       const state = await Effect.runPromise(
-        program.pipe(Effect.provide(authStoreLayer))
+        program.pipe(Effect.provide(authStoreLayer)),
       )
 
       // Verify we can access the store (state structure is correct)
@@ -328,7 +330,7 @@ describe('AuthenticationStateReactiveStore', () => {
       })
 
       const { store1, store2 } = await Effect.runPromise(
-        program.pipe(Effect.provide(authStoreLayer))
+        program.pipe(Effect.provide(authStoreLayer)),
       )
 
       // Layer.sync returns the same instance
@@ -400,10 +402,10 @@ describe('AuthenticationStateReactiveStore', () => {
 
       // Both use the same layer, so they share state (Layer.sync behavior)
       const state1 = await Effect.runPromise(
-        program1.pipe(Effect.provide(authStoreLayer))
+        program1.pipe(Effect.provide(authStoreLayer)),
       )
       const state2 = await Effect.runPromise(
-        program2.pipe(Effect.provide(authStoreLayer))
+        program2.pipe(Effect.provide(authStoreLayer)),
       )
 
       // Since Layer.sync shares the same instance, both should see the last update

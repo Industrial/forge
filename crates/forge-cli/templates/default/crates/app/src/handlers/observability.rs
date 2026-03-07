@@ -134,10 +134,9 @@ mod tests {
           "traceparent",
           HeaderValue::from_static("00-4bf92f3577b34da6a3ce929d0e0e4736-00f067aa0ba902b7-01"),
         );
-        req.headers_mut().insert(
-          "authorization",
-          HeaderValue::from_static("Bearer token123"),
-        );
+        req
+          .headers_mut()
+          .insert("authorization", HeaderValue::from_static("Bearer token123"));
 
         // When: calling trace_id handler
         let response = trace_id(req).await.into_response();

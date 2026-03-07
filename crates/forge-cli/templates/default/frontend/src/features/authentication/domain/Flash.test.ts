@@ -269,7 +269,9 @@ describe('Flash', () => {
 
     test('should support one-off feedback display', () => {
       // Given: a flash message for one-time display
-      const flash = new Flash({ message: 'Session expired, please login again' })
+      const flash = new Flash({
+        message: 'Session expired, please login again',
+      })
 
       // When: displaying in UI
       // Then: should contain the feedback message

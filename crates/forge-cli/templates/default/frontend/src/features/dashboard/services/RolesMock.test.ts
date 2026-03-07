@@ -44,7 +44,9 @@ describe('RolesMock', () => {
         return yield* roles.list()
       })
 
-      const result = await Effect.runPromise(program.pipe(Effect.provide(layer)))
+      const result = await Effect.runPromise(
+        program.pipe(Effect.provide(layer)),
+      )
       expect(result).toEqual([])
     })
 
@@ -75,7 +77,9 @@ describe('RolesMock', () => {
         return yield* roles.list()
       })
 
-      const result = await Effect.runPromise(program.pipe(Effect.provide(layer)))
+      const result = await Effect.runPromise(
+        program.pipe(Effect.provide(layer)),
+      )
       expect(result).toHaveLength(2)
       expect(result[0]).toEqual(initialRoles[0])
       expect(result[1]).toEqual(initialRoles[1])
@@ -108,7 +112,9 @@ describe('RolesMock', () => {
         return yield* roles.list()
       })
 
-      const result = await Effect.runPromise(program.pipe(Effect.provide(layer)))
+      const result = await Effect.runPromise(
+        program.pipe(Effect.provide(layer)),
+      )
       expect(result).toHaveLength(2)
       expect(result[0]).toBeInstanceOf(Role)
       expect(result[1]).toBeInstanceOf(Role)
@@ -135,7 +141,9 @@ describe('RolesMock', () => {
       })
 
       // Then it should return empty array
-      const result = await Effect.runPromise(program.pipe(Effect.provide(layer)))
+      const result = await Effect.runPromise(
+        program.pipe(Effect.provide(layer)),
+      )
       expect(result).toEqual([])
     })
 
@@ -241,7 +249,9 @@ describe('RolesMock', () => {
       })
 
       // Then it should return only roles for org-1
-      const result = await Effect.runPromise(program.pipe(Effect.provide(layer)))
+      const result = await Effect.runPromise(
+        program.pipe(Effect.provide(layer)),
+      )
       expect(result).toHaveLength(2)
       expect(result[0].id).toBe('role-1')
       expect(result[1].id).toBe('role-2')
@@ -256,7 +266,9 @@ describe('RolesMock', () => {
       })
 
       // Then it should return empty array
-      const result = await Effect.runPromise(program.pipe(Effect.provide(layer)))
+      const result = await Effect.runPromise(
+        program.pipe(Effect.provide(layer)),
+      )
       expect(result).toEqual([])
     })
 
@@ -269,7 +281,9 @@ describe('RolesMock', () => {
       })
 
       // Then it should return DashboardRole instances
-      const result = await Effect.runPromise(program.pipe(Effect.provide(layer)))
+      const result = await Effect.runPromise(
+        program.pipe(Effect.provide(layer)),
+      )
       expect(result[0]).toBeInstanceOf(DashboardRole)
       expect(result[1]).toBeInstanceOf(DashboardRole)
     })
@@ -283,7 +297,9 @@ describe('RolesMock', () => {
       })
 
       // Then DashboardRole should have correct properties
-      const result = await Effect.runPromise(program.pipe(Effect.provide(layer)))
+      const result = await Effect.runPromise(
+        program.pipe(Effect.provide(layer)),
+      )
       expect(result[0].id).toBe('role-1')
       expect(result[0].name).toBe('admin')
       expect(result[0].display_name).toBe('Administrator')
@@ -315,7 +331,9 @@ describe('RolesMock', () => {
       })
 
       // Then the role should be added
-      const result = await Effect.runPromise(program.pipe(Effect.provide(layer)))
+      const result = await Effect.runPromise(
+        program.pipe(Effect.provide(layer)),
+      )
       expect(result).toHaveLength(1)
       expect(result[0].org_id).toBe('org-1')
       expect(result[0].name).toBe('admin')
@@ -341,7 +359,9 @@ describe('RolesMock', () => {
       })
 
       // Then each role should have a unique ID
-      const result = await Effect.runPromise(program.pipe(Effect.provide(layer)))
+      const result = await Effect.runPromise(
+        program.pipe(Effect.provide(layer)),
+      )
       expect(result).toHaveLength(2)
       expect(result[0].id).not.toBe(result[1].id)
     })
@@ -359,7 +379,9 @@ describe('RolesMock', () => {
       })
 
       // Then display_name should be null
-      const result = await Effect.runPromise(program.pipe(Effect.provide(layer)))
+      const result = await Effect.runPromise(
+        program.pipe(Effect.provide(layer)),
+      )
       expect(result[0].display_name).toBeNull()
     })
 
@@ -377,7 +399,9 @@ describe('RolesMock', () => {
       })
 
       // Then display_name should be set
-      const result = await Effect.runPromise(program.pipe(Effect.provide(layer)))
+      const result = await Effect.runPromise(
+        program.pipe(Effect.provide(layer)),
+      )
       expect(result[0].display_name).toBe('Administrator')
     })
 
@@ -430,7 +454,9 @@ describe('RolesMock', () => {
       })
 
       // Then the role should be updated
-      const result = await Effect.runPromise(program.pipe(Effect.provide(layer)))
+      const result = await Effect.runPromise(
+        program.pipe(Effect.provide(layer)),
+      )
       expect(result[0].name).toBe('superadmin')
       expect(result[0].display_name).toBe('Administrator') // Unchanged
     })
@@ -448,7 +474,9 @@ describe('RolesMock', () => {
       })
 
       // Then the role should be updated
-      const result = await Effect.runPromise(program.pipe(Effect.provide(layer)))
+      const result = await Effect.runPromise(
+        program.pipe(Effect.provide(layer)),
+      )
       expect(result[0].display_name).toBe('Super Administrator')
       expect(result[0].name).toBe('admin') // Unchanged
     })
@@ -467,7 +495,9 @@ describe('RolesMock', () => {
       })
 
       // Then both fields should be updated
-      const result = await Effect.runPromise(program.pipe(Effect.provide(layer)))
+      const result = await Effect.runPromise(
+        program.pipe(Effect.provide(layer)),
+      )
       expect(result[0].name).toBe('superadmin')
       expect(result[0].display_name).toBe('Super Administrator')
     })
@@ -485,7 +515,9 @@ describe('RolesMock', () => {
       })
 
       // Then other fields should be preserved
-      const result = await Effect.runPromise(program.pipe(Effect.provide(layer)))
+      const result = await Effect.runPromise(
+        program.pipe(Effect.provide(layer)),
+      )
       expect(result[0].id).toBe('role-1')
       expect(result[0].org_id).toBe('org-1')
       expect(result[0].name).toBe('admin')
@@ -560,7 +592,9 @@ describe('RolesMock', () => {
       })
 
       // Then the role should be removed
-      const result = await Effect.runPromise(program.pipe(Effect.provide(layer)))
+      const result = await Effect.runPromise(
+        program.pipe(Effect.provide(layer)),
+      )
       expect(result).toHaveLength(1)
       expect(result[0].id).toBe('role-2')
     })
@@ -707,7 +741,9 @@ describe('RolesMock', () => {
       })
 
       // Then it should complete successfully
-      const result = await Effect.runPromise(program.pipe(Effect.provide(layer)))
+      const result = await Effect.runPromise(
+        program.pipe(Effect.provide(layer)),
+      )
       expect(result).toHaveLength(1)
       expect(result[0].name).toBe('superadmin')
     })
@@ -740,8 +776,12 @@ describe('RolesMock', () => {
         return yield* roles.list()
       })
 
-      const result1 = await Effect.runPromise(program.pipe(Effect.provide(layer1)))
-      const result2 = await Effect.runPromise(program.pipe(Effect.provide(layer2)))
+      const result1 = await Effect.runPromise(
+        program.pipe(Effect.provide(layer1)),
+      )
+      const result2 = await Effect.runPromise(
+        program.pipe(Effect.provide(layer2)),
+      )
 
       // Then they should have separate state
       expect(result1).toHaveLength(1)

@@ -35,7 +35,9 @@ mod bdd_tests {
           .unwrap();
         let res = router.clone().oneshot(req).await.unwrap();
         assert_eq!(res.status(), StatusCode::OK);
-        let body = axum::body::to_bytes(res.into_body(), usize::MAX).await.unwrap();
+        let body = axum::body::to_bytes(res.into_body(), usize::MAX)
+          .await
+          .unwrap();
         let value = std::str::from_utf8(&body).unwrap().to_string();
         values.push(value);
       }
@@ -69,7 +71,9 @@ mod bdd_tests {
 
       // Then: should return 200 OK status
       assert_eq!(res.status(), StatusCode::OK);
-      let body = axum::body::to_bytes(res.into_body(), usize::MAX).await.unwrap();
+      let body = axum::body::to_bytes(res.into_body(), usize::MAX)
+        .await
+        .unwrap();
       let value = std::str::from_utf8(&body).unwrap();
       assert!(
         value.starts_with("cached-page-"),
@@ -92,7 +96,9 @@ mod bdd_tests {
 
       // Then: response should contain a valid UUID format after prefix
       assert_eq!(res.status(), StatusCode::OK);
-      let body = axum::body::to_bytes(res.into_body(), usize::MAX).await.unwrap();
+      let body = axum::body::to_bytes(res.into_body(), usize::MAX)
+        .await
+        .unwrap();
       let value = std::str::from_utf8(&body).unwrap();
       assert!(
         value.starts_with("cached-page-"),
@@ -109,7 +115,11 @@ mod bdd_tests {
       );
       // Verify UUID format with hyphens
       let parts: Vec<&str> = uuid_part.split('-').collect();
-      assert_eq!(parts.len(), 5, "UUID should have 5 parts separated by hyphens");
+      assert_eq!(
+        parts.len(),
+        5,
+        "UUID should have 5 parts separated by hyphens"
+      );
       assert_eq!(parts[0].len(), 8, "First part should be 8 hex digits");
       assert_eq!(parts[1].len(), 4, "Second part should be 4 hex digits");
       assert_eq!(parts[2].len(), 4, "Third part should be 4 hex digits");

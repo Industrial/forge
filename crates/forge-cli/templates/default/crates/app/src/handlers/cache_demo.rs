@@ -62,9 +62,15 @@ mod bdd_tests {
 
       // Then: should return a cached value (first request generates it)
       assert_eq!(res1.status(), StatusCode::OK);
-      let body1 = axum::body::to_bytes(res1.into_body(), usize::MAX).await.unwrap();
+      let body1 = axum::body::to_bytes(res1.into_body(), usize::MAX)
+        .await
+        .unwrap();
       let value1 = std::str::from_utf8(&body1).unwrap();
-      assert!(value1.starts_with("cached-"), "Should return cached value: {}", value1);
+      assert!(
+        value1.starts_with("cached-"),
+        "Should return cached value: {}",
+        value1
+      );
 
       // When: making second request to same endpoint
       let req2 = Request::builder()
@@ -75,9 +81,14 @@ mod bdd_tests {
 
       // Then: should return the same cached value (not generate new UUID)
       assert_eq!(res2.status(), StatusCode::OK);
-      let body2 = axum::body::to_bytes(res2.into_body(), usize::MAX).await.unwrap();
+      let body2 = axum::body::to_bytes(res2.into_body(), usize::MAX)
+        .await
+        .unwrap();
       let value2 = std::str::from_utf8(&body2).unwrap();
-      assert_eq!(value1, value2, "Should return same cached value on second request");
+      assert_eq!(
+        value1, value2,
+        "Should return same cached value on second request"
+      );
     }
 
     #[tokio::test]
@@ -103,13 +114,23 @@ mod bdd_tests {
 
       // Then: should generate and cache a new UUID-based value
       assert_eq!(res.status(), StatusCode::OK);
-      let body = axum::body::to_bytes(res.into_body(), usize::MAX).await.unwrap();
+      let body = axum::body::to_bytes(res.into_body(), usize::MAX)
+        .await
+        .unwrap();
       let value = std::str::from_utf8(&body).unwrap();
-      assert!(value.starts_with("cached-"), "Should generate cached value: {}", value);
+      assert!(
+        value.starts_with("cached-"),
+        "Should generate cached value: {}",
+        value
+      );
 
       // And: value should be stored in cache
       let cached_value = cache.get("demo").await;
-      assert_eq!(cached_value, Some(value.to_string()), "Value should be cached");
+      assert_eq!(
+        cached_value,
+        Some(value.to_string()),
+        "Value should be cached"
+      );
     }
   }
 
@@ -130,9 +151,14 @@ mod bdd_tests {
 
       // Then: should return "cache-disabled" message
       assert_eq!(res.status(), StatusCode::OK);
-      let body = axum::body::to_bytes(res.into_body(), usize::MAX).await.unwrap();
+      let body = axum::body::to_bytes(res.into_body(), usize::MAX)
+        .await
+        .unwrap();
       let value = std::str::from_utf8(&body).unwrap();
-      assert_eq!(value, "cache-disabled", "Should return cache-disabled when cache not available");
+      assert_eq!(
+        value, "cache-disabled",
+        "Should return cache-disabled when cache not available"
+      );
     }
 
     #[tokio::test]
@@ -150,9 +176,14 @@ mod bdd_tests {
 
       // Then: should return "cache-disabled" message
       assert_eq!(res.status(), StatusCode::OK);
-      let body = axum::body::to_bytes(res.into_body(), usize::MAX).await.unwrap();
+      let body = axum::body::to_bytes(res.into_body(), usize::MAX)
+        .await
+        .unwrap();
       let value = std::str::from_utf8(&body).unwrap();
-      assert_eq!(value, "cache-disabled", "Should return cache-disabled when cache is None");
+      assert_eq!(
+        value, "cache-disabled",
+        "Should return cache-disabled when cache is None"
+      );
     }
   }
 
@@ -181,7 +212,9 @@ mod bdd_tests {
           .body(Body::empty())
           .unwrap();
         let res = router.clone().oneshot(req).await.unwrap();
-        let body = axum::body::to_bytes(res.into_body(), usize::MAX).await.unwrap();
+        let body = axum::body::to_bytes(res.into_body(), usize::MAX)
+          .await
+          .unwrap();
         let value = std::str::from_utf8(&body).unwrap().to_string();
         values.push(value);
       }

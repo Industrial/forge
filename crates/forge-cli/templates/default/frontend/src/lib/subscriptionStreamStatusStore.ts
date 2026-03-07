@@ -20,8 +20,10 @@ export const SubscriptionStreamStatusStore = defineStore(
   initialSubscriptionStreamStatus,
 )
 
-export const SubscriptionStreamStatusStoreTag = SubscriptionStreamStatusStore.tag
-export const subscriptionStreamStatusStoreLayer = SubscriptionStreamStatusStore.layer
+export const SubscriptionStreamStatusStoreTag =
+  SubscriptionStreamStatusStore.tag
+export const subscriptionStreamStatusStoreLayer =
+  SubscriptionStreamStatusStore.layer
 
 export type SubscriptionStreamStatusStore =
   ReactiveStore<SubscriptionStreamStatus>

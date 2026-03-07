@@ -166,9 +166,10 @@ mod bdd_tests {
           .await
           .expect("login");
       // When: requesting GET /api/users without scope headers
-      let (status, body) = app::test_request(&client, "GET", "/api/users", Some(&token), None, None)
-        .await
-        .unwrap();
+      let (status, body) =
+        app::test_request(&client, "GET", "/api/users", Some(&token), None, None)
+          .await
+          .unwrap();
       // Then: should return 200 OK and include users with CoolOrg (seed data)
       assert_eq!(status, StatusCode::OK);
       let json: app::serde_json::Value = app::serde_json::from_slice(&body).unwrap();

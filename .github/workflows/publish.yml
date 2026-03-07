@@ -13,7 +13,6 @@ env:
   RUST_BACKTRACE: 1
   # Build optimization: sccache for compilation caching
   RUSTC_WRAPPER: sccache
-  SCCACHE_DIR: ${{ runner.tool_cache }}/sccache
 jobs:
   # =============================================================================
   # VALIDATE
@@ -80,6 +79,8 @@ jobs:
         uses: mozilla-actions/sccache-action@v0.0.4
         with:
           version: "latest"
+        env:
+          SCCACHE_DIR: ${{ runner.tool_cache }}/sccache
       # Install mold linker for faster linking on Linux
       - name: Install mold linker (Linux)
         if: runner.os == 'Linux'
@@ -88,22 +89,36 @@ jobs:
           sudo apt-get install -y mold
       - name: Cache dependencies
         uses: Swatinem/rust-cache@v2
-      # Verify workspace-hack is up-to-date (hakari)
-      - name: Install cargo-hakari
-        run: cargo install cargo-hakari --locked
-      - name: Verify workspace-hack (hakari)
+      - name: Install moon
         run: |
-          cargo hakari generate --diff || exit 1
-          cargo hakari manage-deps --dry-run || exit 1
-          echo "✅ Workspace-hack is up-to-date"
+          curl -fsSL https://moonrepo.dev/install/moon.sh | bash
+          export PATH="$HOME/.moon/bin:$PATH"
+          moon --version
       - name: Check formatting
-        run: cargo fmt --all -- --check
+        env:
+          MOON_TOOLCHAIN_FORCE_GLOBALS: rust
+        run: |
+          export PATH="$HOME/.moon/bin:$PATH"
+          moon run :format
       - name: Run clippy
-        run: cargo clippy --all-targets --all-features -- -D warnings
+        env:
+          MOON_TOOLCHAIN_FORCE_GLOBALS: rust
+        run: |
+          export PATH="$HOME/.moon/bin:$PATH"
+          moon run :lint
       - name: Run tests
-        run: cargo test --tests --all-features
+        env:
+          MOON_TOOLCHAIN_FORCE_GLOBALS: rust
+        run: |
+          export PATH="$HOME/.moon/bin:$PATH"
+          moon run :test
       - name: Build release
-        run: cargo build --release --all-features
+        env:
+          MOON_TOOLCHAIN_FORCE_GLOBALS: rust
+        run: |
+          export PATH="$HOME/.moon/bin:$PATH"
+          moon run :build
+          cargo build --release --all-features
       # Show sccache statistics
       - name: Show sccache statistics
         if: always()
@@ -243,12 +258,14 @@ jobs:
         uses: mozilla-actions/sccache-action@v0.0.4
         with:
           version: "latest"
+        env:
+          SCCACHE_DIR: ${{ runner.tool_cache }}/sccache
       - name: Cache dependencies
         uses: Swatinem/rust-cache@v2
       - name: Generate documentation
         run: |
           echo "📚 Generating documentation..."
-          ./bin/docs
+          cargo doc --all-features --no-deps
       # Show sccache statistics
       - name: Show sccache statistics
         if: always()

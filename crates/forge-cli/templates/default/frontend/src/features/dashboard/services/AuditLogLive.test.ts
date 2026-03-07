@@ -13,9 +13,7 @@ import type { AuditLogListParams } from './AuditLog'
 
 // Helper to create a mock HttpClient
 function createMockHttpClient(
-  handler: (
-    request: HttpClientRequest.HttpClientRequest,
-  ) => Effect.Effect<
+  handler: (request: HttpClientRequest.HttpClientRequest) => Effect.Effect<
     {
       status: number
       json: Effect.Effect<unknown>
@@ -33,17 +31,72 @@ function createMockHttpClient(
   return {
     execute: executeImpl,
     // Stub other methods (not used by AuditLogLive)
-    get: () => Effect.succeed({ status: 404, json: Effect.succeed({}), headers: new Headers() }),
-    post: () => Effect.succeed({ status: 404, json: Effect.succeed({}), headers: new Headers() }),
-    put: () => Effect.succeed({ status: 404, json: Effect.succeed({}), headers: new Headers() }),
-    patch: () => Effect.succeed({ status: 404, json: Effect.succeed({}), headers: new Headers() }),
-    delete: () => Effect.succeed({ status: 404, json: Effect.succeed({}), headers: new Headers() }),
-    head: () => Effect.succeed({ status: 404, json: Effect.succeed({}), headers: new Headers() }),
-    options: () => Effect.succeed({ status: 404, json: Effect.succeed({}), headers: new Headers() }),
-    request: () => Effect.succeed({ status: 404, json: Effect.succeed({}), headers: new Headers() }),
-    requestWith: () => Effect.succeed({ status: 404, json: Effect.succeed({}), headers: new Headers() }),
-    stream: () => Effect.succeed({ status: 404, json: Effect.succeed({}), headers: new Headers() }),
-    streamWith: () => Effect.succeed({ status: 404, json: Effect.succeed({}), headers: new Headers() }),
+    get: () =>
+      Effect.succeed({
+        status: 404,
+        json: Effect.succeed({}),
+        headers: new Headers(),
+      }),
+    post: () =>
+      Effect.succeed({
+        status: 404,
+        json: Effect.succeed({}),
+        headers: new Headers(),
+      }),
+    put: () =>
+      Effect.succeed({
+        status: 404,
+        json: Effect.succeed({}),
+        headers: new Headers(),
+      }),
+    patch: () =>
+      Effect.succeed({
+        status: 404,
+        json: Effect.succeed({}),
+        headers: new Headers(),
+      }),
+    delete: () =>
+      Effect.succeed({
+        status: 404,
+        json: Effect.succeed({}),
+        headers: new Headers(),
+      }),
+    head: () =>
+      Effect.succeed({
+        status: 404,
+        json: Effect.succeed({}),
+        headers: new Headers(),
+      }),
+    options: () =>
+      Effect.succeed({
+        status: 404,
+        json: Effect.succeed({}),
+        headers: new Headers(),
+      }),
+    request: () =>
+      Effect.succeed({
+        status: 404,
+        json: Effect.succeed({}),
+        headers: new Headers(),
+      }),
+    requestWith: () =>
+      Effect.succeed({
+        status: 404,
+        json: Effect.succeed({}),
+        headers: new Headers(),
+      }),
+    stream: () =>
+      Effect.succeed({
+        status: 404,
+        json: Effect.succeed({}),
+        headers: new Headers(),
+      }),
+    streamWith: () =>
+      Effect.succeed({
+        status: 404,
+        json: Effect.succeed({}),
+        headers: new Headers(),
+      }),
   } as HttpClient.HttpClient
 }
 

@@ -240,7 +240,9 @@ describe('effectSchemaResolver', () => {
       expect(typeof result.errors).toBe('object')
       // Error may be at email path or root depending on error structure
       expect(
-        result.errors.email || result.errors.root || Object.keys(result.errors).length > 0,
+        result.errors.email ||
+          result.errors.root ||
+          Object.keys(result.errors).length > 0,
       ).toBeTruthy()
     })
   })
@@ -360,7 +362,9 @@ describe('effectSchemaResolver', () => {
       expect(result.errors).toBeDefined()
       expect(typeof result.errors).toBe('object')
       // Error may be nested based on path extraction
-      expect(Object.keys(result.errors).length > 0 || result.errors.root).toBeTruthy()
+      expect(
+        Object.keys(result.errors).length > 0 || result.errors.root,
+      ).toBeTruthy()
     })
 
     it('should handle multi-level paths', () => {
@@ -433,7 +437,9 @@ describe('effectSchemaResolver', () => {
       expect(result.errors).toBeDefined()
       expect(typeof result.errors).toBe('object')
       // Error structure depends on Effect Schema's error path format
-      expect(Object.keys(result.errors).length > 0 || result.errors.root).toBeTruthy()
+      expect(
+        Object.keys(result.errors).length > 0 || result.errors.root,
+      ).toBeTruthy()
     })
 
     it('should work with FieldValues type constraint', () => {
@@ -640,11 +646,7 @@ describe('effectSchemaResolver', () => {
       const loginSchema = Schema.Struct({
         email: Schema.String,
         password: Schema.String,
-      }) as Schema.Schema<
-        { email: string; password: string },
-        unknown,
-        never
-      >
+      }) as Schema.Schema<{ email: string; password: string }, unknown, never>
       const resolver = effectSchemaResolver(loginSchema)
       const validValues = {
         email: 'user@example.com',
@@ -665,11 +667,7 @@ describe('effectSchemaResolver', () => {
       const registerSchema = Schema.Struct({
         email: Schema.String,
         password: Schema.String,
-      }) as Schema.Schema<
-        { email: string; password: string },
-        unknown,
-        never
-      >
+      }) as Schema.Schema<{ email: string; password: string }, unknown, never>
       const resolver = effectSchemaResolver(registerSchema)
       const validValues = {
         email: 'newuser@example.com',

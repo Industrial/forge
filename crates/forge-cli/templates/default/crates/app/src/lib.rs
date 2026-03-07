@@ -430,8 +430,14 @@ mod tests {
         // Given: SEED_PASSWORD constant
         // When: accessing SEED_PASSWORD
         // Then: should return default password string
-        assert_eq!(SEED_PASSWORD, "password", "SEED_PASSWORD should be 'password'");
-        assert!(!SEED_PASSWORD.is_empty(), "SEED_PASSWORD should not be empty");
+        assert_eq!(
+          SEED_PASSWORD, "password",
+          "SEED_PASSWORD should be 'password'"
+        );
+        assert!(
+          !SEED_PASSWORD.is_empty(),
+          "SEED_PASSWORD should not be empty"
+        );
       }
 
       #[test]
@@ -508,7 +514,10 @@ mod tests {
         // Then: guard should store original working directory
         // TestEnvGuard contains original_cwd: PathBuf
         let original_cwd = std::env::current_dir().unwrap();
-        assert!(!original_cwd.as_os_str().is_empty(), "Original CWD should be non-empty");
+        assert!(
+          !original_cwd.as_os_str().is_empty(),
+          "Original CWD should be non-empty"
+        );
       }
 
       #[test]

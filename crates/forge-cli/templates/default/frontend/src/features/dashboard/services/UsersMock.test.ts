@@ -41,7 +41,9 @@ describe('UsersMock', () => {
         return yield* users.list()
       })
 
-      const result = await Effect.runPromise(program.pipe(Effect.provide(layer)))
+      const result = await Effect.runPromise(
+        program.pipe(Effect.provide(layer)),
+      )
       expect(result).toEqual([])
     })
 
@@ -76,7 +78,9 @@ describe('UsersMock', () => {
         return yield* users.list()
       })
 
-      const result = await Effect.runPromise(program.pipe(Effect.provide(layer)))
+      const result = await Effect.runPromise(
+        program.pipe(Effect.provide(layer)),
+      )
       expect(result).toHaveLength(2)
       expect(result[0]).toEqual(initialUsers[0])
       expect(result[1]).toEqual(initialUsers[1])
@@ -113,7 +117,9 @@ describe('UsersMock', () => {
         return yield* users.list()
       })
 
-      const result = await Effect.runPromise(program.pipe(Effect.provide(layer)))
+      const result = await Effect.runPromise(
+        program.pipe(Effect.provide(layer)),
+      )
       expect(result).toHaveLength(2)
       expect(result[0]).toBeInstanceOf(User)
       expect(result[1]).toBeInstanceOf(User)
@@ -140,7 +146,9 @@ describe('UsersMock', () => {
       })
 
       // Then it should return empty array
-      const result = await Effect.runPromise(program.pipe(Effect.provide(layer)))
+      const result = await Effect.runPromise(
+        program.pipe(Effect.provide(layer)),
+      )
       expect(result).toEqual([])
     })
 
@@ -238,7 +246,9 @@ describe('UsersMock', () => {
       })
 
       // Then it should add the user to the list
-      const result = await Effect.runPromise(program.pipe(Effect.provide(layer)))
+      const result = await Effect.runPromise(
+        program.pipe(Effect.provide(layer)),
+      )
       expect(result).toHaveLength(1)
       expect(result[0].email).toBe('newuser@example.com')
       expect(result[0].is_active).toBe(true)
@@ -269,7 +279,9 @@ describe('UsersMock', () => {
       })
 
       // Then each user should have a unique id
-      const result = await Effect.runPromise(program.pipe(Effect.provide(layer)))
+      const result = await Effect.runPromise(
+        program.pipe(Effect.provide(layer)),
+      )
       expect(result).toHaveLength(2)
       expect(result[0].id).not.toBe(result[1].id)
     })
@@ -289,7 +301,9 @@ describe('UsersMock', () => {
       })
 
       // Then the user should have is_active set to true
-      const result = await Effect.runPromise(program.pipe(Effect.provide(layer)))
+      const result = await Effect.runPromise(
+        program.pipe(Effect.provide(layer)),
+      )
       expect(result[0].is_active).toBe(true)
     })
 
@@ -308,7 +322,9 @@ describe('UsersMock', () => {
       })
 
       // Then the user should have is_admin set to false
-      const result = await Effect.runPromise(program.pipe(Effect.provide(layer)))
+      const result = await Effect.runPromise(
+        program.pipe(Effect.provide(layer)),
+      )
       expect(result[0].is_admin).toBe(false)
     })
 
@@ -327,7 +343,9 @@ describe('UsersMock', () => {
       })
 
       // Then the user should have empty memberships
-      const result = await Effect.runPromise(program.pipe(Effect.provide(layer)))
+      const result = await Effect.runPromise(
+        program.pipe(Effect.provide(layer)),
+      )
       expect(result[0].memberships).toEqual([])
     })
 
@@ -346,7 +364,9 @@ describe('UsersMock', () => {
       })
 
       // Then the user should have created_at timestamp
-      const result = await Effect.runPromise(program.pipe(Effect.provide(layer)))
+      const result = await Effect.runPromise(
+        program.pipe(Effect.provide(layer)),
+      )
       expect(result[0].created_at).toBeDefined()
       expect(typeof result[0].created_at).toBe('string')
       expect(new Date(result[0].created_at).getTime()).toBeGreaterThan(0)
@@ -385,7 +405,9 @@ describe('UsersMock', () => {
       })
 
       // Then the user email should be updated
-      const result = await Effect.runPromise(program.pipe(Effect.provide(layer)))
+      const result = await Effect.runPromise(
+        program.pipe(Effect.provide(layer)),
+      )
       expect(result[0].email).toBe('updated@example.com')
     })
 
@@ -402,7 +424,9 @@ describe('UsersMock', () => {
       })
 
       // Then the user is_active should be updated
-      const result = await Effect.runPromise(program.pipe(Effect.provide(layer)))
+      const result = await Effect.runPromise(
+        program.pipe(Effect.provide(layer)),
+      )
       expect(result[0].is_active).toBe(false)
     })
 
@@ -420,7 +444,9 @@ describe('UsersMock', () => {
       })
 
       // Then both fields should be updated
-      const result = await Effect.runPromise(program.pipe(Effect.provide(layer)))
+      const result = await Effect.runPromise(
+        program.pipe(Effect.provide(layer)),
+      )
       expect(result[0].email).toBe('updated@example.com')
       expect(result[0].is_active).toBe(false)
     })
@@ -438,7 +464,9 @@ describe('UsersMock', () => {
       })
 
       // Then the email should be preserved
-      const result = await Effect.runPromise(program.pipe(Effect.provide(layer)))
+      const result = await Effect.runPromise(
+        program.pipe(Effect.provide(layer)),
+      )
       expect(result[0].email).toBe('user1@example.com')
     })
 
@@ -455,7 +483,9 @@ describe('UsersMock', () => {
       })
 
       // Then the is_active should be preserved
-      const result = await Effect.runPromise(program.pipe(Effect.provide(layer)))
+      const result = await Effect.runPromise(
+        program.pipe(Effect.provide(layer)),
+      )
       expect(result[0].is_active).toBe(true)
     })
 
@@ -472,7 +502,9 @@ describe('UsersMock', () => {
       })
 
       // Then is_admin should be preserved
-      const result = await Effect.runPromise(program.pipe(Effect.provide(layer)))
+      const result = await Effect.runPromise(
+        program.pipe(Effect.provide(layer)),
+      )
       expect(result[0].is_admin).toBe(false)
     })
 
@@ -489,7 +521,9 @@ describe('UsersMock', () => {
       })
 
       // Then created_at should be preserved
-      const result = await Effect.runPromise(program.pipe(Effect.provide(layer)))
+      const result = await Effect.runPromise(
+        program.pipe(Effect.provide(layer)),
+      )
       expect(result[0].created_at).toBe('2024-01-01T00:00:00Z')
     })
 
@@ -587,7 +621,9 @@ describe('UsersMock', () => {
       })
 
       // Then the user should be removed
-      const result = await Effect.runPromise(program.pipe(Effect.provide(layer)))
+      const result = await Effect.runPromise(
+        program.pipe(Effect.provide(layer)),
+      )
       expect(result).toHaveLength(1)
       expect(result[0].id).toBe('user-2')
     })
@@ -602,7 +638,9 @@ describe('UsersMock', () => {
       })
 
       // Then only that user should be removed
-      const result = await Effect.runPromise(program.pipe(Effect.provide(layer)))
+      const result = await Effect.runPromise(
+        program.pipe(Effect.provide(layer)),
+      )
       expect(result).toHaveLength(1)
       expect(result[0].id).toBe('user-1')
     })
@@ -633,7 +671,9 @@ describe('UsersMock', () => {
       })
 
       // Then the user should be removed from the list
-      const result = await Effect.runPromise(program.pipe(Effect.provide(layer)))
+      const result = await Effect.runPromise(
+        program.pipe(Effect.provide(layer)),
+      )
       expect(result.before).toHaveLength(2)
       expect(result.after).toHaveLength(1)
       expect(result.after[0].id).toBe('user-2')
@@ -652,7 +692,9 @@ describe('UsersMock', () => {
         return yield* users.list()
       })
 
-      const result = await Effect.runPromise(program.pipe(Effect.provide(layer)))
+      const result = await Effect.runPromise(
+        program.pipe(Effect.provide(layer)),
+      )
       expect(result).toEqual([])
     })
 
@@ -678,7 +720,9 @@ describe('UsersMock', () => {
         return yield* users.list()
       })
 
-      const result = await Effect.runPromise(program.pipe(Effect.provide(layer)))
+      const result = await Effect.runPromise(
+        program.pipe(Effect.provide(layer)),
+      )
       expect(result).toHaveLength(1)
       expect(result[0].email).toBe('user1@example.com')
     })
@@ -694,7 +738,9 @@ describe('UsersMock', () => {
         return yield* users.list()
       })
 
-      const result = await Effect.runPromise(program.pipe(Effect.provide(layer)))
+      const result = await Effect.runPromise(
+        program.pipe(Effect.provide(layer)),
+      )
       expect(result).toEqual([])
     })
   })
@@ -745,7 +791,9 @@ describe('UsersMock', () => {
       })
 
       // Then all operations should work correctly
-      const result = await Effect.runPromise(program.pipe(Effect.provide(layer)))
+      const result = await Effect.runPromise(
+        program.pipe(Effect.provide(layer)),
+      )
       expect(result.listAfterCreate).toHaveLength(1)
       expect(result.listAfterCreate[0].email).toBe('newuser@example.com')
       expect(result.listAfterUpdate).toHaveLength(1)
@@ -791,7 +839,9 @@ describe('UsersMock', () => {
       })
 
       // Then operations should affect only the intended users
-      const result = await Effect.runPromise(program.pipe(Effect.provide(layer)))
+      const result = await Effect.runPromise(
+        program.pipe(Effect.provide(layer)),
+      )
       expect(result).toHaveLength(1)
       expect(result[0].email).toBe('updated1@example.com')
     })

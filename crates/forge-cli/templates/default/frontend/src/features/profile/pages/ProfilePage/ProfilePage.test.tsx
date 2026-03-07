@@ -19,7 +19,10 @@ import { getApplicationLayer } from '@/lib/appLayer'
 
 // Set up DOM environment for tests
 beforeAll(() => {
-  if (typeof globalThis.window === 'undefined' || typeof globalThis.document === 'undefined') {
+  if (
+    typeof globalThis.window === 'undefined' ||
+    typeof globalThis.document === 'undefined'
+  ) {
     const window = new Window()
     const document = window.document
     const global = globalThis as any

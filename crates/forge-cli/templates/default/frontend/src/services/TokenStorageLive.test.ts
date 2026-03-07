@@ -58,7 +58,9 @@ describe('TokenStorageLive', () => {
       })
 
       // Then: effect completes successfully
-      await expect(Effect.runPromise(program.pipe(Effect.provide(TokenStorageLive)))).resolves.toBeUndefined()
+      await expect(
+        Effect.runPromise(program.pipe(Effect.provide(TokenStorageLive))),
+      ).resolves.toBeUndefined()
     })
 
     test('clearToken should not throw', async () => {
@@ -69,7 +71,9 @@ describe('TokenStorageLive', () => {
         yield* storage.clearToken()
       })
 
-      await expect(Effect.runPromise(program.pipe(Effect.provide(TokenStorageLive)))).resolves.toBeUndefined()
+      await expect(
+        Effect.runPromise(program.pipe(Effect.provide(TokenStorageLive))),
+      ).resolves.toBeUndefined()
     })
 
     test('getScope should return Option.none()', async () => {
@@ -95,7 +99,9 @@ describe('TokenStorageLive', () => {
         yield* storage.setScope('org-1', 'role-1')
       })
 
-      await expect(Effect.runPromise(program.pipe(Effect.provide(TokenStorageLive)))).resolves.toBeUndefined()
+      await expect(
+        Effect.runPromise(program.pipe(Effect.provide(TokenStorageLive))),
+      ).resolves.toBeUndefined()
     })
 
     test('clearScope should not throw', async () => {
@@ -106,7 +112,9 @@ describe('TokenStorageLive', () => {
         yield* storage.clearScope()
       })
 
-      await expect(Effect.runPromise(program.pipe(Effect.provide(TokenStorageLive)))).resolves.toBeUndefined()
+      await expect(
+        Effect.runPromise(program.pipe(Effect.provide(TokenStorageLive))),
+      ).resolves.toBeUndefined()
     })
   })
 
@@ -114,7 +122,9 @@ describe('TokenStorageLive', () => {
     test('setToken then getToken should return the stored token', async () => {
       // Given: fake localStorage and TokenStorageLive
       const fakeStorage = makeFakeStorage()
-      const g = globalThis as typeof globalThis & { window?: { localStorage: Storage } }
+      const g = globalThis as typeof globalThis & {
+        window?: { localStorage: Storage }
+      }
       const origWindow = g.window
       g.window = { localStorage: fakeStorage }
 
@@ -141,7 +151,9 @@ describe('TokenStorageLive', () => {
     test('clearToken should remove stored token', async () => {
       const fakeStorage = makeFakeStorage()
       fakeStorage.setItem('token', 'old-token')
-      const g = globalThis as typeof globalThis & { window?: { localStorage: Storage } }
+      const g = globalThis as typeof globalThis & {
+        window?: { localStorage: Storage }
+      }
       const origWindow = g.window
       g.window = { localStorage: fakeStorage }
 
@@ -164,7 +176,9 @@ describe('TokenStorageLive', () => {
 
     test('setScope then getScope should return the stored scope', async () => {
       const fakeStorage = makeFakeStorage()
-      const g = globalThis as typeof globalThis & { window?: { localStorage: Storage } }
+      const g = globalThis as typeof globalThis & {
+        window?: { localStorage: Storage }
+      }
       const origWindow = g.window
       g.window = { localStorage: fakeStorage }
 
@@ -192,7 +206,9 @@ describe('TokenStorageLive', () => {
       const fakeStorage = makeFakeStorage()
       fakeStorage.setItem('currentOrgId', 'org-1')
       fakeStorage.setItem('currentRoleId', 'role-1')
-      const g = globalThis as typeof globalThis & { window?: { localStorage: Storage } }
+      const g = globalThis as typeof globalThis & {
+        window?: { localStorage: Storage }
+      }
       const origWindow = g.window
       g.window = { localStorage: fakeStorage }
 
@@ -216,7 +232,9 @@ describe('TokenStorageLive', () => {
     test('empty token string should yield getToken none', async () => {
       const fakeStorage = makeFakeStorage()
       fakeStorage.setItem('token', '')
-      const g = globalThis as typeof globalThis & { window?: { localStorage: Storage } }
+      const g = globalThis as typeof globalThis & {
+        window?: { localStorage: Storage }
+      }
       const origWindow = g.window
       g.window = { localStorage: fakeStorage }
 

@@ -5,10 +5,7 @@
 import { describe, test, expect } from 'bun:test'
 import { Effect } from 'effect'
 
-import {
-  Roles,
-  type RolesService,
-} from './Roles'
+import { Roles, type RolesService } from './Roles'
 import { Role } from '../domain/Role'
 import { DashboardRole } from '../domain/DashboardRole'
 import { createRolesMock, RolesMockLayer } from './RolesMock'
@@ -89,7 +86,7 @@ describe('Roles service', () => {
       }
 
       const result = await Effect.runPromise(
-        service.create({ org_id: 'org-1', name: 'test-role' })
+        service.create({ org_id: 'org-1', name: 'test-role' }),
       )
       expect(result).toBeUndefined()
     })
@@ -107,7 +104,7 @@ describe('Roles service', () => {
       }
 
       const result = await Effect.runPromise(
-        service.update({ id: 'role-1', name: 'updated-name' })
+        service.update({ id: 'role-1', name: 'updated-name' }),
       )
       expect(result).toBeUndefined()
     })
@@ -153,7 +150,7 @@ describe('Roles service', () => {
       })
 
       const result = await Effect.runPromise(
-        program.pipe(Effect.provide(RolesMockLayer(roles)))
+        program.pipe(Effect.provide(RolesMockLayer(roles))),
       )
 
       expect(result.length).toBe(2)
@@ -169,7 +166,7 @@ describe('Roles service', () => {
       })
 
       const result = await Effect.runPromise(
-        program.pipe(Effect.provide(RolesMockLayer([])))
+        program.pipe(Effect.provide(RolesMockLayer([]))),
       )
 
       expect(result.length).toBe(0)
@@ -192,7 +189,7 @@ describe('Roles service', () => {
       })
 
       const result = await Effect.runPromise(
-        program.pipe(Effect.provide(RolesMockLayer(roles)))
+        program.pipe(Effect.provide(RolesMockLayer(roles))),
       )
 
       expect(Array.isArray(result)).toBe(true)
@@ -230,7 +227,7 @@ describe('Roles service', () => {
       })
 
       const result = await Effect.runPromise(
-        program.pipe(Effect.provide(RolesMockLayer(roles)))
+        program.pipe(Effect.provide(RolesMockLayer(roles))),
       )
 
       expect(result.length).toBe(2)
@@ -256,7 +253,7 @@ describe('Roles service', () => {
       })
 
       const result = await Effect.runPromise(
-        program.pipe(Effect.provide(RolesMockLayer(roles)))
+        program.pipe(Effect.provide(RolesMockLayer(roles))),
       )
 
       expect(result.length).toBe(0)
@@ -279,7 +276,7 @@ describe('Roles service', () => {
       })
 
       const result = await Effect.runPromise(
-        program.pipe(Effect.provide(RolesMockLayer(roles)))
+        program.pipe(Effect.provide(RolesMockLayer(roles))),
       )
 
       expect(result[0]).toBeInstanceOf(DashboardRole)
@@ -305,7 +302,7 @@ describe('Roles service', () => {
       })
 
       const result = await Effect.runPromise(
-        program.pipe(Effect.provide(RolesMockLayer([])))
+        program.pipe(Effect.provide(RolesMockLayer([]))),
       )
 
       expect(result.length).toBe(1)
@@ -326,7 +323,7 @@ describe('Roles service', () => {
       })
 
       const result = await Effect.runPromise(
-        program.pipe(Effect.provide(RolesMockLayer([])))
+        program.pipe(Effect.provide(RolesMockLayer([]))),
       )
 
       expect(result.length).toBe(1)
@@ -350,7 +347,7 @@ describe('Roles service', () => {
       })
 
       const result = await Effect.runPromise(
-        program.pipe(Effect.provide(RolesMockLayer([])))
+        program.pipe(Effect.provide(RolesMockLayer([]))),
       )
 
       expect(result.length).toBe(2)
@@ -380,7 +377,7 @@ describe('Roles service', () => {
       })
 
       const result = await Effect.runPromise(
-        program.pipe(Effect.provide(RolesMockLayer(roles)))
+        program.pipe(Effect.provide(RolesMockLayer(roles))),
       )
 
       expect(result[0].name).toBe('new-name')
@@ -408,7 +405,7 @@ describe('Roles service', () => {
       })
 
       const result = await Effect.runPromise(
-        program.pipe(Effect.provide(RolesMockLayer(roles)))
+        program.pipe(Effect.provide(RolesMockLayer(roles))),
       )
 
       expect(result[0].name).toBe('admin') // Unchanged
@@ -437,7 +434,7 @@ describe('Roles service', () => {
       })
 
       const result = await Effect.runPromise(
-        program.pipe(Effect.provide(RolesMockLayer(roles)))
+        program.pipe(Effect.provide(RolesMockLayer(roles))),
       )
 
       expect(result[0].name).toBe('new-name')
@@ -455,7 +452,7 @@ describe('Roles service', () => {
       })
 
       await expect(
-        Effect.runPromise(program.pipe(Effect.provide(RolesMockLayer([]))))
+        Effect.runPromise(program.pipe(Effect.provide(RolesMockLayer([])))),
       ).rejects.toThrow('Role not found.')
     })
 
@@ -480,7 +477,7 @@ describe('Roles service', () => {
       })
 
       const result = await Effect.runPromise(
-        program.pipe(Effect.provide(RolesMockLayer(roles)))
+        program.pipe(Effect.provide(RolesMockLayer(roles))),
       )
 
       expect(result[0].org_id).toBe('org-1') // Preserved
@@ -513,7 +510,7 @@ describe('Roles service', () => {
       })
 
       const result = await Effect.runPromise(
-        program.pipe(Effect.provide(RolesMockLayer(roles)))
+        program.pipe(Effect.provide(RolesMockLayer(roles))),
       )
 
       expect(result.length).toBe(1)
@@ -537,7 +534,7 @@ describe('Roles service', () => {
       })
 
       await expect(
-        Effect.runPromise(program.pipe(Effect.provide(RolesMockLayer(roles))))
+        Effect.runPromise(program.pipe(Effect.provide(RolesMockLayer(roles)))),
       ).rejects.toThrow('Role not found.')
     })
 
@@ -573,7 +570,7 @@ describe('Roles service', () => {
       })
 
       const result = await Effect.runPromise(
-        program.pipe(Effect.provide(RolesMockLayer(roles)))
+        program.pipe(Effect.provide(RolesMockLayer(roles))),
       )
 
       expect(result.length).toBe(0)
@@ -593,7 +590,7 @@ describe('Roles service', () => {
       })
 
       const service = await Effect.runPromise(
-        program.pipe(Effect.provide(RolesMockLayer([])))
+        program.pipe(Effect.provide(RolesMockLayer([]))),
       )
 
       expect(service).toBeDefined()
@@ -611,7 +608,7 @@ describe('Roles service', () => {
       })
 
       const { service1, service2 } = await Effect.runPromise(
-        program.pipe(Effect.provide(RolesMockLayer([])))
+        program.pipe(Effect.provide(RolesMockLayer([]))),
       )
 
       // Layer.succeed returns the same instance
@@ -660,7 +657,7 @@ describe('Roles service', () => {
       })
 
       const result = await Effect.runPromise(
-        program.pipe(Effect.provide(RolesMockLayer([])))
+        program.pipe(Effect.provide(RolesMockLayer([]))),
       )
 
       expect(result.success).toBe(true)
@@ -697,7 +694,7 @@ describe('Roles service', () => {
       })
 
       const { org1Roles, org2Roles } = await Effect.runPromise(
-        program.pipe(Effect.provide(RolesMockLayer(roles)))
+        program.pipe(Effect.provide(RolesMockLayer(roles))),
       )
 
       expect(org1Roles.length).toBe(2)

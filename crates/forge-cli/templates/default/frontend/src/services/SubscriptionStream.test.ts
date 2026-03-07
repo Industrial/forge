@@ -5,7 +5,10 @@
 import { describe, test, expect } from 'bun:test'
 import { Chunk, Effect, Stream } from 'effect'
 import { SubscriptionStreamMock } from './SubscriptionStreamMock'
-import { SubscriptionStream, type SubscriptionStreamEvent } from './SubscriptionStream'
+import {
+  SubscriptionStream,
+  type SubscriptionStreamEvent,
+} from './SubscriptionStream'
 
 describe('SubscriptionStream service', () => {
   describe('openStream behavior', () => {
@@ -87,16 +90,16 @@ describe('SubscriptionStream service', () => {
       const program = Effect.gen(function* () {
         const service = yield* SubscriptionStream
         const stream = yield* service.openStream()
-        
+
         // Consume stream first time
         const chunk1 = yield* Stream.runCollect(stream)
         const events1 = Chunk.toReadonlyArray(chunk1)
-        
+
         // Open new stream for second consumption
         const stream2 = yield* service.openStream()
         const chunk2 = yield* Stream.runCollect(stream2)
         const events2 = Chunk.toReadonlyArray(chunk2)
-        
+
         return { events1, events2 }
       })
 
@@ -333,8 +336,8 @@ describe('SubscriptionStream service', () => {
       const event = events[0] as SubscriptionStreamEvent
       // Event should be either { type: 'ready' } or { subscription_id: string }
       expect(
-        (event.type === 'ready') ||
-        (typeof (event as any).subscription_id === 'string')
+        event.type === 'ready' ||
+          typeof (event as any).subscription_id === 'string',
       ).toBe(true)
     })
   })

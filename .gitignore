@@ -38,3 +38,7 @@ outcome.json
 target/
 yarn-debug.log*
 yarn-error.log*
+
+# moon
+.moon/cache
+.moon/docker

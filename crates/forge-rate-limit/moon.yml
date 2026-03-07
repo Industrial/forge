@@ -1,0 +1,66 @@
+language: rust
+type: library
+tasks:
+  build:
+    command: cargo
+    args:
+    - build
+    - -p
+    - forge-rate-limit
+    options:
+      runFromWorkspaceRoot: true
+    inputs:
+    - Cargo.toml
+    - Cargo.lock
+    - '**/*.rs'
+    deps:
+    - forge-rate-limit:lint
+  check:
+    command: cargo
+    args:
+    - check
+    - -p
+    - forge-rate-limit
+    - --all-features
+    options:
+      runFromWorkspaceRoot: true
+    inputs:
+    - Cargo.toml
+    - Cargo.lock
+    - '**/*.rs'
+  test:
+    command: cargo
+    args:
+    - nextest
+    - run
+    - -p
+    - forge-rate-limit
+    - --all-features
+    options:
+      runFromWorkspaceRoot: true
+    inputs:
+    - Cargo.toml
+    - Cargo.lock
+    - '**/*.rs'
+    - '**/*.toml'
+    deps:
+    - forge-rate-limit:build
+  lint:
+    command: cargo
+    args:
+    - clippy
+    - -p
+    - forge-rate-limit
+    - --all-targets
+    - --all-features
+    - --
+    - -D
+    - warnings
+    options:
+      runFromWorkspaceRoot: true
+    inputs:
+    - Cargo.toml
+    - Cargo.lock
+    - '**/*.rs'
+    deps:
+    - forge-rate-limit:check

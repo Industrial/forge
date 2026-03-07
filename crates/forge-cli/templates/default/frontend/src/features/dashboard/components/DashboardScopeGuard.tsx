@@ -16,9 +16,7 @@ export type DashboardScopeGuardProps = {
  * auto-selects the single scope so single-org users do not see the selection screen (§7.5).
  * Use inside ProtectedRoute so it only runs for authenticated users.
  */
-function DashboardScopeGuard({
-  children,
-}: DashboardScopeGuardProps) {
+function DashboardScopeGuard({ children }: DashboardScopeGuardProps) {
   const authentication = useAuthStore()
   const isUserAuthenticated = Option.isSome(authentication.user)
   const needsScopeSelect = Option.getOrElse(

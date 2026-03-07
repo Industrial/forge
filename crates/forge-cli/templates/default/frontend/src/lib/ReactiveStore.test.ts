@@ -4,11 +4,7 @@
  */
 import { describe, test, expect } from 'bun:test'
 import { Effect, Layer, Stream, Chunk, Fiber } from 'effect'
-import {
-  defineStore,
-  makeReactiveStore,
-  ReactiveStore,
-} from './ReactiveStore'
+import { defineStore, makeReactiveStore, ReactiveStore } from './ReactiveStore'
 
 describe('ReactiveStore', () => {
   describe('defineStore behavior', () => {
@@ -348,9 +344,7 @@ describe('ReactiveStore', () => {
       const result = await Effect.runPromise(
         program.pipe(Effect.provide(layer)).pipe(
           Effect.timeout('500 millis'),
-          Effect.catchAll(() =>
-            Effect.succeed({ values1: [], values2: [] }),
-          ),
+          Effect.catchAll(() => Effect.succeed({ values1: [], values2: [] })),
         ),
       )
 

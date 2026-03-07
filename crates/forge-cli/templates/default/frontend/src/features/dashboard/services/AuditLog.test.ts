@@ -519,7 +519,9 @@ describe('AuditLog service', () => {
         list: () => Effect.succeed({ entries: [], total: 0 }),
       }
 
-      const result = await Effect.runPromise(service.list({ limit: 10, offset: 0 }))
+      const result = await Effect.runPromise(
+        service.list({ limit: 10, offset: 0 }),
+      )
       expect(result).toHaveProperty('entries')
       expect(result).toHaveProperty('total')
       expect(Array.isArray(result.entries)).toBe(true)
@@ -540,7 +542,7 @@ describe('AuditLog service', () => {
       })
 
       const service = await Effect.runPromise(
-        program.pipe(Effect.provide(AuditLogMockLayer([])))
+        program.pipe(Effect.provide(AuditLogMockLayer([]))),
       )
 
       expect(service).toBeDefined()
@@ -558,7 +560,7 @@ describe('AuditLog service', () => {
       })
 
       const { service1, service2 } = await Effect.runPromise(
-        program.pipe(Effect.provide(AuditLogMockLayer([])))
+        program.pipe(Effect.provide(AuditLogMockLayer([]))),
       )
 
       // Layer.succeed returns the same instance

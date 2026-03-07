@@ -19,16 +19,9 @@ mod bdd_tests {
       let client = app::test_client().await.expect("test_client");
 
       // When: requesting GET /api/permissions without authentication
-      let (status, body) = app::test_request(
-        &client,
-        "GET",
-        PERMISSIONS_PATH,
-        None,
-        None,
-        None,
-      )
-      .await
-      .unwrap();
+      let (status, body) = app::test_request(&client, "GET", PERMISSIONS_PATH, None, None, None)
+        .await
+        .unwrap();
 
       // Then: should return 200 OK with permissions array
       assert_eq!(status, StatusCode::OK);
@@ -46,16 +39,10 @@ mod bdd_tests {
           .expect("login");
 
       // When: requesting GET /api/permissions with authentication
-      let (status, body) = app::test_request(
-        &client,
-        "GET",
-        PERMISSIONS_PATH,
-        Some(&token),
-        None,
-        None,
-      )
-      .await
-      .unwrap();
+      let (status, body) =
+        app::test_request(&client, "GET", PERMISSIONS_PATH, Some(&token), None, None)
+          .await
+          .unwrap();
 
       // Then: should return 200 OK with permissions array
       assert_eq!(status, StatusCode::OK);

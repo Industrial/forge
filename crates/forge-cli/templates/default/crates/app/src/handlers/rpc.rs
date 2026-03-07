@@ -512,7 +512,10 @@ mod bdd_tests {
       let request: Result<RpcRequest, _> = serde_json::from_str(json);
 
       // Then: should deserialize successfully
-      assert!(request.is_ok(), "Should deserialize RPC request with all fields");
+      assert!(
+        request.is_ok(),
+        "Should deserialize RPC request with all fields"
+      );
       let req = request.unwrap();
       assert_eq!(req.method, "entity.get");
       assert_eq!(req.entity_id, "user");
@@ -532,7 +535,10 @@ mod bdd_tests {
       let request: Result<RpcRequest, _> = serde_json::from_str(json);
 
       // Then: should deserialize successfully with None params
-      assert!(request.is_ok(), "Should deserialize RPC request without params");
+      assert!(
+        request.is_ok(),
+        "Should deserialize RPC request without params"
+      );
       let req = request.unwrap();
       assert_eq!(req.method, "entity.list");
       assert_eq!(req.entity_id, "user");
@@ -552,7 +558,10 @@ mod bdd_tests {
       let request: Result<RpcRequest, _> = serde_json::from_str(json);
 
       // Then: should deserialize successfully with None id
-      assert!(request.is_ok(), "Should deserialize RPC request without correlation id");
+      assert!(
+        request.is_ok(),
+        "Should deserialize RPC request without correlation id"
+      );
       let req = request.unwrap();
       assert!(req.id.is_none());
     }
@@ -572,7 +581,10 @@ mod bdd_tests {
       let params: Result<RpcParams, _> = serde_json::from_str(json);
 
       // Then: should deserialize successfully
-      assert!(params.is_ok(), "Should deserialize RPC params with list fields");
+      assert!(
+        params.is_ok(),
+        "Should deserialize RPC params with list fields"
+      );
       let p = params.unwrap();
       assert_eq!(p.filter, Some("name eq 'test'".to_string()));
       assert_eq!(p.sort, Some("created_at".to_string()));
@@ -596,7 +608,11 @@ mod bdd_tests {
       let response = rpc_error(status, message, correlation_id);
 
       // Then: response should have error structure
-      assert_eq!(response.status(), status, "Error response should have correct status");
+      assert_eq!(
+        response.status(),
+        status,
+        "Error response should have correct status"
+      );
     }
 
     #[test]
@@ -610,7 +626,11 @@ mod bdd_tests {
       let response = rpc_error(status, message, correlation_id);
 
       // Then: response should include correlation id
-      assert_eq!(response.status(), status, "Error response should have correct status");
+      assert_eq!(
+        response.status(),
+        status,
+        "Error response should have correct status"
+      );
     }
 
     #[test]
@@ -828,7 +848,10 @@ mod bdd_tests {
       let sub_id = params.subscription_id.as_deref().unwrap_or("");
 
       // Then: should be empty string
-      assert_eq!(sub_id, "", "Should return empty string when subscription_id is missing");
+      assert_eq!(
+        sub_id, "",
+        "Should return empty string when subscription_id is missing"
+      );
     }
   }
 

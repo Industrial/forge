@@ -159,7 +159,14 @@ describe('AuthenticationStateSnapshot', () => {
           email: 'test@example.com',
           token: 'token-123',
         }),
-        scopes: [new Scope({ org_id: 'org-1', org_name: 'Org 1', role_id: 'role-1', role: 'admin' })],
+        scopes: [
+          new Scope({
+            org_id: 'org-1',
+            org_name: 'Org 1',
+            role_id: 'role-1',
+            role: 'admin',
+          }),
+        ],
         permissions: [],
         flash: null,
         token: 'token-123',
@@ -343,8 +350,18 @@ describe('AuthenticationStateSnapshot', () => {
     test('should contain list of available scopes', () => {
       // Given: available scopes
       const scopes = [
-        new Scope({ org_id: 'org-1', org_name: 'Org 1', role_id: 'role-1', role: 'admin' }),
-        new Scope({ org_id: 'org-2', org_name: 'Org 2', role_id: 'role-2', role: 'viewer' }),
+        new Scope({
+          org_id: 'org-1',
+          org_name: 'Org 1',
+          role_id: 'role-1',
+          role: 'admin',
+        }),
+        new Scope({
+          org_id: 'org-2',
+          org_name: 'Org 2',
+          role_id: 'role-2',
+          role: 'viewer',
+        }),
       ]
 
       // When: creating a snapshot with scopes
@@ -394,7 +411,14 @@ describe('AuthenticationStateSnapshot', () => {
       // Given: a snapshot with scopes
       const snapshot = new AuthenticationStateSnapshot({
         user: null,
-        scopes: [new Scope({ org_id: 'org-1', org_name: 'Org 1', role_id: 'role-1', role: 'admin' })],
+        scopes: [
+          new Scope({
+            org_id: 'org-1',
+            org_name: 'Org 1',
+            role_id: 'role-1',
+            role: 'admin',
+          }),
+        ],
         permissions: [],
         flash: null,
         token: null,

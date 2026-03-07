@@ -139,7 +139,9 @@ describe('main.tsx initialization', () => {
         return { success: true }
       })
       // Then: effect should run successfully
-      const result = await Effect.runPromise(program.pipe(Effect.provide(layer)))
+      const result = await Effect.runPromise(
+        program.pipe(Effect.provide(layer)),
+      )
       expect(result.success).toBe(true)
     })
 
@@ -153,7 +155,9 @@ describe('main.tsx initialization', () => {
         return { success: true }
       })
       // Then: service should be accessible
-      const result = await Effect.runPromise(program.pipe(Effect.provide(layer)))
+      const result = await Effect.runPromise(
+        program.pipe(Effect.provide(layer)),
+      )
       expect(result.success).toBe(true)
     })
 
@@ -168,7 +172,9 @@ describe('main.tsx initialization', () => {
         return { success: true }
       })
       // Then: restoreSession should be callable
-      const result = await Effect.runPromise(program.pipe(Effect.provide(layer)))
+      const result = await Effect.runPromise(
+        program.pipe(Effect.provide(layer)),
+      )
       expect(result.success).toBe(true)
     })
   })
@@ -194,7 +200,9 @@ describe('main.tsx initialization', () => {
       // When: running the failing effect
       // Then: should throw error
       await expect(
-        Effect.runPromise(failingProgram.pipe(Effect.provide(getApplicationLayer()))),
+        Effect.runPromise(
+          failingProgram.pipe(Effect.provide(getApplicationLayer())),
+        ),
       ).rejects.toThrow('Test error')
     })
   })
@@ -212,7 +220,9 @@ describe('main.tsx initialization', () => {
         yield* auth.restoreSession()
         return rootElement
       })
-      const element = await Effect.runPromise(program.pipe(Effect.provide(layer)))
+      const element = await Effect.runPromise(
+        program.pipe(Effect.provide(layer)),
+      )
       const root = ReactDOM.createRoot(element!)
       // Then: both Effect and ReactDOM should work together
       expect(element).not.toBeNull()
@@ -232,7 +242,9 @@ describe('main.tsx initialization', () => {
         yield* auth.restoreSession()
         return rootElement
       })
-      const element = await Effect.runPromise(program.pipe(Effect.provide(layer)))
+      const element = await Effect.runPromise(
+        program.pipe(Effect.provide(layer)),
+      )
       let rootCreated = false
       if (element) {
         const root = ReactDOM.createRoot(element)

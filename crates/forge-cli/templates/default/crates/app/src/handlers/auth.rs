@@ -835,7 +835,10 @@ mod tests {
       let result = request.validate();
 
       // Then: validation should pass
-      assert!(result.is_ok(), "Valid register request should pass validation");
+      assert!(
+        result.is_ok(),
+        "Valid register request should pass validation"
+      );
     }
 
     #[test]
@@ -865,7 +868,10 @@ mod tests {
       let result = request.validate();
 
       // Then: validation should fail
-      assert!(result.is_err(), "Password shorter than 8 characters should fail validation");
+      assert!(
+        result.is_err(),
+        "Password shorter than 8 characters should fail validation"
+      );
     }
 
     #[test]
@@ -972,7 +978,9 @@ mod tests {
 
       // Then: should include organizations channel
       assert!(
-        channels.iter().any(|c| matches!(c, Channel::Raw(ref name) if name == "organizations")),
+        channels
+          .iter()
+          .any(|c| matches!(c, Channel::Raw(ref name) if name == "organizations")),
         "Should include organizations channel"
       );
     }
@@ -988,7 +996,9 @@ mod tests {
 
       // Then: should include audit-log channel
       assert!(
-        channels.iter().any(|c| matches!(c, Channel::Raw(ref name) if name == "audit-log")),
+        channels
+          .iter()
+          .any(|c| matches!(c, Channel::Raw(ref name) if name == "audit-log")),
         "Should include audit-log channel"
       );
     }
@@ -1003,7 +1013,9 @@ mod tests {
 
       // Then: should always include tasks channel
       assert!(
-        channels.iter().any(|c| matches!(c, Channel::Raw(ref name) if name == "tasks")),
+        channels
+          .iter()
+          .any(|c| matches!(c, Channel::Raw(ref name) if name == "tasks")),
         "Should always include tasks channel"
       );
     }
@@ -1046,7 +1058,9 @@ mod tests {
 
       // Then: should not include org-scoped channels
       assert!(
-        !channels.iter().any(|c| matches!(c, Channel::OrgResource(_, _))),
+        !channels
+          .iter()
+          .any(|c| matches!(c, Channel::OrgResource(_, _))),
         "Should not include org-scoped channels when org_id is None"
       );
     }

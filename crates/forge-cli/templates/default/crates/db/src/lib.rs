@@ -114,12 +114,12 @@ mod tests {
     use uuid::Uuid;
 
     async fn test_db() -> forge_db::DbConnection {
-      let conn = Database::connect(sea_orm::ConnectOptions::new(
-        "sqlite::memory:".to_string(),
-      ))
-      .await
-      .unwrap();
-      migrations::Migrator::up(&conn, None).await.expect("migrate");
+      let conn = Database::connect(sea_orm::ConnectOptions::new("sqlite::memory:".to_string()))
+        .await
+        .unwrap();
+      migrations::Migrator::up(&conn, None)
+        .await
+        .expect("migrate");
       forge_db::wrap_traced(conn)
     }
 
@@ -132,31 +132,27 @@ mod tests {
         let db = test_db().await;
         let org_id = Uuid::new_v4();
         let now = Utc::now().naive_utc();
-        crate::models::organization::Entity::insert(
-          crate::models::organization::ActiveModel {
-            id: Set(org_id),
-            name: Set("Test Org".to_string()),
-            slug: Set("test-org".to_string()),
-            created_at: Set(now),
-            updated_at: Set(now),
-            ..Default::default()
-          },
-        )
+        crate::models::organization::Entity::insert(crate::models::organization::ActiveModel {
+          id: Set(org_id),
+          name: Set("Test Org".to_string()),
+          slug: Set("test-org".to_string()),
+          created_at: Set(now),
+          updated_at: Set(now),
+          ..Default::default()
+        })
         .exec(&db)
         .await
         .expect("insert org");
         for name in ["owner", "admin", "editor", "viewer"] {
-          crate::models::org_role::Entity::insert(
-            crate::models::org_role::ActiveModel {
-              id: Set(Uuid::new_v4()),
-              org_id: Set(org_id),
-              name: Set(name.to_string()),
-              display_name: Set(None),
-              created_at: Set(now),
-              updated_at: Set(now),
-              ..Default::default()
-            },
-          )
+          crate::models::org_role::Entity::insert(crate::models::org_role::ActiveModel {
+            id: Set(Uuid::new_v4()),
+            org_id: Set(org_id),
+            name: Set(name.to_string()),
+            display_name: Set(None),
+            created_at: Set(now),
+            updated_at: Set(now),
+            ..Default::default()
+          })
           .exec(&db)
           .await
           .expect("insert org_role");
@@ -187,31 +183,27 @@ mod tests {
         let db = test_db().await;
         let org_id = Uuid::new_v4();
         let now = Utc::now().naive_utc();
-        crate::models::organization::Entity::insert(
-          crate::models::organization::ActiveModel {
-            id: Set(org_id),
-            name: Set("Test Org".to_string()),
-            slug: Set("test-org".to_string()),
-            created_at: Set(now),
-            updated_at: Set(now),
-            ..Default::default()
-          },
-        )
+        crate::models::organization::Entity::insert(crate::models::organization::ActiveModel {
+          id: Set(org_id),
+          name: Set("Test Org".to_string()),
+          slug: Set("test-org".to_string()),
+          created_at: Set(now),
+          updated_at: Set(now),
+          ..Default::default()
+        })
         .exec(&db)
         .await
         .expect("insert org");
         for name in ["owner", "admin", "editor", "viewer"] {
-          crate::models::org_role::Entity::insert(
-            crate::models::org_role::ActiveModel {
-              id: Set(Uuid::new_v4()),
-              org_id: Set(org_id),
-              name: Set(name.to_string()),
-              display_name: Set(None),
-              created_at: Set(now),
-              updated_at: Set(now),
-              ..Default::default()
-            },
-          )
+          crate::models::org_role::Entity::insert(crate::models::org_role::ActiveModel {
+            id: Set(Uuid::new_v4()),
+            org_id: Set(org_id),
+            name: Set(name.to_string()),
+            display_name: Set(None),
+            created_at: Set(now),
+            updated_at: Set(now),
+            ..Default::default()
+          })
           .exec(&db)
           .await
           .expect("insert org_role");
@@ -306,8 +298,7 @@ mod tests {
         // Given: a DB with no matching api_token
         let db = test_db().await;
         // When: calling token_lookup with an unknown raw token
-        let result =
-          token_lookup(db.clone(), "unknown-token-never-inserted".to_string()).await;
+        let result = token_lookup(db.clone(), "unknown-token-never-inserted".to_string()).await;
         // Then: returns None
         assert_eq!(result, None);
       }

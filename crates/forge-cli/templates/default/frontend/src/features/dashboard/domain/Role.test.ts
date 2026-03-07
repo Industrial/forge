@@ -567,13 +567,14 @@ describe('Role domain', () => {
       const roleNames = ['owner', 'admin', 'viewer', 'editor', 'developer']
 
       // When I create Roles with these names
-      const roles = roleNames.map((name) =>
-        new Role({
-          id: `role-${name}`,
-          org_id: 'org-1',
-          name,
-          display_name: name.charAt(0).toUpperCase() + name.slice(1),
-        }),
+      const roles = roleNames.map(
+        (name) =>
+          new Role({
+            id: `role-${name}`,
+            org_id: 'org-1',
+            name,
+            display_name: name.charAt(0).toUpperCase() + name.slice(1),
+          }),
       )
 
       // Then each should have the correct name

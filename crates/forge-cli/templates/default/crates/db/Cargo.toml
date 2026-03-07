@@ -30,4 +30,3 @@ tokio = { version = "1", features = ["rt", "macros"] }
 [dev-dependencies]
 migrations = { path = "../migrations" }
 sea-orm-migration = "1.1"
-

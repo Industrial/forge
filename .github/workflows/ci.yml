@@ -8,7 +8,6 @@ env:
   CARGO_TERM_COLOR: always
   # Build optimization: sccache for compilation caching
   RUSTC_WRAPPER: sccache
-  SCCACHE_DIR: ${{ runner.tool_cache }}/sccache
 permissions:
   contents: read
 jobs:
@@ -26,22 +25,36 @@ jobs:
         uses: mozilla-actions/sccache-action@v0.0.4
         with:
           version: "latest"
+        env:
+          SCCACHE_DIR: ${{ runner.tool_cache }}/sccache
       # Install mold linker for faster linking on Linux
       - name: Install mold linker
         run: |
           sudo apt-get update
           sudo apt-get install -y mold
-
-      # Verify workspace-hack is up-to-date (hakari)
-      - name: Verify workspace-hack (hakari)
+      - name: Install moon
         run: |
-          devenv shell -- cargo hakari generate --diff || exit 1
-          devenv shell -- cargo hakari manage-deps --dry-run || exit 1
-          echo "✅ Workspace-hack is up-to-date"
-
-      - name: Run pre-push (format, fix, check, lint, build, test, test-e2e, audit, check-docs)
-        run: devenv shell -- ./bin/pre-push
-
+          curl -fsSL https://moonrepo.dev/install/moon.sh | bash
+          export PATH="$HOME/.moon/bin:$PATH"
+          moon --version
+      - name: Run moon tasks (format, check, lint, build, test, audit, check-docs)
+        env:
+          MOON_TOOLCHAIN_FORCE_GLOBALS: rust
+        run: |
+          export PATH="$HOME/.moon/bin:$PATH"
+          devenv shell -- moon run :format :check :lint :build :test :audit :check-docs
+      - name: Run integration tests
+        env:
+          MOON_TOOLCHAIN_FORCE_GLOBALS: rust
+        run: |
+          export PATH="$HOME/.moon/bin:$PATH"
+          devenv shell -- moon run :test-integration
+      - name: Run e2e tests
+        env:
+          MOON_TOOLCHAIN_FORCE_GLOBALS: rust
+        run: |
+          export PATH="$HOME/.moon/bin:$PATH"
+          devenv shell -- moon run :test-e2e
       # Show sccache statistics
       - name: Show sccache statistics
         if: always()

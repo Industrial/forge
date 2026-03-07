@@ -1,0 +1,66 @@
+language: rust
+type: library
+tasks:
+  build:
+    command: cargo
+    args:
+    - build
+    - -p
+    - forge-seed
+    options:
+      runFromWorkspaceRoot: true
+    inputs:
+    - Cargo.toml
+    - Cargo.lock
+    - '**/*.rs'
+    deps:
+    - forge-seed:lint
+  check:
+    command: cargo
+    args:
+    - check
+    - -p
+    - forge-seed
+    - --all-features
+    options:
+      runFromWorkspaceRoot: true
+    inputs:
+    - Cargo.toml
+    - Cargo.lock
+    - '**/*.rs'
+  test:
+    command: cargo
+    args:
+    - nextest
+    - run
+    - -p
+    - forge-seed
+    - --all-features
+    options:
+      runFromWorkspaceRoot: true
+    inputs:
+    - Cargo.toml
+    - Cargo.lock
+    - '**/*.rs'
+    - '**/*.toml'
+    deps:
+    - forge-seed:build
+  lint:
+    command: cargo
+    args:
+    - clippy
+    - -p
+    - forge-seed
+    - --all-targets
+    - --all-features
+    - --
+    - -D
+    - warnings
+    options:
+      runFromWorkspaceRoot: true
+    inputs:
+    - Cargo.toml
+    - Cargo.lock
+    - '**/*.rs'
+    deps:
+    - forge-seed:check

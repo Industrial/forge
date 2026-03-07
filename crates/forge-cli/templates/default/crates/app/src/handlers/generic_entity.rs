@@ -582,9 +582,7 @@ mod bdd_tests {
     fn should_parse_filter_query_param() {
       // Given: query params with filter JSON
       let params = ListQueryParams {
-        filter: Some(
-          r#"[{"field": "name", "operator": "eq", "value": "test"}]"#.to_string(),
-        ),
+        filter: Some(r#"[{"field": "name", "operator": "eq", "value": "test"}]"#.to_string()),
         ..Default::default()
       };
 

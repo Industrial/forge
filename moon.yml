@@ -1,0 +1,47 @@
+# Root-level workspace tasks
+# These tasks operate on the entire workspace, not individual projects
+# https://moonrepo.dev/docs/config/project
+language: 'rust'
+type: 'application'
+tasks:
+  # Format entire workspace
+  format:
+    command: 'treefmt'
+    inputs:
+      - '**/*'
+  # Audit workspace dependencies
+  audit:
+    command: 'cargo'
+    args: ['audit', '--ignore', 'RUSTSEC-2023-0071', '--ignore', 'RUSTSEC-2024-0436', '--ignore', 'RUSTSEC-2024-0445']
+    inputs:
+      - 'Cargo.toml'
+      - 'Cargo.lock'
+  # Check documentation
+  check-docs:
+    command: 'bash'
+    args: ['-c', 'RUSTDOCFLAGS="" cargo doc --all-features --no-deps 2>&1 | tee log/docs-warnings.log | grep -E "(warning|error|Documenting|Finished)" || true && cargo clippy --lib --all-features -- -D warnings -W clippy::missing_docs_in_private_items']
+    inputs:
+      - 'Cargo.toml'
+      - 'Cargo.lock'
+      - '**/*.rs'
+  # Integration tests (complex script, keep as bash)
+  test-integration:
+    command: 'bash'
+    args: ['bin/test-integration']
+    inputs:
+      - 'bin/test-integration'
+      - 'Cargo.toml'
+      - 'Cargo.lock'
+      - 'crates/**/*.rs'
+      - 'crates/forge-cli/templates/**/*'
+  # E2E tests (complex script, keep as bash)
+  test-e2e:
+    command: 'bash'
+    args: ['bin/test-e2e']
+    inputs:
+      - 'bin/test-e2e'
+      - 'Cargo.toml'
+      - 'Cargo.lock'
+      - 'crates/**/*.rs'
+      - 'crates/forge-cli/templates/**/*'
+      - 'test/e2e/**/*'

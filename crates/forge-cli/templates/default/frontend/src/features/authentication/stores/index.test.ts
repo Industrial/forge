@@ -75,7 +75,7 @@ describe('authentication stores index', () => {
       // Then it should be defined and match the source
       expect(AuthenticationStateReactiveStoreTag).toBeDefined()
       expect(AuthenticationStateReactiveStoreTag).toBe(
-        AuthenticationStateReactiveStoreTagSource
+        AuthenticationStateReactiveStoreTagSource,
       )
       expect(AuthenticationStateReactiveStoreTag).toBe(AuthStoreTag)
     })
@@ -86,7 +86,7 @@ describe('authentication stores index', () => {
       // Then it should be a function and match the source
       expect(typeof getAuthenticationStateStoreLayer).toBe('function')
       expect(getAuthenticationStateStoreLayer).toBe(
-        getAuthenticationStateStoreLayerSource
+        getAuthenticationStateStoreLayerSource,
       )
       expect(getAuthenticationStateStoreLayer()).toBe(authStoreLayer)
     })
@@ -151,7 +151,7 @@ describe('authentication stores index', () => {
       // Then it should be a function and match the source
       expect(typeof useAuthenticationStateReactiveStore).toBe('function')
       expect(useAuthenticationStateReactiveStore).toBe(
-        useAuthenticationStateReactiveStoreSource
+        useAuthenticationStateReactiveStoreSource,
       )
     })
 

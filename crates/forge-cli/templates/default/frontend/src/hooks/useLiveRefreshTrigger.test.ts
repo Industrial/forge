@@ -2,7 +2,14 @@
  * BDD tests for useLiveRefreshTrigger hook
  * Tests verify hook behavior, exports, and integration points
  */
-import { describe, test, expect, beforeAll, beforeEach, afterEach } from 'bun:test'
+import {
+  describe,
+  test,
+  expect,
+  beforeAll,
+  beforeEach,
+  afterEach,
+} from 'bun:test'
 import { renderHook, waitFor } from '@testing-library/react'
 import { Effect, Layer } from 'effect'
 import { Window } from 'happy-dom'

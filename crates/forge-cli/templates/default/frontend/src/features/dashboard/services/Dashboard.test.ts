@@ -5,16 +5,10 @@
 import { describe, test, expect } from 'bun:test'
 import { Effect } from 'effect'
 
-import {
-  Dashboard,
-  type DashboardService,
-} from './Dashboard'
+import { Dashboard, type DashboardService } from './Dashboard'
 import { Organization } from '../domain/Organization'
 import { DashboardRole } from '../domain/DashboardRole'
-import {
-  createDashboardMock,
-  DashboardMockLayer,
-} from './DashboardMock'
+import { createDashboardMock, DashboardMockLayer } from './DashboardMock'
 
 describe('Dashboard service', () => {
   describe('service tag', () => {
@@ -90,7 +84,7 @@ describe('Dashboard service', () => {
       })
 
       const result = await Effect.runPromise(
-        program.pipe(Effect.provide(DashboardMockLayer(organizations)))
+        program.pipe(Effect.provide(DashboardMockLayer(organizations))),
       )
 
       expect(result.length).toBe(2)
@@ -106,7 +100,7 @@ describe('Dashboard service', () => {
       })
 
       const result = await Effect.runPromise(
-        program.pipe(Effect.provide(DashboardMockLayer([])))
+        program.pipe(Effect.provide(DashboardMockLayer([]))),
       )
 
       expect(result.length).toBe(0)
@@ -128,7 +122,7 @@ describe('Dashboard service', () => {
       })
 
       const result = await Effect.runPromise(
-        program.pipe(Effect.provide(DashboardMockLayer(organizations)))
+        program.pipe(Effect.provide(DashboardMockLayer(organizations))),
       )
 
       expect(Array.isArray(result)).toBe(true)
@@ -153,7 +147,7 @@ describe('Dashboard service', () => {
       })
 
       const result = await Effect.runPromise(
-        program.pipe(Effect.provide(DashboardMockLayer(organizations)))
+        program.pipe(Effect.provide(DashboardMockLayer(organizations))),
       )
 
       expect(result[0].id).toBe('org-1')
@@ -179,7 +173,7 @@ describe('Dashboard service', () => {
       })
 
       const result = await Effect.runPromise(
-        program.pipe(Effect.provide(DashboardMockLayer(organizations)))
+        program.pipe(Effect.provide(DashboardMockLayer(organizations))),
       )
 
       expect(result[0].id).toBe('org-1')
@@ -219,7 +213,7 @@ describe('Dashboard service', () => {
       })
 
       const result = await Effect.runPromise(
-        program.pipe(Effect.provide(DashboardMockLayer([], rolesByOrg)))
+        program.pipe(Effect.provide(DashboardMockLayer([], rolesByOrg))),
       )
 
       expect(result.length).toBe(2)
@@ -246,7 +240,7 @@ describe('Dashboard service', () => {
       })
 
       const result = await Effect.runPromise(
-        program.pipe(Effect.provide(DashboardMockLayer([], rolesByOrg)))
+        program.pipe(Effect.provide(DashboardMockLayer([], rolesByOrg))),
       )
 
       expect(result.length).toBe(0)
@@ -260,7 +254,7 @@ describe('Dashboard service', () => {
       })
 
       const result = await Effect.runPromise(
-        program.pipe(Effect.provide(DashboardMockLayer([], {})))
+        program.pipe(Effect.provide(DashboardMockLayer([], {}))),
       )
 
       expect(result.length).toBe(0)
@@ -284,7 +278,7 @@ describe('Dashboard service', () => {
       })
 
       const result = await Effect.runPromise(
-        program.pipe(Effect.provide(DashboardMockLayer([], rolesByOrg)))
+        program.pipe(Effect.provide(DashboardMockLayer([], rolesByOrg))),
       )
 
       expect(result[0]).toBeInstanceOf(DashboardRole)
@@ -311,7 +305,7 @@ describe('Dashboard service', () => {
       })
 
       const result = await Effect.runPromise(
-        program.pipe(Effect.provide(DashboardMockLayer([], rolesByOrg)))
+        program.pipe(Effect.provide(DashboardMockLayer([], rolesByOrg))),
       )
 
       expect(result[0].display_name).toBeNull()
@@ -335,7 +329,7 @@ describe('Dashboard service', () => {
       })
 
       const result = await Effect.runPromise(
-        program.pipe(Effect.provide(DashboardMockLayer([], rolesByOrg)))
+        program.pipe(Effect.provide(DashboardMockLayer([], rolesByOrg))),
       )
 
       expect(result[0]).toBeInstanceOf(DashboardRole)
@@ -357,7 +351,7 @@ describe('Dashboard service', () => {
       })
 
       const service = await Effect.runPromise(
-        program.pipe(Effect.provide(DashboardMockLayer([])))
+        program.pipe(Effect.provide(DashboardMockLayer([]))),
       )
 
       expect(service).toBeDefined()
@@ -376,7 +370,7 @@ describe('Dashboard service', () => {
       })
 
       const { service1, service2 } = await Effect.runPromise(
-        program.pipe(Effect.provide(DashboardMockLayer([])))
+        program.pipe(Effect.provide(DashboardMockLayer([]))),
       )
 
       // Layer.succeed returns the same instance
@@ -438,7 +432,9 @@ describe('Dashboard service', () => {
       })
 
       const result = await Effect.runPromise(
-        program.pipe(Effect.provide(DashboardMockLayer(organizations, rolesByOrg)))
+        program.pipe(
+          Effect.provide(DashboardMockLayer(organizations, rolesByOrg)),
+        ),
       )
 
       expect(result.success).toBe(true)
@@ -477,7 +473,7 @@ describe('Dashboard service', () => {
       })
 
       const result = await Effect.runPromise(
-        program.pipe(Effect.provide(DashboardMockLayer([], rolesByOrg)))
+        program.pipe(Effect.provide(DashboardMockLayer([], rolesByOrg))),
       )
 
       expect(result.success).toBe(true)
@@ -498,7 +494,7 @@ describe('Dashboard service', () => {
       })
 
       const result = await Effect.runPromise(
-        program.pipe(Effect.provide(DashboardMockLayer([], {})))
+        program.pipe(Effect.provide(DashboardMockLayer([], {}))),
       )
 
       expect(result.success).toBe(true)
@@ -542,7 +538,9 @@ describe('Dashboard service', () => {
       })
 
       const result = await Effect.runPromise(
-        program.pipe(Effect.provide(DashboardMockLayer(organizations, rolesByOrg)))
+        program.pipe(
+          Effect.provide(DashboardMockLayer(organizations, rolesByOrg)),
+        ),
       )
 
       expect(result.success).toBe(true)

@@ -11,9 +11,7 @@ import { EntityApi } from './EntityApi'
 
 // Helper to create a mock HttpClient
 function createMockHttpClient(
-  handler: (
-    request: HttpClientRequest.HttpClientRequest,
-  ) => Effect.Effect<
+  handler: (request: HttpClientRequest.HttpClientRequest) => Effect.Effect<
     {
       status: number
       json: Effect.Effect<unknown>
@@ -838,9 +836,7 @@ describe('EntityApiLive', () => {
 
       const body = { name: 'Updated', value: 99 }
       await Effect.runPromise(
-        api
-          .update('test-entity', '123', body)
-          .pipe(Effect.provide(testLayer)),
+        api.update('test-entity', '123', body).pipe(Effect.provide(testLayer)),
       )
 
       // Then: body should be sent (verification via successful response)

@@ -130,9 +130,7 @@ function App() {
             <Route
               path="users"
               element={
-                <PermissionGuard
-                  permissions={['user.read', 'user.create']}
-                >
+                <PermissionGuard permissions={['user.read', 'user.create']}>
                   <UsersPage />
                 </PermissionGuard>
               }
@@ -140,9 +138,7 @@ function App() {
             <Route
               path="roles"
               element={
-                <PermissionGuard
-                  permissions={['role.read', 'role.create']}
-                >
+                <PermissionGuard permissions={['role.read', 'role.create']}>
                   <RolesPage />
                 </PermissionGuard>
               }

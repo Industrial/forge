@@ -216,16 +216,18 @@ describe('AuditLogMock', () => {
 
     test('should correctly calculate pagination boundaries', async () => {
       // Given: mock with multiple entries
-      const entries = Array.from({ length: 10 }, (_, i) =>
-        new AuditLogEntry({
-          id: `entry-${i + 1}`,
-          event_kind: 'user.created',
-          actor_id: 'actor-1',
-          action: 'create',
-          resource_type: 'user',
-          outcome: 'success',
-          occurred_at: `2024-01-${String(i + 1).padStart(2, '0')}T00:00:00Z`,
-        }),
+      const entries = Array.from(
+        { length: 10 },
+        (_, i) =>
+          new AuditLogEntry({
+            id: `entry-${i + 1}`,
+            event_kind: 'user.created',
+            actor_id: 'actor-1',
+            action: 'create',
+            resource_type: 'user',
+            outcome: 'success',
+            occurred_at: `2024-01-${String(i + 1).padStart(2, '0')}T00:00:00Z`,
+          }),
       )
 
       const mock = createAuditLogMock(entries)
@@ -239,9 +241,7 @@ describe('AuditLogMock', () => {
       )
 
       const result = await Effect.runPromise(
-        auditLog
-          .list({ limit: 3, offset: 2 })
-          .pipe(Effect.provide(mockLayer)),
+        auditLog.list({ limit: 3, offset: 2 }).pipe(Effect.provide(mockLayer)),
       )
 
       // Then: should return correct page slice
@@ -286,9 +286,7 @@ describe('AuditLogMock', () => {
       )
 
       const result = await Effect.runPromise(
-        auditLog
-          .list({ limit: 10, offset: 2 })
-          .pipe(Effect.provide(mockLayer)),
+        auditLog.list({ limit: 10, offset: 2 }).pipe(Effect.provide(mockLayer)),
       )
 
       // Then: should return empty array but correct total

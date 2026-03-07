@@ -1623,7 +1623,10 @@ mod tests {
         let result = has_permission(&perms, "user.create");
 
         // Then: permission should be granted via all.write
-        assert!(result, "all.write should grant any entity.create permission");
+        assert!(
+          result,
+          "all.write should grant any entity.create permission"
+        );
       }
 
       #[test]
@@ -1635,7 +1638,10 @@ mod tests {
         let result = has_permission(&perms, "user.update");
 
         // Then: permission should be granted via all.write
-        assert!(result, "all.write should grant any entity.update permission");
+        assert!(
+          result,
+          "all.write should grant any entity.update permission"
+        );
       }
 
       #[test]
@@ -1647,7 +1653,10 @@ mod tests {
         let result = has_permission(&perms, "user.delete");
 
         // Then: permission should be granted via all.write
-        assert!(result, "all.write should grant any entity.delete permission");
+        assert!(
+          result,
+          "all.write should grant any entity.delete permission"
+        );
       }
 
       #[test]
@@ -1659,7 +1668,10 @@ mod tests {
         let result = has_permission(&perms, "user.read");
 
         // Then: permission should be denied
-        assert!(!result, "Permission should be denied when key is not in list");
+        assert!(
+          !result,
+          "Permission should be denied when key is not in list"
+        );
       }
 
       #[test]
@@ -1719,7 +1731,11 @@ mod tests {
         let response = forbidden_response();
 
         // Then: response should have 403 status
-        assert_eq!(response.status(), StatusCode::FORBIDDEN, "Forbidden response should have 403 status");
+        assert_eq!(
+          response.status(),
+          StatusCode::FORBIDDEN,
+          "Forbidden response should have 403 status"
+        );
       }
 
       #[test]
@@ -1748,7 +1764,10 @@ mod tests {
         };
 
         // Then: scope should contain the organization ID
-        assert_eq!(scope.organization_id, org_a, "Scope should contain organization ID");
+        assert_eq!(
+          scope.organization_id, org_a,
+          "Scope should contain organization ID"
+        );
         assert_eq!(scope.role_id, role_id, "Scope should contain role ID");
         assert_eq!(scope.role_name, role_name, "Scope should contain role name");
       }

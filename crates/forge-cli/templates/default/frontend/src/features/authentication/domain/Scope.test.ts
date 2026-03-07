@@ -384,12 +384,13 @@ describe('Scope domain', () => {
       const roles = ['owner', 'admin', 'viewer', 'editor', 'developer']
 
       // When I create Scopes with these roles
-      const scopes = roles.map((role) =>
-        new Scope({
-          org_id: 'org-1',
-          org_name: 'Test Org',
-          role,
-        }),
+      const scopes = roles.map(
+        (role) =>
+          new Scope({
+            org_id: 'org-1',
+            org_name: 'Test Org',
+            role,
+          }),
       )
 
       // Then each should have the correct role

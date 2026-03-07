@@ -11,9 +11,7 @@ import { RpcApi } from './RpcApi'
 
 // Helper to create a mock HttpClient
 function createMockHttpClient(
-  handler: (
-    request: HttpClientRequest.HttpClientRequest,
-  ) => Effect.Effect<
+  handler: (request: HttpClientRequest.HttpClientRequest) => Effect.Effect<
     {
       status: number
       json: Effect.Effect<unknown>

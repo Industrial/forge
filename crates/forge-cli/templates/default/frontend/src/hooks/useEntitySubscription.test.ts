@@ -76,7 +76,9 @@ describe('useEntitySubscription', () => {
       // Then: params should accept ListQueryParams or undefined
       // Note: TypeScript enforces this at compile time
       const testParams: ListQueryParams | undefined = undefined
-      expect(testParams === undefined || typeof testParams === 'object').toBe(true)
+      expect(testParams === undefined || typeof testParams === 'object').toBe(
+        true,
+      )
     })
 
     it('should accept function for onRefetch', () => {

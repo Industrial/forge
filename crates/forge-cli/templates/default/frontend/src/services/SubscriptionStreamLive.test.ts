@@ -38,9 +38,7 @@ function createMockSSEStream(events: string[]): ReadableStream<Uint8Array> {
 
 // Helper to create a mock HttpClient
 function createMockHttpClient(
-  handler: (
-    request: HttpClientRequest.HttpClientRequest,
-  ) => Effect.Effect<
+  handler: (request: HttpClientRequest.HttpClientRequest) => Effect.Effect<
     {
       status: number
       ok: boolean
@@ -332,9 +330,7 @@ describe('SubscriptionStreamLive', () => {
 
       // Then: should fail with authentication error
       await expect(
-        Effect.runPromise(
-          service.openStream().pipe(Effect.provide(testLayer)),
-        ),
+        Effect.runPromise(service.openStream().pipe(Effect.provide(testLayer))),
       ).rejects.toThrow('Not authenticated')
     })
 
@@ -381,9 +377,7 @@ describe('SubscriptionStreamLive', () => {
 
       // Then: should fail with error
       await expect(
-        Effect.runPromise(
-          service.openStream().pipe(Effect.provide(testLayer)),
-        ),
+        Effect.runPromise(service.openStream().pipe(Effect.provide(testLayer))),
       ).rejects.toThrow('Subscription stream failed')
     })
 
@@ -430,9 +424,7 @@ describe('SubscriptionStreamLive', () => {
 
       // Then: should fail with no body error
       await expect(
-        Effect.runPromise(
-          service.openStream().pipe(Effect.provide(testLayer)),
-        ),
+        Effect.runPromise(service.openStream().pipe(Effect.provide(testLayer))),
       ).rejects.toThrow('no body')
     })
 
@@ -500,9 +492,18 @@ describe('SubscriptionStreamLive', () => {
     test('should construct correct URL from baseUrl', async () => {
       // Given: different baseUrl values
       const testCases = [
-        { baseUrl: 'http://localhost:5173', expected: 'http://localhost:5173/api/subscriptions/stream' },
-        { baseUrl: 'https://example.com', expected: 'https://example.com/api/subscriptions/stream' },
-        { baseUrl: 'http://localhost:5173/', expected: 'http://localhost:5173/api/subscriptions/stream' }, // trailing slash removed
+        {
+          baseUrl: 'http://localhost:5173',
+          expected: 'http://localhost:5173/api/subscriptions/stream',
+        },
+        {
+          baseUrl: 'https://example.com',
+          expected: 'https://example.com/api/subscriptions/stream',
+        },
+        {
+          baseUrl: 'http://localhost:5173/',
+          expected: 'http://localhost:5173/api/subscriptions/stream',
+        }, // trailing slash removed
       ]
 
       for (const { baseUrl, expected } of testCases) {

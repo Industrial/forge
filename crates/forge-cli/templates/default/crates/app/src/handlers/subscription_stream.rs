@@ -61,8 +61,14 @@ mod tests {
         let ready_msg = "data: {\"type\":\"ready\"}\n\n";
 
         // Then: message should start with "data: " prefix
-        assert!(ready_msg.starts_with("data: "), "SSE message should start with 'data: ' prefix");
-        assert!(ready_msg.ends_with("\n\n"), "SSE message should end with double newline");
+        assert!(
+          ready_msg.starts_with("data: "),
+          "SSE message should start with 'data: ' prefix"
+        );
+        assert!(
+          ready_msg.ends_with("\n\n"),
+          "SSE message should end with double newline"
+        );
       }
 
       #[test]
@@ -74,9 +80,18 @@ mod tests {
         let sse_msg = format!("data: {}\n\n", event_json);
 
         // Then: message should follow SSE format
-        assert!(sse_msg.starts_with("data: "), "SSE message should start with 'data: ' prefix");
-        assert!(sse_msg.ends_with("\n\n"), "SSE message should end with double newline");
-        assert!(sse_msg.contains(event_json), "SSE message should contain event JSON");
+        assert!(
+          sse_msg.starts_with("data: "),
+          "SSE message should start with 'data: ' prefix"
+        );
+        assert!(
+          sse_msg.ends_with("\n\n"),
+          "SSE message should end with double newline"
+        );
+        assert!(
+          sse_msg.contains(event_json),
+          "SSE message should contain event JSON"
+        );
       }
 
       #[test]
@@ -86,7 +101,10 @@ mod tests {
         let fallback = "{}".to_string();
 
         // Then: should fallback to empty JSON object
-        assert_eq!(fallback, "{}", "Should fallback to empty JSON on serialization failure");
+        assert_eq!(
+          fallback, "{}",
+          "Should fallback to empty JSON on serialization failure"
+        );
       }
     }
 
@@ -100,8 +118,14 @@ mod tests {
 
         // When: checking content type
         // Then: should be text/event-stream with charset
-        assert_eq!(content_type, "text/event-stream; charset=utf-8", "Content-Type should be text/event-stream");
-        assert!(content_type.contains("charset=utf-8"), "Content-Type should include charset");
+        assert_eq!(
+          content_type, "text/event-stream; charset=utf-8",
+          "Content-Type should be text/event-stream"
+        );
+        assert!(
+          content_type.contains("charset=utf-8"),
+          "Content-Type should include charset"
+        );
       }
 
       #[test]
@@ -111,8 +135,14 @@ mod tests {
 
         // When: validating format
         // Then: should match SSE specification
-        assert!(content_type.starts_with("text/event-stream"), "Should use text/event-stream MIME type");
-        assert!(content_type.contains("charset=utf-8"), "Should specify UTF-8 charset");
+        assert!(
+          content_type.starts_with("text/event-stream"),
+          "Should use text/event-stream MIME type"
+        );
+        assert!(
+          content_type.contains("charset=utf-8"),
+          "Should specify UTF-8 charset"
+        );
       }
     }
 
@@ -126,8 +156,14 @@ mod tests {
 
         // When: stream starts
         // Then: first message should be ready message
-        assert!(ready_msg.contains("ready"), "Stream should start with ready message");
-        assert!(ready_msg.starts_with("data: "), "Ready message should follow SSE format");
+        assert!(
+          ready_msg.contains("ready"),
+          "Stream should start with ready message"
+        );
+        assert!(
+          ready_msg.starts_with("data: "),
+          "Ready message should follow SSE format"
+        );
       }
 
       #[test]
@@ -139,7 +175,10 @@ mod tests {
         // When: creating stream chain
         // Then: ready message should be first
         assert!(ready_ok.is_ok(), "Ready message should be valid");
-        assert!(ready_msg.contains("ready"), "Ready message should indicate readiness");
+        assert!(
+          ready_msg.contains("ready"),
+          "Ready message should indicate readiness"
+        );
       }
 
       #[test]
@@ -180,7 +219,10 @@ mod tests {
         // When: handler is called
         // Then: should return IntoResponse implementation
         // Response type is returned, which implements IntoResponse
-        assert!(true, "Handler should return Response that implements IntoResponse");
+        assert!(
+          true,
+          "Handler should return Response that implements IntoResponse"
+        );
       }
 
       #[test]
@@ -189,7 +231,10 @@ mod tests {
         // When: handler is called
         // Then: authentication should be required
         // RequireAuth extractor ensures auth is present
-        assert!(true, "Handler should require authentication via RequireAuth extractor");
+        assert!(
+          true,
+          "Handler should require authentication via RequireAuth extractor"
+        );
       }
 
       #[test]
@@ -198,7 +243,10 @@ mod tests {
         // When: handler is called
         // Then: SubscriptionStore should be available
         // Extension extractor ensures store is present
-        assert!(true, "Handler should require SubscriptionStore via Extension extractor");
+        assert!(
+          true,
+          "Handler should require SubscriptionStore via Extension extractor"
+        );
       }
     }
   }

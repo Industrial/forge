@@ -305,7 +305,9 @@ describe('userFormSchemas', () => {
       }
 
       // When: decoding the data
-      const result = Schema.decodeUnknownSync(userAddFormSchemaStrict)(validData)
+      const result = Schema.decodeUnknownSync(userAddFormSchemaStrict)(
+        validData,
+      )
 
       // Then: should decode successfully
       expect(result.roleIds).toEqual(['role-1'])
@@ -337,7 +339,9 @@ describe('userFormSchemas', () => {
       }
 
       // When: decoding the data
-      const result = Schema.decodeUnknownSync(userAddFormSchemaStrict)(validData)
+      const result = Schema.decodeUnknownSync(userAddFormSchemaStrict)(
+        validData,
+      )
 
       // Then: should decode successfully
       expect(result.roleIds).toEqual(['role-1', 'role-2', 'role-3'])
@@ -353,7 +357,9 @@ describe('userFormSchemas', () => {
       }
 
       // When: decoding the data
-      const result = Schema.decodeUnknownSync(userAddFormSchemaStrict)(validData)
+      const result = Schema.decodeUnknownSync(userAddFormSchemaStrict)(
+        validData,
+      )
 
       // Then: should validate email, password, and orgId
       expect(result.email).toBe('user@example.com')

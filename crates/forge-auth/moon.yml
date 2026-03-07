@@ -1,0 +1,66 @@
+language: rust
+type: library
+tasks:
+  build:
+    command: cargo
+    args:
+    - build
+    - -p
+    - forge-auth
+    options:
+      runFromWorkspaceRoot: true
+    inputs:
+    - Cargo.toml
+    - Cargo.lock
+    - '**/*.rs'
+    deps:
+    - forge-auth:lint
+  check:
+    command: cargo
+    args:
+    - check
+    - -p
+    - forge-auth
+    - --all-features
+    options:
+      runFromWorkspaceRoot: true
+    inputs:
+    - Cargo.toml
+    - Cargo.lock
+    - '**/*.rs'
+  test:
+    command: cargo
+    args:
+    - nextest
+    - run
+    - -p
+    - forge-auth
+    - --all-features
+    options:
+      runFromWorkspaceRoot: true
+    inputs:
+    - Cargo.toml
+    - Cargo.lock
+    - '**/*.rs'
+    - '**/*.toml'
+    deps:
+    - forge-auth:build
+  lint:
+    command: cargo
+    args:
+    - clippy
+    - -p
+    - forge-auth
+    - --all-targets
+    - --all-features
+    - --
+    - -D
+    - warnings
+    options:
+      runFromWorkspaceRoot: true
+    inputs:
+    - Cargo.toml
+    - Cargo.lock
+    - '**/*.rs'
+    deps:
+    - forge-auth:check

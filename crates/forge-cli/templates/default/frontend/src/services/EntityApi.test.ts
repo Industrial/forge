@@ -7,7 +7,11 @@ import { Effect } from 'effect'
 
 import { EntityApi } from './EntityApi'
 import { EntityApiMock } from './EntityApiMock'
-import type { EntityApiService, ListQueryParams, ListResponse } from './EntityApi'
+import type {
+  EntityApiService,
+  ListQueryParams,
+  ListResponse,
+} from './EntityApi'
 
 describe('EntityApi service', () => {
   describe('list behavior', () => {
@@ -70,7 +74,9 @@ describe('EntityApi service', () => {
       )
 
       const result = await Effect.runPromise(
-        entityApi.list('organization', params).pipe(Effect.provide(EntityApiMock)),
+        entityApi
+          .list('organization', params)
+          .pipe(Effect.provide(EntityApiMock)),
       )
 
       // Then: should return empty data (mock ignores params)
@@ -89,7 +95,9 @@ describe('EntityApi service', () => {
       )
 
       const result = await Effect.runPromise(
-        entityApi.list('organization', params).pipe(Effect.provide(EntityApiMock)),
+        entityApi
+          .list('organization', params)
+          .pipe(Effect.provide(EntityApiMock)),
       )
 
       // Then: should return empty data
@@ -126,7 +134,9 @@ describe('EntityApi service', () => {
       )
 
       const result = await Effect.runPromise(
-        entityApi.get('organization', 'id-123').pipe(Effect.provide(EntityApiMock)),
+        entityApi
+          .get('organization', 'id-123')
+          .pipe(Effect.provide(EntityApiMock)),
       )
 
       // Then: should return empty object
@@ -144,7 +154,9 @@ describe('EntityApi service', () => {
       )
 
       const result1 = await Effect.runPromise(
-        entityApi.get('organization', 'id-1').pipe(Effect.provide(EntityApiMock)),
+        entityApi
+          .get('organization', 'id-1')
+          .pipe(Effect.provide(EntityApiMock)),
       )
 
       const result2 = await Effect.runPromise(
@@ -201,9 +213,7 @@ describe('EntityApi service', () => {
       )
 
       const result2 = await Effect.runPromise(
-        entityApi
-          .create('user', body2)
-          .pipe(Effect.provide(EntityApiMock)),
+        entityApi.create('user', body2).pipe(Effect.provide(EntityApiMock)),
       )
 
       // Then: should return empty objects (mock ignores parameters)
@@ -301,7 +311,9 @@ describe('EntityApi service', () => {
       )
 
       const result = await Effect.runPromise(
-        entityApi.delete('organization', 'id-123').pipe(Effect.provide(EntityApiMock)),
+        entityApi
+          .delete('organization', 'id-123')
+          .pipe(Effect.provide(EntityApiMock)),
       )
 
       // Then: should return undefined (void)
@@ -318,7 +330,9 @@ describe('EntityApi service', () => {
       )
 
       const result1 = await Effect.runPromise(
-        entityApi.delete('organization', 'id-1').pipe(Effect.provide(EntityApiMock)),
+        entityApi
+          .delete('organization', 'id-1')
+          .pipe(Effect.provide(EntityApiMock)),
       )
 
       const result2 = await Effect.runPromise(
@@ -371,13 +385,13 @@ describe('EntityApi service', () => {
         delete: () => Effect.void,
       }
 
-      const listResult = await Effect.runPromise(
-        service.list('organization'),
-      )
+      const listResult = await Effect.runPromise(service.list('organization'))
       expect(listResult).toHaveProperty('data')
       expect(Array.isArray(listResult.data)).toBe(true)
 
-      const getResult = await Effect.runPromise(service.get('organization', 'id'))
+      const getResult = await Effect.runPromise(
+        service.get('organization', 'id'),
+      )
       expect(typeof getResult).toBe('object')
 
       const createResult = await Effect.runPromise(

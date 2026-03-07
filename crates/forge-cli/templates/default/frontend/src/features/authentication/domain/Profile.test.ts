@@ -384,12 +384,13 @@ describe('Profile domain', () => {
       const roles = ['owner', 'admin', 'viewer', 'editor', 'developer']
 
       // When I create Profiles with these roles
-      const profiles = roles.map((role) =>
-        new Profile({
-          org_id: 'org-1',
-          org_name: 'Test Org',
-          role,
-        }),
+      const profiles = roles.map(
+        (role) =>
+          new Profile({
+            org_id: 'org-1',
+            org_name: 'Test Org',
+            role,
+          }),
       )
 
       // Then each should have the correct role

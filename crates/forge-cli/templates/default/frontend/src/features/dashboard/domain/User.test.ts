@@ -372,11 +372,8 @@ describe('User domain', () => {
       })
 
       // When: checking if user has a role
-      const orgMembership = user.memberships.find(
-        (m) => m.org_id === 'org-1',
-      )
-      const hasAdminRole =
-        orgMembership?.roles.includes('admin') ?? false
+      const orgMembership = user.memberships.find((m) => m.org_id === 'org-1')
+      const hasAdminRole = orgMembership?.roles.includes('admin') ?? false
 
       // Then: should correctly identify role
       expect(hasAdminRole).toBe(true)

@@ -67,9 +67,7 @@ describe('schema fragments', () => {
       const withSpaces = 'test string'
 
       // When: decoding the value
-      const result = Schema.decodeUnknownSync(nonEmptyTrimmedString)(
-        withSpaces,
-      )
+      const result = Schema.decodeUnknownSync(nonEmptyTrimmedString)(withSpaces)
 
       // Then: should decode successfully
       expect(result).toBe('test string')

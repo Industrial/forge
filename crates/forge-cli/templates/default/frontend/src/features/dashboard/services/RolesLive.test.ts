@@ -13,9 +13,7 @@ import { DashboardRole } from '../domain/DashboardRole'
 
 // Helper to create a mock HttpClient
 function createMockHttpClient(
-  handler: (
-    request: HttpClientRequest.HttpClientRequest,
-  ) => Effect.Effect<
+  handler: (request: HttpClientRequest.HttpClientRequest) => Effect.Effect<
     {
       status: number
       json: Effect.Effect<unknown>
@@ -318,7 +316,8 @@ describe('RolesLive', () => {
 
       const mockHttpClient = createMockHttpClient((request) => {
         if (
-          request.url === `/api/dashboard/roles?org_id=${encodeURIComponent(orgId)}`
+          request.url ===
+          `/api/dashboard/roles?org_id=${encodeURIComponent(orgId)}`
         ) {
           return Effect.succeed({
             status: 200,
@@ -390,7 +389,8 @@ describe('RolesLive', () => {
       const orgId = 'org-123'
       const mockHttpClient = createMockHttpClient((request) => {
         if (
-          request.url === `/api/dashboard/roles?org_id=${encodeURIComponent(orgId)}`
+          request.url ===
+          `/api/dashboard/roles?org_id=${encodeURIComponent(orgId)}`
         ) {
           return Effect.succeed({
             status: 500,
@@ -428,7 +428,8 @@ describe('RolesLive', () => {
       const orgId = 'org-123'
       const mockHttpClient = createMockHttpClient((request) => {
         if (
-          request.url === `/api/dashboard/roles?org_id=${encodeURIComponent(orgId)}`
+          request.url ===
+          `/api/dashboard/roles?org_id=${encodeURIComponent(orgId)}`
         ) {
           return Effect.succeed({
             status: 200,
@@ -761,9 +762,7 @@ describe('RolesLive', () => {
 
       // Then: should succeed without error
       await expect(
-        Effect.runPromise(
-          roles.delete(roleId).pipe(Effect.provide(testLayer)),
-        ),
+        Effect.runPromise(roles.delete(roleId).pipe(Effect.provide(testLayer))),
       ).resolves.toBeUndefined()
     })
 
@@ -801,9 +800,7 @@ describe('RolesLive', () => {
 
       // Then: should fail with permission error
       await expect(
-        Effect.runPromise(
-          roles.delete(roleId).pipe(Effect.provide(testLayer)),
-        ),
+        Effect.runPromise(roles.delete(roleId).pipe(Effect.provide(testLayer))),
       ).rejects.toThrow('You do not have permission to delete roles.')
     })
 
@@ -841,9 +838,7 @@ describe('RolesLive', () => {
 
       // Then: should fail with error message
       await expect(
-        Effect.runPromise(
-          roles.delete(roleId).pipe(Effect.provide(testLayer)),
-        ),
+        Effect.runPromise(roles.delete(roleId).pipe(Effect.provide(testLayer))),
       ).rejects.toThrow('Role not found')
     })
   })

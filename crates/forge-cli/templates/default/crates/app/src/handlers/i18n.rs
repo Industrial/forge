@@ -46,7 +46,10 @@ mod tests {
       let result = greeting(locale);
 
       // Then: should return a greeting string
-      assert!(!result.is_empty(), "Should return non-empty greeting string");
+      assert!(
+        !result.is_empty(),
+        "Should return non-empty greeting string"
+      );
       assert!(
         result.contains("World"),
         "Greeting should contain the name argument 'World'"
@@ -62,7 +65,10 @@ mod tests {
       let result = greeting(locale);
 
       // Then: should return greeting in fallback language
-      assert!(!result.is_empty(), "Should return greeting in fallback language");
+      assert!(
+        !result.is_empty(),
+        "Should return greeting in fallback language"
+      );
     }
 
     #[test]
@@ -108,7 +114,10 @@ mod tests {
       }
 
       // Then: should return greetings (may be same or different depending on translations)
-      assert!(!results.is_empty(), "Should return greetings for valid locales");
+      assert!(
+        !results.is_empty(),
+        "Should return greetings for valid locales"
+      );
     }
   }
 
@@ -168,7 +177,10 @@ mod tests {
       );
 
       // Then: args map should contain name parameter
-      assert!(args.contains_key("name"), "Args map should contain 'name' key");
+      assert!(
+        args.contains_key("name"),
+        "Args map should contain 'name' key"
+      );
       match args.get("name") {
         Some(FluentValue::String(Cow::Borrowed(val))) => assert_eq!(*val, name),
         _ => panic!("Name value should be a string"),

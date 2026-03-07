@@ -33,9 +33,10 @@ mod bdd_tests {
       let client = app::test_client().await.expect("test_client");
       let body = r#"{"email":"viewer@default.org","password":"wrongpassword"}"#;
       // When: posting to /api/auth/login with invalid credentials
-      let (status, _) = app::test_request(&client, "POST", "/api/auth/login", None, Some(body), None)
-        .await
-        .unwrap();
+      let (status, _) =
+        app::test_request(&client, "POST", "/api/auth/login", None, Some(body), None)
+          .await
+          .unwrap();
       // Then: should return 401 Unauthorized
       assert_eq!(status, StatusCode::UNAUTHORIZED);
     }

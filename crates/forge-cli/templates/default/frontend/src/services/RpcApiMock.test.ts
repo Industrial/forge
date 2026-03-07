@@ -46,7 +46,7 @@ describe('RpcApiMock', () => {
       expect(result.sub3.subscription_id).toMatch(/^mock-sub-\d+$/)
       expect(result.sub1.subscription_id).not.toBe(result.sub2.subscription_id)
       expect(result.sub2.subscription_id).not.toBe(result.sub3.subscription_id)
-      
+
       // Extract counter values and verify they increment
       const counter1 = parseInt(result.sub1.subscription_id.split('-')[2])
       const counter2 = parseInt(result.sub2.subscription_id.split('-')[2])

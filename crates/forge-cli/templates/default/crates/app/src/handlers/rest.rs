@@ -520,7 +520,9 @@ mod tests {
         name: "admin".to_string(),
         display_name: None,
       };
-      let _role_id1 = create_org_role_impl(&db_conn, org_id, &payload1).await.unwrap();
+      let _role_id1 = create_org_role_impl(&db_conn, org_id, &payload1)
+        .await
+        .unwrap();
 
       // When I try to create another role with the same name
       let payload2 = CreateOrgRoleBody {
@@ -575,7 +577,9 @@ mod tests {
         name: "editor".to_string(),
         display_name: None,
       };
-      let existing_role_id = create_org_role_impl(&db_conn, org_id, &payload).await.unwrap();
+      let existing_role_id = create_org_role_impl(&db_conn, org_id, &payload)
+        .await
+        .unwrap();
 
       // When I ensure the same role exists
       let result = ensure_org_role_impl(&db_conn, org_id, &payload).await;
@@ -649,8 +653,12 @@ mod tests {
         name: "viewer".to_string(),
         display_name: None,
       };
-      let _id1 = create_org_role_impl(&db_conn, org_id, &role1).await.unwrap();
-      let _id2 = create_org_role_impl(&db_conn, org_id, &role2).await.unwrap();
+      let _id1 = create_org_role_impl(&db_conn, org_id, &role1)
+        .await
+        .unwrap();
+      let _id2 = create_org_role_impl(&db_conn, org_id, &role2)
+        .await
+        .unwrap();
 
       // When I list org roles
       let result = list_org_roles_impl(&db_conn, org_id).await;
@@ -693,7 +701,9 @@ mod bdd_tests {
 
       // Then: should return list of permissions
       assert_eq!(res.status(), StatusCode::OK);
-      let body = axum::body::to_bytes(res.into_body(), usize::MAX).await.unwrap();
+      let body = axum::body::to_bytes(res.into_body(), usize::MAX)
+        .await
+        .unwrap();
       let json: serde_json::Value = serde_json::from_slice(&body).unwrap();
       assert!(json.get("permissions").is_some());
       assert!(json["permissions"].is_array());
@@ -829,7 +839,10 @@ mod bdd_tests {
       let is_valid = password.len() >= 8;
 
       // Then: should be rejected
-      assert!(!is_valid, "Password shorter than 8 characters should be rejected");
+      assert!(
+        !is_valid,
+        "Password shorter than 8 characters should be rejected"
+      );
     }
 
     #[test]
@@ -915,7 +928,10 @@ mod bdd_tests {
 
       // When: checking if permissions exist
       // Then: should have some permissions defined
-      assert!(!permissions.is_empty(), "Should have some permissions defined");
+      assert!(
+        !permissions.is_empty(),
+        "Should have some permissions defined"
+      );
     }
 
     #[test]
@@ -1076,7 +1092,10 @@ mod tests {
 
         // Then: valid password should pass, invalid should fail
         assert!(valid, "Valid password should be at least 8 characters");
-        assert!(!invalid, "Invalid password should be less than 8 characters");
+        assert!(
+          !invalid,
+          "Invalid password should be less than 8 characters"
+        );
       }
 
       #[test]
@@ -1100,11 +1119,17 @@ mod tests {
 
         // When: checking if body has required fields
         let has_user_id = with_user_id.user_id.is_some();
-        let has_email_password = with_email_password.email.is_some() && with_email_password.password.is_some();
-        let has_nothing = with_nothing.user_id.is_none() && with_nothing.email.is_none() && with_nothing.password.is_none();
+        let has_email_password =
+          with_email_password.email.is_some() && with_email_password.password.is_some();
+        let has_nothing = with_nothing.user_id.is_none()
+          && with_nothing.email.is_none()
+          && with_nothing.password.is_none();
 
         // Then: should require either user_id or email+password
-        assert!(has_user_id || has_email_password, "Should have either user_id or email+password");
+        assert!(
+          has_user_id || has_email_password,
+          "Should have either user_id or email+password"
+        );
         assert!(!has_nothing, "Should not be empty");
       }
     }
@@ -1119,7 +1144,10 @@ mod tests {
         let permissions = dashboard_permissions();
 
         // Then: should return a list of permission strings
-        assert!(!permissions.is_empty(), "Should return non-empty permissions list");
+        assert!(
+          !permissions.is_empty(),
+          "Should return non-empty permissions list"
+        );
         // All items should be string slices
         for perm in permissions {
           assert!(!perm.is_empty(), "Permission should not be empty");

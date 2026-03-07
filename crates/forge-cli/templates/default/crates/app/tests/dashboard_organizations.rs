@@ -37,16 +37,9 @@ mod bdd_tests {
           .expect("login");
 
       // When: requesting GET /api/organizations
-      let (status, _) = app::test_request(
-        &client,
-        "GET",
-        ORGS_PATH,
-        Some(&token),
-        None,
-        None,
-      )
-      .await
-      .unwrap();
+      let (status, _) = app::test_request(&client, "GET", ORGS_PATH, Some(&token), None, None)
+        .await
+        .unwrap();
 
       // Then: should return 403 Forbidden
       assert_eq!(status, StatusCode::FORBIDDEN);
@@ -62,16 +55,9 @@ mod bdd_tests {
           .expect("login");
 
       // When: requesting GET /api/organizations
-      let (status, body) = app::test_request(
-        &client,
-        "GET",
-        ORGS_PATH,
-        Some(&token),
-        None,
-        None,
-      )
-      .await
-      .unwrap();
+      let (status, body) = app::test_request(&client, "GET", ORGS_PATH, Some(&token), None, None)
+        .await
+        .unwrap();
 
       // Then: should return 200 OK with non-empty organizations array
       assert_eq!(status, StatusCode::OK);
@@ -95,16 +81,10 @@ mod bdd_tests {
 
       // When: posting a new organization
       let body = r#"{"name":"New Org","slug":"new-org"}"#;
-      let (status, _) = app::test_request(
-        &client,
-        "POST",
-        ORGS_PATH,
-        Some(&token),
-        Some(body),
-        None,
-      )
-      .await
-      .unwrap();
+      let (status, _) =
+        app::test_request(&client, "POST", ORGS_PATH, Some(&token), Some(body), None)
+          .await
+          .unwrap();
 
       // Then: should return 403 Forbidden
       assert_eq!(status, StatusCode::FORBIDDEN);
@@ -121,16 +101,10 @@ mod bdd_tests {
 
       // When: posting a new organization with name and slug
       let body = r#"{"name":"Test Org","slug":"test-org-12345"}"#;
-      let (status, _) = app::test_request(
-        &client,
-        "POST",
-        ORGS_PATH,
-        Some(&token),
-        Some(body),
-        None,
-      )
-      .await
-      .unwrap();
+      let (status, _) =
+        app::test_request(&client, "POST", ORGS_PATH, Some(&token), Some(body), None)
+          .await
+          .unwrap();
 
       // Then: should return 201 Created
       assert_eq!(status, StatusCode::CREATED);

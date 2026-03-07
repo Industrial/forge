@@ -14,7 +14,10 @@ import { createTheme } from '@mui/material/styles'
 
 // Set up DOM environment for tests
 beforeAll(() => {
-  if (typeof globalThis.window === 'undefined' || typeof globalThis.document === 'undefined') {
+  if (
+    typeof globalThis.window === 'undefined' ||
+    typeof globalThis.document === 'undefined'
+  ) {
     const window = new Window()
     const document = window.document
     const global = globalThis as any
@@ -85,9 +88,13 @@ describe('HomePage component', () => {
       // When: rendering HomePage
       const { container } = render(<HomePage />, { wrapper: createWrapper() })
       // Then: welcome message should have data-testid="home-welcome"
-      const welcomeElement = container.querySelector('[data-testid="home-welcome"]')
+      const welcomeElement = container.querySelector(
+        '[data-testid="home-welcome"]',
+      )
       expect(welcomeElement).not.toBeNull()
-      expect(welcomeElement?.textContent).toContain('Welcome. You are logged in.')
+      expect(welcomeElement?.textContent).toContain(
+        'Welcome. You are logged in.',
+      )
     })
   })
 
@@ -105,7 +112,9 @@ describe('HomePage component', () => {
       // When: rendering HomePage
       const { container } = render(<HomePage />, { wrapper: createWrapper() })
       // Then: Typography component should be rendered
-      const welcomeElement = container.querySelector('[data-testid="home-welcome"]')
+      const welcomeElement = container.querySelector(
+        '[data-testid="home-welcome"]',
+      )
       expect(welcomeElement).not.toBeNull()
     })
 
@@ -138,7 +147,9 @@ describe('HomePage component', () => {
       // When: rendering HomePage
       const { container } = render(<HomePage />, { wrapper: createWrapper() })
       // Then: welcome message should have color="text.secondary" (verified by component structure)
-      const welcomeElement = container.querySelector('[data-testid="home-welcome"]')
+      const welcomeElement = container.querySelector(
+        '[data-testid="home-welcome"]',
+      )
       expect(welcomeElement).not.toBeNull()
     })
 
@@ -147,7 +158,9 @@ describe('HomePage component', () => {
       // When: rendering HomePage
       const { container } = render(<HomePage />, { wrapper: createWrapper() })
       // Then: Typography should be rendered (variant defaults to body1)
-      const welcomeElement = container.querySelector('[data-testid="home-welcome"]')
+      const welcomeElement = container.querySelector(
+        '[data-testid="home-welcome"]',
+      )
       expect(welcomeElement).not.toBeNull()
     })
   })
@@ -166,7 +179,9 @@ describe('HomePage component', () => {
       // When: rendering HomePage
       const { container } = render(<HomePage />, { wrapper: createWrapper() })
       // Then: Typography should be integrated
-      const welcomeElement = container.querySelector('[data-testid="home-welcome"]')
+      const welcomeElement = container.querySelector(
+        '[data-testid="home-welcome"]',
+      )
       expect(welcomeElement).not.toBeNull()
     })
 
@@ -186,7 +201,9 @@ describe('HomePage component', () => {
       // When: rendering HomePage
       const { container } = render(<HomePage />, { wrapper: createWrapper() })
       // Then: welcome message should be accessible via test id
-      const welcomeElement = container.querySelector('[data-testid="home-welcome"]')
+      const welcomeElement = container.querySelector(
+        '[data-testid="home-welcome"]',
+      )
       expect(welcomeElement).not.toBeNull()
       expect(welcomeElement?.textContent).toBeTruthy()
     })
@@ -220,8 +237,12 @@ describe('HomePage component', () => {
     test('should render static content', () => {
       // Given: HomePage component
       // When: rendering HomePage multiple times
-      const { container: container1 } = render(<HomePage />, { wrapper: createWrapper() })
-      const { container: container2 } = render(<HomePage />, { wrapper: createWrapper() })
+      const { container: container1 } = render(<HomePage />, {
+        wrapper: createWrapper(),
+      })
+      const { container: container2 } = render(<HomePage />, {
+        wrapper: createWrapper(),
+      })
       // Then: content should be consistent
       expect(container1.textContent).toContain('Home')
       expect(container1.textContent).toContain('Welcome. You are logged in.')
@@ -243,8 +264,12 @@ describe('HomePage component', () => {
     test('should handle re-rendering', () => {
       // Given: HomePage component
       // When: rendering HomePage multiple times
-      const { container: container1 } = render(<HomePage />, { wrapper: createWrapper() })
-      const { container: container2 } = render(<HomePage />, { wrapper: createWrapper() })
+      const { container: container1 } = render(<HomePage />, {
+        wrapper: createWrapper(),
+      })
+      const { container: container2 } = render(<HomePage />, {
+        wrapper: createWrapper(),
+      })
       // Then: both renders should be successful
       expect(container1.textContent).toContain('Home')
       expect(container2.textContent).toContain('Home')
@@ -253,8 +278,12 @@ describe('HomePage component', () => {
     test('should maintain consistent structure across renders', () => {
       // Given: HomePage component
       // When: rendering HomePage multiple times
-      const { container: container1 } = render(<HomePage />, { wrapper: createWrapper() })
-      const { container: container2 } = render(<HomePage />, { wrapper: createWrapper() })
+      const { container: container1 } = render(<HomePage />, {
+        wrapper: createWrapper(),
+      })
+      const { container: container2 } = render(<HomePage />, {
+        wrapper: createWrapper(),
+      })
       // Then: structure should be consistent
       const welcome1 = container1.querySelector('[data-testid="home-welcome"]')
       const welcome2 = container2.querySelector('[data-testid="home-welcome"]')

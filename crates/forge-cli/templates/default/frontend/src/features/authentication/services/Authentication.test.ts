@@ -5,10 +5,7 @@
 
 import { describe, it, expect } from 'bun:test'
 import { Effect, Option, Layer } from 'effect'
-import {
-  Authentication,
-  type AuthenticationService,
-} from './Authentication'
+import { Authentication, type AuthenticationService } from './Authentication'
 import type { AuthenticationUser } from '@/features/authentication/domain/AuthenticationUser'
 import type { AuthenticationError } from '@/features/authentication/errors/AuthenticationError'
 import type { ScopeError } from '@/features/authentication/errors'
@@ -48,10 +45,13 @@ describe('Authentication service interface', () => {
       const mockAuth: AuthenticationService = {
         restoreSession: () => Effect.void,
         getCurrentUser: () => Effect.succeed(Option.none()),
-        login: () => Effect.fail(new AuthenticationError({ message: 'Not implemented' })),
-        register: () => Effect.fail(new AuthenticationError({ message: 'Not implemented' })),
+        login: () =>
+          Effect.fail(new AuthenticationError({ message: 'Not implemented' })),
+        register: () =>
+          Effect.fail(new AuthenticationError({ message: 'Not implemented' })),
         logout: () => Effect.void,
-        selectScope: () => Effect.fail(new ScopeError({ message: 'Not implemented' })),
+        selectScope: () =>
+          Effect.fail(new ScopeError({ message: 'Not implemented' })),
       }
 
       // When I create a Layer with it
@@ -71,10 +71,13 @@ describe('Authentication service interface', () => {
       const mockAuth: AuthenticationService = {
         restoreSession: () => Effect.void,
         getCurrentUser: () => Effect.succeed(Option.none()),
-        login: () => Effect.fail(new AuthenticationError({ message: 'Not implemented' })),
-        register: () => Effect.fail(new AuthenticationError({ message: 'Not implemented' })),
+        login: () =>
+          Effect.fail(new AuthenticationError({ message: 'Not implemented' })),
+        register: () =>
+          Effect.fail(new AuthenticationError({ message: 'Not implemented' })),
         logout: () => Effect.void,
-        selectScope: () => Effect.fail(new ScopeError({ message: 'Not implemented' })),
+        selectScope: () =>
+          Effect.fail(new ScopeError({ message: 'Not implemented' })),
       }
 
       // Then restoreSession should exist and return Effect<void, never, never>
@@ -88,10 +91,13 @@ describe('Authentication service interface', () => {
       const mockAuth: AuthenticationService = {
         restoreSession: () => Effect.void,
         getCurrentUser: () => Effect.succeed(Option.none()),
-        login: () => Effect.fail(new AuthenticationError({ message: 'Not implemented' })),
-        register: () => Effect.fail(new AuthenticationError({ message: 'Not implemented' })),
+        login: () =>
+          Effect.fail(new AuthenticationError({ message: 'Not implemented' })),
+        register: () =>
+          Effect.fail(new AuthenticationError({ message: 'Not implemented' })),
         logout: () => Effect.void,
-        selectScope: () => Effect.fail(new ScopeError({ message: 'Not implemented' })),
+        selectScope: () =>
+          Effect.fail(new ScopeError({ message: 'Not implemented' })),
       }
 
       // Then getCurrentUser should exist and return Effect<Option<AuthenticationUser>, AuthenticationError, never>
@@ -107,9 +113,11 @@ describe('Authentication service interface', () => {
         getCurrentUser: () => Effect.succeed(Option.none()),
         login: (_email: string, _password: string) =>
           Effect.fail(new AuthenticationError({ message: 'Not implemented' })),
-        register: () => Effect.fail(new AuthenticationError({ message: 'Not implemented' })),
+        register: () =>
+          Effect.fail(new AuthenticationError({ message: 'Not implemented' })),
         logout: () => Effect.void,
-        selectScope: () => Effect.fail(new ScopeError({ message: 'Not implemented' })),
+        selectScope: () =>
+          Effect.fail(new ScopeError({ message: 'Not implemented' })),
       }
 
       // Then login should exist and accept email and password
@@ -123,11 +131,13 @@ describe('Authentication service interface', () => {
       const mockAuth: AuthenticationService = {
         restoreSession: () => Effect.void,
         getCurrentUser: () => Effect.succeed(Option.none()),
-        login: () => Effect.fail(new AuthenticationError({ message: 'Not implemented' })),
+        login: () =>
+          Effect.fail(new AuthenticationError({ message: 'Not implemented' })),
         register: (_email: string, _password: string) =>
           Effect.fail(new AuthenticationError({ message: 'Not implemented' })),
         logout: () => Effect.void,
-        selectScope: () => Effect.fail(new ScopeError({ message: 'Not implemented' })),
+        selectScope: () =>
+          Effect.fail(new ScopeError({ message: 'Not implemented' })),
       }
 
       // Then register should exist and accept email and password
@@ -141,10 +151,13 @@ describe('Authentication service interface', () => {
       const mockAuth: AuthenticationService = {
         restoreSession: () => Effect.void,
         getCurrentUser: () => Effect.succeed(Option.none()),
-        login: () => Effect.fail(new AuthenticationError({ message: 'Not implemented' })),
-        register: () => Effect.fail(new AuthenticationError({ message: 'Not implemented' })),
+        login: () =>
+          Effect.fail(new AuthenticationError({ message: 'Not implemented' })),
+        register: () =>
+          Effect.fail(new AuthenticationError({ message: 'Not implemented' })),
         logout: () => Effect.void,
-        selectScope: () => Effect.fail(new ScopeError({ message: 'Not implemented' })),
+        selectScope: () =>
+          Effect.fail(new ScopeError({ message: 'Not implemented' })),
       }
 
       // Then logout should exist and return Effect<void, never, never>
@@ -158,8 +171,10 @@ describe('Authentication service interface', () => {
       const mockAuth: AuthenticationService = {
         restoreSession: () => Effect.void,
         getCurrentUser: () => Effect.succeed(Option.none()),
-        login: () => Effect.fail(new AuthenticationError({ message: 'Not implemented' })),
-        register: () => Effect.fail(new AuthenticationError({ message: 'Not implemented' })),
+        login: () =>
+          Effect.fail(new AuthenticationError({ message: 'Not implemented' })),
+        register: () =>
+          Effect.fail(new AuthenticationError({ message: 'Not implemented' })),
         logout: () => Effect.void,
         selectScope: (_organizationId: string, _roleId: string) =>
           Effect.fail(new ScopeError({ message: 'Not implemented' })),
@@ -177,10 +192,13 @@ describe('Authentication service interface', () => {
       const mockAuth: AuthenticationService = {
         restoreSession: () => Effect.void,
         getCurrentUser: () => Effect.succeed(Option.none()),
-        login: () => Effect.fail(new AuthenticationError({ message: 'Not implemented' })),
-        register: () => Effect.fail(new AuthenticationError({ message: 'Not implemented' })),
+        login: () =>
+          Effect.fail(new AuthenticationError({ message: 'Not implemented' })),
+        register: () =>
+          Effect.fail(new AuthenticationError({ message: 'Not implemented' })),
         logout: () => Effect.void,
-        selectScope: () => Effect.fail(new ScopeError({ message: 'Not implemented' })),
+        selectScope: () =>
+          Effect.fail(new ScopeError({ message: 'Not implemented' })),
       }
 
       // When I run an Effect that uses it
@@ -201,10 +219,13 @@ describe('Authentication service interface', () => {
       const mockAuth: AuthenticationService = {
         restoreSession: () => Effect.void,
         getCurrentUser: () => Effect.succeed(Option.none()),
-        login: () => Effect.fail(new AuthenticationError({ message: 'Not implemented' })),
-        register: () => Effect.fail(new AuthenticationError({ message: 'Not implemented' })),
+        login: () =>
+          Effect.fail(new AuthenticationError({ message: 'Not implemented' })),
+        register: () =>
+          Effect.fail(new AuthenticationError({ message: 'Not implemented' })),
         logout: () => Effect.void,
-        selectScope: () => Effect.fail(new ScopeError({ message: 'Not implemented' })),
+        selectScope: () =>
+          Effect.fail(new ScopeError({ message: 'Not implemented' })),
       }
 
       // When I run getCurrentUser
@@ -231,10 +252,13 @@ describe('Authentication service interface', () => {
       const mockAuth: AuthenticationService = {
         restoreSession: () => Effect.void,
         getCurrentUser: () => Effect.succeed(Option.none()),
-        login: () => Effect.fail(new AuthenticationError({ message: 'Not implemented' })),
-        register: () => Effect.fail(new AuthenticationError({ message: 'Not implemented' })),
+        login: () =>
+          Effect.fail(new AuthenticationError({ message: 'Not implemented' })),
+        register: () =>
+          Effect.fail(new AuthenticationError({ message: 'Not implemented' })),
         logout: () => Effect.void,
-        selectScope: () => Effect.fail(new ScopeError({ message: 'Not implemented' })),
+        selectScope: () =>
+          Effect.fail(new ScopeError({ message: 'Not implemented' })),
       }
 
       // All methods should be functions
@@ -252,10 +276,13 @@ describe('Authentication service interface', () => {
       const mockAuth: AuthenticationService = {
         restoreSession: () => Effect.void,
         getCurrentUser: () => Effect.succeed(Option.none()),
-        login: () => Effect.fail(new AuthenticationError({ message: 'Not implemented' })),
-        register: () => Effect.fail(new AuthenticationError({ message: 'Not implemented' })),
+        login: () =>
+          Effect.fail(new AuthenticationError({ message: 'Not implemented' })),
+        register: () =>
+          Effect.fail(new AuthenticationError({ message: 'Not implemented' })),
         logout: () => Effect.void,
-        selectScope: () => Effect.fail(new ScopeError({ message: 'Not implemented' })),
+        selectScope: () =>
+          Effect.fail(new ScopeError({ message: 'Not implemented' })),
       }
 
       // Then it should be assignable to AuthenticationService
@@ -271,10 +298,13 @@ describe('Authentication service interface', () => {
       const mockAuth: AuthenticationService = {
         restoreSession: () => Effect.void,
         getCurrentUser: () => Effect.succeed(Option.none()),
-        login: () => Effect.fail(new AuthenticationError({ message: 'Not implemented' })),
-        register: () => Effect.fail(new AuthenticationError({ message: 'Not implemented' })),
+        login: () =>
+          Effect.fail(new AuthenticationError({ message: 'Not implemented' })),
+        register: () =>
+          Effect.fail(new AuthenticationError({ message: 'Not implemented' })),
         logout: () => Effect.void,
-        selectScope: () => Effect.fail(new ScopeError({ message: 'Not implemented' })),
+        selectScope: () =>
+          Effect.fail(new ScopeError({ message: 'Not implemented' })),
       }
 
       const layer = Layer.succeed(Authentication, mockAuth)
@@ -297,10 +327,13 @@ describe('Authentication service interface', () => {
       const mockAuth: AuthenticationService = {
         restoreSession: () => Effect.void,
         getCurrentUser: () => Effect.succeed(Option.none()),
-        login: () => Effect.fail(new AuthenticationError({ message: 'Not implemented' })),
-        register: () => Effect.fail(new AuthenticationError({ message: 'Not implemented' })),
+        login: () =>
+          Effect.fail(new AuthenticationError({ message: 'Not implemented' })),
+        register: () =>
+          Effect.fail(new AuthenticationError({ message: 'Not implemented' })),
         logout: () => Effect.void,
-        selectScope: () => Effect.fail(new ScopeError({ message: 'Not implemented' })),
+        selectScope: () =>
+          Effect.fail(new ScopeError({ message: 'Not implemented' })),
       }
 
       const layer = Layer.succeed(Authentication, mockAuth)

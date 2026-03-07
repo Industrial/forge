@@ -76,6 +76,9 @@ in {
     # Build optimization: sccache for compilation caching
     # Uses default $HOME/.cache/sccache location (no custom wrapper needed)
     RUSTC_WRAPPER = "sccache";
+
+    # Moon: Use system Rust instead of installing via proto/rustup
+    MOON_TOOLCHAIN_FORCE_GLOBALS = "rust";
   };
 
   # Development packages
@@ -105,7 +108,6 @@ in {
     cargo-audit
     cargo-llvm-cov
     cargo-nextest
-    cargo-hakari
 
     # Build optimization
     sccache
@@ -114,6 +116,9 @@ in {
     # Version management
     git
     gh
+
+    # Build system
+    moon
 
     # treefmt
     actionlint
@@ -161,11 +166,18 @@ in {
         prek install -q --overwrite
       '';
     };
+
+    moon-sync = {
+      exec = ''
+        moon sync
+      '';
+    };
   };
 
   enterShell = ''
     prek-install
     intro
+    moon-sync
 
     # Ensure sccache default cache directory exists and is writable
     # sccache uses $HOME/.cache/sccache by default (no wrapper needed)

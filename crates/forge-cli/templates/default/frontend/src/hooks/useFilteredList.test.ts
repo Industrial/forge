@@ -46,9 +46,9 @@ function testPredicate(item: TestItem, filters: TestFilters): boolean {
     item.name.toLowerCase().includes(filters.filterName.toLowerCase().trim())
   const categoryMatch =
     filters.filterCategory === '' ||
-    item.category.toLowerCase().includes(
-      filters.filterCategory.toLowerCase().trim(),
-    )
+    item.category
+      .toLowerCase()
+      .includes(filters.filterCategory.toLowerCase().trim())
   return nameMatch && categoryMatch
 }
 

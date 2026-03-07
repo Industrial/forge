@@ -5,14 +5,15 @@
  */
 
 import { describe, it, expect } from 'bun:test'
-import { useOrganizationsFilter, organizationMatches } from './useOrganizationsFilter'
+import {
+  useOrganizationsFilter,
+  organizationMatches,
+} from './useOrganizationsFilter'
 import { Organization } from '@/features/dashboard/domain/Organization'
 import type { OrganizationsFilterState } from './useOrganizationsFilter'
 
 // Factory function for creating mock organizations
-function getMockOrganization(
-  overrides?: Partial<Organization>,
-): Organization {
+function getMockOrganization(overrides?: Partial<Organization>): Organization {
   return new Organization({
     id: '1',
     name: 'Test Organization',

@@ -35,7 +35,9 @@ describe('ListQueryParams Behavior', () => {
       }
 
       // When: decoding the params
-      const result = Schema.decodeUnknownSync(ListQueryParamsSchema)(validParams)
+      const result = Schema.decodeUnknownSync(ListQueryParamsSchema)(
+        validParams,
+      )
 
       // Then: should decode successfully
       expect(result).toEqual(validParams)
@@ -250,7 +252,9 @@ describe('RpcSubscribeRequest Behavior', () => {
       }
 
       // When: decoding the request
-      const result = Schema.decodeUnknownSync(RpcSubscribeRequestSchema)(validRequest)
+      const result = Schema.decodeUnknownSync(RpcSubscribeRequestSchema)(
+        validRequest,
+      )
 
       // Then: should decode successfully
       expect(result.method).toBe('subscribe')
@@ -266,7 +270,9 @@ describe('RpcSubscribeRequest Behavior', () => {
       }
 
       // When: decoding the request
-      const result = Schema.decodeUnknownSync(RpcSubscribeRequestSchema)(request)
+      const result = Schema.decodeUnknownSync(RpcSubscribeRequestSchema)(
+        request,
+      )
 
       // Then: should decode successfully
       expect(result.method).toBe('subscribe')
@@ -316,10 +322,14 @@ describe('RpcSubscribeResult Behavior', () => {
       }
 
       // When: decoding the result
-      const result = Schema.decodeUnknownSync(RpcSubscribeResultSchema)(validResult)
+      const result = Schema.decodeUnknownSync(RpcSubscribeResultSchema)(
+        validResult,
+      )
 
       // Then: should decode successfully
-      expect(result.subscription_id).toBe('123e4567-e89b-12d3-a456-426614174000')
+      expect(result.subscription_id).toBe(
+        '123e4567-e89b-12d3-a456-426614174000',
+      )
     })
 
     it('should reject result without subscription_id', () => {
@@ -483,7 +493,8 @@ describe('LoginResponse Behavior', () => {
       }
 
       // When: decoding the response
-      const result = Schema.decodeUnknownSync(LoginResponseSchema)(validResponse)
+      const result =
+        Schema.decodeUnknownSync(LoginResponseSchema)(validResponse)
 
       // Then: should decode successfully
       expect(result.ok).toBe(true)
@@ -549,7 +560,9 @@ describe('RegisterResponse Behavior', () => {
       }
 
       // When: decoding the response
-      const result = Schema.decodeUnknownSync(RegisterResponseSchema)(validResponse)
+      const result = Schema.decodeUnknownSync(RegisterResponseSchema)(
+        validResponse,
+      )
 
       // Then: should decode successfully
       expect(result.ok).toBe(true)
@@ -575,7 +588,9 @@ describe('RegisterResponse Behavior', () => {
       const emptyResponse = {}
 
       // When: decoding the response
-      const result = Schema.decodeUnknownSync(RegisterResponseSchema)(emptyResponse)
+      const result = Schema.decodeUnknownSync(RegisterResponseSchema)(
+        emptyResponse,
+      )
 
       // Then: should decode successfully (all fields are optional)
       expect(result.ok).toBeUndefined()

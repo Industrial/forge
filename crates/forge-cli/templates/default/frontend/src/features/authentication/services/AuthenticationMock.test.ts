@@ -664,7 +664,10 @@ describe('AuthenticationMock', () => {
       )
       expect(Option.isSome(result)).toBe(true)
       expect(Option.getOrUndefined(result)).toEqual(user)
-      expect(mock.state.scope).toEqual({ organizationId: 'org-999', roleId: 'role-888' })
+      expect(mock.state.scope).toEqual({
+        organizationId: 'org-999',
+        roleId: 'role-888',
+      })
     })
   })
 })

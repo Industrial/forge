@@ -12,9 +12,7 @@ import { User, UserMembership } from '../domain/User'
 
 // Helper to create a mock HttpClient
 function createMockHttpClient(
-  handler: (
-    request: HttpClientRequest.HttpClientRequest,
-  ) => Effect.Effect<
+  handler: (request: HttpClientRequest.HttpClientRequest) => Effect.Effect<
     {
       status: number
       json: Effect.Effect<unknown>
@@ -32,17 +30,72 @@ function createMockHttpClient(
   return {
     execute: executeImpl,
     // Stub other methods (not used by UsersLive)
-    get: () => Effect.succeed({ status: 404, json: Effect.succeed({}), headers: new Headers() }),
-    post: () => Effect.succeed({ status: 404, json: Effect.succeed({}), headers: new Headers() }),
-    put: () => Effect.succeed({ status: 404, json: Effect.succeed({}), headers: new Headers() }),
-    patch: () => Effect.succeed({ status: 404, json: Effect.succeed({}), headers: new Headers() }),
-    delete: () => Effect.succeed({ status: 404, json: Effect.succeed({}), headers: new Headers() }),
-    head: () => Effect.succeed({ status: 404, json: Effect.succeed({}), headers: new Headers() }),
-    options: () => Effect.succeed({ status: 404, json: Effect.succeed({}), headers: new Headers() }),
-    request: () => Effect.succeed({ status: 404, json: Effect.succeed({}), headers: new Headers() }),
-    requestWith: () => Effect.succeed({ status: 404, json: Effect.succeed({}), headers: new Headers() }),
-    stream: () => Effect.succeed({ status: 404, json: Effect.succeed({}), headers: new Headers() }),
-    streamWith: () => Effect.succeed({ status: 404, json: Effect.succeed({}), headers: new Headers() }),
+    get: () =>
+      Effect.succeed({
+        status: 404,
+        json: Effect.succeed({}),
+        headers: new Headers(),
+      }),
+    post: () =>
+      Effect.succeed({
+        status: 404,
+        json: Effect.succeed({}),
+        headers: new Headers(),
+      }),
+    put: () =>
+      Effect.succeed({
+        status: 404,
+        json: Effect.succeed({}),
+        headers: new Headers(),
+      }),
+    patch: () =>
+      Effect.succeed({
+        status: 404,
+        json: Effect.succeed({}),
+        headers: new Headers(),
+      }),
+    delete: () =>
+      Effect.succeed({
+        status: 404,
+        json: Effect.succeed({}),
+        headers: new Headers(),
+      }),
+    head: () =>
+      Effect.succeed({
+        status: 404,
+        json: Effect.succeed({}),
+        headers: new Headers(),
+      }),
+    options: () =>
+      Effect.succeed({
+        status: 404,
+        json: Effect.succeed({}),
+        headers: new Headers(),
+      }),
+    request: () =>
+      Effect.succeed({
+        status: 404,
+        json: Effect.succeed({}),
+        headers: new Headers(),
+      }),
+    requestWith: () =>
+      Effect.succeed({
+        status: 404,
+        json: Effect.succeed({}),
+        headers: new Headers(),
+      }),
+    stream: () =>
+      Effect.succeed({
+        status: 404,
+        json: Effect.succeed({}),
+        headers: new Headers(),
+      }),
+    streamWith: () =>
+      Effect.succeed({
+        status: 404,
+        json: Effect.succeed({}),
+        headers: new Headers(),
+      }),
   } as HttpClient.HttpClient
 }
 
@@ -75,7 +128,10 @@ describe('UsersLive', () => {
       ]
 
       const mockHttpClient = createMockHttpClient((request) => {
-        if (request.url.includes('/api/dashboard/users') && request.method === 'GET') {
+        if (
+          request.url.includes('/api/dashboard/users') &&
+          request.method === 'GET'
+        ) {
           return Effect.succeed({
             status: 200,
             json: Effect.succeed({ users: mockUsers }),
@@ -127,7 +183,10 @@ describe('UsersLive', () => {
     test('should handle empty users array', async () => {
       // Given: endpoint returns 200 with empty array
       const mockHttpClient = createMockHttpClient((request) => {
-        if (request.url.includes('/api/dashboard/users') && request.method === 'GET') {
+        if (
+          request.url.includes('/api/dashboard/users') &&
+          request.method === 'GET'
+        ) {
           return Effect.succeed({
             status: 200,
             json: Effect.succeed({ users: [] }),
@@ -162,7 +221,10 @@ describe('UsersLive', () => {
     test('should handle missing users field', async () => {
       // Given: endpoint returns 200 but missing users field
       const mockHttpClient = createMockHttpClient((request) => {
-        if (request.url.includes('/api/dashboard/users') && request.method === 'GET') {
+        if (
+          request.url.includes('/api/dashboard/users') &&
+          request.method === 'GET'
+        ) {
           return Effect.succeed({
             status: 200,
             json: Effect.succeed({}), // Missing users field
@@ -197,7 +259,10 @@ describe('UsersLive', () => {
     test('should fail with 401 error message', async () => {
       // Given: endpoint returns 401
       const mockHttpClient = createMockHttpClient((request) => {
-        if (request.url.includes('/api/dashboard/users') && request.method === 'GET') {
+        if (
+          request.url.includes('/api/dashboard/users') &&
+          request.method === 'GET'
+        ) {
           return Effect.succeed({
             status: 401,
             json: Effect.succeed({}),
@@ -224,13 +289,18 @@ describe('UsersLive', () => {
       // Then: should fail with session expired message
       await expect(
         Effect.runPromise(users.list().pipe(Effect.provide(testLayer))),
-      ).rejects.toThrow('Session expired or not logged in. Please log in again.')
+      ).rejects.toThrow(
+        'Session expired or not logged in. Please log in again.',
+      )
     })
 
     test('should fail with 403 permission error', async () => {
       // Given: endpoint returns 403
       const mockHttpClient = createMockHttpClient((request) => {
-        if (request.url.includes('/api/dashboard/users') && request.method === 'GET') {
+        if (
+          request.url.includes('/api/dashboard/users') &&
+          request.method === 'GET'
+        ) {
           return Effect.succeed({
             status: 403,
             json: Effect.succeed({}),
@@ -263,7 +333,10 @@ describe('UsersLive', () => {
     test('should fail with error message from response body', async () => {
       // Given: endpoint returns 500 with error field
       const mockHttpClient = createMockHttpClient((request) => {
-        if (request.url.includes('/api/dashboard/users') && request.method === 'GET') {
+        if (
+          request.url.includes('/api/dashboard/users') &&
+          request.method === 'GET'
+        ) {
           return Effect.succeed({
             status: 500,
             json: Effect.succeed({ error: 'Internal server error' }),
@@ -296,7 +369,10 @@ describe('UsersLive', () => {
     test('should fail with HTTP status when no error field', async () => {
       // Given: endpoint returns 500 without error field
       const mockHttpClient = createMockHttpClient((request) => {
-        if (request.url.includes('/api/dashboard/users') && request.method === 'GET') {
+        if (
+          request.url.includes('/api/dashboard/users') &&
+          request.method === 'GET'
+        ) {
           return Effect.succeed({
             status: 500,
             json: Effect.succeed({ message: 'Something went wrong' }),
@@ -338,7 +414,10 @@ describe('UsersLive', () => {
       }
 
       const mockHttpClient = createMockHttpClient((request) => {
-        if (request.url.includes('/api/dashboard/users') && request.method === 'POST') {
+        if (
+          request.url.includes('/api/dashboard/users') &&
+          request.method === 'POST'
+        ) {
           return Effect.succeed({
             status: 200,
             json: Effect.succeed({}),
@@ -380,7 +459,10 @@ describe('UsersLive', () => {
       }
 
       const mockHttpClient = createMockHttpClient((request) => {
-        if (request.url.includes('/api/dashboard/users') && request.method === 'POST') {
+        if (
+          request.url.includes('/api/dashboard/users') &&
+          request.method === 'POST'
+        ) {
           return Effect.succeed({
             status: 403,
             json: Effect.succeed({}),
@@ -406,7 +488,9 @@ describe('UsersLive', () => {
 
       // Then: should fail with permission error
       await expect(
-        Effect.runPromise(users.create(createBody).pipe(Effect.provide(testLayer))),
+        Effect.runPromise(
+          users.create(createBody).pipe(Effect.provide(testLayer)),
+        ),
       ).rejects.toThrow('You do not have permission to create users.')
     })
 
@@ -420,7 +504,10 @@ describe('UsersLive', () => {
       }
 
       const mockHttpClient = createMockHttpClient((request) => {
-        if (request.url.includes('/api/dashboard/users') && request.method === 'POST') {
+        if (
+          request.url.includes('/api/dashboard/users') &&
+          request.method === 'POST'
+        ) {
           return Effect.succeed({
             status: 400,
             json: Effect.succeed({ error: 'Validation failed' }),
@@ -446,7 +533,9 @@ describe('UsersLive', () => {
 
       // Then: should fail with error message
       await expect(
-        Effect.runPromise(users.create(createBody).pipe(Effect.provide(testLayer))),
+        Effect.runPromise(
+          users.create(createBody).pipe(Effect.provide(testLayer)),
+        ),
       ).rejects.toThrow('Validation failed')
     })
   })
@@ -461,7 +550,10 @@ describe('UsersLive', () => {
       }
 
       const mockHttpClient = createMockHttpClient((request) => {
-        if (request.url.includes('/api/dashboard/users') && request.method === 'PATCH') {
+        if (
+          request.url.includes('/api/dashboard/users') &&
+          request.method === 'PATCH'
+        ) {
           return Effect.succeed({
             status: 200,
             json: Effect.succeed({}),
@@ -501,7 +593,10 @@ describe('UsersLive', () => {
       }
 
       const mockHttpClient = createMockHttpClient((request) => {
-        if (request.url.includes('/api/dashboard/users') && request.method === 'PATCH') {
+        if (
+          request.url.includes('/api/dashboard/users') &&
+          request.method === 'PATCH'
+        ) {
           return Effect.succeed({
             status: 200,
             json: Effect.succeed({}),
@@ -541,7 +636,10 @@ describe('UsersLive', () => {
       }
 
       const mockHttpClient = createMockHttpClient((request) => {
-        if (request.url.includes('/api/dashboard/users') && request.method === 'PATCH') {
+        if (
+          request.url.includes('/api/dashboard/users') &&
+          request.method === 'PATCH'
+        ) {
           return Effect.succeed({
             status: 403,
             json: Effect.succeed({}),
@@ -567,7 +665,9 @@ describe('UsersLive', () => {
 
       // Then: should fail with permission error
       await expect(
-        Effect.runPromise(users.update(updateBody).pipe(Effect.provide(testLayer))),
+        Effect.runPromise(
+          users.update(updateBody).pipe(Effect.provide(testLayer)),
+        ),
       ).rejects.toThrow('You do not have permission to update users.')
     })
 
@@ -579,7 +679,10 @@ describe('UsersLive', () => {
       }
 
       const mockHttpClient = createMockHttpClient((request) => {
-        if (request.url.includes('/api/dashboard/users') && request.method === 'PATCH') {
+        if (
+          request.url.includes('/api/dashboard/users') &&
+          request.method === 'PATCH'
+        ) {
           return Effect.succeed({
             status: 400,
             json: Effect.succeed({ error: 'Invalid email format' }),
@@ -605,7 +708,9 @@ describe('UsersLive', () => {
 
       // Then: should fail with error message
       await expect(
-        Effect.runPromise(users.update(updateBody).pipe(Effect.provide(testLayer))),
+        Effect.runPromise(
+          users.update(updateBody).pipe(Effect.provide(testLayer)),
+        ),
       ).rejects.toThrow('Invalid email format')
     })
   })
@@ -616,7 +721,10 @@ describe('UsersLive', () => {
       const userId = 'user-123'
 
       const mockHttpClient = createMockHttpClient((request) => {
-        if (request.url.includes('/api/dashboard/users') && request.method === 'DELETE') {
+        if (
+          request.url.includes('/api/dashboard/users') &&
+          request.method === 'DELETE'
+        ) {
           return Effect.succeed({
             status: 200,
             json: Effect.succeed({}),
@@ -653,7 +761,10 @@ describe('UsersLive', () => {
       const userId = 'user-123'
 
       const mockHttpClient = createMockHttpClient((request) => {
-        if (request.url.includes('/api/dashboard/users') && request.method === 'DELETE') {
+        if (
+          request.url.includes('/api/dashboard/users') &&
+          request.method === 'DELETE'
+        ) {
           return Effect.succeed({
             status: 403,
             json: Effect.succeed({}),
@@ -688,7 +799,10 @@ describe('UsersLive', () => {
       const userId = 'user-123'
 
       const mockHttpClient = createMockHttpClient((request) => {
-        if (request.url.includes('/api/dashboard/users') && request.method === 'DELETE') {
+        if (
+          request.url.includes('/api/dashboard/users') &&
+          request.method === 'DELETE'
+        ) {
           return Effect.succeed({
             status: 404,
             json: Effect.succeed({ error: 'User not found' }),

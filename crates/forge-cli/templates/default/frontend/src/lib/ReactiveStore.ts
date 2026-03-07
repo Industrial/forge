@@ -236,7 +236,9 @@ function createDerivedExternalStore<A, B>(
   initialB: B,
   _run: RunEffect,
   runFork: RunFork,
-  derive: (stream: Stream.Stream<A, never, never>) => Stream.Stream<B, never, never>,
+  derive: (
+    stream: Stream.Stream<A, never, never>,
+  ) => Stream.Stream<B, never, never>,
 ): {
   subscribe: (onStoreChange: () => void) => () => void
   getSnapshot: () => ReactiveStoreSnapshot<B>
@@ -345,7 +347,9 @@ export function useDerivedReactiveStore<A, B>(
   run: RunEffect,
   runFork: RunFork,
   derivationKey: string,
-  derive: (stream: Stream.Stream<A, never, never>) => Stream.Stream<B, never, never>,
+  derive: (
+    stream: Stream.Stream<A, never, never>,
+  ) => Stream.Stream<B, never, never>,
 ): B {
   const store = useMemo(() => {
     let byKey = derivedStoreCache.get(tag as object)
@@ -353,14 +357,17 @@ export function useDerivedReactiveStore<A, B>(
       byKey = new Map()
       derivedStoreCache.set(tag as object, byKey)
     }
-    let cached = byKey.get(derivationKey) as ReturnType<
-      typeof createDerivedExternalStore<A, B>
-    > | undefined
+    let cached = byKey.get(derivationKey) as
+      | ReturnType<typeof createDerivedExternalStore<A, B>>
+      | undefined
     if (!cached) {
       cached = createDerivedExternalStore(tag, initialB, run, runFork, derive)
-      byKey.set(derivationKey, cached as ReturnType<
-        typeof createDerivedExternalStore<unknown, unknown>
-      >)
+      byKey.set(
+        derivationKey,
+        cached as ReturnType<
+          typeof createDerivedExternalStore<unknown, unknown>
+        >,
+      )
     }
     return cached
   }, [tag, initialB, run, runFork, derivationKey, derive])

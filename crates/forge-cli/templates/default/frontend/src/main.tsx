@@ -18,7 +18,9 @@ await Effect.runPromise(
 
         const rootElement = document.getElementById('root')
         if (rootElement == null) {
-          return yield* Effect.fail(new Error('Failed to find the root element'))
+          return yield* Effect.fail(
+            new Error('Failed to find the root element'),
+          )
         }
 
         yield* Effect.sync(() => {

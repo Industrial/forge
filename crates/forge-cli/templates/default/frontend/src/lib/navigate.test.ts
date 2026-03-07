@@ -268,7 +268,9 @@ describe('navigate', () => {
       const effect = navigateTo(navigate, '/test')
 
       // Then: it should return Effect that fails with error
-      await expect(Effect.runPromise(effect)).rejects.toThrow('Navigation failed')
+      await expect(Effect.runPromise(effect)).rejects.toThrow(
+        'Navigation failed',
+      )
     })
 
     it('should convert non-Error exceptions to Error', async () => {
@@ -294,7 +296,9 @@ describe('navigate', () => {
       const effect = navigateTo(navigate, '/test')
 
       // Then: it should return Effect that fails
-      await expect(Effect.runPromise(effect)).rejects.toThrow('Async navigation failed')
+      await expect(Effect.runPromise(effect)).rejects.toThrow(
+        'Async navigation failed',
+      )
     })
 
     it('should preserve Error instances', async () => {
@@ -406,7 +410,9 @@ describe('navigate', () => {
       })
 
       // Then: error should propagate
-      await expect(Effect.runPromise(program)).rejects.toThrow('Navigation error')
+      await expect(Effect.runPromise(program)).rejects.toThrow(
+        'Navigation error',
+      )
     })
   })
 

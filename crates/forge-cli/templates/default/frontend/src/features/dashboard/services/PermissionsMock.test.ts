@@ -5,10 +5,7 @@
 
 import { describe, it, expect, beforeEach } from 'bun:test'
 import { Effect, Layer } from 'effect'
-import {
-  createPermissionsMock,
-  PermissionsMockLayer,
-} from './PermissionsMock'
+import { createPermissionsMock, PermissionsMockLayer } from './PermissionsMock'
 import { Permissions } from './Permissions'
 import { Assignment } from '../domain/Assignment'
 import type { PermissionsService, PermissionsData } from './Permissions'

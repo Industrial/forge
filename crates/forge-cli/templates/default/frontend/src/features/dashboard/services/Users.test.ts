@@ -5,10 +5,7 @@
 import { describe, test, expect } from 'bun:test'
 import { Effect } from 'effect'
 
-import {
-  Users,
-  type UsersService,
-} from './Users'
+import { Users, type UsersService } from './Users'
 import { User, UserMembership } from '../domain/User'
 import { createUsersMock, UsersMockLayer } from './UsersMock'
 
@@ -73,7 +70,7 @@ describe('Users service', () => {
           password: 'password123',
           org_id: 'org-1',
           role_ids: ['role-1'],
-        })
+        }),
       )
       expect(result).toBeUndefined()
     })
@@ -90,7 +87,7 @@ describe('Users service', () => {
       }
 
       const result = await Effect.runPromise(
-        service.update({ id: 'user-1', email: 'updated@example.com' })
+        service.update({ id: 'user-1', email: 'updated@example.com' }),
       )
       expect(result).toBeUndefined()
     })
@@ -139,7 +136,7 @@ describe('Users service', () => {
       })
 
       const result = await Effect.runPromise(
-        program.pipe(Effect.provide(UsersMockLayer(users)))
+        program.pipe(Effect.provide(UsersMockLayer(users))),
       )
 
       expect(result.length).toBe(2)
@@ -155,7 +152,7 @@ describe('Users service', () => {
       })
 
       const result = await Effect.runPromise(
-        program.pipe(Effect.provide(UsersMockLayer([])))
+        program.pipe(Effect.provide(UsersMockLayer([]))),
       )
 
       expect(result.length).toBe(0)
@@ -180,7 +177,7 @@ describe('Users service', () => {
       })
 
       const result = await Effect.runPromise(
-        program.pipe(Effect.provide(UsersMockLayer(users)))
+        program.pipe(Effect.provide(UsersMockLayer(users))),
       )
 
       expect(Array.isArray(result)).toBe(true)
@@ -211,7 +208,7 @@ describe('Users service', () => {
       })
 
       const result = await Effect.runPromise(
-        program.pipe(Effect.provide(UsersMockLayer(users)))
+        program.pipe(Effect.provide(UsersMockLayer(users))),
       )
 
       expect(result[0].memberships.length).toBe(1)
@@ -235,7 +232,7 @@ describe('Users service', () => {
       })
 
       const result = await Effect.runPromise(
-        program.pipe(Effect.provide(UsersMockLayer([])))
+        program.pipe(Effect.provide(UsersMockLayer([]))),
       )
 
       expect(result.length).toBe(1)
@@ -265,7 +262,7 @@ describe('Users service', () => {
       })
 
       const result = await Effect.runPromise(
-        program.pipe(Effect.provide(UsersMockLayer([])))
+        program.pipe(Effect.provide(UsersMockLayer([]))),
       )
 
       expect(result.length).toBe(2)
@@ -286,7 +283,7 @@ describe('Users service', () => {
       })
 
       const result = await Effect.runPromise(
-        program.pipe(Effect.provide(UsersMockLayer([])))
+        program.pipe(Effect.provide(UsersMockLayer([]))),
       )
 
       expect(result[0].is_active).toBe(true)
@@ -306,7 +303,7 @@ describe('Users service', () => {
       })
 
       const result = await Effect.runPromise(
-        program.pipe(Effect.provide(UsersMockLayer([])))
+        program.pipe(Effect.provide(UsersMockLayer([]))),
       )
 
       expect(result[0].is_admin).toBe(false)
@@ -326,7 +323,7 @@ describe('Users service', () => {
       })
 
       const result = await Effect.runPromise(
-        program.pipe(Effect.provide(UsersMockLayer([])))
+        program.pipe(Effect.provide(UsersMockLayer([]))),
       )
 
       expect(result[0].memberships).toEqual([])
@@ -357,7 +354,7 @@ describe('Users service', () => {
       })
 
       const result = await Effect.runPromise(
-        program.pipe(Effect.provide(UsersMockLayer(users)))
+        program.pipe(Effect.provide(UsersMockLayer(users))),
       )
 
       expect(result[0].email).toBe('new@example.com')
@@ -387,7 +384,7 @@ describe('Users service', () => {
       })
 
       const result = await Effect.runPromise(
-        program.pipe(Effect.provide(UsersMockLayer(users)))
+        program.pipe(Effect.provide(UsersMockLayer(users))),
       )
 
       expect(result[0].is_active).toBe(false)
@@ -418,7 +415,7 @@ describe('Users service', () => {
       })
 
       const result = await Effect.runPromise(
-        program.pipe(Effect.provide(UsersMockLayer(users)))
+        program.pipe(Effect.provide(UsersMockLayer(users))),
       )
 
       expect(result[0].email).toBe('new@example.com')
@@ -436,7 +433,7 @@ describe('Users service', () => {
       })
 
       await expect(
-        Effect.runPromise(program.pipe(Effect.provide(UsersMockLayer([]))))
+        Effect.runPromise(program.pipe(Effect.provide(UsersMockLayer([])))),
       ).rejects.toThrow('User not found.')
     })
 
@@ -463,7 +460,7 @@ describe('Users service', () => {
       })
 
       const result = await Effect.runPromise(
-        program.pipe(Effect.provide(UsersMockLayer(users)))
+        program.pipe(Effect.provide(UsersMockLayer(users))),
       )
 
       expect(result[0].is_admin).toBe(true) // Preserved
@@ -493,7 +490,7 @@ describe('Users service', () => {
       })
 
       const result = await Effect.runPromise(
-        program.pipe(Effect.provide(UsersMockLayer(users)))
+        program.pipe(Effect.provide(UsersMockLayer(users))),
       )
 
       expect(result[0].created_at).toBe('2024-01-01T00:00:00Z')
@@ -527,7 +524,7 @@ describe('Users service', () => {
       })
 
       const result = await Effect.runPromise(
-        program.pipe(Effect.provide(UsersMockLayer(users)))
+        program.pipe(Effect.provide(UsersMockLayer(users))),
       )
 
       expect(result[0].memberships.length).toBe(1)
@@ -564,7 +561,7 @@ describe('Users service', () => {
       })
 
       const result = await Effect.runPromise(
-        program.pipe(Effect.provide(UsersMockLayer(users)))
+        program.pipe(Effect.provide(UsersMockLayer(users))),
       )
 
       expect(result.length).toBe(1)
@@ -590,7 +587,7 @@ describe('Users service', () => {
       })
 
       await expect(
-        Effect.runPromise(program.pipe(Effect.provide(UsersMockLayer(users))))
+        Effect.runPromise(program.pipe(Effect.provide(UsersMockLayer(users)))),
       ).rejects.toThrow('User not found.')
     })
 
@@ -632,7 +629,7 @@ describe('Users service', () => {
       })
 
       const result = await Effect.runPromise(
-        program.pipe(Effect.provide(UsersMockLayer(users)))
+        program.pipe(Effect.provide(UsersMockLayer(users))),
       )
 
       expect(result.length).toBe(0)
@@ -652,7 +649,7 @@ describe('Users service', () => {
       })
 
       const service = await Effect.runPromise(
-        program.pipe(Effect.provide(UsersMockLayer([])))
+        program.pipe(Effect.provide(UsersMockLayer([]))),
       )
 
       expect(service).toBeDefined()
@@ -670,7 +667,7 @@ describe('Users service', () => {
       })
 
       const { service1, service2 } = await Effect.runPromise(
-        program.pipe(Effect.provide(UsersMockLayer([])))
+        program.pipe(Effect.provide(UsersMockLayer([]))),
       )
 
       // Layer.succeed returns the same instance
@@ -720,7 +717,7 @@ describe('Users service', () => {
       })
 
       const result = await Effect.runPromise(
-        program.pipe(Effect.provide(UsersMockLayer([])))
+        program.pipe(Effect.provide(UsersMockLayer([]))),
       )
 
       expect(result.success).toBe(true)
@@ -769,7 +766,7 @@ describe('Users service', () => {
       })
 
       const result = await Effect.runPromise(
-        program.pipe(Effect.provide(UsersMockLayer([])))
+        program.pipe(Effect.provide(UsersMockLayer([]))),
       )
 
       expect(result.success).toBe(true)
@@ -812,7 +809,7 @@ describe('Users service', () => {
       })
 
       const result = await Effect.runPromise(
-        program.pipe(Effect.provide(UsersMockLayer(users)))
+        program.pipe(Effect.provide(UsersMockLayer(users))),
       )
 
       expect(result.success).toBe(true)

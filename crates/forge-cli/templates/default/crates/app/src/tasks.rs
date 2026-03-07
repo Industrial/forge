@@ -238,19 +238,43 @@ mod tests {
       for task in tasks {
         match task.status {
           TaskStatus::Running => {
-            assert!(task.scheduled_at.is_some(), "Running task should have scheduled_at");
-            assert!(task.started_at.is_some(), "Running task should have started_at");
-            assert!(task.finished_at.is_none(), "Running task should not have finished_at");
+            assert!(
+              task.scheduled_at.is_some(),
+              "Running task should have scheduled_at"
+            );
+            assert!(
+              task.started_at.is_some(),
+              "Running task should have started_at"
+            );
+            assert!(
+              task.finished_at.is_none(),
+              "Running task should not have finished_at"
+            );
           }
           TaskStatus::Ran => {
-            assert!(task.scheduled_at.is_some(), "Ran task should have scheduled_at");
+            assert!(
+              task.scheduled_at.is_some(),
+              "Ran task should have scheduled_at"
+            );
             assert!(task.started_at.is_some(), "Ran task should have started_at");
-            assert!(task.finished_at.is_some(), "Ran task should have finished_at");
+            assert!(
+              task.finished_at.is_some(),
+              "Ran task should have finished_at"
+            );
           }
           TaskStatus::Planned => {
-            assert!(task.scheduled_at.is_some(), "Planned task should have scheduled_at");
-            assert!(task.started_at.is_none(), "Planned task should not have started_at");
-            assert!(task.finished_at.is_none(), "Planned task should not have finished_at");
+            assert!(
+              task.scheduled_at.is_some(),
+              "Planned task should have scheduled_at"
+            );
+            assert!(
+              task.started_at.is_none(),
+              "Planned task should not have started_at"
+            );
+            assert!(
+              task.finished_at.is_none(),
+              "Planned task should not have finished_at"
+            );
           }
         }
       }
@@ -271,11 +295,20 @@ mod tests {
 
       // Then a Planned task should become Running
       let tasks = state.store.read().await.clone();
-      let planned_count = tasks.iter().filter(|t| t.status == TaskStatus::Planned).count();
-      let running_count = tasks.iter().filter(|t| t.status == TaskStatus::Running).count();
+      let planned_count = tasks
+        .iter()
+        .filter(|t| t.status == TaskStatus::Planned)
+        .count();
+      let running_count = tasks
+        .iter()
+        .filter(|t| t.status == TaskStatus::Running)
+        .count();
       // After tick, we should still have tasks in all states (rotation maintains all three)
       assert_eq!(tasks.len(), 3, "Should maintain three tasks");
-      assert!(running_count > 0, "Should have at least one running task after tick");
+      assert!(
+        running_count > 0,
+        "Should have at least one running task after tick"
+      );
     }
 
     #[tokio::test]
@@ -290,7 +323,10 @@ mod tests {
       // Then a Running task should become Ran
       let tasks = state.store.read().await.clone();
       let ran_count = tasks.iter().filter(|t| t.status == TaskStatus::Ran).count();
-      assert!(ran_count > 0, "Should have at least one ran task after tick");
+      assert!(
+        ran_count > 0,
+        "Should have at least one ran task after tick"
+      );
     }
 
     #[tokio::test]
@@ -384,7 +420,10 @@ mod tests {
         .iter()
         .filter(|t| t.status == TaskStatus::Planned)
         .collect();
-      assert!(!planned_tasks.is_empty(), "Should have at least one planned task");
+      assert!(
+        !planned_tasks.is_empty(),
+        "Should have at least one planned task"
+      );
       // The new planned task should have a timestamp-based ID
       for task in planned_tasks {
         assert!(
@@ -449,7 +488,10 @@ mod bdd_tests {
 
       // Then: all tasks should be heartbeat tasks
       for task in tasks.iter() {
-        assert_eq!(task.name, "heartbeat", "All default tasks should be heartbeat");
+        assert_eq!(
+          task.name, "heartbeat",
+          "All default tasks should be heartbeat"
+        );
       }
     }
   }
@@ -489,7 +531,11 @@ mod bdd_tests {
       let status: TaskStatus = serde_json::from_str(json).unwrap();
 
       // Then: should deserialize correctly
-      assert_eq!(status, TaskStatus::Planned, "Should deserialize 'planned' to Planned");
+      assert_eq!(
+        status,
+        TaskStatus::Planned,
+        "Should deserialize 'planned' to Planned"
+      );
     }
   }
 
@@ -531,9 +577,15 @@ mod bdd_tests {
       let json = serde_json::to_string(&task).unwrap();
 
       // Then: should not include None fields
-      assert!(!json.contains("scheduled_at"), "Should skip None scheduled_at");
+      assert!(
+        !json.contains("scheduled_at"),
+        "Should skip None scheduled_at"
+      );
       assert!(!json.contains("started_at"), "Should skip None started_at");
-      assert!(!json.contains("finished_at"), "Should skip None finished_at");
+      assert!(
+        !json.contains("finished_at"),
+        "Should skip None finished_at"
+      );
     }
 
     #[test]
@@ -553,8 +605,14 @@ mod bdd_tests {
       let json = serde_json::to_string(&task).unwrap();
 
       // Then: should include Some fields
-      assert!(json.contains("scheduled_at"), "Should include Some scheduled_at");
-      assert!(json.contains("started_at"), "Should include Some started_at");
+      assert!(
+        json.contains("scheduled_at"),
+        "Should include Some scheduled_at"
+      );
+      assert!(
+        json.contains("started_at"),
+        "Should include Some started_at"
+      );
     }
   }
 
@@ -572,10 +630,19 @@ mod bdd_tests {
 
       // Then: Planned task should become Running
       let tasks = state.store.read().await.clone();
-      let planned_count = tasks.iter().filter(|t| t.status == TaskStatus::Planned).count();
-      let running_count = tasks.iter().filter(|t| t.status == TaskStatus::Running).count();
+      let planned_count = tasks
+        .iter()
+        .filter(|t| t.status == TaskStatus::Planned)
+        .count();
+      let running_count = tasks
+        .iter()
+        .filter(|t| t.status == TaskStatus::Running)
+        .count();
       // After tick, one Planned should become Running
-      assert!(running_count >= 1, "Should have at least one Running task after tick");
+      assert!(
+        running_count >= 1,
+        "Should have at least one Running task after tick"
+      );
     }
 
     #[tokio::test]
@@ -590,7 +657,10 @@ mod bdd_tests {
       // Then: Running task should become Ran
       let tasks = state.store.read().await.clone();
       let ran_count = tasks.iter().filter(|t| t.status == TaskStatus::Ran).count();
-      assert!(ran_count >= 1, "Should have at least one Ran task after tick");
+      assert!(
+        ran_count >= 1,
+        "Should have at least one Ran task after tick"
+      );
     }
 
     #[tokio::test]
@@ -605,8 +675,14 @@ mod bdd_tests {
 
       // Then: Ran task should become Planned with new ID
       let tasks = state.store.read().await.clone();
-      let planned_count = tasks.iter().filter(|t| t.status == TaskStatus::Planned).count();
-      assert!(planned_count >= 1, "Should have at least one Planned task after rotation");
+      let planned_count = tasks
+        .iter()
+        .filter(|t| t.status == TaskStatus::Planned)
+        .count();
+      assert!(
+        planned_count >= 1,
+        "Should have at least one Planned task after rotation"
+      );
     }
 
     #[tokio::test]
@@ -622,7 +698,10 @@ mod bdd_tests {
       let tasks = state.store.read().await.clone();
       for task in tasks.iter() {
         if task.status == TaskStatus::Running {
-          assert!(task.started_at.is_some(), "Running task should have started_at");
+          assert!(
+            task.started_at.is_some(),
+            "Running task should have started_at"
+          );
         }
       }
     }
@@ -640,7 +719,10 @@ mod bdd_tests {
       let tasks = state.store.read().await.clone();
       for task in tasks.iter() {
         if task.status == TaskStatus::Ran {
-          assert!(task.finished_at.is_some(), "Ran task should have finished_at");
+          assert!(
+            task.finished_at.is_some(),
+            "Ran task should have finished_at"
+          );
         }
       }
     }
@@ -703,7 +785,11 @@ mod bdd_tests {
       // Then: should broadcast to tasks channel
       // Note: Broadcast happens internally, we verify the channel exists
       let channel = Channel::raw("tasks");
-      assert_eq!(channel.as_str(), "tasks", "Should broadcast to tasks channel");
+      assert_eq!(
+        channel.as_str(),
+        "tasks",
+        "Should broadcast to tasks channel"
+      );
     }
 
     #[tokio::test]
@@ -719,8 +805,14 @@ mod bdd_tests {
       // Then: should serialize tasks to JSON
       assert!(!payload.is_empty(), "Should serialize tasks to JSON");
       let json_str = String::from_utf8_lossy(&payload);
-      assert!(json_str.contains("tasks"), "Should include 'tasks' in payload");
-      assert!(json_str.contains("type"), "Should include 'type' in payload");
+      assert!(
+        json_str.contains("tasks"),
+        "Should include 'tasks' in payload"
+      );
+      assert!(
+        json_str.contains("type"),
+        "Should include 'type' in payload"
+      );
     }
   }
 
@@ -748,9 +840,18 @@ mod bdd_tests {
       // Then: should have scheduled_at and started_at set
       assert!(running_task.is_some(), "Should have Running task");
       let task = running_task.unwrap();
-      assert!(task.scheduled_at.is_some(), "Running task should have scheduled_at");
-      assert!(task.started_at.is_some(), "Running task should have started_at");
-      assert!(task.finished_at.is_none(), "Running task should not have finished_at");
+      assert!(
+        task.scheduled_at.is_some(),
+        "Running task should have scheduled_at"
+      );
+      assert!(
+        task.started_at.is_some(),
+        "Running task should have started_at"
+      );
+      assert!(
+        task.finished_at.is_none(),
+        "Running task should not have finished_at"
+      );
     }
 
     #[test]
@@ -764,9 +865,15 @@ mod bdd_tests {
       // Then: should have all timestamps set
       assert!(ran_task.is_some(), "Should have Ran task");
       let task = ran_task.unwrap();
-      assert!(task.scheduled_at.is_some(), "Ran task should have scheduled_at");
+      assert!(
+        task.scheduled_at.is_some(),
+        "Ran task should have scheduled_at"
+      );
       assert!(task.started_at.is_some(), "Ran task should have started_at");
-      assert!(task.finished_at.is_some(), "Ran task should have finished_at");
+      assert!(
+        task.finished_at.is_some(),
+        "Ran task should have finished_at"
+      );
     }
 
     #[test]
@@ -780,9 +887,18 @@ mod bdd_tests {
       // Then: should have scheduled_at but no started_at or finished_at
       assert!(planned_task.is_some(), "Should have Planned task");
       let task = planned_task.unwrap();
-      assert!(task.scheduled_at.is_some(), "Planned task should have scheduled_at");
-      assert!(task.started_at.is_none(), "Planned task should not have started_at");
-      assert!(task.finished_at.is_none(), "Planned task should not have finished_at");
+      assert!(
+        task.scheduled_at.is_some(),
+        "Planned task should have scheduled_at"
+      );
+      assert!(
+        task.started_at.is_none(),
+        "Planned task should not have started_at"
+      );
+      assert!(
+        task.finished_at.is_none(),
+        "Planned task should not have finished_at"
+      );
     }
   }
 }

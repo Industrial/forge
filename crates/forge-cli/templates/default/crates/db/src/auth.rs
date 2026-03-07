@@ -127,7 +127,9 @@ mod tests {
       let conn = Database::connect(sea_orm::ConnectOptions::new("sqlite::memory:".to_string()))
         .await
         .unwrap();
-      migrations::Migrator::up(&conn, None).await.expect("migrate");
+      migrations::Migrator::up(&conn, None)
+        .await
+        .expect("migrate");
       let db = forge_db::wrap_traced(conn);
       let now = Utc::now().naive_utc();
       let user_id = Uuid::new_v4();
@@ -144,7 +146,10 @@ mod tests {
         updated_at: Set(now),
         ..Default::default()
       };
-      user::Entity::insert(model).exec(&db).await.expect("insert user");
+      user::Entity::insert(model)
+        .exec(&db)
+        .await
+        .expect("insert user");
       (Backend::new(db), user_id)
     }
 

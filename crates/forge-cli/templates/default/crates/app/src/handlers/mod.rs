@@ -23,7 +23,7 @@ mod tests {
       // When: verifying module structure
       // Then: all expected handler modules should be declared and accessible
       // This test verifies compilation succeeds, which means all modules are properly declared
-      
+
       // Verify we can reference each module (compilation test)
       let _modules: Vec<&str> = vec![
         "auth",
@@ -38,7 +38,7 @@ mod tests {
         "subscription_stream",
         "ws",
       ];
-      
+
       assert_eq!(_modules.len(), 11, "Should have 11 handler modules");
     }
 

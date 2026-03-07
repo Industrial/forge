@@ -135,7 +135,8 @@ mod bdd_tests {
       // When: handler processes request
       // Then: should extract scope from headers
       // Note: The handler calls get_scope_from_headers_map(req.headers(), user, &db)
-      let live_backend: Option<Arc<InMemoryLiveBackend>> = Some(Arc::new(InMemoryLiveBackend::new()));
+      let live_backend: Option<Arc<InMemoryLiveBackend>> =
+        Some(Arc::new(InMemoryLiveBackend::new()));
       assert!(
         live_backend.is_some(),
         "Live backend should be available for scope processing"
@@ -149,7 +150,8 @@ mod bdd_tests {
       // When: handler processes the request
       // Then: should resolve permissions for the user and scope
       // Note: The handler calls resolve_permissions(&db, user, scope.as_ref()).await
-      let live_backend: Option<Arc<InMemoryLiveBackend>> = Some(Arc::new(InMemoryLiveBackend::new()));
+      let live_backend: Option<Arc<InMemoryLiveBackend>> =
+        Some(Arc::new(InMemoryLiveBackend::new()));
       assert!(
         live_backend.is_some(),
         "Live backend should be available for permission resolution"
@@ -163,7 +165,8 @@ mod bdd_tests {
       // When: handler processes the request
       // Then: should generate channels based on permissions and organization ID
       // Note: The handler calls channels_from_permissions(&permissions, current_org_id)
-      let live_backend: Option<Arc<InMemoryLiveBackend>> = Some(Arc::new(InMemoryLiveBackend::new()));
+      let live_backend: Option<Arc<InMemoryLiveBackend>> =
+        Some(Arc::new(InMemoryLiveBackend::new()));
       assert!(
         live_backend.is_some(),
         "Live backend should be available for channel generation"
@@ -177,7 +180,8 @@ mod bdd_tests {
       // When: handler processes WebSocket upgrade request
       // Then: should upgrade connection and pass to handle_socket
       // Note: The handler calls ws.on_upgrade(move |socket| handle_socket(...))
-      let live_backend: Option<Arc<InMemoryLiveBackend>> = Some(Arc::new(InMemoryLiveBackend::new()));
+      let live_backend: Option<Arc<InMemoryLiveBackend>> =
+        Some(Arc::new(InMemoryLiveBackend::new()));
       assert!(
         live_backend.is_some(),
         "Live backend should be available for WebSocket upgrade"
@@ -212,11 +216,11 @@ mod bdd_tests {
       let (tx, _rx) = mpsc::unbounded_channel::<Vec<u8>>();
       let conn_id = backend.register_connection(tx);
       let channels = vec![Channel::from("test-channel")];
-      
+
       for ch in &channels {
         backend.subscribe(conn_id, ch.clone());
       }
-      
+
       // Verification: all channels are subscribed
       assert_eq!(channels.len(), 1, "Should subscribe to provided channels");
     }
@@ -229,7 +233,7 @@ mod bdd_tests {
       // Note: The function checks if "tasks" channel exists and sends initial state
       let channels = vec![Channel::from("tasks")];
       let has_tasks_channel = channels.iter().any(|c| c.as_str() == "tasks");
-      
+
       assert!(
         has_tasks_channel,
         "Should detect tasks channel when present"
@@ -245,7 +249,7 @@ mod bdd_tests {
       // Note: The function only sends tasks if channels contains "tasks"
       let channels = vec![Channel::from("other-channel")];
       let has_tasks_channel = channels.iter().any(|c| c.as_str() == "tasks");
-      
+
       assert!(
         !has_tasks_channel,
         "Should not send tasks when tasks channel is not subscribed"
@@ -261,14 +265,18 @@ mod bdd_tests {
       // The forward task converts payload to String and sends as Message::Text
       let (tx, mut rx) = mpsc::unbounded_channel::<Vec<u8>>();
       let test_payload = b"test message".to_vec();
-      
+
       // Simulate sending a message
       let _ = tx.send(test_payload.clone());
-      
+
       // Verification: message can be received
       let received = rx.recv().await;
       assert!(received.is_some(), "Should receive messages from backend");
-      assert_eq!(received.unwrap(), test_payload, "Should forward exact payload");
+      assert_eq!(
+        received.unwrap(),
+        test_payload,
+        "Should forward exact payload"
+      );
     }
 
     #[test]
@@ -280,7 +288,7 @@ mod bdd_tests {
       // This triggers cleanup: live_backend.unregister_connection(conn_id) and forward.abort()
       let msg_type = "Close";
       let should_break = matches!(msg_type, "Close");
-      
+
       assert!(should_break, "Should handle Close message and break loop");
     }
 
@@ -293,7 +301,7 @@ mod bdd_tests {
       let backend = Arc::new(InMemoryLiveBackend::new());
       let (tx, _rx) = mpsc::unbounded_channel::<Vec<u8>>();
       let conn_id = backend.register_connection(tx);
-      
+
       // Verification: connection can be unregistered
       backend.unregister_connection(conn_id);
       assert!(true, "Should unregister connection on socket close");
@@ -317,7 +325,7 @@ mod bdd_tests {
       // Note: The function matches Err(_) and breaks the loop
       let error_occurred = true;
       let should_break = error_occurred;
-      
+
       assert!(should_break, "Should handle socket errors gracefully");
     }
 
@@ -329,7 +337,7 @@ mod bdd_tests {
       // Note: The function checks socket_tx.send(...).await.is_err() and breaks
       let send_error = true;
       let should_break = send_error;
-      
+
       assert!(should_break, "Should handle send errors gracefully");
     }
   }
@@ -348,8 +356,12 @@ mod bdd_tests {
         Channel::from("channel2"),
         Channel::from("channel3"),
       ];
-      
-      assert_eq!(channels.len(), 3, "Should subscribe to all provided channels");
+
+      assert_eq!(
+        channels.len(),
+        3,
+        "Should subscribe to all provided channels"
+      );
     }
 
     #[test]
@@ -359,7 +371,7 @@ mod bdd_tests {
       // Then: should not subscribe to any channels but still handle socket
       // Note: The function iterates channels, so empty list means no subscriptions
       let channels: Vec<Channel> = vec![];
-      
+
       assert!(channels.is_empty(), "Should handle empty channels list");
       // Socket handling continues even with no channels
     }
@@ -372,8 +384,11 @@ mod bdd_tests {
       // Note: The function checks channels.iter().any(|c| c.as_str() == "tasks")
       let channels = vec![Channel::from("tasks")];
       let has_tasks = channels.iter().any(|c| c.as_str() == "tasks");
-      
-      assert!(has_tasks, "Should detect tasks channel by string comparison");
+
+      assert!(
+        has_tasks,
+        "Should detect tasks channel by string comparison"
+      );
     }
   }
 
@@ -387,10 +402,13 @@ mod bdd_tests {
       // Then: should read current task state from task_state.store
       // Note: The function calls task_state.store.read().await.clone()
       let has_tasks_channel = true;
-      
+
       if has_tasks_channel {
         // Should read task state
-        assert!(true, "Should read task state when tasks channel is subscribed");
+        assert!(
+          true,
+          "Should read task state when tasks channel is subscribed"
+        );
       }
     }
 
@@ -401,7 +419,7 @@ mod bdd_tests {
       // Then: should serialize as JSON with type and tasks fields
       // Note: The function serializes: serde_json::json!({ "type": "tasks", "tasks": tasks })
       let tasks_json = serde_json::json!({ "type": "tasks", "tasks": [] });
-      
+
       assert_eq!(tasks_json["type"], "tasks", "Should include type field");
       assert!(tasks_json["tasks"].is_array(), "Should include tasks array");
     }
@@ -413,8 +431,11 @@ mod bdd_tests {
       // Then: should fallback to empty string
       // Note: The function uses unwrap_or_default() which returns empty string on failure
       let fallback = "".to_string();
-      
-      assert_eq!(fallback, "", "Should fallback to empty string on serialization failure");
+
+      assert_eq!(
+        fallback, "",
+        "Should fallback to empty string on serialization failure"
+      );
     }
   }
 }
@@ -573,7 +594,10 @@ mod tests {
       };
 
       // Then: should indicate connection should close
-      assert!(should_break, "Close message should trigger connection close");
+      assert!(
+        should_break,
+        "Close message should trigger connection close"
+      );
     }
 
     #[test]
@@ -588,7 +612,10 @@ mod tests {
       };
 
       // Then: should not trigger connection close
-      assert!(!should_break, "Text message should not trigger connection close");
+      assert!(
+        !should_break,
+        "Text message should not trigger connection close"
+      );
     }
 
     #[test]
@@ -603,7 +630,10 @@ mod tests {
       };
 
       // Then: should not trigger connection close
-      assert!(!should_break, "Binary message should not trigger connection close");
+      assert!(
+        !should_break,
+        "Binary message should not trigger connection close"
+      );
     }
 
     #[test]
@@ -618,7 +648,10 @@ mod tests {
       };
 
       // Then: should not trigger connection close
-      assert!(!should_break, "Ping message should not trigger connection close");
+      assert!(
+        !should_break,
+        "Ping message should not trigger connection close"
+      );
     }
 
     #[test]
@@ -633,7 +666,10 @@ mod tests {
       };
 
       // Then: should not trigger connection close
-      assert!(!should_break, "Pong message should not trigger connection close");
+      assert!(
+        !should_break,
+        "Pong message should not trigger connection close"
+      );
     }
   }
 
@@ -650,7 +686,10 @@ mod tests {
       let should_send = has_tasks_channel && task_state_exists;
 
       // Then: should send initial tasks
-      assert!(should_send, "Should send initial tasks when tasks channel is subscribed");
+      assert!(
+        should_send,
+        "Should send initial tasks when tasks channel is subscribed"
+      );
     }
 
     #[test]
@@ -663,7 +702,10 @@ mod tests {
       let should_send = has_tasks_channel && task_state_exists;
 
       // Then: should not send initial tasks
-      assert!(!should_send, "Should not send initial tasks when tasks channel is not subscribed");
+      assert!(
+        !should_send,
+        "Should not send initial tasks when tasks channel is not subscribed"
+      );
     }
   }
 }
@@ -689,7 +731,11 @@ mod bdd_tests {
       // Then: should return SERVICE_UNAVAILABLE
       if live_backend.is_none() {
         let status = StatusCode::SERVICE_UNAVAILABLE;
-        assert_eq!(status.as_u16(), 503, "Should return SERVICE_UNAVAILABLE when backend not enabled");
+        assert_eq!(
+          status.as_u16(),
+          503,
+          "Should return SERVICE_UNAVAILABLE when backend not enabled"
+        );
       }
     }
 
@@ -730,7 +776,11 @@ mod bdd_tests {
     #[test]
     fn should_detect_tasks_channel_when_present() {
       // Given: channels including "tasks" channel
-      let channels = vec![Channel::from("user"), Channel::from("tasks"), Channel::from("org")];
+      let channels = vec![
+        Channel::from("user"),
+        Channel::from("tasks"),
+        Channel::from("org"),
+      ];
 
       // When: checking if tasks channel exists
       let has_tasks = channels.iter().any(|c| c.as_str() == "tasks");
@@ -782,7 +832,11 @@ mod bdd_tests {
       // When: subscribing to channels
       // Then: should subscribe each channel
       // Note: Subscription happens after registration, before message handling
-      assert_eq!(channels.len(), 2, "Should subscribe to all provided channels");
+      assert_eq!(
+        channels.len(),
+        2,
+        "Should subscribe to all provided channels"
+      );
     }
   }
 
@@ -859,7 +913,10 @@ mod bdd_tests {
       let has_tasks = channels.iter().any(|c| c.as_str() == "tasks");
 
       // Then: should not send tasks
-      assert!(!has_tasks, "Should not send tasks when channel not subscribed");
+      assert!(
+        !has_tasks,
+        "Should not send tasks when channel not subscribed"
+      );
     }
   }
 
