@@ -7,7 +7,6 @@ import { useTheme } from '@mui/material/styles'
 
 import Sidebar from '@/features/dashboard/components/Sidebar/Sidebar'
 import Navbar from '@/components/Navbar'
-import { SubscriptionStreamRunner } from '@/components/SubscriptionStreamRunner'
 
 export type DashboardLayoutProps = {
   children: React.ReactNode
@@ -32,7 +31,6 @@ export default function DashboardLayout({
 
   return (
     <>
-      <SubscriptionStreamRunner />
       <Navbar
         appName="App"
         colorScheme={colorScheme}

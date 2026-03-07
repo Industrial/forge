@@ -5,6 +5,9 @@
 //!
 //! For entities without a direct org column (e.g. [user::Entity], scoped via membership), use the
 //! dedicated async helper [user_find_scoped].
+//!
+//! The [WithScope] trait lives here (not in forge-auth) so that we can implement it for
+//! [Select\<Entity\>] in this crate; Rust's orphan rule forbids implementing a foreign trait for a foreign type.
 
 use forge_auth::RequestScope;
 use sea_orm::{ColumnTrait, ConnectionTrait, EntityTrait, QueryFilter, Select};

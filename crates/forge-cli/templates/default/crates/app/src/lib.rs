@@ -21,7 +21,6 @@ pub mod scoped_query;
 
 // Rest model trait, query spec, registry, and model implementations live in db crate.
 pub use db::{model_error, organization, query_spec, registry, rest_model};
-pub mod subscriptions;
 pub mod tasks;
 
 pub use error::Error;
@@ -216,7 +215,7 @@ pub async fn build_router_for_test()
   }
 
   let task_state = Arc::new(tasks::TaskState::new());
-  let subscription_store = subscriptions::SubscriptionStore::new();
+  let subscription_store = forge_live::SubscriptionStore::new();
   subscription_store.spawn_change_worker();
   let api_router = router
     .with_state(db_conn.clone())

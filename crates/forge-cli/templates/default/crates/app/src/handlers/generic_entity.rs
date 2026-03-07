@@ -21,8 +21,8 @@ use crate::query_spec::{
   validate_filter_cond, validate_offset_limit, validate_sort_field,
 };
 use crate::registry;
-use crate::subscriptions::{ChangeEvent, SubscriptionStore};
 use db::models::user;
+use forge_live::{ChangeEvent, SubscriptionStore};
 
 /// Query params for list: expand/include (rejected), plus filter/sort/pagination (Epic 4).
 #[derive(Debug, Deserialize, Default)]

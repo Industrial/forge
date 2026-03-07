@@ -23,6 +23,7 @@ import AuditLogPage from '@/features/dashboard/pages/AuditLogPage/AuditLogPage'
 import ScopePage from '@/features/profile/pages/ProfilePage/ProfilePage'
 import { useColorSchemeMode } from '@/hooks/useColorScheme'
 import { Providers } from '@/Providers'
+import { SubscriptionStreamRunner } from '@/components/SubscriptionStreamRunner'
 
 function App() {
   console.log('App')
@@ -100,9 +101,12 @@ function App() {
             element={
               <ProtectedRoute>
                 <DashboardScopeGuard>
-                  <DashboardLayout {...layoutProps}>
-                    <Outlet />
-                  </DashboardLayout>
+                  <>
+                    <SubscriptionStreamRunner />
+                    <DashboardLayout {...layoutProps}>
+                      <Outlet />
+                    </DashboardLayout>
+                  </>
                 </DashboardScopeGuard>
               </ProtectedRoute>
             }

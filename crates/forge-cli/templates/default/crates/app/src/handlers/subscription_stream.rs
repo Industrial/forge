@@ -9,7 +9,7 @@ use forge_auth::token_auth::RequireAuth;
 use futures_util::stream::{self, StreamExt};
 use std::convert::Infallible;
 
-use crate::subscriptions::SubscriptionStore;
+use forge_live::SubscriptionStore;
 
 /// GET /api/subscriptions/stream — long-lived HTTP/2 stream (SSE format). Requires auth. Server sends "ready" then invalidation events (Epic 9).
 pub async fn subscription_stream_handler(

@@ -20,8 +20,8 @@ use crate::handlers::generic_entity::{
 };
 use crate::query_spec::{validate_filter_cond, validate_sort_field};
 use crate::registry;
-use crate::subscriptions::{SubscriptionMeta, SubscriptionStore};
 use db::models::user;
+use forge_live::{SubscriptionMeta, SubscriptionStore};
 
 /// Request envelope (Epic 7): method, entity_id, params, optional correlation id.
 #[derive(Debug, Deserialize)]

@@ -16,5 +16,7 @@ members = [
   "crates/forge-rate-limit",
   "crates/forge-security",
   "crates/forge-seed",
+  "crates/forge-query",
+  "crates/forge-entity",
   "crates/forge-cli",
 ]

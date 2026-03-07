@@ -1,11 +1,12 @@
-//! In-memory subscription store (Epic 8). Subscribe returns server-assigned id; unsubscribe by id.
-//! Long-lived stream for invalidation events (Epic 8). Epic 9 will replace store with cache layer.
+//! In-memory subscription store for invalidation events.
+//! Subscribe returns server-assigned id; unsubscribe by id.
+//! Long-lived stream for invalidation events; change worker matches events to subscriptions.
 
 use std::collections::HashMap;
 use std::sync::Mutex;
 use uuid::Uuid;
 
-/// Change event (Epic 9): published after CUD in generic handler; matching uses this to find affected subscriptions.
+/// Change event: published after CUD in generic handler; matching uses this to find affected subscriptions.
 #[derive(Debug, Clone)]
 pub struct ChangeEvent {
   pub model_id: String,
@@ -14,18 +15,18 @@ pub struct ChangeEvent {
   pub organization_id: Option<Uuid>,
 }
 
-/// Invalidation hint: one message per affected subscription (Epic 8 §3). Client refetches.
+/// Invalidation hint: one message per affected subscription. Client refetches.
 #[derive(Debug, Clone, serde::Serialize)]
 pub struct InvalidationEvent {
   pub subscription_id: Uuid,
 }
 
-/// Minimal subscription record: entity + scope snapshot. Query spec (filter/sort/pagination) in params for matching (Epic 9).
+/// Minimal subscription record: entity + scope snapshot. Query spec (filter/sort/pagination) in params for matching.
 #[derive(Debug, Clone)]
 pub struct SubscriptionMeta {
   pub entity_id: String,
-  pub organization_id: uuid::Uuid,
-  pub role_id: uuid::Uuid,
+  pub organization_id: Uuid,
+  pub role_id: Uuid,
   pub params: Option<serde_json::Value>,
 }
 
@@ -55,23 +56,23 @@ impl SubscriptionStore {
     }
   }
 
-  /// Publish a change event (Epic 9). Fire-and-forget; used by generic handler after create/update/delete.
+  /// Publish a change event. Fire-and-forget; used by generic handler after create/update/delete.
   pub fn publish_change(&self, event: ChangeEvent) {
     let _ = self.change_tx.send(event);
   }
 
-  /// Subscribe to change events (for Epic 9 matching worker).
+  /// Subscribe to change events (for matching worker).
   #[allow(dead_code)]
   pub fn subscribe_changes(&self) -> tokio::sync::broadcast::Receiver<ChangeEvent> {
     self.change_tx.subscribe()
   }
 
-  /// Subscribe to invalidation events (for long-lived stream handler). Epic 9 will call send_invalidation.
+  /// Subscribe to invalidation events (for long-lived stream handler).
   pub fn subscribe_invalidations(&self) -> tokio::sync::broadcast::Receiver<InvalidationEvent> {
     self.invalidation_tx.subscribe()
   }
 
-  /// Send an invalidation hint (Epic 9: after matching). One message per affected subscription.
+  /// Send an invalidation hint. One message per affected subscription.
   pub fn send_invalidation(&self, event: InvalidationEvent) {
     let _ = self.invalidation_tx.send(event);
   }
@@ -88,13 +89,13 @@ impl SubscriptionStore {
     self.inner.lock().unwrap().remove(&id).is_some()
   }
 
-  /// Get subscription by id (for matching/delivery in Epic 9).
+  /// Get subscription by id (for matching/delivery).
   #[allow(dead_code)]
   pub fn get(&self, id: Uuid) -> Option<SubscriptionMeta> {
     self.inner.lock().unwrap().get(&id).cloned()
   }
 
-  /// Scope-aware matching (Epic 9): return subscription ids affected by a change event.
+  /// Scope-aware matching: return subscription ids affected by a change event.
   /// Matches when subscription entity_id == event.model_id and scope matches: platform-level
   /// (event.organization_id is None) matches all subs for that model; org-scoped event matches
   /// only subscriptions in that org.
@@ -111,7 +112,7 @@ impl SubscriptionStore {
       .collect()
   }
 
-  /// After matching: send an invalidation event for each affected subscription (Epic 9).
+  /// After matching: send an invalidation event for each affected subscription.
   /// Non-blocking: only in-process broadcast send; write path does not wait.
   pub fn notify_affected_by(&self, event: &ChangeEvent) {
     let ids = self.subscriptions_affected_by(event);
@@ -120,7 +121,7 @@ impl SubscriptionStore {
     }
   }
 
-  /// Spawn a background task that receives change events and runs matching + delivery (Epic 9).
+  /// Spawn a background task that receives change events and runs matching + delivery.
   /// Write path only calls publish_change and returns; this worker does not block it.
   pub fn spawn_change_worker(&self) {
     let store = self.clone();

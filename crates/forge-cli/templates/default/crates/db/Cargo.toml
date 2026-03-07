@@ -9,6 +9,8 @@ axum-login = "0.17"
 forge-auth = { path = "../../../../../forge-auth" }
 forge-core = { path = "../../../../../forge-core" }
 forge-db = { path = "../../../../../forge-db" }
+forge-entity = { path = "../../../../../forge-entity" }
+forge-query = { path = "../../../../../forge-query" }
 sea-orm = { version = "1.1", default-features = false, features = [
   "runtime-tokio-rustls",
   "sqlx-sqlite",

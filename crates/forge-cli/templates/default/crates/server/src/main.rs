@@ -44,7 +44,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
     });
   }
 
-  let subscription_store = app::subscriptions::SubscriptionStore::new();
+  let subscription_store = forge_live::SubscriptionStore::new();
   subscription_store.spawn_change_worker();
   let api_router = router
     .with_state(db_conn.clone())

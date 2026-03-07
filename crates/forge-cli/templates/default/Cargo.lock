@@ -730,6 +730,8 @@ dependencies = [
  "forge-auth",
  "forge-core",
  "forge-db",
+ "forge-entity",
+ "forge-query",
  "sea-orm",
  "sea-orm-tracing",
  "serde",
@@ -1139,6 +1141,18 @@ dependencies = [
 ]
 
 [[package]]
+name = "forge-entity"
+version = "0.1.0"
+dependencies = [
+ "async-trait",
+ "forge-db",
+ "forge-query",
+ "sea-orm",
+ "serde_json",
+ "uuid",
+]
+
+[[package]]
 name = "forge-health"
 version = "0.1.0"
 dependencies = [
@@ -1183,6 +1197,14 @@ dependencies = [
  "tracing-opentelemetry",
  "tracing-opentelemetry-instrumentation-sdk",
  "tracing-subscriber",
+]
+
+[[package]]
+name = "forge-query"
+version = "0.1.0"
+dependencies = [
+ "serde",
+ "serde_json",
 ]
 
 [[package]]
