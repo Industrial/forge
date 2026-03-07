@@ -108,6 +108,39 @@ export function makeReactiveStore<A>(
   return { tag, layer }
 }
 
+/**
+ * Builds a {@link ReactiveStore} from an existing SubscriptionRef, using the same
+ * tag (and thus the same sync registry) as {@link makeReactiveStore}. Use this when
+ * you need one shared ref for the app lifetime (e.g. create ref in a long-lived scope,
+ * then use this store so restoreSession and React both see the same state).
+ */
+export function createReactiveStoreFromRef<A>(
+  ref: SubscriptionRef.SubscriptionRef<A>,
+  tag: Context.Tag<ReactiveStore<A>, ReactiveStore<A>>,
+): ReactiveStore<A> {
+  const registry = syncRegistryByTag.get(tag as object) as
+    | { setter: ((a: A) => void) | null }
+    | undefined
+  return {
+    get: () => ref.get,
+    update: (f: (a: A) => A) =>
+      pipe(
+        SubscriptionRef.update(ref, f),
+        Effect.flatMap(() => ref.get),
+        Effect.tap((value) =>
+          Effect.sync(() => {
+            if (registry?.setter) {
+              if (DEBUG) log(`sync update (registry) notifying React cache`)
+              registry.setter(value)
+            }
+          }),
+        ),
+        Effect.asVoid,
+      ),
+    changes: ref.changes,
+  }
+}
+
 /** Run an effect to completion (e.g. at the boundary with the app layer). */
 export type RunEffect = <A, E, R>(effect: Effect.Effect<A, E, R>) => Promise<A>
 

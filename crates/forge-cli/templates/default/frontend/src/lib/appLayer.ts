@@ -18,7 +18,10 @@ import { Layer, Logger, LogLevel } from 'effect'
 
 import type { AuditLogService } from '@/features/dashboard/services/AuditLog'
 import type { Authentication as AuthenticationService } from '@/features/authentication/services/Authentication'
-import type { AuthenticationState } from '@/features/authentication/stores/AuthenticationStateReactiveStore'
+import type {
+  AuthenticationState,
+  AuthenticationStateReactiveStore,
+} from '@/features/authentication/stores/AuthenticationStateReactiveStore'
 import type { DashboardService } from '@/features/dashboard/services/Dashboard'
 import type { EntityApiService } from '@/services/EntityApi'
 import type { PermissionsService } from '@/features/dashboard/services/Permissions'
@@ -39,7 +42,10 @@ import { RpcApiLive } from '@/services/RpcApiLive'
 import { SubscriptionStreamLive } from '@/services/SubscriptionStreamLive'
 import { TokenStorageLive } from '@/services/TokenStorageLive'
 import { UsersLive } from '@/features/dashboard/services/UsersLive'
-import { getAuthenticationStateStoreLayer } from '@/features/authentication/stores/AuthenticationStateReactiveStore'
+import {
+  AuthenticationStateReactiveStoreTag,
+  getAuthenticationStateStoreLayer,
+} from '@/features/authentication/stores/AuthenticationStateReactiveStore'
 import { getBaseUrl } from '@/lib/baseUrl'
 import { getSubscriptionStreamStatusStoreLayer } from '@/lib/subscriptionStreamStatusStore'
 
@@ -89,11 +95,19 @@ const HttpClientLayer: Layer.Layer<HttpClient.HttpClient, never, never> =
  * and logger. The auth store is obtained internally; no arguments are required.
  * Call this once per application (or per test run) when you need a fresh layer.
  *
+ * @param authStoreOverride - When provided, this store is used instead of the default
+ *   scoped auth store layer. Use when running in a long-lived scope so restoreSession
+ *   and React share the same ref (e.g. create ref in scope, build store with
+ *   {@link createReactiveStoreFromRef}, then pass here).
  * @returns A layer providing all {@link AppServices}. Has no requirements and no
  *   layer construction errors (`Layer<AppServices, never, never>`).
  */
-export function buildApplicationLayer() {
-  const authStoreLayer = getAuthenticationStateStoreLayer()
+export function buildApplicationLayer(
+  authStoreOverride?: AuthenticationStateReactiveStore,
+) {
+  const authStoreLayer = authStoreOverride
+    ? Layer.succeed(AuthenticationStateReactiveStoreTag, authStoreOverride)
+    : getAuthenticationStateStoreLayer()
   const subscriptionStreamStatusLayer = getSubscriptionStreamStatusStoreLayer()
 
   const AuthLayer = Layer.mergeAll(
@@ -133,6 +147,16 @@ export function buildApplicationLayer() {
 
 /** Cached singleton application layer; built lazily by {@link getApplicationLayer}. */
 let applicationLayer: Layer.Layer<AppServices, never, never> | undefined
+
+/**
+ * Sets the application layer singleton. Used by the bootstrap in main.tsx when
+ * running in a long-lived scope so that the same auth store ref is shared.
+ */
+export function setApplicationLayer(
+  layer: Layer.Layer<AppServices, never, never>,
+): void {
+  applicationLayer = layer
+}
 
 /**
  * Returns the application layer singleton, building it on first call.
