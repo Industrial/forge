@@ -41,18 +41,21 @@ jobs:
         env:
           MOON_TOOLCHAIN_FORCE_GLOBALS: rust
         run: |
+          set -euo pipefail
           export PATH="$HOME/.moon/bin:$PATH"
           devenv shell -- moon run :format :check :lint :build :test :audit :check-docs
       - name: Run integration tests
         env:
           MOON_TOOLCHAIN_FORCE_GLOBALS: rust
         run: |
+          set -euo pipefail
           export PATH="$HOME/.moon/bin:$PATH"
           devenv shell -- moon run :test-integration
       - name: Run e2e tests
         env:
           MOON_TOOLCHAIN_FORCE_GLOBALS: rust
         run: |
+          set -euo pipefail
           export PATH="$HOME/.moon/bin:$PATH"
           devenv shell -- moon run :test-e2e
       # Show sccache statistics
