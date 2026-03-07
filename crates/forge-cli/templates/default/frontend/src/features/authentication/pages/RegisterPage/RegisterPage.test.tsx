@@ -46,7 +46,9 @@ beforeAll(() => {
     // Ensure existing window has SyntaxError
     if (!(globalThis.window as any).SyntaxError) {
       ;(globalThis.window as any).SyntaxError = global.SyntaxError
-    })
+    }
+  }
+})
 
 const createWrapper = () => {
   const theme = createTheme({ palette: { mode: 'light' } })

@@ -313,6 +313,14 @@ const derivedStoreCache = new WeakMap<
 const externalStoreCache = new WeakMap<object, ExternalStoreShape<unknown>>()
 
 /**
+ * Test-only: clear the cached external store for a tag so the next useReactiveStore
+ * creates a new store (e.g. after setting application layer override). Only use in tests.
+ */
+export function clearReactiveStoreCacheForTesting(tag: object): void {
+  externalStoreCache.delete(tag)
+}
+
+/**
  * Returns the current derived value from a reactive store by subscribing to a
  * transformed stream. Use `pipe(store.changes, Stream.map(...), Stream.filter(...))`
  * so components can map/filter/reduce without creating new stores.

@@ -2,19 +2,28 @@
  * BDD component tests for SelectScopeOnlyGuard.tsx
  * Tests verify component rendering, authentication integration, and redirect behavior
  */
-import { describe, test, expect, beforeAll } from 'bun:test'
+import { describe, test, expect, beforeAll, afterEach } from 'bun:test'
 import { render } from '@testing-library/react'
 import { BrowserRouter } from 'react-router-dom'
 import { ThemeProvider, createTheme } from '@mui/material/styles'
 import { Window } from 'happy-dom'
 import React from 'react'
-import { Effect, Layer, Option } from 'effect'
+import { Effect, Layer, Option, Stream, Chunk } from 'effect'
 
 import SelectScopeOnlyGuard from './SelectScopeOnlyGuard'
 import { Providers } from '@/Providers'
-import { getApplicationLayer } from '@/lib/appLayer'
-import { Authentication } from '@/features/authentication/services/Authentication'
-import { createMockAuthentication } from '@/features/authentication/services/AuthenticationMock'
+import {
+  buildApplicationLayer,
+  setApplicationLayerOverrideForTesting,
+  clearApplicationLayerOverrideForTesting,
+} from '@/lib/appLayer'
+import { clearReactiveStoreCacheForTesting } from '@/lib/ReactiveStore'
+import type { ReactiveStore } from '@/lib/ReactiveStore'
+import type { AuthenticationState } from '@/features/authentication/stores/AuthenticationStateReactiveStore'
+import {
+  AuthStoreTag,
+  initialAuthenticationState,
+} from '@/features/authentication/stores/AuthenticationStateReactiveStore'
 import { AuthenticationUser } from '@/features/authentication/domain/AuthenticationUser'
 
 // Set up DOM environment for tests
@@ -48,7 +57,9 @@ beforeAll(() => {
     // Ensure existing window has SyntaxError
     if (!(globalThis.window as any).SyntaxError) {
       ;(globalThis.window as any).SyntaxError = global.SyntaxError
-    })
+    }
+  }
+})
 
 // Helper to create a wrapper with theme, router, and app layer context
 const createWrapper = (

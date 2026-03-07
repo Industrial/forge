@@ -2,13 +2,18 @@
  * BDD component tests for FormDialog.tsx
  * Tests verify component rendering, props handling, and dialog behavior
  */
-import { describe, test, expect, beforeAll } from 'bun:test'
+import { describe, test, expect, beforeAll, beforeEach, afterEach } from 'bun:test'
 import { render } from '@testing-library/react'
 import { ThemeProvider, createTheme } from '@mui/material/styles'
 import { Window } from 'happy-dom'
 import React from 'react'
 
 import FormDialog from './FormDialog'
+import {
+  buildApplicationLayer,
+  setApplicationLayerOverrideForTesting,
+  clearApplicationLayerOverrideForTesting,
+} from '@/lib/appLayer'
 
 beforeAll(() => {
   // Ensure SyntaxError exists globally first
@@ -40,7 +45,9 @@ beforeAll(() => {
     // Ensure existing window has SyntaxError
     if (!(globalThis.window as any).SyntaxError) {
       ;(globalThis.window as any).SyntaxError = global.SyntaxError
-    })
+    }
+  }
+})
 
 const createWrapper = () => {
   const theme = createTheme({ palette: { mode: 'light' } })
@@ -50,6 +57,15 @@ const createWrapper = () => {
 }
 
 describe('FormDialog component', () => {
+  beforeEach(() => {
+    const appLayer = buildApplicationLayer()
+    setApplicationLayerOverrideForTesting(appLayer)
+  })
+
+  afterEach(() => {
+    clearApplicationLayerOverrideForTesting()
+  })
+
   describe('export behavior', () => {
     test('should export FormDialog as default export', () => {
       expect(FormDialog).toBeDefined()

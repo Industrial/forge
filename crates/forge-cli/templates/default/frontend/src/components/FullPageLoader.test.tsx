@@ -39,7 +39,9 @@ beforeAll(() => {
     // Ensure existing window has SyntaxError
     if (!(globalThis.window as any).SyntaxError) {
       ;(globalThis.window as any).SyntaxError = global.SyntaxError
-    })
+    }
+  }
+})
 
 describe('FullPageLoader component', () => {
   describe('export behavior', () => {

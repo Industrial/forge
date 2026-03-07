@@ -2,7 +2,7 @@
  * BDD component tests for HideWithoutPermissions.tsx
  * Tests verify component rendering, permission checking, and conditional visibility
  */
-import { describe, test, expect, beforeAll } from 'bun:test'
+import { describe, test, expect, beforeAll, beforeEach, afterEach } from 'bun:test'
 import { render } from '@testing-library/react'
 import { BrowserRouter } from 'react-router-dom'
 import { ThemeProvider, createTheme } from '@mui/material/styles'
@@ -12,13 +12,17 @@ import { Effect, Layer, Option , Stream, Chunk} from 'effect'
 
 import { HideWithoutPermissions } from './HideWithoutPermissions'
 import { Providers } from '@/Providers'
-import { getApplicationLayer, buildApplicationLayer } from '@/lib/appLayer'
+import {
+  buildApplicationLayer,
+  setApplicationLayerOverrideForTesting,
+  clearApplicationLayerOverrideForTesting,
+} from '@/lib/appLayer'
+import { clearReactiveStoreCacheForTesting } from '@/lib/ReactiveStore'
 import type { ReactiveStore } from '@/lib/ReactiveStore'
 import type { AuthenticationState } from '@/features/authentication/stores/AuthenticationStateReactiveStore'
 import { Authentication } from '@/features/authentication/services/Authentication'
 import { AuthStoreTag, initialAuthenticationState } from '@/features/authentication/stores/AuthenticationStateReactiveStore'
 import { createMockAuthentication } from '@/features/authentication/services/AuthenticationMock'
-import { AuthenticationUser } from '@/features/authentication/domain/AuthenticationUser'
 
 // Set up DOM environment for tests
 beforeAll(() => {
@@ -93,7 +97,6 @@ function createMockAuthStoreWithPermissions(permissions: string[]) {
   return Layer.succeed(AuthStoreTag, store)
 }
 
-
 // Helper to create a wrapper with theme, router, and app layer context
 const createWrapper = (permissions: string[] = []) => {
   const theme = createTheme({ palette: { mode: 'light' } })
@@ -102,18 +105,21 @@ const createWrapper = (permissions: string[] = []) => {
   // Create mock auth store with permissions
   const mockAuthStoreLayer = createMockAuthStoreWithPermissions(permissions)
   
-  // Build app layer with mock store and auth service
-  // The mock store layer will override the default one
-  const appLayer = Layer.mergeAll(
-    buildApplicationLayer(),
-    mockAuthStoreLayer,
-    mockAuth.authentication,
-    Layer.succeed(Authentication, mockAuth.authentication),
+  // Build base application layer
+  const baseLayer = buildApplicationLayer()
+  
+  // Clear reactive store cache for testing
+  clearReactiveStoreCacheForTesting(AuthStoreTag)
+  
+  // Set up the application layer override with mock store and auth service
+  setApplicationLayerOverrideForTesting(
+    Layer.mergeAll(
+      baseLayer,
+      mockAuthStoreLayer,
+      Layer.succeed(Authentication, mockAuth.authentication),
+    ),
   )
   
-  // The mock store layer will override the default one in buildApplicationLayer()
-  // because Layer.mergeAll() later layers override earlier ones
-
   return ({ children }: { children: React.ReactNode }) => (
     <BrowserRouter>
       <Providers theme={theme}>{children}</Providers>
@@ -122,6 +128,9 @@ const createWrapper = (permissions: string[] = []) => {
 }
 
 describe('HideWithoutPermissions component', () => {
+  afterEach(() => {
+    clearApplicationLayerOverrideForTesting()
+  })
   describe('export behavior', () => {
     test('should export HideWithoutPermissions as named export', () => {
       // Given: the HideWithoutPermissions module

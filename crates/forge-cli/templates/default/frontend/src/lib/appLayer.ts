@@ -131,7 +131,33 @@ export function buildApplicationLayer() {
 let applicationLayer: Layer.Layer<AppServices, never, never> | undefined
 
 /**
+ * Test-only override. When set, {@link getApplicationLayer} returns this instead of the singleton.
+ * Use {@link clearApplicationLayerOverrideForTesting} in afterAll/afterEach to restore.
+ */
+let applicationLayerOverride: Layer.Layer<AppServices, never, never> | undefined
+
+/**
+ * Sets the application layer returned by {@link getApplicationLayer} for the duration of a test.
+ * Call {@link clearApplicationLayerOverrideForTesting} in afterAll or afterEach to restore the default.
+ * Only use in tests.
+ */
+export function setApplicationLayerOverrideForTesting(
+  layer: Layer.Layer<AppServices, never, never>,
+): void {
+  applicationLayerOverride = layer
+}
+
+/**
+ * Clears the test override so {@link getApplicationLayer} returns the default singleton again.
+ * Only use in tests.
+ */
+export function clearApplicationLayerOverrideForTesting(): void {
+  applicationLayerOverride = undefined
+}
+
+/**
  * Returns the application layer singleton, building it on first call.
+ * When a test override is set (see {@link setApplicationLayerOverrideForTesting}), returns that instead.
  *
  * Use this when running effects at boundaries (e.g. in event handlers or
  * React context): provide the layer so the effect has access to all
@@ -145,6 +171,9 @@ let applicationLayer: Layer.Layer<AppServices, never, never> | undefined
  * @returns The application layer (same instance on every call after the first).
  */
 export function getApplicationLayer() {
+  if (applicationLayerOverride !== undefined) {
+    return applicationLayerOverride
+  }
   if (applicationLayer === undefined) {
     applicationLayer = buildApplicationLayer()
   }
@@ -158,19 +187,20 @@ export function getApplicationLayer() {
  */
 export function useRunWithAppLayer(): { run: RunEffect; runFork: RunFork } {
   return useMemo(() => {
-    const layer = getApplicationLayer()
-    // Cast: TypeScript infers Effect<A, E, Exclude<R, AppServices>> after provide;
-    // we assert the layer satisfies R so runPromise/runFork accept it. Callers
-    // should only pass effects whose requirements are in AppServices.
-    // TODO: I'm predicting now that this will become a problem at some point.
+    // Resolve layer at call time so test overrides (setApplicationLayerOverrideForTesting) are used
+    const getLayer = () => getApplicationLayer()
     return {
       run: <A, E, R>(effect: Effect.Effect<A, E, R>): Promise<A> =>
         Effect.runPromise(
-          effect.pipe(Effect.provide(layer)) as Effect.Effect<A, E, never>,
+          effect.pipe(
+            Effect.provide(getLayer()),
+          ) as Effect.Effect<A, E, never>,
         ),
       runFork: <A, E, R>(effect: Effect.Effect<A, E, R>) =>
         Effect.runFork(
-          effect.pipe(Effect.provide(layer)) as Effect.Effect<A, E, never>,
+          effect.pipe(
+            Effect.provide(getLayer()),
+          ) as Effect.Effect<A, E, never>,
         ),
     }
   }, [])

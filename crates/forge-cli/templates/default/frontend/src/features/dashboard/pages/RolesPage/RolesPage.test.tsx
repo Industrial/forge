@@ -2,7 +2,7 @@
  * BDD component tests for RolesPage.tsx
  * Tests verify component rendering, role management, and CRUD operations
  */
-import { describe, test, expect, beforeAll } from 'bun:test'
+import { describe, test, expect, beforeAll, beforeEach, afterEach } from 'bun:test'
 import { render } from '@testing-library/react'
 import { BrowserRouter } from 'react-router-dom'
 import { ThemeProvider, createTheme } from '@mui/material/styles'
@@ -12,7 +12,11 @@ import { Effect, Layer } from 'effect'
 
 import RolesPage from './RolesPage'
 import { Providers } from '@/Providers'
-import { getApplicationLayer } from '@/lib/appLayer'
+import {
+  buildApplicationLayer,
+  setApplicationLayerOverrideForTesting,
+  clearApplicationLayerOverrideForTesting,
+} from '@/lib/appLayer'
 import { EntityApi } from '@/services/EntityApi'
 import { EntityApiMock } from '@/services/EntityApiMock'
 
@@ -46,7 +50,9 @@ beforeAll(() => {
     // Ensure existing window has SyntaxError
     if (!(globalThis.window as any).SyntaxError) {
       ;(globalThis.window as any).SyntaxError = global.SyntaxError
-    })
+    }
+  }
+})
 
 const createWrapper = () => {
   const theme = createTheme({ palette: { mode: 'light' } })

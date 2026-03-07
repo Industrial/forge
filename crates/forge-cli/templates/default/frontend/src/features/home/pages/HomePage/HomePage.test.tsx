@@ -41,7 +41,9 @@ beforeAll(() => {
     // Make sure window has SyntaxError
     if (window.SyntaxError === undefined) {
       window.SyntaxError = global.SyntaxError as any
-    })
+    }
+  }
+})
 
 // Helper to create a wrapper with theme and router
 const createWrapper = () => {

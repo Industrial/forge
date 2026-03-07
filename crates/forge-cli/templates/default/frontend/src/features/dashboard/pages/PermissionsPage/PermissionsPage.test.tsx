@@ -2,7 +2,7 @@
  * BDD component tests for PermissionsPage.tsx
  * Tests verify component rendering, permissions management, and Effect integration
  */
-import { describe, test, expect, beforeAll } from 'bun:test'
+import { describe, test, expect, beforeAll, beforeEach, afterEach } from 'bun:test'
 import { render } from '@testing-library/react'
 import { BrowserRouter } from 'react-router-dom'
 import { ThemeProvider, createTheme } from '@mui/material/styles'
@@ -12,9 +12,12 @@ import { Effect, Layer } from 'effect'
 
 import PermissionsPage from './PermissionsPage'
 import { Providers } from '@/Providers'
-import { getApplicationLayer } from '@/lib/appLayer'
-import { Permissions } from '@/features/dashboard/services/Permissions'
-import { PermissionsMock } from '@/features/dashboard/services/PermissionsMock'
+import {
+  buildApplicationLayer,
+  setApplicationLayerOverrideForTesting,
+  clearApplicationLayerOverrideForTesting,
+} from '@/lib/appLayer'
+import { PermissionsMockLayer } from '@/features/dashboard/services/PermissionsMock'
 
 beforeAll(() => {
   // Ensure SyntaxError exists globally first
@@ -46,18 +49,15 @@ beforeAll(() => {
     // Ensure existing window has SyntaxError
     if (!(globalThis.window as any).SyntaxError) {
       ;(globalThis.window as any).SyntaxError = global.SyntaxError
-    })
+    }
+  }
+})
 
 const createWrapper = () => {
   const theme = createTheme({ palette: { mode: 'light' } })
-  const mockPermissions = PermissionsMock.make()
+  const mockPermissionsLayer = PermissionsMockLayer()
 
-  const appLayer = getApplicationLayer(
-    Layer.mergeAll(
-      mockPermissions,
-      Layer.succeed(Permissions, mockPermissions),
-    ),
-  )
+  const appLayer = getApplicationLayer(mockPermissionsLayer)
 
   return ({ children }: { children: React.ReactNode }) => (
     <BrowserRouter>

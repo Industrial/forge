@@ -2,24 +2,25 @@
  * BDD component tests for PermissionGuard.tsx
  * Tests verify component rendering, permission checking, and redirect behavior
  */
-import { describe, test, expect, beforeAll } from 'bun:test'
-import { render } from '@testing-library/react'
+import { describe, test, expect, beforeAll, afterEach } from 'bun:test'
+import { render, waitFor } from '@testing-library/react'
 import { BrowserRouter } from 'react-router-dom'
 import { ThemeProvider, createTheme } from '@mui/material/styles'
 import { Window } from 'happy-dom'
 import React from 'react'
-import { Effect, Layer, Option , Stream, Chunk} from 'effect'
+import { Effect, Layer, Stream, Chunk } from 'effect'
 
 import { PermissionGuard } from './PermissionGuard'
 import { Providers } from '@/Providers'
-import { getApplicationLayer, buildApplicationLayer } from '@/lib/appLayer'
+import {
+  buildApplicationLayer,
+  setApplicationLayerOverrideForTesting,
+  clearApplicationLayerOverrideForTesting,
+} from '@/lib/appLayer'
+import { clearReactiveStoreCacheForTesting } from '@/lib/ReactiveStore'
 import type { ReactiveStore } from '@/lib/ReactiveStore'
 import type { AuthenticationState } from '@/features/authentication/stores/AuthenticationStateReactiveStore'
-import type { ReactiveStore } from '@/lib/ReactiveStore'
-import type { AuthenticationState } from '@/features/authentication/stores/AuthenticationStateReactiveStore'
-import { Authentication } from '@/features/authentication/services/Authentication'
 import { AuthStoreTag, initialAuthenticationState } from '@/features/authentication/stores/AuthenticationStateReactiveStore'
-import { createMockAuthentication } from '@/features/authentication/services/AuthenticationMock'
 
 beforeAll(() => {
   // Ensure SyntaxError exists globally first
@@ -51,7 +52,9 @@ beforeAll(() => {
     // Ensure existing window has SyntaxError
     if (!(globalThis.window as any).SyntaxError) {
       ;(globalThis.window as any).SyntaxError = global.SyntaxError
-    })
+    }
+  }
+})
 
 // Helper to create a mock auth store with permissions
 function createMockAuthStoreWithPermissions(permissions: string[]) {
@@ -91,16 +94,12 @@ function createMockAuthStoreWithPermissions(permissions: string[]) {
 
 const createWrapper = (permissions: string[] = []) => {
   const theme = createTheme({ palette: { mode: 'light' } })
-  const mockAuth = createMockAuthentication()
-  mockAuth.state.permissions = permissions
-
-  const appLayer = getApplicationLayer(
-    Layer.mergeAll(
-      mockAuth.authentication,
-      Layer.succeed(Authentication, mockAuth.authentication),
-    ),
+  const mockStoreLayer = createMockAuthStoreWithPermissions(permissions)
+  const baseLayer = buildApplicationLayer()
+  clearReactiveStoreCacheForTesting(AuthStoreTag)
+  setApplicationLayerOverrideForTesting(
+    Layer.merge(mockStoreLayer, baseLayer),
   )
-
   return ({ children }: { children: React.ReactNode }) => (
     <BrowserRouter>
       <Providers theme={theme}>{children}</Providers>
@@ -109,6 +108,10 @@ const createWrapper = (permissions: string[] = []) => {
 }
 
 describe('PermissionGuard component', () => {
+  afterEach(() => {
+    clearApplicationLayerOverrideForTesting()
+  })
+
   describe('export behavior', () => {
     test('should export PermissionGuard as named export', () => {
       expect(PermissionGuard).toBeDefined()
@@ -117,14 +120,16 @@ describe('PermissionGuard component', () => {
   })
 
   describe('rendering behavior', () => {
-    test('should render children when user has required permissions', () => {
+    test('should render children when user has required permissions', async () => {
       const { container } = render(
         <PermissionGuard permissions={['test.permission']}>
           <div data-testid="content">Content</div>
         </PermissionGuard>,
         { wrapper: createWrapper(['test.permission']) },
       )
-      expect(container.querySelector('[data-testid="content"]')).not.toBeNull()
+      await waitFor(() => {
+        expect(container.querySelector('[data-testid="content"]')).not.toBeNull()
+      })
     })
 
     test('should redirect when user lacks required permissions', () => {
@@ -185,15 +190,15 @@ describe('PermissionGuard component', () => {
       expect(container).toBeDefined()
     })
 
-    test('should accept children prop', () => {
+    test('should accept children prop', async () => {
       const children = <div data-testid="children">Children</div>
-      const { container } = render(
+      render(
         <PermissionGuard permissions={['test.permission']}>
           {children}
         </PermissionGuard>,
         { wrapper: createWrapper(['test.permission']) },
       )
-      expect(container.querySelector('[data-testid="children"]')).not.toBeNull()
+      expect(await screen.findByTestId('children')).toBeDefined()
     })
   })
 
@@ -218,14 +223,14 @@ describe('PermissionGuard component', () => {
       expect(container).toBeDefined()
     })
 
-    test('should allow access when user has at least one permission', () => {
-      const { container } = render(
+    test('should allow access when user has at least one permission', async () => {
+      render(
         <PermissionGuard permissions={['perm1', 'perm2']}>
           <div data-testid="content">Content</div>
         </PermissionGuard>,
         { wrapper: createWrapper(['perm2']) },
       )
-      expect(container.querySelector('[data-testid="content"]')).not.toBeNull()
+      expect(await screen.findByTestId('content')).toBeDefined()
     })
   })
 })

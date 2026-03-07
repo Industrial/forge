@@ -2,24 +2,25 @@
  * BDD component tests for HideWithPermissions.tsx
  * Tests verify component rendering, permission checking, and conditional visibility
  */
-import { describe, test, expect, beforeAll } from 'bun:test'
+import { describe, test, expect, beforeAll, afterEach } from 'bun:test'
 import { render } from '@testing-library/react'
 import { BrowserRouter } from 'react-router-dom'
 import { ThemeProvider, createTheme } from '@mui/material/styles'
 import { Window } from 'happy-dom'
 import React from 'react'
-import { Effect, Layer, Option , Stream, Chunk} from 'effect'
+import { Effect, Layer, Stream, Chunk } from 'effect'
 
 import { HideWithPermissions } from './HideWithPermissions'
 import { Providers } from '@/Providers'
-import { getApplicationLayer, buildApplicationLayer } from '@/lib/appLayer'
+import {
+  buildApplicationLayer,
+  setApplicationLayerOverrideForTesting,
+  clearApplicationLayerOverrideForTesting,
+} from '@/lib/appLayer'
+import { clearReactiveStoreCacheForTesting } from '@/lib/ReactiveStore'
 import type { ReactiveStore } from '@/lib/ReactiveStore'
 import type { AuthenticationState } from '@/features/authentication/stores/AuthenticationStateReactiveStore'
-import type { ReactiveStore } from '@/lib/ReactiveStore'
-import type { AuthenticationState } from '@/features/authentication/stores/AuthenticationStateReactiveStore'
-import { Authentication } from '@/features/authentication/services/Authentication'
 import { AuthStoreTag, initialAuthenticationState } from '@/features/authentication/stores/AuthenticationStateReactiveStore'
-import { createMockAuthentication } from '@/features/authentication/services/AuthenticationMock'
 
 beforeAll(() => {
   // Ensure SyntaxError exists globally first
@@ -51,7 +52,9 @@ beforeAll(() => {
     // Ensure existing window has SyntaxError
     if (!(globalThis.window as any).SyntaxError) {
       ;(globalThis.window as any).SyntaxError = global.SyntaxError
-    })
+    }
+  }
+})
 
 // Helper to create a mock auth store with permissions
 function createMockAuthStoreWithPermissions(permissions: string[]) {
@@ -91,16 +94,12 @@ function createMockAuthStoreWithPermissions(permissions: string[]) {
 
 const createWrapper = (permissions: string[] = []) => {
   const theme = createTheme({ palette: { mode: 'light' } })
-  const mockAuth = createMockAuthentication()
-  mockAuth.state.permissions = permissions
-
-  const appLayer = getApplicationLayer(
-    Layer.mergeAll(
-      mockAuth.authentication,
-      Layer.succeed(Authentication, mockAuth.authentication),
-    ),
+  const mockStoreLayer = createMockAuthStoreWithPermissions(permissions)
+  const baseLayer = buildApplicationLayer()
+  clearReactiveStoreCacheForTesting(AuthStoreTag)
+  setApplicationLayerOverrideForTesting(
+    Layer.merge(mockStoreLayer, baseLayer),
   )
-
   return ({ children }: { children: React.ReactNode }) => (
     <BrowserRouter>
       <Providers theme={theme}>{children}</Providers>
@@ -109,6 +108,10 @@ const createWrapper = (permissions: string[] = []) => {
 }
 
 describe('HideWithPermissions component', () => {
+  afterEach(() => {
+    clearApplicationLayerOverrideForTesting()
+  })
+
   describe('export behavior', () => {
     test('should export HideWithPermissions as named export', () => {
       expect(HideWithPermissions).toBeDefined()

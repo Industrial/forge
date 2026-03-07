@@ -2,7 +2,7 @@
  * BDD component tests for AuditLogPage.tsx
  * Tests verify component rendering, audit log display, and filtering
  */
-import { describe, test, expect, beforeAll } from 'bun:test'
+import { describe, test, expect, beforeAll, beforeEach, afterEach } from 'bun:test'
 import { render } from '@testing-library/react'
 import { BrowserRouter } from 'react-router-dom'
 import { ThemeProvider, createTheme } from '@mui/material/styles'
@@ -12,7 +12,11 @@ import { Effect, Layer } from 'effect'
 
 import AuditLogPage from './AuditLogPage'
 import { Providers } from '@/Providers'
-import { getApplicationLayer } from '@/lib/appLayer'
+import {
+  buildApplicationLayer,
+  setApplicationLayerOverrideForTesting,
+  clearApplicationLayerOverrideForTesting,
+} from '@/lib/appLayer'
 import { EntityApi } from '@/services/EntityApi'
 import { EntityApiMock } from '@/services/EntityApiMock'
 
@@ -46,18 +50,21 @@ beforeAll(() => {
     // Ensure existing window has SyntaxError
     if (!(globalThis.window as any).SyntaxError) {
       ;(globalThis.window as any).SyntaxError = global.SyntaxError
-    })
+    }
+  }
+})
 
 const createWrapper = () => {
   const theme = createTheme({ palette: { mode: 'light' } })
   const mockApi = EntityApiMock.make()
 
-  const appLayer = getApplicationLayer(
-    Layer.mergeAll(
-      mockApi,
-      Layer.succeed(EntityApi, mockApi),
-    ),
+  const baseLayer = buildApplicationLayer()
+  const mockLayer = Layer.mergeAll(
+    mockApi,
+    Layer.succeed(EntityApi, mockApi),
   )
+  const testLayer = Layer.merge(mockLayer, baseLayer)
+  setApplicationLayerOverrideForTesting(testLayer)
 
   return ({ children }: { children: React.ReactNode }) => (
     <BrowserRouter>
@@ -67,6 +74,10 @@ const createWrapper = () => {
 }
 
 describe('AuditLogPage component', () => {
+  afterEach(() => {
+    clearApplicationLayerOverrideForTesting()
+  })
+
   describe('export behavior', () => {
     test('should export AuditLogPage as default export', () => {
       expect(AuditLogPage).toBeDefined()
