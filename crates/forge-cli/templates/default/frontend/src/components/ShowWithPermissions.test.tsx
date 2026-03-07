@@ -8,19 +8,35 @@ import { BrowserRouter } from 'react-router-dom'
 import { ThemeProvider, createTheme } from '@mui/material/styles'
 import { Window } from 'happy-dom'
 import React from 'react'
-import { Effect, Layer, Option } from 'effect'
+import { Effect, Layer, Option , Stream, Chunk} from 'effect'
 
 import { ShowWithPermissions } from './ShowWithPermissions'
 import { Providers } from '@/Providers'
-import { getApplicationLayer } from '@/lib/appLayer'
+import { getApplicationLayer, buildApplicationLayer } from '@/lib/appLayer'
+import type { ReactiveStore } from '@/lib/ReactiveStore'
+import type { AuthenticationState } from '@/features/authentication/stores/AuthenticationStateReactiveStore'
+import type { ReactiveStore } from '@/lib/ReactiveStore'
+import type { AuthenticationState } from '@/features/authentication/stores/AuthenticationStateReactiveStore'
 import { Authentication } from '@/features/authentication/services/Authentication'
+import { AuthStoreTag, initialAuthenticationState } from '@/features/authentication/stores/AuthenticationStateReactiveStore'
 import { createMockAuthentication } from '@/features/authentication/services/AuthenticationMock'
 
 beforeAll(() => {
+  // Ensure SyntaxError exists globally first
+  const global = globalThis as any
+  if (!global.SyntaxError) {
+    global.SyntaxError = class SyntaxError extends Error {
+      constructor(message?: string) {
+        super(message)
+        this.name = 'SyntaxError'
+        Object.setPrototypeOf(this, SyntaxError.prototype)
+      }
+    }
+  }
+
   if (typeof globalThis.window === 'undefined') {
     const window = new Window()
     const document = window.document
-    const global = globalThis as any
     global.window = window
     global.document = document
     global.localStorage = window.localStorage
@@ -29,18 +45,49 @@ beforeAll(() => {
       const body = document.createElement('body')
       document.appendChild(body)
     }
-    global.SyntaxError = class SyntaxError extends Error {
-      constructor(message?: string) {
-        super(message)
-        this.name = 'SyntaxError'
-        Object.setPrototypeOf(this, SyntaxError.prototype)
-      }
-    }
-    if (window.SyntaxError === undefined) {
-      window.SyntaxError = global.SyntaxError as any
-    }
+    // Always set SyntaxError on new window instance
+    ;(window as any).SyntaxError = global.SyntaxError
+  } else {
+    // Ensure existing window has SyntaxError
+    if (!(globalThis.window as any).SyntaxError) {
+      ;(globalThis.window as any).SyntaxError = global.SyntaxError
+    })
+
+// Helper to create a mock auth store with permissions
+function createMockAuthStoreWithPermissions(permissions: string[]) {
+  let current: AuthenticationState = {
+    ...initialAuthenticationState,
+    permissions,
   }
-})
+  const changeListeners = new Set<(a: AuthenticationState) => void>()
+
+  const notify = (a: AuthenticationState) => {
+    current = a
+    changeListeners.forEach((l) => l(a))
+  }
+
+  const changes = Stream.async<AuthenticationState, never, never>((emit) => {
+    emit(Effect.succeed(Chunk.of(current)))
+    const listener = (a: AuthenticationState) => {
+      emit(Effect.succeed(Chunk.of(a)))
+    }
+    changeListeners.add(listener)
+    return Effect.sync(() => {
+      changeListeners.delete(listener)
+    })
+  })
+
+  const store: ReactiveStore<AuthenticationState> = {
+    get: () => Effect.succeed(current),
+    update: (f: (a: AuthenticationState) => AuthenticationState) =>
+      Effect.sync(() => {
+        notify(f(current))
+      }),
+    changes,
+  }
+
+  return Layer.succeed(AuthStoreTag, store)
+}
 
 const createWrapper = (permissions: string[] = []) => {
   const theme = createTheme({ palette: { mode: 'light' } })

@@ -14,15 +14,9 @@ import { Providers } from '@/Providers'
 
 // Set up DOM environment for tests
 beforeAll(() => {
-  if (typeof globalThis.window === 'undefined') {
-    const window = new Window()
-    const document = window.document
-    const global = globalThis as any
-    global.window = window
-    global.document = document
-    global.localStorage = window.localStorage
-    global.navigator = window.navigator
-    // Add missing Error constructors that happy-dom needs
+  // Ensure SyntaxError exists globally first
+  const global = globalThis as any
+  if (!global.SyntaxError) {
     global.SyntaxError = class SyntaxError extends Error {
       constructor(message?: string) {
         super(message)
@@ -30,12 +24,26 @@ beforeAll(() => {
         Object.setPrototypeOf(this, SyntaxError.prototype)
       }
     }
-    // Make sure window has SyntaxError
-    if (window.SyntaxError === undefined) {
-      window.SyntaxError = global.SyntaxError as any
-    }
   }
-})
+
+  if (typeof globalThis.window === 'undefined') {
+    const window = new Window()
+    const document = window.document
+    global.window = window
+    global.document = document
+    global.localStorage = window.localStorage
+    global.navigator = window.navigator
+    if (!document.body) {
+      const body = document.createElement('body')
+      document.appendChild(body)
+    }
+    // Always set SyntaxError on new window instance
+    ;(window as any).SyntaxError = global.SyntaxError
+  } else {
+    // Ensure existing window has SyntaxError
+    if (!(globalThis.window as any).SyntaxError) {
+      ;(globalThis.window as any).SyntaxError = global.SyntaxError
+    })
 
 // Helper to create a wrapper with theme, router, and app layer context
 const createWrapper = () => {

@@ -11,13 +11,31 @@ import { useIsMobile } from './useIsMobile'
 import { Window } from 'happy-dom'
 
 // Setup DOM environment for bun test
+// Ensure SyntaxError exists globally first
+const global = globalThis as any
+if (!global.SyntaxError) {
+  global.SyntaxError = class SyntaxError extends Error {
+    constructor(message?: string) {
+      super(message)
+      this.name = 'SyntaxError'
+      Object.setPrototypeOf(this, SyntaxError.prototype)
+    }
+  }
+}
+
 if (typeof globalThis.window === 'undefined') {
   const window = new Window()
-  const global = globalThis as any
   global.window = window
   global.document = window.document
   global.localStorage = window.localStorage
   global.navigator = window.navigator
+  // Always set SyntaxError on new window instance
+  ;(window as any).SyntaxError = global.SyntaxError
+} else {
+  // Ensure existing window has SyntaxError
+  if (!(globalThis.window as any).SyntaxError) {
+    ;(globalThis.window as any).SyntaxError = global.SyntaxError
+  }
 }
 
 // Helper to create a wrapper with theme

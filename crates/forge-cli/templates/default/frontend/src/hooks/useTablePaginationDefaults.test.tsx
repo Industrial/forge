@@ -11,19 +11,36 @@ import { useTablePaginationDefaults } from './useTablePaginationDefaults'
 
 // Set up DOM environment for tests
 beforeAll(() => {
+  // Ensure SyntaxError exists globally first
+  const global = globalThis as any
+  if (!global.SyntaxError) {
+    global.SyntaxError = class SyntaxError extends Error {
+      constructor(message?: string) {
+        super(message)
+        this.name = 'SyntaxError'
+        Object.setPrototypeOf(this, SyntaxError.prototype)
+      }
+    }
+  }
+
   if (typeof globalThis.window === 'undefined') {
     const window = new Window()
     const document = window.document
-    // @ts-expect-error - Setting global DOM APIs for bun test environment
-    globalThis.window = window
-    // @ts-expect-error - Setting global DOM APIs for bun test environment
-    globalThis.document = document
-    // @ts-expect-error - Setting global DOM APIs for bun test environment
-    globalThis.HTMLElement = window.HTMLElement
-    // @ts-expect-error - Setting global DOM APIs for bun test environment
-    globalThis.Element = window.Element
-  }
-})
+    global.window = window
+    global.document = document
+    global.localStorage = window.localStorage
+    global.navigator = window.navigator
+    if (!document.body) {
+      const body = document.createElement('body')
+      document.appendChild(body)
+    }
+    // Always set SyntaxError on new window instance
+    ;(window as any).SyntaxError = global.SyntaxError
+  } else {
+    // Ensure existing window has SyntaxError
+    if (!(globalThis.window as any).SyntaxError) {
+      ;(globalThis.window as any).SyntaxError = global.SyntaxError
+    })
 
 // Helper to create a wrapper with theme
 const createWrapper = () => {

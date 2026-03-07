@@ -12,10 +12,21 @@ import React from 'react'
 import AuditLogTableRow, { type AuditLogEntryRow } from './AuditLogTableRow'
 
 beforeAll(() => {
+  // Ensure SyntaxError exists globally first
+  const global = globalThis as any
+  if (!global.SyntaxError) {
+    global.SyntaxError = class SyntaxError extends Error {
+      constructor(message?: string) {
+        super(message)
+        this.name = 'SyntaxError'
+        Object.setPrototypeOf(this, SyntaxError.prototype)
+      }
+    }
+  }
+
   if (typeof globalThis.window === 'undefined') {
     const window = new Window()
     const document = window.document
-    const global = globalThis as any
     global.window = window
     global.document = document
     global.localStorage = window.localStorage
@@ -24,18 +35,13 @@ beforeAll(() => {
       const body = document.createElement('body')
       document.appendChild(body)
     }
-    global.SyntaxError = class SyntaxError extends Error {
-      constructor(message?: string) {
-        super(message)
-        this.name = 'SyntaxError'
-        Object.setPrototypeOf(this, SyntaxError.prototype)
-      }
-    }
-    if (window.SyntaxError === undefined) {
-      window.SyntaxError = global.SyntaxError as any
-    }
-  }
-})
+    // Always set SyntaxError on new window instance
+    ;(window as any).SyntaxError = global.SyntaxError
+  } else {
+    // Ensure existing window has SyntaxError
+    if (!(globalThis.window as any).SyntaxError) {
+      ;(globalThis.window as any).SyntaxError = global.SyntaxError
+    })
 
 const createWrapper = () => {
   const theme = createTheme({ palette: { mode: 'light' } })
