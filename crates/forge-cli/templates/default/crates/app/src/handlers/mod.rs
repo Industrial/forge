@@ -1,10 +1,7 @@
 pub mod auth;
-pub mod cache_demo;
-pub mod cached_page;
 pub mod dashboard;
 pub mod generic_entity;
 pub mod i18n;
-pub mod observability;
 pub mod rest;
 pub mod rpc;
 pub mod subscription_stream;
@@ -26,18 +23,15 @@ mod tests {
       // Verify we can reference each module (compilation test)
       let _modules: Vec<&str> = vec![
         "auth",
-        "cache_demo",
-        "cached_page",
         "dashboard",
         "generic_entity",
         "i18n",
-        "observability",
         "rest",
         "rpc",
         "subscription_stream",
       ];
 
-      assert_eq!(_modules.len(), 10, "Should have 10 handler modules");
+      assert_eq!(_modules.len(), 7, "Should have 7 handler modules");
     }
 
     #[test]

@@ -13,15 +13,6 @@ use uuid::Uuid;
 use crate::permissions::dashboard_permissions;
 use db::models::{membership, org_role, role_permission, user, user_org_role};
 
-// ---- Permissions (code-defined keys) ----
-/// GET /api/permissions — list known permission keys (code-defined). Read-only; no auth or scope required.
-pub async fn list_permissions(
-  State(_db): State<DbConnection>,
-) -> Result<impl IntoResponse, ForgeError> {
-  let list: Vec<&str> = dashboard_permissions().to_vec();
-  Ok(Json(serde_json::json!({ "permissions": list })).into_response())
-}
-
 // Re-export for seeds and legacy callers (impls live in db::organization).
 pub use db::organization::{
   CreateOrganizationBody, create_organization_impl, ensure_organization_impl,
@@ -446,30 +437,6 @@ mod unit_tests {
   use super::*;
   use crate::build_router_for_test;
 
-  mod list_permissions_behavior {
-    use super::*;
-
-    #[tokio::test]
-    async fn list_permissions_returns_all_dashboard_permissions() {
-      // Given a database connection
-      let (_router, _guard) = build_router_for_test().await.unwrap();
-      let db = forge_db::initialize_database(&forge_config::load_config().unwrap().database)
-        .await
-        .unwrap();
-      let db_conn = forge_db::wrap_traced(db);
-
-      // When I call list_permissions
-      let result = list_permissions(State(db_conn)).await;
-
-      // Then it should return a JSON object with permissions array
-      assert!(result.is_ok());
-      let _response = result.unwrap();
-      // The response should contain dashboard permissions
-      // Note: We can't easily extract the JSON here without more setup,
-      // but we verify the function executes successfully
-    }
-  }
-
   mod create_org_role_behavior {
     use super::*;
 
@@ -742,49 +709,6 @@ mod bdd_tests {
 
   /// BDD-style tests focusing on behavior rather than implementation.
   /// Tests verify REST API handler behaviors for permissions, org roles, and user management.
-
-  mod permissions_list_behavior {
-    use super::*;
-
-    #[tokio::test]
-    async fn should_list_all_permissions() {
-      // Given: a router with permissions endpoint
-      let (router, _guard) = build_router_for_test().await.unwrap();
-
-      // When: making request to list permissions endpoint
-      let req = Request::builder()
-        .uri("/api/permissions")
-        .body(Body::empty())
-        .unwrap();
-      let res = router.oneshot(req).await.unwrap();
-
-      // Then: should return list of permissions
-      assert_eq!(res.status(), StatusCode::OK);
-      let body = axum::body::to_bytes(res.into_body(), usize::MAX)
-        .await
-        .unwrap();
-      let json: serde_json::Value = serde_json::from_slice(&body).unwrap();
-      assert!(json.get("permissions").is_some());
-      assert!(json["permissions"].is_array());
-    }
-
-    #[tokio::test]
-    async fn should_not_require_authentication() {
-      // Given: a router with permissions endpoint
-      let (router, _guard) = build_router_for_test().await.unwrap();
-
-      // When: making unauthenticated request to permissions endpoint
-      let req = Request::builder()
-        .uri("/api/permissions")
-        .body(Body::empty())
-        .unwrap();
-      let res = router.oneshot(req).await.unwrap();
-
-      // Then: should return successful response without authentication
-      assert_eq!(res.status(), StatusCode::OK);
-      // Handler doesn't require auth (no RequireAuth extractor)
-    }
-  }
 
   mod org_role_creation_behavior {
     use super::*;
@@ -1189,53 +1113,6 @@ mod integration_tests {
           "Should have either user_id or email+password"
         );
         assert!(has_nothing, "Should be empty when nothing provided");
-      }
-    }
-
-    mod permission_list_behavior {
-      use super::*;
-
-      #[test]
-      fn should_return_permissions_list_from_dashboard_permissions() {
-        // Given: dashboard_permissions function
-        // When: calling dashboard_permissions
-        let permissions = dashboard_permissions();
-
-        // Then: should return a list of permission strings
-        assert!(
-          !permissions.is_empty(),
-          "Should return non-empty permissions list"
-        );
-        // All items should be string slices
-        for perm in permissions {
-          assert!(!perm.is_empty(), "Permission should not be empty");
-        }
-      }
-
-      #[test]
-      fn should_validate_permission_key_exists_in_dashboard_permissions() {
-        // Given: a permission key from dashboard_permissions
-        let permissions = dashboard_permissions();
-        let first_permission = permissions[0];
-
-        // When: checking if permission exists
-        let exists = permissions.contains(&first_permission);
-
-        // Then: permission should exist in the list
-        assert!(exists, "Permission should exist in dashboard_permissions");
-      }
-
-      #[test]
-      fn should_reject_invalid_permission_key() {
-        // Given: an invalid permission key
-        let invalid_key = "invalid.permission.key";
-        let permissions = dashboard_permissions();
-
-        // When: checking if invalid key exists
-        let exists = permissions.contains(&invalid_key);
-
-        // Then: invalid key should not exist
-        assert!(!exists, "Invalid permission key should not exist");
       }
     }
 

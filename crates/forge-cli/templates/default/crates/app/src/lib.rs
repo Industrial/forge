@@ -37,12 +37,6 @@ pub fn make_app(live_backend: Arc<forge_live::InMemoryLiveBackend>) -> App {
     .with_health_routes();
 
   app
-    .route("/api/cache-demo", handlers::cache_demo::handler)
-    .route("/api/cached-page", handlers::cached_page::handler)
-    .route(
-      "/api/observability/trace-id",
-      handlers::observability::trace_id,
-    )
     .post_route("/api/auth/register", handlers::auth::register)
     .post_route("/api/auth/login", handlers::auth::login)
     .route("/api/auth/logout", handlers::auth::logout)
@@ -53,11 +47,6 @@ pub fn make_app(live_backend: Arc<forge_live::InMemoryLiveBackend>) -> App {
     )
     .post_route("/api/auth/tokens", handlers::auth::create_token)
     .route("/api/auth/admin", handlers::auth::admin_only)
-    // Unprotected REST API (no auth)
-    .route(
-      "/api/permissions",
-      axum::routing::get(handlers::rest::list_permissions),
-    )
     // Dashboard: users (route_methods for list/create/update/delete)
     .route_methods(
       "/api/dashboard/users",
@@ -757,32 +746,6 @@ mod tests {
         assert!(true, "make_app should register subscription stream route");
       }
 
-      #[test]
-      fn should_register_websocket_route() {
-        // Given: make_app function
-        // When: building app
-        // Then: should register WebSocket route
-        // Route: /ws
-        assert!(true, "make_app should register WebSocket route");
-      }
-
-      #[test]
-      fn should_register_observability_routes() {
-        // Given: make_app function
-        // When: building app
-        // Then: should register observability routes
-        // Routes: /api/observability/trace-id
-        assert!(true, "make_app should register observability routes");
-      }
-
-      #[test]
-      fn should_register_cache_demo_routes() {
-        // Given: make_app function
-        // When: building app
-        // Then: should register cache demo routes
-        // Routes: /api/cache-demo, /api/cached-page
-        assert!(true, "make_app should register cache demo routes");
-      }
     }
 
     mod test_client_behavior {
