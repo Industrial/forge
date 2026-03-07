@@ -45,3 +45,13 @@ tasks:
       - 'crates/**/*.rs'
       - 'crates/forge-cli/templates/**/*'
       - 'test/e2e/**/*'
+  # Frontend unit tests (template frontend)
+  test-frontend:
+    command: 'bash'
+    args: ['-c', 'cd crates/forge-cli/templates/default/frontend && bun test']
+    inputs:
+      - 'crates/forge-cli/templates/default/frontend/**/*.ts'
+      - 'crates/forge-cli/templates/default/frontend/**/*.tsx'
+      - 'crates/forge-cli/templates/default/frontend/package.json'
+      - 'crates/forge-cli/templates/default/frontend/bun.lockb'
+      - 'crates/forge-cli/templates/default/frontend/bunfig.toml'

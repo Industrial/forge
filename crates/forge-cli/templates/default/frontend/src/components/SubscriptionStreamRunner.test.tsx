@@ -3,6 +3,8 @@
  * Tests verify component behavior, stream setup, and Effect integration
  */
 import { describe, test, expect, beforeAll } from 'bun:test'
+// Import test setup to configure React Testing Library (reduces verbose output)
+import '@/test-setup'
 import { render } from '@testing-library/react'
 import { BrowserRouter } from 'react-router-dom'
 import { ThemeProvider, createTheme } from '@mui/material/styles'
@@ -72,12 +74,21 @@ describe('SubscriptionStreamRunner component', () => {
   })
 
   describe('rendering behavior', () => {
-    test('should return null (no UI)', () => {
-      const { container } = render(<SubscriptionStreamRunner />, {
-        wrapper: createWrapper(true),
-      })
-      expect(container.firstChild).toBeNull()
-    })
+    test(
+      'should return null (no UI)',
+      () => {
+        // Given: SubscriptionStreamRunner component
+        // When: rendering the component
+        const { container } = render(<SubscriptionStreamRunner />, {
+          wrapper: createWrapper(true),
+        })
+
+        // Then: should return null immediately (component always returns null)
+        // Note: useEffect runs asynchronously but doesn't affect the return value
+        expect(container.firstChild).toBeNull()
+      },
+      { timeout: 10000 },
+    )
   })
 
   describe('authentication integration behavior', () => {

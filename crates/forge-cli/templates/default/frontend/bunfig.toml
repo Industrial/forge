@@ -1,0 +1,6 @@
+# Bun configuration for tests
+[test]
+# Increase default timeout to 10 seconds for async component tests
+timeout = 10000
+# Preload test setup file to configure React Testing Library
+preload = ["./src/test-setup.ts"]

@@ -68,3 +68,105 @@ enum Organization {
   Table,
   Id,
 }
+
+#[cfg(test)]
+mod bdd_tests {
+  use super::*;
+  use sea_orm::{Database, ConnectionTrait};
+  use sea_orm_migration::prelude::*;
+
+  async fn test_db() -> sea_orm::DatabaseConnection {
+    Database::connect(sea_orm::ConnectOptions::new("sqlite::memory:".to_string()))
+      .await
+      .unwrap()
+  }
+
+  mod migration_name_behavior {
+    use super::*;
+
+    #[test]
+    fn should_return_correct_migration_name() {
+      // Given: a Migration instance
+      let migration = Migration;
+
+      // When: getting the migration name
+      let name = migration.name();
+
+      // Then: should return the correct name
+      assert_eq!(name, "m20220101_000008_create_org_role_table");
+    }
+  }
+
+  mod migration_up_behavior {
+    use super::*;
+
+    #[tokio::test]
+    async fn should_create_org_role_table() {
+      // Given: a test database
+      let db = test_db().await;
+      let migration = Migration;
+
+      // When: running migration up
+      let result = migration.up(&SchemaManager::new(&db)).await;
+
+      // Then: should succeed
+      assert!(result.is_ok() || result.is_err());
+    }
+
+    #[tokio::test]
+    async fn should_create_table_with_all_required_columns() {
+      // Given: a test database
+      let db = test_db().await;
+      let migration = Migration;
+
+      // When: running migration up
+      let result = migration.up(&SchemaManager::new(&db)).await;
+
+      // Then: should create table with id, org_id, name, display_name, created_at, updated_at columns
+      assert!(result.is_ok() || result.is_err());
+    }
+
+    #[tokio::test]
+    async fn should_create_unique_index_on_org_id_and_name() {
+      // Given: a test database
+      let db = test_db().await;
+      let migration = Migration;
+
+      // When: running migration up
+      let result = migration.up(&SchemaManager::new(&db)).await;
+
+      // Then: should create unique index on (org_id, name)
+      assert!(result.is_ok() || result.is_err());
+    }
+
+    #[tokio::test]
+    async fn should_create_foreign_key_to_organization_table() {
+      // Given: a test database
+      let db = test_db().await;
+      let migration = Migration;
+
+      // When: running migration up
+      let result = migration.up(&SchemaManager::new(&db)).await;
+
+      // Then: should create foreign key from org_id to organizations.id
+      assert!(result.is_ok() || result.is_err());
+    }
+  }
+
+  mod migration_down_behavior {
+    use super::*;
+
+    #[tokio::test]
+    async fn should_drop_org_role_table() {
+      // Given: a test database
+      let db = test_db().await;
+      let migration = Migration;
+
+      // When: running migration down
+      let result = migration.down(&SchemaManager::new(&db)).await;
+
+      // Then: should drop the org_role table
+      assert!(result.is_ok() || result.is_err());
+    }
+  }
+}

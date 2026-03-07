@@ -88,9 +88,9 @@ describe('App component', () => {
       // Given: App component
       // When: rendering App
       const { container } = render(<App />, { wrapper: createWrapper() })
-      // Then: Box container should be present
+      // Then: Box container should be present (Box renders as <main> element)
       expect(container).toBeDefined()
-      expect(container.querySelector('div')).not.toBeNull()
+      expect(container.querySelector('main')).not.toBeNull()
     })
 
     test('should render Routes component', () => {
