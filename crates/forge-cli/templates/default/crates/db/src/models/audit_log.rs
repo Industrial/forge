@@ -325,3 +325,345 @@ fn apply_filter(select: sea_orm::Select<Entity>, cond: &FilterCond) -> sea_orm::
     _ => select,
   }
 }
+
+#[cfg(test)]
+mod bdd_tests {
+  use super::*;
+  use chrono::Utc;
+  use sea_orm::{Database, EntityTrait, Set};
+  use sea_orm_migration::MigratorTrait;
+  use uuid::Uuid;
+
+  async fn test_db() -> forge_db::DbConnection {
+    let conn = Database::connect(sea_orm::ConnectOptions::new("sqlite::memory:".to_string()))
+      .await
+      .unwrap();
+    migrations::Migrator::up(&conn, None)
+      .await
+      .expect("migrate");
+    forge_db::wrap_traced(conn)
+  }
+
+  mod rest_model_behavior {
+    use super::*;
+
+    #[test]
+    fn should_have_model_id_audit() {
+      // Given: Audit RestModel implementation
+      // When: checking model_id
+      // Then: should return "audit"
+      assert_eq!(Audit::model_id(), "audit");
+    }
+
+    #[test]
+    fn should_have_display_name() {
+      // Given: Audit RestModel implementation
+      // When: checking display_name
+      // Then: should return Some("Audit log")
+      assert_eq!(Audit::display_name(), Some("Audit log"));
+    }
+
+    #[test]
+    fn should_support_only_read_action() {
+      // Given: Audit RestModel implementation
+      // When: checking supported_actions
+      // Then: should return only ["read"]
+      assert_eq!(Audit::supported_actions(), &["read"]);
+    }
+
+    #[tokio::test]
+    async fn should_reject_create_operation() {
+      // Given: Audit RestModel and a test database
+      let db = test_db().await;
+      let body = serde_json::json!({});
+
+      // When: attempting to create an audit log entry
+      let result = Audit::create(&db, body).await;
+
+      // Then: should return Validation error
+      assert!(result.is_err());
+      match result.unwrap_err() {
+        ModelError::Validation(msg) => {
+          assert!(msg.contains("read-only"));
+          assert!(msg.contains("create not supported"));
+        }
+        _ => panic!("Expected Validation error"),
+      }
+    }
+
+    #[tokio::test]
+    async fn should_reject_update_operation() {
+      // Given: Audit RestModel and a test database
+      let db = test_db().await;
+      let id = Uuid::new_v4();
+      let body = serde_json::json!({});
+
+      // When: attempting to update an audit log entry
+      let result = Audit::update(&db, id, body).await;
+
+      // Then: should return Validation error
+      assert!(result.is_err());
+      match result.unwrap_err() {
+        ModelError::Validation(msg) => {
+          assert!(msg.contains("read-only"));
+          assert!(msg.contains("update not supported"));
+        }
+        _ => panic!("Expected Validation error"),
+      }
+    }
+
+    #[tokio::test]
+    async fn should_reject_delete_operation() {
+      // Given: Audit RestModel and a test database
+      let db = test_db().await;
+      let id = Uuid::new_v4();
+
+      // When: attempting to delete an audit log entry
+      let result = Audit::delete(&db, id).await;
+
+      // Then: should return Validation error
+      assert!(result.is_err());
+      match result.unwrap_err() {
+        ModelError::Validation(msg) => {
+          assert!(msg.contains("read-only"));
+          assert!(msg.contains("delete not supported"));
+        }
+        _ => panic!("Expected Validation error"),
+      }
+    }
+  }
+
+  mod model_structure_behavior {
+    use super::*;
+
+    #[tokio::test]
+    async fn should_create_audit_log_entry() {
+      // Given: a test database
+      let db = test_db().await;
+      let id = Uuid::new_v4();
+      let actor_id = Uuid::new_v4();
+      let now = Utc::now().naive_utc();
+
+      // When: inserting an audit log entry
+      let result = Entity::insert(ActiveModel {
+        id: Set(id),
+        event_kind: Set("test".to_string()),
+        actor_id: Set(actor_id),
+        subject_id: Set(None),
+        organization_id: Set(None),
+        action: Set("create".to_string()),
+        resource_type: Set("user".to_string()),
+        resource_id: Set(None),
+        outcome: Set("success".to_string()),
+        reason: Set(None),
+        occurred_at: Set(now),
+      })
+      .exec(&db)
+      .await;
+
+      // Then: should succeed
+      assert!(result.is_ok());
+    }
+
+    #[tokio::test]
+    async fn should_store_all_audit_log_fields() {
+      // Given: a test database
+      let db = test_db().await;
+      let id = Uuid::new_v4();
+      let actor_id = Uuid::new_v4();
+      let subject_id = Uuid::new_v4();
+      let org_id = Uuid::new_v4();
+      let resource_id = Uuid::new_v4();
+      let now = Utc::now().naive_utc();
+
+      // When: inserting an audit log entry with all fields
+      Entity::insert(ActiveModel {
+        id: Set(id),
+        event_kind: Set("user.created".to_string()),
+        actor_id: Set(actor_id),
+        subject_id: Set(Some(subject_id)),
+        organization_id: Set(Some(org_id)),
+        action: Set("create".to_string()),
+        resource_type: Set("user".to_string()),
+        resource_id: Set(Some(resource_id)),
+        outcome: Set("success".to_string()),
+        reason: Set(Some("User registration".to_string())),
+        occurred_at: Set(now),
+      })
+      .exec(&db)
+      .await
+      .expect("insert");
+
+      // Then: should be able to retrieve it with all fields
+      let entry = Entity::find_by_id(id)
+        .one(&db)
+        .await
+        .expect("find")
+        .expect("entry should exist");
+      assert_eq!(entry.id, id);
+      assert_eq!(entry.actor_id, actor_id);
+      assert_eq!(entry.subject_id, Some(subject_id));
+      assert_eq!(entry.organization_id, Some(org_id));
+      assert_eq!(entry.resource_id, Some(resource_id));
+      assert_eq!(entry.event_kind, "user.created");
+      assert_eq!(entry.action, "create");
+      assert_eq!(entry.resource_type, "user");
+      assert_eq!(entry.outcome, "success");
+      assert_eq!(entry.reason, Some("User registration".to_string()));
+    }
+
+    #[tokio::test]
+    async fn should_query_audit_logs_by_actor_id() {
+      // Given: a test database with multiple audit log entries
+      let db = test_db().await;
+      let actor1_id = Uuid::new_v4();
+      let actor2_id = Uuid::new_v4();
+      let now = Utc::now().naive_utc();
+
+      Entity::insert(ActiveModel {
+        id: Set(Uuid::new_v4()),
+        event_kind: Set("test".to_string()),
+        actor_id: Set(actor1_id),
+        subject_id: Set(None),
+        organization_id: Set(None),
+        action: Set("create".to_string()),
+        resource_type: Set("user".to_string()),
+        resource_id: Set(None),
+        outcome: Set("success".to_string()),
+        reason: Set(None),
+        occurred_at: Set(now),
+      })
+      .exec(&db)
+      .await
+      .expect("insert entry1");
+
+      Entity::insert(ActiveModel {
+        id: Set(Uuid::new_v4()),
+        event_kind: Set("test".to_string()),
+        actor_id: Set(actor1_id),
+        subject_id: Set(None),
+        organization_id: Set(None),
+        action: Set("update".to_string()),
+        resource_type: Set("user".to_string()),
+        resource_id: Set(None),
+        outcome: Set("success".to_string()),
+        reason: Set(None),
+        occurred_at: Set(now),
+      })
+      .exec(&db)
+      .await
+      .expect("insert entry2");
+
+      Entity::insert(ActiveModel {
+        id: Set(Uuid::new_v4()),
+        event_kind: Set("test".to_string()),
+        actor_id: Set(actor2_id),
+        subject_id: Set(None),
+        organization_id: Set(None),
+        action: Set("delete".to_string()),
+        resource_type: Set("user".to_string()),
+        resource_id: Set(None),
+        outcome: Set("success".to_string()),
+        reason: Set(None),
+        occurred_at: Set(now),
+      })
+      .exec(&db)
+      .await
+      .expect("insert entry3");
+
+      // When: querying audit logs by actor1_id
+      let actor1_logs = Entity::find()
+        .filter(Column::ActorId.eq(actor1_id))
+        .all(&db)
+        .await
+        .expect("query");
+
+      // Then: should find 2 entries for actor1
+      assert_eq!(actor1_logs.len(), 2);
+      assert!(actor1_logs.iter().all(|e| e.actor_id == actor1_id));
+    }
+  }
+
+  mod row_to_json_behavior {
+    use super::*;
+
+    #[test]
+    fn should_convert_model_to_json() {
+      // Given: an audit log model
+      let id = Uuid::new_v4();
+      let actor_id = Uuid::new_v4();
+      let subject_id = Uuid::new_v4();
+      let org_id = Uuid::new_v4();
+      let resource_id = Uuid::new_v4();
+      let now = Utc::now().naive_utc();
+      let model = Model {
+        id,
+        event_kind: "user.created".to_string(),
+        actor_id,
+        subject_id: Some(subject_id),
+        organization_id: Some(org_id),
+        action: "create".to_string(),
+        resource_type: "user".to_string(),
+        resource_id: Some(resource_id),
+        outcome: "success".to_string(),
+        reason: Some("User registration".to_string()),
+        occurred_at: now,
+      };
+
+      // When: converting to JSON
+      let json = Audit::row_to_json(&model);
+
+      // Then: should have all expected fields
+      assert_eq!(json["id"].as_str().unwrap(), id.to_string());
+      assert_eq!(json["event_kind"].as_str().unwrap(), "user.created");
+      assert_eq!(json["actor_id"].as_str().unwrap(), actor_id.to_string());
+      assert_eq!(
+        json["subject_id"].as_str().unwrap(),
+        subject_id.to_string()
+      );
+      assert_eq!(
+        json["organization_id"].as_str().unwrap(),
+        org_id.to_string()
+      );
+      assert_eq!(json["action"].as_str().unwrap(), "create");
+      assert_eq!(json["resource_type"].as_str().unwrap(), "user");
+      assert_eq!(
+        json["resource_id"].as_str().unwrap(),
+        resource_id.to_string()
+      );
+      assert_eq!(json["outcome"].as_str().unwrap(), "success");
+      assert_eq!(json["reason"].as_str().unwrap(), "User registration");
+      assert!(json["occurred_at"].is_string());
+    }
+
+    #[test]
+    fn should_handle_optional_fields_in_json() {
+      // Given: an audit log model with None optional fields
+      let id = Uuid::new_v4();
+      let actor_id = Uuid::new_v4();
+      let now = Utc::now().naive_utc();
+      let model = Model {
+        id,
+        event_kind: "test".to_string(),
+        actor_id,
+        subject_id: None,
+        organization_id: None,
+        action: "create".to_string(),
+        resource_type: "user".to_string(),
+        resource_id: None,
+        outcome: "success".to_string(),
+        reason: None,
+        occurred_at: now,
+      };
+
+      // When: converting to JSON
+      let json = Audit::row_to_json(&model);
+
+      // Then: optional fields should be null
+      assert!(json["subject_id"].is_null());
+      assert!(json["organization_id"].is_null());
+      assert!(json["resource_id"].is_null());
+      assert!(json["reason"].is_null());
+    }
+  }
+}

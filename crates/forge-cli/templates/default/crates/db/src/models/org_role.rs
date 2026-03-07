@@ -282,3 +282,307 @@ fn apply_filter(select: sea_orm::Select<Entity>, cond: &FilterCond) -> sea_orm::
     _ => select,
   }
 }
+
+#[cfg(test)]
+mod bdd_tests {
+  use super::*;
+  use chrono::Utc;
+  use sea_orm::{Database, EntityTrait, Set};
+  use sea_orm_migration::MigratorTrait;
+  use uuid::Uuid;
+
+  async fn test_db() -> forge_db::DbConnection {
+    let conn = Database::connect(sea_orm::ConnectOptions::new("sqlite::memory:".to_string()))
+      .await
+      .unwrap();
+    migrations::Migrator::up(&conn, None)
+      .await
+      .expect("migrate");
+    forge_db::wrap_traced(conn)
+  }
+
+  mod rest_model_behavior {
+    use super::*;
+
+    #[test]
+    fn should_have_model_id_role() {
+      // Given: Role RestModel implementation
+      // When: checking model_id
+      // Then: should return "role"
+      assert_eq!(Role::model_id(), "role");
+    }
+
+    #[test]
+    fn should_have_display_name() {
+      // Given: Role RestModel implementation
+      // When: checking display_name
+      // Then: should return Some("Role")
+      assert_eq!(Role::display_name(), Some("Role"));
+    }
+
+    #[tokio::test]
+    async fn should_reject_create_via_generic_handler() {
+      // Given: Role RestModel and a test database
+      let db = test_db().await;
+      let body = serde_json::json!({});
+
+      // When: attempting to create a role via generic handler
+      let result = Role::create(&db, body).await;
+
+      // Then: should return Validation error
+      assert!(result.is_err());
+      match result.unwrap_err() {
+        ModelError::Validation(msg) => {
+          assert!(msg.contains("not implemented via generic handler"));
+          assert!(msg.contains("POST /api/organizations"));
+        }
+        _ => panic!("Expected Validation error"),
+      }
+    }
+
+    #[tokio::test]
+    async fn should_reject_update_via_generic_handler() {
+      // Given: Role RestModel and a test database
+      let db = test_db().await;
+      let id = Uuid::new_v4();
+      let body = serde_json::json!({});
+
+      // When: attempting to update a role via generic handler
+      let result = Role::update(&db, id, body).await;
+
+      // Then: should return Validation error
+      assert!(result.is_err());
+      match result.unwrap_err() {
+        ModelError::Validation(msg) => {
+          assert!(msg.contains("not implemented via generic handler"));
+          assert!(msg.contains("PATCH /api/organizations"));
+        }
+        _ => panic!("Expected Validation error"),
+      }
+    }
+
+    #[tokio::test]
+    async fn should_reject_delete_via_generic_handler() {
+      // Given: Role RestModel and a test database
+      let db = test_db().await;
+      let id = Uuid::new_v4();
+
+      // When: attempting to delete a role via generic handler
+      let result = Role::delete(&db, id).await;
+
+      // Then: should return Validation error
+      assert!(result.is_err());
+      match result.unwrap_err() {
+        ModelError::Validation(msg) => {
+          assert!(msg.contains("not implemented via generic handler"));
+          assert!(msg.contains("DELETE /api/organizations"));
+        }
+        _ => panic!("Expected Validation error"),
+      }
+    }
+  }
+
+  mod model_structure_behavior {
+    use super::*;
+
+    #[tokio::test]
+    async fn should_create_org_role_with_required_fields() {
+      // Given: a test database
+      let db = test_db().await;
+      let role_id = Uuid::new_v4();
+      let org_id = Uuid::new_v4();
+      let now = Utc::now().naive_utc();
+
+      // When: inserting an org_role with required fields
+      let result = Entity::insert(ActiveModel {
+        id: Set(role_id),
+        org_id: Set(org_id),
+        name: Set("viewer".to_string()),
+        display_name: Set(None),
+        created_at: Set(now),
+        updated_at: Set(now),
+      })
+      .exec(&db)
+      .await;
+
+      // Then: should succeed
+      assert!(result.is_ok());
+    }
+
+    #[tokio::test]
+    async fn should_create_org_role_with_display_name() {
+      // Given: a test database
+      let db = test_db().await;
+      let role_id = Uuid::new_v4();
+      let org_id = Uuid::new_v4();
+      let now = Utc::now().naive_utc();
+
+      // When: inserting an org_role with display_name
+      Entity::insert(ActiveModel {
+        id: Set(role_id),
+        org_id: Set(org_id),
+        name: Set("editor".to_string()),
+        display_name: Set(Some("Editor".to_string())),
+        created_at: Set(now),
+        updated_at: Set(now),
+      })
+      .exec(&db)
+      .await
+      .expect("insert");
+
+      // Then: should be able to retrieve it
+      let role = Entity::find_by_id(role_id)
+        .one(&db)
+        .await
+        .expect("find")
+        .expect("role should exist");
+      assert_eq!(role.id, role_id);
+      assert_eq!(role.org_id, org_id);
+      assert_eq!(role.name, "editor");
+      assert_eq!(role.display_name, Some("Editor".to_string()));
+    }
+
+    #[tokio::test]
+    async fn should_query_org_roles_by_org_id() {
+      // Given: a test database with multiple org roles
+      let db = test_db().await;
+      let org1_id = Uuid::new_v4();
+      let org2_id = Uuid::new_v4();
+      let now = Utc::now().naive_utc();
+
+      Entity::insert(ActiveModel {
+        id: Set(Uuid::new_v4()),
+        org_id: Set(org1_id),
+        name: Set("viewer".to_string()),
+        display_name: Set(None),
+        created_at: Set(now),
+        updated_at: Set(now),
+      })
+      .exec(&db)
+      .await
+      .expect("insert role1");
+
+      Entity::insert(ActiveModel {
+        id: Set(Uuid::new_v4()),
+        org_id: Set(org1_id),
+        name: Set("editor".to_string()),
+        display_name: Set(None),
+        created_at: Set(now),
+        updated_at: Set(now),
+      })
+      .exec(&db)
+      .await
+      .expect("insert role2");
+
+      Entity::insert(ActiveModel {
+        id: Set(Uuid::new_v4()),
+        org_id: Set(org2_id),
+        name: Set("viewer".to_string()),
+        display_name: Set(None),
+        created_at: Set(now),
+        updated_at: Set(now),
+      })
+      .exec(&db)
+      .await
+      .expect("insert role3");
+
+      // When: querying roles by org1_id
+      let org1_roles = Entity::find()
+        .filter(Column::OrgId.eq(org1_id))
+        .all(&db)
+        .await
+        .expect("query");
+
+      // Then: should find 2 roles for org1
+      assert_eq!(org1_roles.len(), 2);
+      assert!(org1_roles.iter().all(|r| r.org_id == org1_id));
+    }
+
+    #[tokio::test]
+    async fn should_query_org_role_by_name() {
+      // Given: a test database with org roles
+      let db = test_db().await;
+      let org_id = Uuid::new_v4();
+      let now = Utc::now().naive_utc();
+
+      Entity::insert(ActiveModel {
+        id: Set(Uuid::new_v4()),
+        org_id: Set(org_id),
+        name: Set("admin".to_string()),
+        display_name: Set(None),
+        created_at: Set(now),
+        updated_at: Set(now),
+      })
+      .exec(&db)
+      .await
+      .expect("insert");
+
+      // When: querying role by name
+      let role = Entity::find()
+        .filter(Column::OrgId.eq(org_id))
+        .filter(Column::Name.eq("admin"))
+        .one(&db)
+        .await
+        .expect("query");
+
+      // Then: should find the role
+      assert!(role.is_some());
+      let r = role.unwrap();
+      assert_eq!(r.name, "admin");
+      assert_eq!(r.org_id, org_id);
+    }
+  }
+
+  mod row_to_json_behavior {
+    use super::*;
+
+    #[test]
+    fn should_convert_model_to_json() {
+      // Given: an org_role model
+      let id = Uuid::new_v4();
+      let org_id = Uuid::new_v4();
+      let now = Utc::now().naive_utc();
+      let model = Model {
+        id,
+        org_id,
+        name: "viewer".to_string(),
+        display_name: Some("Viewer".to_string()),
+        created_at: now,
+        updated_at: now,
+      };
+
+      // When: converting to JSON
+      let json = Role::row_to_json(&model);
+
+      // Then: should have all expected fields
+      assert_eq!(json["id"].as_str().unwrap(), id.to_string());
+      assert_eq!(json["org_id"].as_str().unwrap(), org_id.to_string());
+      assert_eq!(json["name"].as_str().unwrap(), "viewer");
+      assert_eq!(json["display_name"].as_str().unwrap(), "Viewer");
+      assert!(json["created_at"].is_string());
+      assert!(json["updated_at"].is_string());
+    }
+
+    #[test]
+    fn should_handle_none_display_name_in_json() {
+      // Given: an org_role model with None display_name
+      let id = Uuid::new_v4();
+      let org_id = Uuid::new_v4();
+      let now = Utc::now().naive_utc();
+      let model = Model {
+        id,
+        org_id,
+        name: "editor".to_string(),
+        display_name: None,
+        created_at: now,
+        updated_at: now,
+      };
+
+      // When: converting to JSON
+      let json = Role::row_to_json(&model);
+
+      // Then: display_name should be null
+      assert!(json["display_name"].is_null());
+    }
+  }
+}
