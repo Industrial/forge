@@ -2111,6 +2111,7 @@ dependencies = [
  "forge-db",
  "sea-orm",
  "sea-orm-migration",
+ "tokio",
  "tracing",
  "uuid",
 ]

@@ -36,13 +36,33 @@ mod bdd_tests {
 
   mod model_structure_behavior {
     use super::*;
+    use crate::models::user;
+    use chrono::Utc;
+
+    async fn create_test_user(db: &forge_db::DbConnection, user_id: Uuid) {
+      user::Entity::insert(user::ActiveModel {
+        id: Set(user_id),
+        email: Set(format!("test-{}@example.com", user_id)),
+        password_hash: Set("test-hash".to_string()),
+        is_active: Set(true),
+        is_admin: Set(false),
+        current_org_id: Set(None),
+        current_role: Set(None),
+        created_at: Set(Utc::now().naive_utc()),
+        updated_at: Set(Utc::now().naive_utc()),
+      })
+      .exec(db)
+      .await
+      .expect("create test user");
+    }
 
     #[tokio::test]
     async fn should_create_user_global_role_with_required_fields() {
-      // Given: a test database
+      // Given: a test database with a user
       let db = test_db().await;
-      let id = Uuid::new_v4();
       let user_id = Uuid::new_v4();
+      create_test_user(&db, user_id).await;
+      let id = Uuid::new_v4();
 
       // When: inserting a user_global_role with required fields
       let result = Entity::insert(ActiveModel {
@@ -59,10 +79,11 @@ mod bdd_tests {
 
     #[tokio::test]
     async fn should_store_user_global_role_association() {
-      // Given: a test database
+      // Given: a test database with a user
       let db = test_db().await;
-      let id = Uuid::new_v4();
       let user_id = Uuid::new_v4();
+      create_test_user(&db, user_id).await;
+      let id = Uuid::new_v4();
 
       // When: inserting a user_global_role
       Entity::insert(ActiveModel {
@@ -87,10 +108,12 @@ mod bdd_tests {
 
     #[tokio::test]
     async fn should_query_user_global_roles_by_user_id() {
-      // Given: a test database with user_global_role associations
+      // Given: a test database with users and user_global_role associations
       let db = test_db().await;
       let user1_id = Uuid::new_v4();
       let user2_id = Uuid::new_v4();
+      create_test_user(&db, user1_id).await;
+      create_test_user(&db, user2_id).await;
 
       Entity::insert(ActiveModel {
         id: Set(Uuid::new_v4()),
@@ -133,10 +156,12 @@ mod bdd_tests {
 
     #[tokio::test]
     async fn should_query_user_global_roles_by_role_name() {
-      // Given: a test database with user_global_role associations
+      // Given: a test database with users and user_global_role associations
       let db = test_db().await;
       let user1_id = Uuid::new_v4();
       let user2_id = Uuid::new_v4();
+      create_test_user(&db, user1_id).await;
+      create_test_user(&db, user2_id).await;
 
       Entity::insert(ActiveModel {
         id: Set(Uuid::new_v4()),
@@ -179,9 +204,10 @@ mod bdd_tests {
 
     #[tokio::test]
     async fn should_query_user_global_role_by_user_and_role() {
-      // Given: a test database with user_global_role associations
+      // Given: a test database with a user and user_global_role association
       let db = test_db().await;
       let user_id = Uuid::new_v4();
+      create_test_user(&db, user_id).await;
 
       Entity::insert(ActiveModel {
         id: Set(Uuid::new_v4()),

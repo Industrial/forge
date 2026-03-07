@@ -384,13 +384,28 @@ mod bdd_tests {
 
   mod model_structure_behavior {
     use super::*;
+    use crate::models::organization;
+
+    async fn create_test_org(db: &forge_db::DbConnection, org_id: Uuid) {
+      organization::Entity::insert(organization::ActiveModel {
+        id: Set(org_id),
+        name: Set(format!("Test Org {}", org_id)),
+        slug: Set(format!("test-org-{}", org_id)),
+        created_at: Set(Utc::now().naive_utc()),
+        updated_at: Set(Utc::now().naive_utc()),
+      })
+      .exec(db)
+      .await
+      .expect("create test org");
+    }
 
     #[tokio::test]
     async fn should_create_org_role_with_required_fields() {
-      // Given: a test database
+      // Given: a test database with an organization
       let db = test_db().await;
-      let role_id = Uuid::new_v4();
       let org_id = Uuid::new_v4();
+      create_test_org(&db, org_id).await;
+      let role_id = Uuid::new_v4();
       let now = Utc::now().naive_utc();
 
       // When: inserting an org_role with required fields
@@ -411,10 +426,11 @@ mod bdd_tests {
 
     #[tokio::test]
     async fn should_create_org_role_with_display_name() {
-      // Given: a test database
+      // Given: a test database with an organization
       let db = test_db().await;
-      let role_id = Uuid::new_v4();
       let org_id = Uuid::new_v4();
+      create_test_org(&db, org_id).await;
+      let role_id = Uuid::new_v4();
       let now = Utc::now().naive_utc();
 
       // When: inserting an org_role with display_name
@@ -444,10 +460,12 @@ mod bdd_tests {
 
     #[tokio::test]
     async fn should_query_org_roles_by_org_id() {
-      // Given: a test database with multiple org roles
+      // Given: a test database with multiple organizations and org roles
       let db = test_db().await;
       let org1_id = Uuid::new_v4();
       let org2_id = Uuid::new_v4();
+      create_test_org(&db, org1_id).await;
+      create_test_org(&db, org2_id).await;
       let now = Utc::now().naive_utc();
 
       Entity::insert(ActiveModel {
@@ -500,9 +518,10 @@ mod bdd_tests {
 
     #[tokio::test]
     async fn should_query_org_role_by_name() {
-      // Given: a test database with org roles
+      // Given: a test database with an organization and org roles
       let db = test_db().await;
       let org_id = Uuid::new_v4();
+      create_test_org(&db, org_id).await;
       let now = Utc::now().naive_utc();
 
       Entity::insert(ActiveModel {

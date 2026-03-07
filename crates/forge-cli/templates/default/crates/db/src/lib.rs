@@ -228,13 +228,31 @@ mod tests {
 
     mod token_lookup_behavior {
       use super::*;
-      use crate::models::api_token;
+      use crate::models::{api_token, user};
+
+      async fn create_test_user(db: &forge_db::DbConnection, user_id: Uuid) {
+        user::Entity::insert(user::ActiveModel {
+          id: Set(user_id),
+          email: Set(format!("test-{}@example.com", user_id)),
+          password_hash: Set("test-hash".to_string()),
+          is_active: Set(true),
+          is_admin: Set(false),
+          current_org_id: Set(None),
+          current_role: Set(None),
+          created_at: Set(Utc::now().naive_utc()),
+          updated_at: Set(Utc::now().naive_utc()),
+        })
+        .exec(db)
+        .await
+        .expect("create test user");
+      }
 
       #[tokio::test]
       async fn should_return_some_user_id_when_token_exists_and_not_expired() {
-        // Given: a DB with an api_token row for a raw token
+        // Given: a DB with a user and an api_token row for a raw token
         let db = test_db().await;
         let user_id = Uuid::new_v4();
+        create_test_user(&db, user_id).await;
         let raw_token = "test-token-secret-12345";
         let hash = forge_auth::token_auth::hash_api_token(raw_token);
         let now = Utc::now().naive_utc();
@@ -259,9 +277,10 @@ mod tests {
 
       #[tokio::test]
       async fn should_return_none_when_token_expired() {
-        // Given: a DB with an api_token row with expires_at in the past
+        // Given: a DB with a user and an api_token row with expires_at in the past
         let db = test_db().await;
         let user_id = Uuid::new_v4();
+        create_test_user(&db, user_id).await;
         let raw_token = "expired-token";
         let hash = forge_auth::token_auth::hash_api_token(raw_token);
         let now = Utc::now().naive_utc();

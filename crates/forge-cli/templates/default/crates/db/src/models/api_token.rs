@@ -38,14 +38,33 @@ mod bdd_tests {
     forge_db::wrap_traced(conn)
   }
 
+  async fn create_test_user(db: &forge_db::DbConnection, user_id: Uuid) {
+    use crate::models::user;
+    user::Entity::insert(user::ActiveModel {
+      id: Set(user_id),
+      email: Set(format!("test-{}@example.com", user_id)),
+      password_hash: Set("test-hash".to_string()),
+      is_active: Set(true),
+      is_admin: Set(false),
+      current_org_id: Set(None),
+      current_role: Set(None),
+      created_at: Set(Utc::now().naive_utc()),
+      updated_at: Set(Utc::now().naive_utc()),
+    })
+    .exec(db)
+    .await
+    .expect("create test user");
+  }
+
   mod model_structure_behavior {
     use super::*;
 
     #[tokio::test]
     async fn should_create_api_token_with_required_fields() {
-      // Given: a test database
+      // Given: a test database with a user
       let db = test_db().await;
       let user_id = Uuid::new_v4();
+      create_test_user(&db, user_id).await;
       let token_id = Uuid::new_v4();
       let now = Utc::now().naive_utc();
       let token_hash = "hashed-token-value".to_string();
@@ -70,9 +89,10 @@ mod bdd_tests {
 
     #[tokio::test]
     async fn should_create_api_token_with_optional_fields() {
-      // Given: a test database
+      // Given: a test database with a user
       let db = test_db().await;
       let user_id = Uuid::new_v4();
+      create_test_user(&db, user_id).await;
       let token_id = Uuid::new_v4();
       let now = Utc::now().naive_utc();
       let token_hash = "hashed-token-value".to_string();
@@ -111,9 +131,10 @@ mod bdd_tests {
 
     #[tokio::test]
     async fn should_query_api_token_by_token_hash() {
-      // Given: a test database with an api_token
+      // Given: a test database with a user and an api_token
       let db = test_db().await;
       let user_id = Uuid::new_v4();
+      create_test_user(&db, user_id).await;
       let token_id = Uuid::new_v4();
       let now = Utc::now().naive_utc();
       let token_hash = "specific-hash-value".to_string();
@@ -148,10 +169,12 @@ mod bdd_tests {
 
     #[tokio::test]
     async fn should_query_api_tokens_by_user_id() {
-      // Given: a test database with multiple api_tokens for different users
+      // Given: a test database with multiple users and api_tokens
       let db = test_db().await;
       let user1_id = Uuid::new_v4();
       let user2_id = Uuid::new_v4();
+      create_test_user(&db, user1_id).await;
+      create_test_user(&db, user2_id).await;
       let now = Utc::now().naive_utc();
 
       Entity::insert(ActiveModel {
@@ -214,9 +237,10 @@ mod bdd_tests {
 
     #[tokio::test]
     async fn should_store_expires_at_as_optional() {
-      // Given: a test database
+      // Given: a test database with a user
       let db = test_db().await;
       let user_id = Uuid::new_v4();
+      create_test_user(&db, user_id).await;
       let token_id = Uuid::new_v4();
       let now = Utc::now().naive_utc();
       let future = now + chrono::Duration::days(30);
@@ -247,9 +271,10 @@ mod bdd_tests {
 
     #[tokio::test]
     async fn should_allow_token_without_expiration() {
-      // Given: a test database
+      // Given: a test database with a user
       let db = test_db().await;
       let user_id = Uuid::new_v4();
+      create_test_user(&db, user_id).await;
       let token_id = Uuid::new_v4();
       let now = Utc::now().naive_utc();
 

@@ -38,15 +38,63 @@ mod bdd_tests {
 
   mod model_structure_behavior {
     use super::*;
+    use crate::models::{org_role, organization, user};
+
+    async fn create_test_user(db: &forge_db::DbConnection, user_id: Uuid) {
+      user::Entity::insert(user::ActiveModel {
+        id: Set(user_id),
+        email: Set(format!("test-{}@example.com", user_id)),
+        password_hash: Set("test-hash".to_string()),
+        is_active: Set(true),
+        is_admin: Set(false),
+        current_org_id: Set(None),
+        current_role: Set(None),
+        created_at: Set(Utc::now().naive_utc()),
+        updated_at: Set(Utc::now().naive_utc()),
+      })
+      .exec(db)
+      .await
+      .expect("create test user");
+    }
+
+    async fn create_test_org(db: &forge_db::DbConnection, org_id: Uuid) {
+      organization::Entity::insert(organization::ActiveModel {
+        id: Set(org_id),
+        name: Set(format!("Test Org {}", org_id)),
+        slug: Set(format!("test-org-{}", org_id)),
+        created_at: Set(Utc::now().naive_utc()),
+        updated_at: Set(Utc::now().naive_utc()),
+      })
+      .exec(db)
+      .await
+      .expect("create test org");
+    }
+
+    async fn create_test_org_role(db: &forge_db::DbConnection, role_id: Uuid, org_id: Uuid) {
+      org_role::Entity::insert(org_role::ActiveModel {
+        id: Set(role_id),
+        org_id: Set(org_id),
+        name: Set("viewer".to_string()),
+        display_name: Set(None),
+        created_at: Set(Utc::now().naive_utc()),
+        updated_at: Set(Utc::now().naive_utc()),
+      })
+      .exec(db)
+      .await
+      .expect("create test org_role");
+    }
 
     #[tokio::test]
     async fn should_create_user_org_role_with_required_fields() {
-      // Given: a test database
+      // Given: a test database with user, organization, and org_role
       let db = test_db().await;
-      let id = Uuid::new_v4();
       let user_id = Uuid::new_v4();
       let org_id = Uuid::new_v4();
       let role_id = Uuid::new_v4();
+      create_test_user(&db, user_id).await;
+      create_test_org(&db, org_id).await;
+      create_test_org_role(&db, role_id, org_id).await;
+      let id = Uuid::new_v4();
       let now = Utc::now().naive_utc();
 
       // When: inserting a user_org_role with required fields
@@ -67,12 +115,15 @@ mod bdd_tests {
 
     #[tokio::test]
     async fn should_store_user_org_role_association() {
-      // Given: a test database
+      // Given: a test database with user, organization, and org_role
       let db = test_db().await;
-      let id = Uuid::new_v4();
       let user_id = Uuid::new_v4();
       let org_id = Uuid::new_v4();
       let role_id = Uuid::new_v4();
+      create_test_user(&db, user_id).await;
+      create_test_org(&db, org_id).await;
+      create_test_org_role(&db, role_id, org_id).await;
+      let id = Uuid::new_v4();
       let now = Utc::now().naive_utc();
 
       // When: inserting a user_org_role
@@ -102,7 +153,7 @@ mod bdd_tests {
 
     #[tokio::test]
     async fn should_query_user_org_roles_by_user_id() {
-      // Given: a test database with user_org_role associations
+      // Given: a test database with users, organizations, org_roles, and user_org_role associations
       let db = test_db().await;
       let user1_id = Uuid::new_v4();
       let user2_id = Uuid::new_v4();
@@ -110,6 +161,12 @@ mod bdd_tests {
       let org2_id = Uuid::new_v4();
       let role1_id = Uuid::new_v4();
       let role2_id = Uuid::new_v4();
+      create_test_user(&db, user1_id).await;
+      create_test_user(&db, user2_id).await;
+      create_test_org(&db, org1_id).await;
+      create_test_org(&db, org2_id).await;
+      create_test_org_role(&db, role1_id, org1_id).await;
+      create_test_org_role(&db, role2_id, org2_id).await;
       let now = Utc::now().naive_utc();
 
       Entity::insert(ActiveModel {
@@ -162,13 +219,18 @@ mod bdd_tests {
 
     #[tokio::test]
     async fn should_query_user_org_roles_by_org_id() {
-      // Given: a test database with user_org_role associations
+      // Given: a test database with users, organizations, org_roles, and user_org_role associations
       let db = test_db().await;
       let user1_id = Uuid::new_v4();
       let user2_id = Uuid::new_v4();
       let org1_id = Uuid::new_v4();
       let org2_id = Uuid::new_v4();
       let role_id = Uuid::new_v4();
+      create_test_user(&db, user1_id).await;
+      create_test_user(&db, user2_id).await;
+      create_test_org(&db, org1_id).await;
+      create_test_org(&db, org2_id).await;
+      create_test_org_role(&db, role_id, org1_id).await;
       let now = Utc::now().naive_utc();
 
       Entity::insert(ActiveModel {
@@ -221,11 +283,14 @@ mod bdd_tests {
 
     #[tokio::test]
     async fn should_query_user_org_role_by_user_and_org() {
-      // Given: a test database with user_org_role associations
+      // Given: a test database with user, organization, org_role, and user_org_role association
       let db = test_db().await;
       let user_id = Uuid::new_v4();
       let org_id = Uuid::new_v4();
       let role_id = Uuid::new_v4();
+      create_test_user(&db, user_id).await;
+      create_test_org(&db, org_id).await;
+      create_test_org_role(&db, role_id, org_id).await;
       let now = Utc::now().naive_utc();
 
       Entity::insert(ActiveModel {
