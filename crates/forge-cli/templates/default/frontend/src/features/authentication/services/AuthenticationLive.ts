@@ -1,11 +1,18 @@
 /**
  * Production implementation of Authentication.
  * Uses auth reactive store and TokenStorage (Live = localStorage).
+ * Uses shared API types (AuthMeBody, LoginResponse, RegisterResponse) and Schema at boundary.
  */
-import { Effect, Option } from 'effect'
+import { Effect, Option, pipe, Schema } from 'effect'
 import { HttpClient, HttpClientRequest } from '@effect/platform'
 import { Layer } from 'effect'
 
+import {
+  ApiErrorBodySchema,
+  AuthMeBodySchema,
+  LoginResponseSchema,
+  type AuthMeBody,
+} from '@/api/types'
 import { Authentication } from '@/features/authentication/services/Authentication'
 import { AuthenticationUser } from '@/features/authentication/domain/AuthenticationUser'
 import { AuthenticationError } from '@/features/authentication/errors/AuthenticationError'
@@ -18,43 +25,35 @@ import {
 import { TokenStorage } from '@/services/TokenStorage'
 import { getBaseUrl } from '@/lib/baseUrl'
 
+/** Pure: parse /api/auth/me body into Option<AuthenticationUser>. */
 function parseMeResponse(
-  body: unknown,
+  body: AuthMeBody,
   token: string,
 ): Option.Option<AuthenticationUser> {
-  if (body == null || typeof body !== 'object' || !('user' in body)) {
-    return Option.none()
-  }
-  const u = (body as { user?: { id?: unknown; email?: unknown } }).user
-  if (u == null) return Option.none()
+  const user = body.user
+  if (user == null) return Option.none()
   return Option.some(
     new AuthenticationUser({
-      id: String(u.id ?? ''),
-      email: String(u.email ?? ''),
+      id: String(user.id ?? ''),
+      email: String(user.email ?? ''),
       token,
     }),
   )
 }
 
-function getNeedsScopeSelect(body: unknown): Option.Option<boolean> {
-  if (
-    body == null ||
-    typeof body !== 'object' ||
-    !('needs_scope_select' in body)
-  ) {
-    return Option.none()
-  }
-  const v = (body as { needs_scope_select?: boolean }).needs_scope_select
-  return typeof v === 'boolean' ? Option.some(v) : Option.none()
+/** Pure: read needs_scope_select from body. */
+function getNeedsScopeSelect(body: AuthMeBody): Option.Option<boolean> {
+  return body.needs_scope_select !== undefined
+    ? Option.some(body.needs_scope_select)
+    : Option.none()
 }
 
-function getPermissions(body: unknown): readonly string[] {
-  if (body == null || typeof body !== 'object' || !('user' in body)) {
-    return []
-  }
-  const u = (body as { user?: { permissions?: unknown } }).user
-  if (u == null || !Array.isArray(u.permissions)) return []
-  return u.permissions.filter((p): p is string => typeof p === 'string')
+/** Pure: read permissions from body (top-level or user). */
+function getPermissions(body: AuthMeBody): readonly string[] {
+  const list = body.permissions ?? body.user?.permissions
+  return Array.isArray(list)
+    ? list.filter((p): p is string => typeof p === 'string')
+    : []
 }
 
 export const AuthenticationLive = Layer.effect(
@@ -69,27 +68,49 @@ export const AuthenticationLive = Layer.effect(
       token: string,
     ): Effect.Effect<Option.Option<AuthenticationUser>, never, never> =>
       Effect.gen(function* () {
+        yield* Effect.logTrace('AuthenticationLive.fetchMeAndUpdate')
+
         const req = HttpClientRequest.get(`${baseUrl}/api/auth/me`).pipe(
           HttpClientRequest.setHeader('Authorization', `Bearer ${token}`),
         )
         const response = yield* client.execute(req)
         const ok = response.status >= 200 && response.status < 300
+        yield* Effect.logDebug(
+          `AuthenticationLive.fetchMeAndUpdate: status=${response.status}`,
+        )
+
         if (!ok) {
           yield* store.update(() => initialAuthenticationState)
           yield* tokenStorage.clearToken()
           yield* tokenStorage.clearScope()
           return Option.none()
         }
-        const body = yield* response.json
+        const rawBody = yield* response.json
+        const body = yield* pipe(
+          Schema.decodeUnknown(AuthMeBodySchema)(rawBody),
+          Effect.catchAll(() => Effect.succeed({} as AuthMeBody)),
+        )
+        yield* Effect.logDebug(
+          'AuthenticationLive.fetchMeAndUpdate: body keys=' +
+            String(Object.keys(body)),
+        )
+
         const user = parseMeResponse(body, token)
+        const permissions = getPermissions(body)
+        yield* Effect.logDebug(
+          `AuthenticationLive.fetchMeAndUpdate: user present=${Option.isSome(user)}, permissions count=${permissions.length}`,
+        )
+
         const needsScopeSelect = getNeedsScopeSelect(body)
         const newState: AuthenticationState = {
           token: Option.some(token),
           user,
           needsScopeSelect,
-          permissions: getPermissions(body),
+          permissions,
         }
+
         yield* store.update(() => newState)
+
         return user
       }).pipe(
         Effect.catchAll(() =>
@@ -100,7 +121,13 @@ export const AuthenticationLive = Layer.effect(
     return {
       restoreSession: (): Effect.Effect<void, never, never> =>
         Effect.gen(function* () {
+          yield* Effect.logTrace('AuthenticationLive.restoreSession')
+
           const tokenOpt = yield* tokenStorage.getToken()
+          yield* Effect.logDebug(
+            `AuthenticationLive.restoreSession: hasToken=${Option.isSome(tokenOpt)}`,
+          )
+
           yield* Option.match(tokenOpt, {
             onNone: () => Effect.void,
             onSome: (token) => fetchMeAndUpdate(token).pipe(Effect.asVoid),
@@ -113,12 +140,20 @@ export const AuthenticationLive = Layer.effect(
         never
       > =>
         Effect.gen(function* () {
+          yield* Effect.logTrace('AuthenticationLive.getCurrentUser')
+
           const tokenOpt = yield* tokenStorage.getToken()
+          yield* Effect.logDebug(
+            `AuthenticationLive.getCurrentUser: hasToken=${Option.isSome(tokenOpt)}`,
+          )
+
           const token = Option.getOrElse(tokenOpt, () => '')
+
           if (token === '') {
             yield* store.update(() => initialAuthenticationState)
             return Option.none()
           }
+
           return yield* fetchMeAndUpdate(token)
         }),
 
@@ -127,6 +162,8 @@ export const AuthenticationLive = Layer.effect(
         password: string,
       ): Effect.Effect<AuthenticationUser, AuthenticationError, never> =>
         Effect.gen(function* () {
+          yield* Effect.logTrace('AuthenticationLive.login')
+
           const url = `${baseUrl}/api/auth/login`
           const req = HttpClientRequest.post(url).pipe(
             HttpClientRequest.bodyUnsafeJson({ email, password }),
@@ -140,7 +177,7 @@ export const AuthenticationLive = Layer.effect(
                 }),
             ),
           )
-          const body = yield* response.json.pipe(
+          const rawBody = yield* response.json.pipe(
             Effect.mapError(
               (e) =>
                 new AuthenticationError({
@@ -152,31 +189,51 @@ export const AuthenticationLive = Layer.effect(
           )
           const ok = response.status >= 200 && response.status < 300
           if (!ok) {
+            const errBody = yield* pipe(
+              Schema.decodeUnknown(ApiErrorBodySchema)(rawBody),
+              Effect.catchAll(() =>
+                Effect.succeed({ message: undefined, error: undefined }),
+              ),
+            )
             const message =
-              body != null &&
-              typeof body === 'object' &&
-              'message' in body &&
-              typeof (body as { message: unknown }).message === 'string'
-                ? (body as { message: string }).message
-                : 'Login failed'
+              errBody.message ??
+              (typeof errBody.error === 'string'
+                ? errBody.error
+                : errBody.error?.message) ??
+              'Login failed'
             return yield* Effect.fail(new AuthenticationError({ message }))
           }
-          const token =
-            body != null &&
-            typeof body === 'object' &&
-            'token' in body &&
-            typeof (body as { token: unknown }).token === 'string'
-              ? (body as { token: string }).token
-              : null
-          if (token == null) {
+
+          const decoded = yield* pipe(
+            Schema.decodeUnknown(LoginResponseSchema)(rawBody),
+            Effect.mapError(
+              (e) =>
+                new AuthenticationError({
+                  message: e.message ?? 'Invalid login response',
+                  cause: e,
+                }),
+            ),
+          )
+          const token = decoded.token
+          yield* Effect.logDebug(
+            `AuthenticationLive.login: hasToken=${token != null}`,
+          )
+
+          if (!token) {
             return yield* Effect.fail(
               new AuthenticationError({
                 message: 'Login response missing token',
               }),
             )
           }
+
           yield* tokenStorage.setToken(token)
+
           const userOpt = yield* fetchMeAndUpdate(token)
+          yield* Effect.logDebug(
+            `AuthenticationLive.login: userLoaded=${Option.isSome(userOpt)}`,
+          )
+
           return userOpt.pipe(
             Option.match({
               onNone: () =>
@@ -195,6 +252,8 @@ export const AuthenticationLive = Layer.effect(
         password: string,
       ): Effect.Effect<void, AuthenticationError, never> =>
         Effect.gen(function* () {
+          yield* Effect.logTrace('AuthenticationLive.register')
+
           const url = `${baseUrl}/api/auth/register`
           const req = HttpClientRequest.post(url).pipe(
             HttpClientRequest.bodyUnsafeJson({ email, password }),
@@ -208,7 +267,7 @@ export const AuthenticationLive = Layer.effect(
                 }),
             ),
           )
-          const body = yield* response.json.pipe(
+          const rawBody = yield* response.json.pipe(
             Effect.mapError(
               (e) =>
                 new AuthenticationError({
@@ -218,21 +277,32 @@ export const AuthenticationLive = Layer.effect(
                 }),
             ),
           )
+          yield* Effect.logDebug(
+            `AuthenticationLive.register: body=${JSON.stringify(rawBody)}`,
+          )
+
           const ok = response.status >= 200 && response.status < 300
           if (!ok) {
+            const errBody = yield* pipe(
+              Schema.decodeUnknown(ApiErrorBodySchema)(rawBody),
+              Effect.catchAll(() =>
+                Effect.succeed({ message: undefined, error: undefined }),
+              ),
+            )
             const message =
-              body != null &&
-              typeof body === 'object' &&
-              'message' in body &&
-              typeof (body as { message: unknown }).message === 'string'
-                ? (body as { message: string }).message
-                : 'Registration failed'
+              errBody.message ??
+              (typeof errBody.error === 'string'
+                ? errBody.error
+                : errBody.error?.message) ??
+              'Registration failed'
             return yield* Effect.fail(new AuthenticationError({ message }))
           }
         }),
 
       logout: (): Effect.Effect<void, never, never> =>
         Effect.gen(function* () {
+          yield* Effect.logTrace('AuthenticationLive.logout')
+
           yield* tokenStorage.clearToken()
           yield* tokenStorage.clearScope()
           yield* store.update(() => initialAuthenticationState)
@@ -243,6 +313,8 @@ export const AuthenticationLive = Layer.effect(
         roleId: string,
       ): Effect.Effect<void, ScopeError, never> =>
         Effect.gen(function* () {
+          yield* Effect.logTrace('AuthenticationLive.selectScope')
+
           yield* tokenStorage.setScope(organizationId, roleId)
           yield* store.update((state) => ({
             ...state,

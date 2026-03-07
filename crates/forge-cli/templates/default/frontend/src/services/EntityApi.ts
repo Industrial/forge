@@ -10,20 +10,9 @@
  */
 
 import { Context, Effect } from 'effect'
+import type { ListQueryParams, ListResponse } from '@/api/types'
 
-/** Query params for list: filter (JSON string), sort, order, offset, limit. */
-export interface ListQueryParams {
-  readonly filter?: string
-  readonly sort?: string
-  readonly order?: string
-  readonly offset?: number
-  readonly limit?: number
-}
-
-/** List response shape: { data: T[] }. Backend returns JSON; items are untyped. */
-export interface ListResponse<T = unknown> {
-  readonly data: readonly T[]
-}
+export type { ListQueryParams, ListResponse }
 
 /**
  * Entity API service interface.

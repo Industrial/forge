@@ -1,16 +1,16 @@
 /**
  * RPC API service for subscribe/unsubscribe (Epic 8).
  * POST /api/rpc with method subscribe (entity_id + params); returns subscription_id.
+ * RPC and REST use the same object types (forge-query).
  *
  * @see RpcApiLive – implementation using HttpClient
  */
 
 import { Context, Effect } from 'effect'
-import type { ListQueryParams } from './EntityApi'
+import type { ListQueryParams, RpcSubscribeResult } from '@/api/types'
 
-export interface SubscribeResult {
-  readonly subscription_id: string
-}
+export type { ListQueryParams }
+export type SubscribeResult = RpcSubscribeResult
 
 export interface RpcApiService {
   /** POST /api/rpc { method: "subscribe", entity_id, params }; returns subscription_id. */

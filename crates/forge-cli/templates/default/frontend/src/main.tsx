@@ -11,6 +11,7 @@ const layer = getApplicationLayer()
 
 await Effect.runPromise(
   Effect.gen(function* () {
+    yield* Effect.logInfo('Starting application')
     const auth = yield* Authentication
     yield* auth.restoreSession()
   }).pipe(Effect.provide(layer)),

@@ -1,37 +1,26 @@
 /**
  * Live implementation of RpcApi using HttpClient.
  * POST /api/rpc with method subscribe; requires HttpClient (with auth/scope).
+ * RPC uses same object types as REST (forge-query); response decoded via Schema.
  */
 
 import { HttpClient, HttpClientRequest } from '@effect/platform'
-import { Effect, Layer } from 'effect'
-import type { RpcApiService, SubscribeResult } from './RpcApi'
+import { Effect, Layer, pipe } from 'effect'
+import { Schema } from 'effect'
+import {
+  ApiErrorBodySchema,
+  RpcResponseSchema,
+  RpcSubscribeResultSchema,
+  type RpcSubscribeRequest,
+} from '@/api/types'
+import type { RpcApiService } from './RpcApi'
 import { RpcApi } from './RpcApi'
 
 function toError(e: unknown): Error {
   return e instanceof Error ? e : new Error(String(e))
 }
 
-function parseError(body: unknown): string {
-  if (
-    typeof body === 'object' &&
-    body !== null &&
-    'message' in body &&
-    typeof (body as { message: unknown }).message === 'string'
-  ) {
-    return (body as { message: string }).message
-  }
-  if (
-    typeof body === 'object' &&
-    body !== null &&
-    'error' in body &&
-    typeof (body as { error: unknown }).error === 'object' &&
-    (body as { error: { message?: string } }).error?.message
-  ) {
-    return (body as { error: { message: string } }).error.message
-  }
-  return 'Request failed.'
-}
+const RpcSubscribeResponseSchema = RpcResponseSchema(RpcSubscribeResultSchema)
 
 const RpcApiLive = Layer.effect(
   RpcApi,
@@ -44,7 +33,7 @@ const RpcApiLive = Layer.effect(
         yield* Effect.logDebug(
           `RpcApiLive.subscribe: entityId=${entityId}, params=${JSON.stringify(params ?? {})}`,
         )
-        const body = {
+        const body: RpcSubscribeRequest = {
           method: 'subscribe',
           entity_id: entityId,
           params: params
@@ -66,21 +55,41 @@ const RpcApiLive = Layer.effect(
           .pipe(Effect.mapError(toError))
         const ok = response.status >= 200 && response.status < 300
         if (!ok) {
-          return yield* Effect.fail(
-            new Error(
-              `RPC failed (${response.status}). Scoped routes may require X-Organization-Id and X-Role-Id headers.`,
+          const resBody = yield* response.json.pipe(Effect.mapError(toError))
+          const errDecoded = yield* pipe(
+            Schema.decodeUnknown(ApiErrorBodySchema)(resBody),
+            Effect.catchAll(() =>
+              Effect.succeed({ message: undefined, error: undefined }),
             ),
           )
+          const message =
+            errDecoded.message ??
+            (typeof errDecoded.error === 'string'
+              ? errDecoded.error
+              : errDecoded.error?.message) ??
+            `RPC failed (${response.status})`
+          return yield* Effect.fail(new Error(message))
         }
         const resBody = yield* response.json.pipe(Effect.mapError(toError))
-        const result = (resBody as { result?: { subscription_id?: string } })
-          ?.result
-        const id = result?.subscription_id
-        if (typeof id === 'string') {
-          yield* Effect.logDebug(`RpcApiLive.subscribe: subscription_id=${id}`)
-          return { subscription_id: id } satisfies SubscribeResult
+        const decoded = yield* pipe(
+          Schema.decodeUnknown(RpcSubscribeResponseSchema)(resBody),
+          Effect.mapError(
+            (e) =>
+              new Error(
+                `Invalid RPC response: ${e.message ?? String(e)}`,
+              ),
+          ),
+        )
+        const result = decoded.result
+        if (result) {
+          yield* Effect.logDebug(
+            `RpcApiLive.subscribe: subscription_id=${result.subscription_id}`,
+          )
+          return { subscription_id: result.subscription_id }
         }
-        return yield* Effect.fail(new Error(parseError(resBody)))
+        const message =
+          decoded.error?.message ?? 'RPC returned no result and no error'
+        return yield* Effect.fail(new Error(message))
       })
 
     return { subscribe }

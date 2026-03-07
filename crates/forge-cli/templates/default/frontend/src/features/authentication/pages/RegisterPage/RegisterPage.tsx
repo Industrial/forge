@@ -13,6 +13,7 @@ import { useCallback, useState } from 'react'
 import { getApplicationLayer } from '@/lib/appLayer'
 import { Authentication } from '@/features/authentication/services/Authentication'
 import { effectSchemaResolver } from '@/lib/effectSchemaResolver'
+import { navigateTo } from '@/lib/navigate'
 import {
   registerFormSchema,
   type RegisterFormValues,
@@ -41,7 +42,7 @@ export default function RegisterPage() {
           setErrorMessage(null)
           yield* auth.register(data.email, data.password)
           setSubmitting(false)
-          navigate('/authentication/login', { replace: true })
+          yield* navigateTo(navigate, '/authentication/login', { replace: true })
         }).pipe(
           Effect.mapError((error) => {
             setSubmitting(false)
@@ -86,6 +87,7 @@ export default function RegisterPage() {
                   label="Email"
                   placeholder="you@example.com"
                   required
+                  slotProps={{ htmlInput: { autoComplete: 'email' } }}
                   disabled={submitting}
                   data-testid="register-email"
                   fullWidth
@@ -105,7 +107,7 @@ export default function RegisterPage() {
                   label="Password"
                   placeholder="••••••••"
                   required
-                  inputProps={{ minLength: 8 }}
+                  slotProps={{ htmlInput: { minLength: 8, autoComplete: 'new-password' } }}
                   disabled={submitting}
                   data-testid="register-password"
                   fullWidth

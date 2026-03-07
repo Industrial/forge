@@ -110,7 +110,10 @@ export function buildApplicationLayer() {
 
   const BaseLayer = Layer.mergeAll(
     AuthLayer,
-    SubscriptionStreamLive(getBaseUrl()).pipe(Layer.provide(authStoreLayer)),
+    SubscriptionStreamLive(getBaseUrl()).pipe(
+      Layer.provide(authStoreLayer),
+      Layer.provide(HttpClientLayer),
+    ),
   )
 
   const DashboardServicesLayer = Layer.mergeAll(

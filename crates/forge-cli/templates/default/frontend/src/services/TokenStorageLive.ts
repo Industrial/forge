@@ -17,50 +17,93 @@ function getStorage(): Storage | null {
 
 export const TokenStorageLive = Layer.succeed(TokenStorage, {
   getToken: () =>
-    Effect.sync(() => {
+    Effect.gen(function* () {
+      yield* Effect.logTrace('TokenStorageLive.getToken')
+
       const s = getStorage()
       const token = s?.getItem(TOKEN_KEY) ?? null
-      return token != null && token !== '' ? Option.some(token) : Option.none()
+      const result =
+        token != null && token !== '' ? Option.some(token) : Option.none()
+
+      yield* Effect.logDebug(
+        `TokenStorageLive.getToken: hasToken=${Option.isSome(result)}`,
+      )
+
+      return result
     }),
 
   setToken: (token: string) =>
-    Effect.sync(() => {
+    Effect.gen(function* () {
+      yield* Effect.logTrace('TokenStorageLive.setToken')
+
       const s = getStorage()
-      if (s) s.setItem(TOKEN_KEY, token)
+      if (s) {
+        s.setItem(TOKEN_KEY, token)
+        yield* Effect.logDebug('TokenStorageLive.setToken: wrote token')
+      } else {
+        yield* Effect.logDebug('TokenStorageLive.setToken: no storage')
+      }
     }),
 
   clearToken: () =>
-    Effect.sync(() => {
+    Effect.gen(function* () {
+      yield* Effect.logTrace('TokenStorageLive.clearToken')
+
       const s = getStorage()
-      if (s) s.removeItem(TOKEN_KEY)
+      if (s) {
+        s.removeItem(TOKEN_KEY)
+        yield* Effect.logDebug('TokenStorageLive.clearToken: removed token')
+      } else {
+        yield* Effect.logDebug('TokenStorageLive.clearToken: no storage')
+      }
     }),
 
   getScope: () =>
-    Effect.sync(() => {
+    Effect.gen(function* () {
+      yield* Effect.logTrace('TokenStorageLive.getScope')
+
       const s = getStorage()
       const orgId = s?.getItem(ORG_ID_KEY) ?? null
       const roleId = s?.getItem(ROLE_ID_KEY) ?? null
-      if (orgId != null && orgId !== '' && roleId != null) {
-        return Option.some({ organizationId: orgId, roleId })
-      }
-      return Option.none()
+      const result =
+        orgId != null && orgId !== '' && roleId != null
+          ? Option.some({ organizationId: orgId, roleId })
+          : Option.none()
+
+      yield* Effect.logDebug(
+        `TokenStorageLive.getScope: hasScope=${Option.isSome(result)}`,
+      )
+
+      return result
     }),
 
   setScope: (organizationId: string, roleId: string) =>
-    Effect.sync(() => {
+    Effect.gen(function* () {
+      yield* Effect.logTrace('TokenStorageLive.setScope')
+
       const s = getStorage()
       if (s) {
         s.setItem(ORG_ID_KEY, organizationId)
         s.setItem(ROLE_ID_KEY, roleId)
+        yield* Effect.logDebug(
+          `TokenStorageLive.setScope: organizationId=${organizationId}, roleId=${roleId}`,
+        )
+      } else {
+        yield* Effect.logDebug('TokenStorageLive.setScope: no storage')
       }
     }),
 
   clearScope: () =>
-    Effect.sync(() => {
+    Effect.gen(function* () {
+      yield* Effect.logTrace('TokenStorageLive.clearScope')
+
       const s = getStorage()
       if (s) {
         s.removeItem(ORG_ID_KEY)
         s.removeItem(ROLE_ID_KEY)
+        yield* Effect.logDebug('TokenStorageLive.clearScope: removed scope')
+      } else {
+        yield* Effect.logDebug('TokenStorageLive.clearScope: no storage')
       }
     }),
 })

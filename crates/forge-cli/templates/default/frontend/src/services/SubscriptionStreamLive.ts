@@ -1,10 +1,11 @@
 /**
- * Live implementation of SubscriptionStream using fetch and SSE parsing.
+ * Live implementation of SubscriptionStream using HttpClient and SSE parsing.
  *
  * GET /api/subscriptions/stream with Authorization header; parses text/event-stream
- * for data lines (ready and subscription_id). Uses auth reactive store for token.
+ * for data lines (ready and subscription_id). Uses HttpClient (no fetch).
  */
 
+import { HttpClient, HttpClientRequest } from '@effect/platform'
 import { Effect, Option, Stream } from 'effect'
 import { Layer } from 'effect'
 import { AuthenticationStateReactiveStoreTag } from '@/features/authentication/stores/AuthenticationStateReactiveStore'
@@ -16,6 +17,13 @@ import { SubscriptionStream } from './SubscriptionStream'
 
 function toError(e: unknown): Error {
   return e instanceof Error ? e : new Error(String(e))
+}
+
+/** Fetch Response-like shape: body as ReadableStream (exposed by FetchHttpClient). */
+interface ResponseWithBody {
+  readonly status: number
+  readonly ok: boolean
+  readonly body?: ReadableStream<Uint8Array> | null
 }
 
 async function* readSSEEvents(
@@ -58,6 +66,7 @@ export const SubscriptionStreamLive = (baseUrl: string) =>
   Layer.effect(
     SubscriptionStream,
     Effect.gen(function* () {
+      const client = yield* HttpClient.HttpClient
       const authStore = yield* AuthenticationStateReactiveStoreTag
 
       const openStream: SubscriptionStreamService['openStream'] = () =>
@@ -73,18 +82,17 @@ export const SubscriptionStreamLive = (baseUrl: string) =>
               new Error('Not authenticated; cannot open subscription stream'),
             )
           }
-          yield* Effect.logDebug(
-            `SubscriptionStreamLive.openStream: url=${baseUrl.replace(/\/$/, '')}/api/subscriptions/stream`,
-          )
           const url = `${baseUrl.replace(/\/$/, '')}/api/subscriptions/stream`
-          const res = yield* Effect.tryPromise({
-            try: () =>
-              fetch(url, {
-                method: 'GET',
-                headers: { Authorization: `Bearer ${token}` },
-              }),
-            catch: toError,
-          })
+          yield* Effect.logDebug(
+            `SubscriptionStreamLive.openStream: url=${url}`,
+          )
+          const req = HttpClientRequest.get(url).pipe(
+            HttpClientRequest.setHeader('Authorization', `Bearer ${token}`),
+          )
+          const response = yield* client
+            .execute(req)
+            .pipe(Effect.mapError(toError))
+          const res = response as unknown as ResponseWithBody
           if (!res.ok) {
             return yield* Effect.fail(
               new Error(`Subscription stream failed: ${res.status}`),
@@ -95,14 +103,14 @@ export const SubscriptionStreamLive = (baseUrl: string) =>
             return yield* Effect.fail(new Error('Subscription stream: no body'))
           }
           const reader = body.getReader()
-          const stream = Stream.fromAsyncIterable(
+          const eventStream = Stream.fromAsyncIterable(
             readSSEEvents(reader),
             (e) => new Error(String(e)),
           )
           yield* Effect.logDebug(
             'SubscriptionStreamLive.openStream: stream opened',
           )
-          return stream
+          return eventStream
         })
 
       return { openStream }

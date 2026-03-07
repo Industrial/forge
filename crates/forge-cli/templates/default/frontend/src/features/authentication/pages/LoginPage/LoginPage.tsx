@@ -12,6 +12,7 @@ import { useForm, Controller } from 'react-hook-form'
 
 import { Authentication } from '@/features/authentication/services/Authentication'
 import { effectSchemaResolver } from '@/lib/effectSchemaResolver'
+import { navigateTo } from '@/lib/navigate'
 import {
   loginFormSchema,
   type LoginFormValues,
@@ -44,7 +45,7 @@ export default function LoginPage() {
           setErrorMessage(null)
           yield* auth.login(data.email, data.password)
           setSubmitting(false)
-          navigate('/', { replace: true })
+          yield* navigateTo(navigate, '/', { replace: true })
         }).pipe(
           Effect.mapError((error) => {
             setSubmitting(false)
@@ -89,6 +90,7 @@ export default function LoginPage() {
                   label="Email"
                   placeholder="you@example.com"
                   required
+                  slotProps={{ htmlInput: { autoComplete: 'email' } }}
                   disabled={submitting}
                   data-testid="login-email"
                   fullWidth
@@ -108,6 +110,7 @@ export default function LoginPage() {
                   label="Password"
                   placeholder="••••••••"
                   required
+                  slotProps={{ htmlInput: { autoComplete: 'current-password' } }}
                   disabled={submitting}
                   data-testid="login-password"
                   fullWidth
