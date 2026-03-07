@@ -8,7 +8,6 @@ pub mod observability;
 pub mod rest;
 pub mod rpc;
 pub mod subscription_stream;
-pub mod ws;
 
 #[cfg(test)]
 mod tests {
@@ -36,10 +35,9 @@ mod tests {
         "rest",
         "rpc",
         "subscription_stream",
-        "ws",
       ];
 
-      assert_eq!(_modules.len(), 11, "Should have 11 handler modules");
+      assert_eq!(_modules.len(), 10, "Should have 10 handler modules");
     }
 
     #[test]

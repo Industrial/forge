@@ -43,7 +43,6 @@ pub fn make_app(live_backend: Arc<forge_live::InMemoryLiveBackend>) -> App {
       "/api/observability/trace-id",
       handlers::observability::trace_id,
     )
-    .route("/ws", handlers::ws::handler)
     .post_route("/api/auth/register", handlers::auth::register)
     .post_route("/api/auth/login", handlers::auth::login)
     .route("/api/auth/logout", handlers::auth::logout)
@@ -186,6 +185,66 @@ pub async fn test_client() -> Result<TestClient, Box<dyn std::error::Error + Sen
     router,
     _guard: std::sync::Arc::new(std::sync::Mutex::new(Some(guard))),
   })
+}
+
+/// Helper function to create a test client with migrations run.
+/// Checks for E2E_API_URL first and uses the external server if available (server already has migrations/seeds).
+/// If E2E_API_URL is not set, creates an in-process router and runs migrations manually.
+/// This is needed because migrations don't run automatically for integration tests
+/// due to #[cfg(test)] conditional compilation in build_router_for_test_with_db.
+#[cfg(any(test, feature = "test-utils"))]
+pub async fn test_client_with_migrations() -> Result<TestClient, Box<dyn std::error::Error + Send + Sync>> {
+  // If E2E_API_URL is set, use the external server (which already has migrations/seeds run)
+  if let Ok(url) = std::env::var("E2E_API_URL") {
+    let base_url = url.trim_end_matches('/').to_string();
+    let client = reqwest::Client::builder()
+      .timeout(std::time::Duration::from_secs(10))
+      .build()?;
+    return Ok(TestClient::Http { client, base_url });
+  }
+  
+  // Otherwise, create an in-process router and run migrations manually
+  // Migrations are only available when compiling test binaries (dev-dependency)
+  #[cfg(test)]
+  {
+    use sea_orm::{ConnectionTrait, Statement};
+    use sea_orm_migration::MigratorTrait;
+
+    // Build router with database connection
+    let (router, db_conn, guard) = build_router_for_test_with_db()
+      .await?;
+
+    // Run migrations manually (available when compiling test binaries)
+    let db_ref: &sea_orm::DatabaseConnection = db_conn.as_ref();
+    migrations::Migrator::up(db_ref, None)
+      .await
+      .map_err(|e| format!("migrations::Migrator::up: {}", e))?;
+    migrations::run_seeds(db_conn.clone())
+      .await
+      .map_err(|e| format!("migrations::run_seeds: {}", e))?;
+
+    // Verify migrations ran successfully
+    let _ = db_conn
+      .execute(Statement::from_string(
+        db_conn.get_database_backend(),
+        "SELECT 1 FROM user LIMIT 1".to_string(),
+      ))
+      .await
+      .map_err(|e| format!("user table check after migration: {}", e))?;
+
+    // Return TestClient with the router (router already has state attached)
+    Ok(TestClient::InProcess {
+      router,
+      _guard: std::sync::Arc::new(std::sync::Mutex::new(Some(guard))),
+    })
+  }
+  #[cfg(not(test))]
+  {
+    // If not compiling test binaries, fall back to test_client() which doesn't run migrations
+    // This should only happen if test-utils feature is enabled but not in test context
+    // In practice, this function should only be called from test code
+    test_client().await
+  }
 }
 
 /// Build the API router for integration tests (in-process). Only compiled when not using `test-utils` feature.
