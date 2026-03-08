@@ -13,9 +13,12 @@ import Person from '@mui/icons-material/Person'
 import Toolbar from '@mui/material/Toolbar'
 import { useNavigate } from 'react-router-dom'
 import { useState } from 'react'
+import { Effect } from 'effect'
 import { Option } from 'effect'
 
 import { useAuthStore } from '@/features/authentication/stores'
+import { Authentication } from '@/features/authentication/services/Authentication'
+import { getApplicationLayer } from '@/lib/appLayer'
 
 type NavbarProps = {
   appName?: string
@@ -90,10 +93,16 @@ export default function Navbar({
     navigate('/scope')
   }
 
-  const handleLogout = async () => {
+  const handleLogout = () => {
     handleClose()
-    // await logout()
-    navigate('/authentication/login', { replace: true })
+    Effect.runPromise(
+      Effect.gen(function* () {
+        const auth = yield* Authentication
+        yield* auth.logout()
+      }).pipe(Effect.provide(getApplicationLayer())),
+    ).then(() => {
+      navigate('/authentication/login', { replace: true })
+    })
   }
 
   return (
