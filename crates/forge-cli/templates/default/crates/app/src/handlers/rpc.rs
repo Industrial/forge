@@ -14,7 +14,7 @@ use uuid::Uuid;
 
 use crate::Error as ForgeError;
 use crate::handlers::auth::ScopeFromHeaders;
-use crate::handlers::dashboard::require_entity_permission;
+use crate::handlers::auth::require_entity_permission;
 use crate::handlers::generic_entity::{
   ListQueryParams, list_entity_with_spec, parse_list_query_spec,
 };

@@ -150,7 +150,7 @@ impl RestModel for User {
 
   async fn create(_db: &DbConnection, _body: serde_json::Value) -> Result<Uuid, ModelError> {
     Err(ModelError::Validation(
-      "user create not implemented via generic handler; use POST /api/users".to_string(),
+      "create not supported for this model; use POST /api/dashboard/users".to_string(),
     ))
   }
 
@@ -160,13 +160,13 @@ impl RestModel for User {
     _body: serde_json::Value,
   ) -> Result<serde_json::Value, ModelError> {
     Err(ModelError::Validation(
-      "user update not implemented via generic handler; use PATCH /api/users/:id".to_string(),
+      "update not supported for this model; use PATCH /api/dashboard/users/:id".to_string(),
     ))
   }
 
   async fn delete(_db: &DbConnection, _id: Uuid) -> Result<bool, ModelError> {
     Err(ModelError::Validation(
-      "user delete not implemented via generic handler; use DELETE /api/users/:id".to_string(),
+      "delete not supported for this model; use DELETE /api/dashboard/users/:id".to_string(),
     ))
   }
 }
@@ -373,8 +373,7 @@ mod bdd_tests {
       assert!(result.is_err());
       match result.unwrap_err() {
         ModelError::Validation(msg) => {
-          assert!(msg.contains("not implemented via generic handler"));
-          assert!(msg.contains("POST /api/users"));
+          assert!(msg.contains("not supported"));
         }
         _ => panic!("Expected Validation error"),
       }

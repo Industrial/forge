@@ -339,7 +339,10 @@ mod tests {
         "generated server should use migrations::Migrator"
       );
       assert!(lib_content.contains(".post_route"));
-      assert!(lib_content.contains(".route(\"/api/auth/admin\""));
+      assert!(
+        lib_content.contains("/api/auth/admin"),
+        "generated app should register /api/auth/admin route"
+      );
       assert!(
         lib_content.contains(".route_methods(")
           && (lib_content.contains("/api/dashboard/users")

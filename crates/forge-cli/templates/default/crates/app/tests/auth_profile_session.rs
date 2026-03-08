@@ -6,7 +6,9 @@ use axum::http::StatusCode;
 /// Helper function to create a test client with migrations run.
 /// Uses the shared app::test_client_with_migrations() which checks E2E_API_URL first.
 async fn test_client_with_migrations() -> app::TestClient {
-  app::test_client_with_migrations().await.expect("test_client_with_migrations")
+  app::test_client_with_migrations()
+    .await
+    .expect("test_client_with_migrations")
 }
 
 #[tokio::test]

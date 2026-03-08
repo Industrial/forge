@@ -50,9 +50,10 @@ fn get_path(entity_id: &str, id: &str) -> String {
 }
 
 async fn test_client_with_migrations() -> app::TestClient {
-  app::test_client_with_migrations()
+  let client: app::TestClient = app::test_client_with_migrations()
     .await
-    .expect("test_client_with_migrations")
+    .expect("test_client_with_migrations");
+  client
 }
 
 // ---------- Authentication: list requires auth for all entities ----------
@@ -60,9 +61,16 @@ async fn test_client_with_migrations() -> app::TestClient {
 #[tokio::test]
 async fn list_organization_anon_401() {
   let client = app::test_client().await.expect("test_client");
-  let (status, _) = app::test_request(&client, "GET", &list_path(ENTITY_ORGANIZATION), None, None, None)
-    .await
-    .unwrap();
+  let (status, _) = app::test_request(
+    &client,
+    "GET",
+    &list_path(ENTITY_ORGANIZATION),
+    None,
+    None,
+    None,
+  )
+  .await
+  .unwrap();
   assert_eq!(status, StatusCode::UNAUTHORIZED);
 }
 
@@ -87,9 +95,16 @@ async fn list_role_anon_401() {
 #[tokio::test]
 async fn list_permission_anon_401() {
   let client = app::test_client().await.expect("test_client");
-  let (status, _) = app::test_request(&client, "GET", &list_path(ENTITY_PERMISSION), None, None, None)
-    .await
-    .unwrap();
+  let (status, _) = app::test_request(
+    &client,
+    "GET",
+    &list_path(ENTITY_PERMISSION),
+    None,
+    None,
+    None,
+  )
+  .await
+  .unwrap();
   assert_eq!(status, StatusCode::UNAUTHORIZED);
 }
 
@@ -111,7 +126,7 @@ async fn list_organization_200_with_scope() {
     app::auth_with_profile(&client, "admin@admin.com", app::SEED_PASSWORD)
       .await
       .expect("login");
-  let scope = scope_headers(org_id.as_str(), role_id.as_str());
+  let scope = scope_headers(&org_id, &role_id);
   let (status, body) = app::test_request(
     &client,
     "GET",
@@ -134,7 +149,7 @@ async fn list_user_200_with_scope() {
     app::auth_with_profile(&client, "viewer@default.org", app::SEED_PASSWORD)
       .await
       .expect("login");
-  let scope = scope_headers(org_id.as_str(), role_id.as_str());
+  let scope = scope_headers(&org_id, &role_id);
   let (status, body) = app::test_request(
     &client,
     "GET",
@@ -157,7 +172,7 @@ async fn list_role_200_with_scope() {
     app::auth_with_profile(&client, "viewer@default.org", app::SEED_PASSWORD)
       .await
       .expect("login");
-  let scope = scope_headers(org_id.as_str(), role_id.as_str());
+  let scope = scope_headers(&org_id, &role_id);
   let (status, body) = app::test_request(
     &client,
     "GET",
@@ -180,7 +195,7 @@ async fn list_permission_200_with_scope() {
     app::auth_with_profile(&client, "admin@admin.com", app::SEED_PASSWORD)
       .await
       .expect("login");
-  let scope = scope_headers(org_id.as_str(), role_id.as_str());
+  let scope = scope_headers(&org_id, &role_id);
   let (status, body) = app::test_request(
     &client,
     "GET",
@@ -203,7 +218,7 @@ async fn list_audit_200_with_scope() {
     app::auth_with_profile(&client, "admin@admin.com", app::SEED_PASSWORD)
       .await
       .expect("login");
-  let scope = scope_headers(org_id.as_str(), role_id.as_str());
+  let scope = scope_headers(&org_id, &role_id);
   let (status, body) = app::test_request(
     &client,
     "GET",
@@ -228,7 +243,7 @@ async fn list_organization_with_filter_eq() {
     app::auth_with_profile(&client, "admin@admin.com", app::SEED_PASSWORD)
       .await
       .expect("login");
-  let scope = scope_headers(org_id.as_str(), role_id.as_str());
+  let scope = scope_headers(&org_id, &role_id);
   let filter = r#"[{"field":"name","operator":"eq","value":"Default"}]"#;
   let path = list_path_with_query(
     ENTITY_ORGANIZATION,
@@ -251,9 +266,12 @@ async fn list_user_with_filter_eq() {
     app::auth_with_profile(&client, "viewer@default.org", app::SEED_PASSWORD)
       .await
       .expect("login");
-  let scope = scope_headers(org_id.as_str(), role_id.as_str());
+  let scope = scope_headers(&org_id, &role_id);
   let filter = r#"[{"field":"email","operator":"eq","value":"viewer@default.org"}]"#;
-  let path = list_path_with_query(ENTITY_USER, &format!("filter={}", encode_query_value(filter)));
+  let path = list_path_with_query(
+    ENTITY_USER,
+    &format!("filter={}", encode_query_value(filter)),
+  );
   let (status, body) = app::test_request(&client, "GET", &path, Some(&token), None, Some(&scope))
     .await
     .unwrap();
@@ -271,9 +289,12 @@ async fn list_role_with_filter_eq() {
     app::auth_with_profile(&client, "viewer@default.org", app::SEED_PASSWORD)
       .await
       .expect("login");
-  let scope = scope_headers(org_id.as_str(), role_id.as_str());
+  let scope = scope_headers(&org_id, &role_id);
   let filter = r#"[{"field":"name","operator":"eq","value":"viewer"}]"#;
-  let path = list_path_with_query(ENTITY_ROLE, &format!("filter={}", encode_query_value(filter)));
+  let path = list_path_with_query(
+    ENTITY_ROLE,
+    &format!("filter={}", encode_query_value(filter)),
+  );
   let (status, body) = app::test_request(&client, "GET", &path, Some(&token), None, Some(&scope))
     .await
     .unwrap();
@@ -289,10 +310,12 @@ async fn list_permission_with_filter_eq() {
     app::auth_with_profile(&client, "admin@admin.com", app::SEED_PASSWORD)
       .await
       .expect("login");
-  let scope = scope_headers(org_id.as_str(), role_id.as_str());
+  let scope = scope_headers(&org_id, &role_id);
   let filter = r#"[{"field":"permission_key","operator":"eq","value":"dashboard.users.read"}]"#;
-  let path =
-    list_path_with_query(ENTITY_PERMISSION, &format!("filter={}", encode_query_value(filter)));
+  let path = list_path_with_query(
+    ENTITY_PERMISSION,
+    &format!("filter={}", encode_query_value(filter)),
+  );
   let (status, body) = app::test_request(&client, "GET", &path, Some(&token), None, Some(&scope))
     .await
     .unwrap();
@@ -308,9 +331,12 @@ async fn list_audit_with_filter_eq() {
     app::auth_with_profile(&client, "admin@admin.com", app::SEED_PASSWORD)
       .await
       .expect("login");
-  let scope = scope_headers(org_id.as_str(), role_id.as_str());
+  let scope = scope_headers(&org_id, &role_id);
   let filter = r#"[{"field":"event_kind","operator":"eq","value":"auth"}]"#;
-  let path = list_path_with_query(ENTITY_AUDIT, &format!("filter={}", encode_query_value(filter)));
+  let path = list_path_with_query(
+    ENTITY_AUDIT,
+    &format!("filter={}", encode_query_value(filter)),
+  );
   let (status, body) = app::test_request(&client, "GET", &path, Some(&token), None, Some(&scope))
     .await
     .unwrap();
@@ -328,7 +354,7 @@ async fn list_organization_filter_ne() {
     app::auth_with_profile(&client, "admin@admin.com", app::SEED_PASSWORD)
       .await
       .expect("login");
-  let scope = scope_headers(org_id.as_str(), role_id.as_str());
+  let scope = scope_headers(&org_id, &role_id);
   let filter = r#"[{"field":"name","operator":"ne","value":"NonexistentOrg"}]"#;
   let path = list_path_with_query(
     ENTITY_ORGANIZATION,
@@ -349,7 +375,7 @@ async fn list_organization_filter_in() {
     app::auth_with_profile(&client, "admin@admin.com", app::SEED_PASSWORD)
       .await
       .expect("login");
-  let scope = scope_headers(org_id.as_str(), role_id.as_str());
+  let scope = scope_headers(&org_id, &role_id);
   let filter = r#"[{"field":"name","operator":"in","value":["Default","Other"]}]"#;
   let path = list_path_with_query(
     ENTITY_ORGANIZATION,
@@ -373,7 +399,7 @@ async fn list_organization_sort_name_asc() {
     app::auth_with_profile(&client, "admin@admin.com", app::SEED_PASSWORD)
       .await
       .expect("login");
-  let scope = scope_headers(org_id.as_str(), role_id.as_str());
+  let scope = scope_headers(&org_id, &role_id);
   let path = list_path_with_query(ENTITY_ORGANIZATION, "sort=name&order=asc");
   let (status, body) = app::test_request(&client, "GET", &path, Some(&token), None, Some(&scope))
     .await
@@ -395,7 +421,7 @@ async fn list_organization_sort_name_desc() {
     app::auth_with_profile(&client, "admin@admin.com", app::SEED_PASSWORD)
       .await
       .expect("login");
-  let scope = scope_headers(org_id.as_str(), role_id.as_str());
+  let scope = scope_headers(&org_id, &role_id);
   let path = list_path_with_query(ENTITY_ORGANIZATION, "sort=name&order=desc");
   let (status, body) = app::test_request(&client, "GET", &path, Some(&token), None, Some(&scope))
     .await
@@ -417,7 +443,7 @@ async fn list_user_sort_email_asc() {
     app::auth_with_profile(&client, "viewer@default.org", app::SEED_PASSWORD)
       .await
       .expect("login");
-  let scope = scope_headers(org_id.as_str(), role_id.as_str());
+  let scope = scope_headers(&org_id, &role_id);
   let path = list_path_with_query(ENTITY_USER, "sort=email&order=asc");
   let (status, _) = app::test_request(&client, "GET", &path, Some(&token), None, Some(&scope))
     .await
@@ -432,7 +458,7 @@ async fn list_audit_sort_occurred_at_desc() {
     app::auth_with_profile(&client, "admin@admin.com", app::SEED_PASSWORD)
       .await
       .expect("login");
-  let scope = scope_headers(org_id.as_str(), role_id.as_str());
+  let scope = scope_headers(&org_id, &role_id);
   let path = list_path_with_query(ENTITY_AUDIT, "sort=occurred_at&order=desc");
   let (status, _) = app::test_request(&client, "GET", &path, Some(&token), None, Some(&scope))
     .await
@@ -449,7 +475,7 @@ async fn list_organization_pagination_offset_limit() {
     app::auth_with_profile(&client, "admin@admin.com", app::SEED_PASSWORD)
       .await
       .expect("login");
-  let scope = scope_headers(org_id.as_str(), role_id.as_str());
+  let scope = scope_headers(&org_id, &role_id);
   let path = list_path_with_query(ENTITY_ORGANIZATION, "offset=0&limit=5");
   let (status, body) = app::test_request(&client, "GET", &path, Some(&token), None, Some(&scope))
     .await
@@ -467,7 +493,7 @@ async fn list_organization_pagination_second_page() {
     app::auth_with_profile(&client, "admin@admin.com", app::SEED_PASSWORD)
       .await
       .expect("login");
-  let scope = scope_headers(org_id.as_str(), role_id.as_str());
+  let scope = scope_headers(&org_id, &role_id);
   let path = list_path_with_query(ENTITY_ORGANIZATION, "offset=1&limit=1");
   let (status, body) = app::test_request(&client, "GET", &path, Some(&token), None, Some(&scope))
     .await
@@ -485,7 +511,7 @@ async fn list_organization_limit_100_ok() {
     app::auth_with_profile(&client, "admin@admin.com", app::SEED_PASSWORD)
       .await
       .expect("login");
-  let scope = scope_headers(org_id.as_str(), role_id.as_str());
+  let scope = scope_headers(&org_id, &role_id);
   let path = list_path_with_query(ENTITY_ORGANIZATION, "offset=0&limit=100");
   let (status, _) = app::test_request(&client, "GET", &path, Some(&token), None, Some(&scope))
     .await
@@ -500,7 +526,7 @@ async fn list_organization_limit_over_100_400() {
     app::auth_with_profile(&client, "admin@admin.com", app::SEED_PASSWORD)
       .await
       .expect("login");
-  let scope = scope_headers(org_id.as_str(), role_id.as_str());
+  let scope = scope_headers(&org_id, &role_id);
   let path = list_path_with_query(ENTITY_ORGANIZATION, "offset=0&limit=101");
   let (status, body) = app::test_request(&client, "GET", &path, Some(&token), None, Some(&scope))
     .await
@@ -508,7 +534,11 @@ async fn list_organization_limit_over_100_400() {
   assert_eq!(status, StatusCode::BAD_REQUEST);
   let json: app::serde_json::Value = app::serde_json::from_slice(&body).unwrap();
   let msg = json["message"].as_str().unwrap_or("");
-  assert!(msg.contains("limit") && msg.contains("100"), "expected limit error: {}", msg);
+  assert!(
+    msg.contains("limit") && msg.contains("100"),
+    "expected limit error: {}",
+    msg
+  );
 }
 
 #[tokio::test]
@@ -518,7 +548,7 @@ async fn list_organization_limit_zero_400() {
     app::auth_with_profile(&client, "admin@admin.com", app::SEED_PASSWORD)
       .await
       .expect("login");
-  let scope = scope_headers(org_id.as_str(), role_id.as_str());
+  let scope = scope_headers(&org_id, &role_id);
   let path = list_path_with_query(ENTITY_ORGANIZATION, "offset=0&limit=0");
   let (status, body) = app::test_request(&client, "GET", &path, Some(&token), None, Some(&scope))
     .await
@@ -538,7 +568,7 @@ async fn list_organization_cursor_first_page() {
     app::auth_with_profile(&client, "admin@admin.com", app::SEED_PASSWORD)
       .await
       .expect("login");
-  let scope = scope_headers(org_id.as_str(), role_id.as_str());
+  let scope = scope_headers(&org_id, &role_id);
   let path = list_path_with_query(ENTITY_ORGANIZATION, "cursor=&limit=2");
   let (status, body) = app::test_request(&client, "GET", &path, Some(&token), None, Some(&scope))
     .await
@@ -546,7 +576,10 @@ async fn list_organization_cursor_first_page() {
   assert_eq!(status, StatusCode::OK);
   let json: app::serde_json::Value = app::serde_json::from_slice(&body).unwrap();
   let data = json["data"].as_array().unwrap();
-  assert!(data.len() <= 2, "cursor first page should return at most limit=2");
+  assert!(
+    data.len() <= 2,
+    "cursor first page should return at most limit=2"
+  );
   if json.get("next_cursor").is_some() {
     assert_eq!(data.len(), 2, "next_cursor implies full page");
   }
@@ -559,12 +592,18 @@ async fn list_organization_cursor_second_page() {
     app::auth_with_profile(&client, "admin@admin.com", app::SEED_PASSWORD)
       .await
       .expect("login");
-  let scope = scope_headers(org_id.as_str(), role_id.as_str());
+  let scope = scope_headers(&org_id, &role_id);
   let path_first = list_path_with_query(ENTITY_ORGANIZATION, "cursor=&limit=2");
-  let (status1, body1) =
-    app::test_request(&client, "GET", &path_first, Some(&token), None, Some(&scope))
-      .await
-      .unwrap();
+  let (status1, body1) = app::test_request(
+    &client,
+    "GET",
+    &path_first,
+    Some(&token),
+    None,
+    Some(&scope),
+  )
+  .await
+  .unwrap();
   assert_eq!(status1, StatusCode::OK);
   let json1: app::serde_json::Value = app::serde_json::from_slice(&body1).unwrap();
   let next_cursor = match json1.get("next_cursor").and_then(|c| c.as_str()) {
@@ -575,10 +614,16 @@ async fn list_organization_cursor_second_page() {
     ENTITY_ORGANIZATION,
     &format!("cursor={}&limit=2", encode_query_value(&next_cursor)),
   );
-  let (status2, body2) =
-    app::test_request(&client, "GET", &path_second, Some(&token), None, Some(&scope))
-      .await
-      .unwrap();
+  let (status2, body2) = app::test_request(
+    &client,
+    "GET",
+    &path_second,
+    Some(&token),
+    None,
+    Some(&scope),
+  )
+  .await
+  .unwrap();
   assert_eq!(status2, StatusCode::OK);
   let json2: app::serde_json::Value = app::serde_json::from_slice(&body2).unwrap();
   let data2 = json2["data"].as_array().unwrap();
@@ -586,7 +631,10 @@ async fn list_organization_cursor_second_page() {
   if !data2.is_empty() && !data1.is_empty() {
     let id1 = data1[0]["id"].as_str().unwrap_or("");
     let id2_first = data2[0]["id"].as_str().unwrap_or("");
-    assert_ne!(id1, id2_first, "second page should not repeat first page items");
+    assert_ne!(
+      id1, id2_first,
+      "second page should not repeat first page items"
+    );
   }
 }
 
@@ -597,7 +645,7 @@ async fn list_organization_cursor_invalid_400() {
     app::auth_with_profile(&client, "admin@admin.com", app::SEED_PASSWORD)
       .await
       .expect("login");
-  let scope = scope_headers(org_id.as_str(), role_id.as_str());
+  let scope = scope_headers(&org_id, &role_id);
   let path = list_path_with_query(ENTITY_ORGANIZATION, "cursor=not-a-number&limit=2");
   let (status, body) = app::test_request(&client, "GET", &path, Some(&token), None, Some(&scope))
     .await
@@ -615,7 +663,7 @@ async fn list_organization_cursor_and_offset_400() {
     app::auth_with_profile(&client, "admin@admin.com", app::SEED_PASSWORD)
       .await
       .expect("login");
-  let scope = scope_headers(org_id.as_str(), role_id.as_str());
+  let scope = scope_headers(&org_id, &role_id);
   let path = list_path_with_query(ENTITY_ORGANIZATION, "cursor=0&offset=1&limit=2");
   let (status, body) = app::test_request(&client, "GET", &path, Some(&token), None, Some(&scope))
     .await
@@ -639,7 +687,7 @@ async fn list_unknown_entity_404() {
     app::auth_with_profile(&client, "admin@admin.com", app::SEED_PASSWORD)
       .await
       .expect("login");
-  let scope = scope_headers(org_id.as_str(), role_id.as_str());
+  let scope = scope_headers(&org_id, &role_id);
   let (status, body) = app::test_request(
     &client,
     "GET",
@@ -662,7 +710,7 @@ async fn list_invalid_filter_json_400() {
     app::auth_with_profile(&client, "admin@admin.com", app::SEED_PASSWORD)
       .await
       .expect("login");
-  let scope = scope_headers(org_id.as_str(), role_id.as_str());
+  let scope = scope_headers(&org_id, &role_id);
   let path = list_path_with_query(ENTITY_ORGANIZATION, "filter=not-json");
   let (status, body) = app::test_request(&client, "GET", &path, Some(&token), None, Some(&scope))
     .await
@@ -680,7 +728,7 @@ async fn list_invalid_filter_operator_400() {
     app::auth_with_profile(&client, "admin@admin.com", app::SEED_PASSWORD)
       .await
       .expect("login");
-  let scope = scope_headers(org_id.as_str(), role_id.as_str());
+  let scope = scope_headers(&org_id, &role_id);
   let filter = r#"[{"field":"name","operator":"invalid_op","value":"x"}]"#;
   let path = list_path_with_query(
     ENTITY_ORGANIZATION,
@@ -692,7 +740,11 @@ async fn list_invalid_filter_operator_400() {
   assert_eq!(status, StatusCode::BAD_REQUEST);
   let json: app::serde_json::Value = app::serde_json::from_slice(&body).unwrap();
   let msg = json["message"].as_str().unwrap_or("");
-  assert!(msg.contains("operator") || msg.contains("invalid"), "{}", msg);
+  assert!(
+    msg.contains("operator") || msg.contains("invalid"),
+    "{}",
+    msg
+  );
 }
 
 #[tokio::test]
@@ -702,7 +754,7 @@ async fn list_invalid_filter_field_400() {
     app::auth_with_profile(&client, "admin@admin.com", app::SEED_PASSWORD)
       .await
       .expect("login");
-  let scope = scope_headers(org_id.as_str(), role_id.as_str());
+  let scope = scope_headers(&org_id, &role_id);
   let filter = r#"[{"field":"invalid_field","operator":"eq","value":"x"}]"#;
   let path = list_path_with_query(
     ENTITY_ORGANIZATION,
@@ -714,7 +766,11 @@ async fn list_invalid_filter_field_400() {
   assert_eq!(status, StatusCode::BAD_REQUEST);
   let json: app::serde_json::Value = app::serde_json::from_slice(&body).unwrap();
   let msg = json["message"].as_str().unwrap_or("");
-  assert!(msg.contains("field") || msg.contains("invalid") || msg.contains("allowed"), "{}", msg);
+  assert!(
+    msg.contains("field") || msg.contains("invalid") || msg.contains("allowed"),
+    "{}",
+    msg
+  );
 }
 
 #[tokio::test]
@@ -724,7 +780,7 @@ async fn list_invalid_sort_field_400() {
     app::auth_with_profile(&client, "admin@admin.com", app::SEED_PASSWORD)
       .await
       .expect("login");
-  let scope = scope_headers(org_id.as_str(), role_id.as_str());
+  let scope = scope_headers(&org_id, &role_id);
   let path = list_path_with_query(ENTITY_ORGANIZATION, "sort=invalid_field&order=asc");
   let (status, body) = app::test_request(&client, "GET", &path, Some(&token), None, Some(&scope))
     .await
@@ -732,7 +788,14 @@ async fn list_invalid_sort_field_400() {
   assert_eq!(status, StatusCode::BAD_REQUEST);
   let json: app::serde_json::Value = app::serde_json::from_slice(&body).unwrap();
   let msg = json["message"].as_str().unwrap_or("");
-  assert!(msg.contains("sort") || msg.contains("field") || msg.contains("invalid") || msg.contains("allowed"), "{}", msg);
+  assert!(
+    msg.contains("sort")
+      || msg.contains("field")
+      || msg.contains("invalid")
+      || msg.contains("allowed"),
+    "{}",
+    msg
+  );
 }
 
 #[tokio::test]
@@ -742,7 +805,7 @@ async fn list_expand_rejected_400() {
     app::auth_with_profile(&client, "admin@admin.com", app::SEED_PASSWORD)
       .await
       .expect("login");
-  let scope = scope_headers(org_id.as_str(), role_id.as_str());
+  let scope = scope_headers(&org_id, &role_id);
   let path = list_path_with_query(ENTITY_ORGANIZATION, "expand=users");
   let (status, body) = app::test_request(&client, "GET", &path, Some(&token), None, Some(&scope))
     .await
@@ -778,7 +841,7 @@ async fn get_organization_by_id_invalid_uuid_400() {
     app::auth_with_profile(&client, "admin@admin.com", app::SEED_PASSWORD)
       .await
       .expect("login");
-  let scope = scope_headers(org_id.as_str(), role_id.as_str());
+  let scope = scope_headers(&org_id, &role_id);
   let (status, body) = app::test_request(
     &client,
     "GET",
@@ -801,7 +864,7 @@ async fn get_organization_by_id_200_when_exists() {
     app::auth_with_profile(&client, "admin@admin.com", app::SEED_PASSWORD)
       .await
       .expect("login");
-  let scope = scope_headers(org_id.as_str(), role_id.as_str());
+  let scope = scope_headers(&org_id, &role_id);
   let (_, list_body) = app::test_request(
     &client,
     "GET",
@@ -837,7 +900,7 @@ async fn get_unknown_entity_404() {
     app::auth_with_profile(&client, "admin@admin.com", app::SEED_PASSWORD)
       .await
       .expect("login");
-  let scope = scope_headers(org_id.as_str(), role_id.as_str());
+  let scope = scope_headers(&org_id, &role_id);
   let (status, body) = app::test_request(
     &client,
     "GET",
@@ -862,7 +925,7 @@ async fn create_organization_201() {
     app::auth_with_profile(&client, "admin@admin.com", app::SEED_PASSWORD)
       .await
       .expect("login");
-  let scope = scope_headers(org_id.as_str(), role_id.as_str());
+  let scope = scope_headers(&org_id, &role_id);
   let slug = format!("test-org-{}", uuid::Uuid::new_v4());
   let body = format!(r#"{{"name":"Test Org","slug":"{}"}}"#, slug);
   let (status, res_body) = app::test_request(
@@ -889,7 +952,7 @@ async fn create_organization_non_object_body_400() {
     app::auth_with_profile(&client, "admin@admin.com", app::SEED_PASSWORD)
       .await
       .expect("login");
-  let scope = scope_headers(org_id.as_str(), role_id.as_str());
+  let scope = scope_headers(&org_id, &role_id);
   let (status, body) = app::test_request(
     &client,
     "POST",
@@ -902,7 +965,12 @@ async fn create_organization_non_object_body_400() {
   .unwrap();
   assert_eq!(status, StatusCode::BAD_REQUEST);
   let json: app::serde_json::Value = app::serde_json::from_slice(&body).unwrap();
-  assert!(json["message"].as_str().unwrap_or("").contains("JSON object"));
+  assert!(
+    json["message"]
+      .as_str()
+      .unwrap_or("")
+      .contains("JSON object")
+  );
 }
 
 #[tokio::test]
@@ -912,7 +980,7 @@ async fn create_unknown_entity_404() {
     app::auth_with_profile(&client, "admin@admin.com", app::SEED_PASSWORD)
       .await
       .expect("login");
-  let scope = scope_headers(org_id.as_str(), role_id.as_str());
+  let scope = scope_headers(&org_id, &role_id);
   let (status, _) = app::test_request(
     &client,
     "POST",
@@ -935,7 +1003,7 @@ async fn update_organization_200() {
     app::auth_with_profile(&client, "admin@admin.com", app::SEED_PASSWORD)
       .await
       .expect("login");
-  let scope = scope_headers(org_id.as_str(), role_id.as_str());
+  let scope = scope_headers(&org_id, &role_id);
   let slug_created = format!("update-test-{}", uuid::Uuid::new_v4());
   let create_body = format!(r#"{{"name":"To Update","slug":"{}"}}"#, slug_created);
   let (_, create_res) = app::test_request(
@@ -984,7 +1052,7 @@ async fn update_organization_non_object_body_400() {
     app::auth_with_profile(&client, "admin@admin.com", app::SEED_PASSWORD)
       .await
       .expect("login");
-  let scope = scope_headers(org_id.as_str(), role_id.as_str());
+  let scope = scope_headers(&org_id, &role_id);
   let slug_created = format!("patch-400-{}", uuid::Uuid::new_v4());
   let create_body = format!(r#"{{"name":"Patch400","slug":"{}"}}"#, slug_created);
   let (_, create_res) = app::test_request(
@@ -1030,7 +1098,7 @@ async fn delete_organization_200() {
     app::auth_with_profile(&client, "admin@admin.com", app::SEED_PASSWORD)
       .await
       .expect("login");
-  let scope = scope_headers(org_id.as_str(), role_id.as_str());
+  let scope = scope_headers(&org_id, &role_id);
   let create_body = r#"{"name":"To Delete","slug":"to-delete"}"#;
   let (_, create_res) = app::test_request(
     &client,
@@ -1064,7 +1132,7 @@ async fn delete_unknown_entity_404() {
     app::auth_with_profile(&client, "admin@admin.com", app::SEED_PASSWORD)
       .await
       .expect("login");
-  let scope = scope_headers(org_id.as_str(), role_id.as_str());
+  let scope = scope_headers(&org_id, &role_id);
   let (status, _) = app::test_request(
     &client,
     "DELETE",
@@ -1087,7 +1155,7 @@ async fn create_user_not_supported_4xx_or_5xx() {
     app::auth_with_profile(&client, "admin@admin.com", app::SEED_PASSWORD)
       .await
       .expect("login");
-  let scope = scope_headers(org_id.as_str(), role_id.as_str());
+  let scope = scope_headers(&org_id, &role_id);
   let (status, body) = app::test_request(
     &client,
     "POST",
@@ -1121,7 +1189,7 @@ async fn update_audit_not_supported_4xx_or_5xx() {
     app::auth_with_profile(&client, "admin@admin.com", app::SEED_PASSWORD)
       .await
       .expect("login");
-  let scope = scope_headers(org_id.as_str(), role_id.as_str());
+  let scope = scope_headers(&org_id, &role_id);
   let (status, body) = app::test_request(
     &client,
     "PATCH",
@@ -1153,7 +1221,7 @@ async fn delete_permission_not_supported_4xx_or_5xx() {
     app::auth_with_profile(&client, "admin@admin.com", app::SEED_PASSWORD)
       .await
       .expect("login");
-  let scope = scope_headers(org_id.as_str(), role_id.as_str());
+  let scope = scope_headers(&org_id, &role_id);
   let (_, list_body) = app::test_request(
     &client,
     "GET",

@@ -9,7 +9,9 @@ use axum::http::StatusCode;
 /// Helper function to create a test client with migrations run.
 /// Uses the shared app::test_client_with_migrations() which checks E2E_API_URL first.
 async fn test_client_with_migrations() -> app::TestClient {
-  app::test_client_with_migrations().await.expect("test_client_with_migrations")
+  app::test_client_with_migrations()
+    .await
+    .expect("test_client_with_migrations")
 }
 
 async fn token_for(client: &app::TestClient, email: &str) -> String {
@@ -32,10 +34,11 @@ mod bdd_tests {
       // Given: an anonymous request
       let client = app::test_client().await.expect("test_client");
 
-      // When: requesting logout
-      let (status, _) = app::test_request(&client, "GET", "/api/auth/logout", None, None, None)
-        .await
-        .unwrap();
+      // When: requesting logout (POST)
+      let (status, _) =
+        app::test_request(&client, "POST", "/api/auth/logout", None, Some("{}"), None)
+          .await
+          .unwrap();
 
       // Then: should return 200 OK
       assert_eq!(status, StatusCode::OK);
@@ -47,11 +50,17 @@ mod bdd_tests {
       let client = test_client_with_migrations().await;
       let token = token_for(&client, "viewer@default.org").await;
 
-      // When: requesting logout
-      let (status, _) =
-        app::test_request(&client, "GET", "/api/auth/logout", Some(&token), None, None)
-          .await
-          .unwrap();
+      // When: requesting logout (POST)
+      let (status, _) = app::test_request(
+        &client,
+        "POST",
+        "/api/auth/logout",
+        Some(&token),
+        Some("{}"),
+        None,
+      )
+      .await
+      .unwrap();
 
       // Then: should return 200 OK
       assert_eq!(status, StatusCode::OK);
@@ -242,6 +251,260 @@ mod bdd_tests {
 
       // Then: should return 200 OK
       assert_eq!(status, StatusCode::OK);
+    }
+  }
+
+  mod auth_flow_flat_endpoints_behavior {
+    use super::*;
+
+    #[tokio::test]
+    async fn should_require_auth_for_permissions_list() {
+      let client = test_client_with_migrations().await;
+      let (status, _) =
+        app::test_request(&client, "GET", "/api/auth/permissions", None, None, None)
+          .await
+          .unwrap();
+      assert_eq!(status, StatusCode::UNAUTHORIZED);
+    }
+
+    #[tokio::test]
+    async fn should_return_permissions_with_auth_and_scope() {
+      let client = test_client_with_migrations().await;
+      let (token, org_id, role_id) =
+        app::auth_with_profile(&client, "viewer@default.org", app::SEED_PASSWORD)
+          .await
+          .expect("auth_with_profile");
+      let headers = [
+        ("x-organization-id", org_id.as_str()),
+        ("x-role-id", role_id.as_str()),
+      ];
+      let (status, body) = app::test_request(
+        &client,
+        "GET",
+        "/api/auth/permissions",
+        Some(&token),
+        None,
+        Some(&headers),
+      )
+      .await
+      .unwrap();
+      assert_eq!(status, StatusCode::OK);
+      let json: app::serde_json::Value = app::serde_json::from_slice(&body).unwrap();
+      assert!(json.get("permissions").is_some());
+    }
+
+    #[tokio::test]
+    async fn should_require_auth_for_users_list() {
+      let client = test_client_with_migrations().await;
+      let (status, _) = app::test_request(&client, "GET", "/api/auth/users", None, None, None)
+        .await
+        .unwrap();
+      assert_eq!(status, StatusCode::UNAUTHORIZED);
+    }
+
+    #[tokio::test]
+    async fn should_return_users_with_auth_and_scope() {
+      let client = test_client_with_migrations().await;
+      let (token, org_id, role_id) =
+        app::auth_with_profile(&client, "viewer@default.org", app::SEED_PASSWORD)
+          .await
+          .expect("auth_with_profile");
+      let headers = [
+        ("x-organization-id", org_id.as_str()),
+        ("x-role-id", role_id.as_str()),
+      ];
+      let (status, body) = app::test_request(
+        &client,
+        "GET",
+        "/api/auth/users",
+        Some(&token),
+        None,
+        Some(&headers),
+      )
+      .await
+      .unwrap();
+      assert_eq!(status, StatusCode::OK);
+      let json: app::serde_json::Value = app::serde_json::from_slice(&body).unwrap();
+      assert!(json.get("users").is_some());
+    }
+
+    #[tokio::test]
+    async fn should_require_auth_for_organizations_list() {
+      let client = test_client_with_migrations().await;
+      let (status, _) =
+        app::test_request(&client, "GET", "/api/auth/organizations", None, None, None)
+          .await
+          .unwrap();
+      assert_eq!(status, StatusCode::UNAUTHORIZED);
+    }
+
+    #[tokio::test]
+    async fn should_return_organizations_with_auth_and_scope() {
+      let client = test_client_with_migrations().await;
+      let (token, org_id, role_id) =
+        app::auth_with_profile(&client, "viewer@default.org", app::SEED_PASSWORD)
+          .await
+          .expect("auth_with_profile");
+      let headers = [
+        ("x-organization-id", org_id.as_str()),
+        ("x-role-id", role_id.as_str()),
+      ];
+      let (status, body) = app::test_request(
+        &client,
+        "GET",
+        "/api/auth/organizations",
+        Some(&token),
+        None,
+        Some(&headers),
+      )
+      .await
+      .unwrap();
+      assert_eq!(status, StatusCode::OK);
+      let json: app::serde_json::Value = app::serde_json::from_slice(&body).unwrap();
+      assert!(json.get("organizations").is_some());
+    }
+
+    #[tokio::test]
+    async fn should_require_auth_for_roles_list() {
+      let client = test_client_with_migrations().await;
+      let (status, _) = app::test_request(&client, "GET", "/api/auth/roles", None, None, None)
+        .await
+        .unwrap();
+      assert_eq!(status, StatusCode::UNAUTHORIZED);
+    }
+
+    #[tokio::test]
+    async fn should_return_roles_with_auth_and_scope() {
+      let client = test_client_with_migrations().await;
+      let (token, org_id, role_id) =
+        app::auth_with_profile(&client, "viewer@default.org", app::SEED_PASSWORD)
+          .await
+          .expect("auth_with_profile");
+      let headers = [
+        ("x-organization-id", org_id.as_str()),
+        ("x-role-id", role_id.as_str()),
+      ];
+      let (status, body) = app::test_request(
+        &client,
+        "GET",
+        "/api/auth/roles",
+        Some(&token),
+        None,
+        Some(&headers),
+      )
+      .await
+      .unwrap();
+      assert_eq!(status, StatusCode::OK);
+      let json: app::serde_json::Value = app::serde_json::from_slice(&body).unwrap();
+      assert!(json.get("roles").is_some());
+    }
+
+    #[tokio::test]
+    async fn should_require_auth_for_role_permissions_list() {
+      let client = test_client_with_migrations().await;
+      let (status, _) = app::test_request(
+        &client,
+        "GET",
+        "/api/auth/role-permissions",
+        None,
+        None,
+        None,
+      )
+      .await
+      .unwrap();
+      assert_eq!(status, StatusCode::UNAUTHORIZED);
+    }
+
+    #[tokio::test]
+    async fn should_return_role_permissions_with_auth_and_scope() {
+      let client = test_client_with_migrations().await;
+      let (token, org_id, role_id) =
+        app::auth_with_profile(&client, "viewer@default.org", app::SEED_PASSWORD)
+          .await
+          .expect("auth_with_profile");
+      let headers = [
+        ("x-organization-id", org_id.as_str()),
+        ("x-role-id", role_id.as_str()),
+      ];
+      let (status, body) = app::test_request(
+        &client,
+        "GET",
+        "/api/auth/role-permissions",
+        Some(&token),
+        None,
+        Some(&headers),
+      )
+      .await
+      .unwrap();
+      assert_eq!(status, StatusCode::OK);
+      let json: app::serde_json::Value = app::serde_json::from_slice(&body).unwrap();
+      assert!(json.get("assignments").is_some());
+    }
+
+    #[tokio::test]
+    async fn should_require_auth_for_global_role_assignments_list() {
+      let client = test_client_with_migrations().await;
+      let (status, _) = app::test_request(
+        &client,
+        "GET",
+        "/api/auth/global-role-assignments",
+        None,
+        None,
+        None,
+      )
+      .await
+      .unwrap();
+      assert_eq!(status, StatusCode::UNAUTHORIZED);
+    }
+
+    #[tokio::test]
+    async fn should_forbid_org_user_from_global_role_assignments_list() {
+      let client = test_client_with_migrations().await;
+      let (token, org_id, role_id) =
+        app::auth_with_profile(&client, "viewer@default.org", app::SEED_PASSWORD)
+          .await
+          .expect("auth_with_profile");
+      let headers = [
+        ("x-organization-id", org_id.as_str()),
+        ("x-role-id", role_id.as_str()),
+      ];
+      let (status, _) = app::test_request(
+        &client,
+        "GET",
+        "/api/auth/global-role-assignments",
+        Some(&token),
+        None,
+        Some(&headers),
+      )
+      .await
+      .unwrap();
+      assert_eq!(status, StatusCode::FORBIDDEN);
+    }
+
+    #[tokio::test]
+    async fn should_allow_global_admin_to_list_global_role_assignments() {
+      let client = test_client_with_migrations().await;
+      let (token, org_id, role_id) =
+        app::auth_with_profile(&client, "admin@admin.com", app::SEED_PASSWORD)
+          .await
+          .expect("auth_with_profile");
+      let headers = [
+        ("x-organization-id", org_id.as_str()),
+        ("x-role-id", role_id.as_str()),
+      ];
+      let (status, body) = app::test_request(
+        &client,
+        "GET",
+        "/api/auth/global-role-assignments",
+        Some(&token),
+        None,
+        Some(&headers),
+      )
+      .await
+      .unwrap();
+      assert_eq!(status, StatusCode::OK);
+      let json: app::serde_json::Value = app::serde_json::from_slice(&body).unwrap();
+      assert!(json.get("assignments").is_some());
     }
   }
 }

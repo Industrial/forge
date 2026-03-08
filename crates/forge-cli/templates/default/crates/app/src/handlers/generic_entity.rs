@@ -17,7 +17,7 @@ use uuid::Uuid;
 
 use crate::Error as ForgeError;
 use crate::handlers::auth::ScopeFromHeaders;
-use crate::handlers::dashboard::require_entity_permission;
+use crate::handlers::auth::require_entity_permission;
 use crate::query_spec::{
   CursorLimit, DEFAULT_LIMIT, FilterCond, FilterOperator, ListQuerySpec, OffsetLimit,
   SortDirection, SortSpec, validate_cursor_limit, validate_filter_cond, validate_offset_limit,

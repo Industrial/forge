@@ -39,15 +39,60 @@ pub fn make_app(live_backend: Arc<forge_live::InMemoryLiveBackend>) -> App {
   app
     .post_route("/api/auth/register", handlers::auth::register)
     .post_route("/api/auth/login", handlers::auth::login)
-    .route("/api/auth/logout", handlers::auth::logout)
+    .post_route("/api/auth/logout", handlers::auth::logout)
     .route("/api/auth/me", axum::routing::get(handlers::auth::get_me))
     .route(
       "/api/auth/profiles",
       axum::routing::get(handlers::auth::profiles_list),
     )
     .post_route("/api/auth/tokens", handlers::auth::create_token)
-    .route("/api/auth/admin", handlers::auth::admin_only)
-    // Dashboard: users (route_methods for list/create/update/delete)
+    .route(
+      "/api/auth/admin",
+      axum::routing::get(handlers::auth::admin_only),
+    )
+    .route(
+      "/api/auth/permissions",
+      axum::routing::get(handlers::auth::list_permissions),
+    )
+    .route_methods(
+      "/api/auth/users",
+      axum::routing::get(handlers::auth::list_users).post(handlers::auth::create_user),
+    )
+    .route_methods(
+      "/api/auth/users/{id}",
+      axum::routing::patch(handlers::auth::update_user).delete(handlers::auth::delete_user),
+    )
+    .route_methods(
+      "/api/auth/organizations",
+      axum::routing::get(handlers::auth::list_organizations)
+        .post(handlers::auth::create_organization),
+    )
+    .route_methods(
+      "/api/auth/organizations/{id}",
+      axum::routing::patch(handlers::auth::update_organization)
+        .delete(handlers::auth::delete_organization),
+    )
+    .route_methods(
+      "/api/auth/roles",
+      axum::routing::get(handlers::auth::list_roles).post(handlers::auth::create_role),
+    )
+    .route_methods(
+      "/api/auth/roles/{id}",
+      axum::routing::patch(handlers::auth::update_role).delete(handlers::auth::delete_role),
+    )
+    .route_methods(
+      "/api/auth/role-permissions",
+      axum::routing::get(handlers::auth::list_role_permissions)
+        .post(handlers::auth::add_role_permission)
+        .delete(handlers::auth::delete_role_permission),
+    )
+    .route_methods(
+      "/api/auth/global-role-assignments",
+      axum::routing::get(handlers::auth::list_global_role_assignments)
+        .post(handlers::auth::add_global_role_assignment)
+        .delete(handlers::auth::delete_global_role_assignment),
+    )
+    // Dashboard: users (legacy; same behavior via dashboard handlers)
     .route_methods(
       "/api/dashboard/users",
       axum::routing::get(handlers::dashboard::list_users)
@@ -141,7 +186,8 @@ auto_seed = true
 #[cfg(any(test, feature = "test-utils"))]
 #[derive(Clone)]
 pub enum TestClient {
-  /// Prebuilt server already running (bin/test-integration).
+  /// Prebuilt server already running (bin/test-integration). Only present when feature "test-utils" is enabled.
+  #[cfg(feature = "test-utils")]
   Http {
     client: reqwest::Client,
     base_url: String,
@@ -158,6 +204,7 @@ pub enum TestClient {
 /// Otherwise, builds an in-process router for tests.
 #[cfg(any(test, feature = "test-utils"))]
 pub async fn test_client() -> Result<TestClient, Box<dyn std::error::Error + Send + Sync>> {
+  #[cfg(feature = "test-utils")]
   if let Ok(url) = std::env::var("E2E_API_URL") {
     let base_url = url.trim_end_matches('/').to_string();
     let client = reqwest::Client::builder()
@@ -165,7 +212,7 @@ pub async fn test_client() -> Result<TestClient, Box<dyn std::error::Error + Sen
       .build()?;
     return Ok(TestClient::Http { client, base_url });
   }
-  // If E2E_API_URL is not set, use in-process router
+  // If E2E_API_URL is not set (or test-utils disabled), use in-process router
   // This works for both unit tests and integration tests
   // The function is already gated by #[cfg(any(test, feature = "test-utils"))]
   // so if we're here, we can safely build the router
@@ -182,8 +229,9 @@ pub async fn test_client() -> Result<TestClient, Box<dyn std::error::Error + Sen
 /// This is needed because migrations don't run automatically for integration tests
 /// due to #[cfg(test)] conditional compilation in build_router_for_test_with_db.
 #[cfg(any(test, feature = "test-utils"))]
-pub async fn test_client_with_migrations() -> Result<TestClient, Box<dyn std::error::Error + Send + Sync>> {
-  // If E2E_API_URL is set, use the external server (which already has migrations/seeds run)
+pub async fn test_client_with_migrations()
+-> Result<TestClient, Box<dyn std::error::Error + Send + Sync>> {
+  #[cfg(feature = "test-utils")]
   if let Ok(url) = std::env::var("E2E_API_URL") {
     let base_url = url.trim_end_matches('/').to_string();
     let client = reqwest::Client::builder()
@@ -191,7 +239,7 @@ pub async fn test_client_with_migrations() -> Result<TestClient, Box<dyn std::er
       .build()?;
     return Ok(TestClient::Http { client, base_url });
   }
-  
+
   // Otherwise, create an in-process router and run migrations manually
   // Migrations are only available when compiling test binaries (dev-dependency)
   #[cfg(test)]
@@ -200,8 +248,7 @@ pub async fn test_client_with_migrations() -> Result<TestClient, Box<dyn std::er
     use sea_orm_migration::MigratorTrait;
 
     // Build router with database connection
-    let (router, db_conn, guard) = build_router_for_test_with_db()
-      .await?;
+    let (router, db_conn, guard) = build_router_for_test_with_db().await?;
 
     // Run migrations manually (available when compiling test binaries)
     let db_ref: &sea_orm::DatabaseConnection = db_conn.as_ref();
@@ -440,6 +487,7 @@ async fn test_request_impl(
   extra_headers: Option<&[(&str, &str)]>,
 ) -> Result<(axum::http::StatusCode, Vec<u8>), Box<dyn std::error::Error + Send + Sync>> {
   match client {
+    #[cfg(feature = "test-utils")]
     TestClient::Http {
       client: reqwest_client,
       base_url,
@@ -745,7 +793,6 @@ mod tests {
         // Route: GET /api/subscriptions/stream
         assert!(true, "make_app should register subscription stream route");
       }
-
     }
 
     mod test_client_behavior {

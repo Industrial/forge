@@ -13,7 +13,9 @@ fn scope_headers<'a>(org_id: &'a str, role_id: &'a str) -> [(&'static str, &'a s
 /// Helper function to create a test client with migrations run.
 /// Uses the shared app::test_client_with_migrations() which checks E2E_API_URL first.
 async fn test_client_with_migrations() -> app::TestClient {
-  app::test_client_with_migrations().await.expect("test_client_with_migrations")
+  app::test_client_with_migrations()
+    .await
+    .expect("test_client_with_migrations")
 }
 
 mod bdd_tests {

@@ -5,7 +5,7 @@ use axum::{
   Json,
   extract::{Extension, Query, State},
   http::StatusCode,
-  response::{IntoResponse, Response},
+  response::IntoResponse,
 };
 use chrono::NaiveDateTime;
 use forge_auth::token_auth::RequireAuth;
@@ -26,9 +26,14 @@ use db::models::{
   audit_log, membership, org_role, organization, role_permission, user, user_org_role,
 };
 
-use crate::handlers::auth::{ScopeFromHeaders, has_global_scope, resolve_permissions};
+use crate::handlers::auth::{
+  PERMISSION_AUDIT_READ, PERMISSION_ORGS_READ, PERMISSION_ORGS_WRITE, PERMISSION_READ,
+  PERMISSION_ROLES_READ, PERMISSION_ROLES_WRITE, PERMISSION_USERS_READ, PERMISSION_USERS_WRITE,
+  PERMISSION_WRITE, ScopeFromHeaders, has_global_scope, require_any_permission,
+  require_entity_permission, require_permission,
+};
 use crate::handlers::generic_entity::{ListQueryParams, parse_list_query_spec};
-use crate::permissions::{dashboard_permissions, entity_action_key, permission_equivalents};
+use crate::permissions::dashboard_permissions;
 use crate::query_spec::{
   FilterCond, FilterOperator, SortDirection, validate_filter_cond, validate_sort_field,
 };
@@ -37,99 +42,6 @@ use db::organization::{
   CreateOrganizationBody, UpdateOrganizationBody as DbUpdateOrganizationBody,
   create_organization_impl, update_organization_impl,
 };
-
-const PERMISSION_READ: &str = "dashboard.permissions.read";
-const PERMISSION_WRITE: &str = "dashboard.permissions.write";
-const PERMISSION_AUDIT_READ: &str = "dashboard.audit.read";
-const PERMISSION_ORGS_READ: &str = "dashboard.organizations.read";
-const PERMISSION_ORGS_WRITE: &str = "dashboard.organizations.write";
-const PERMISSION_USERS_READ: &str = "dashboard.users.read";
-const PERMISSION_USERS_WRITE: &str = "dashboard.users.write";
-const PERMISSION_ROLES_READ: &str = "dashboard.roles.read";
-const PERMISSION_ROLES_WRITE: &str = "dashboard.roles.write";
-
-/// Entity-based permission check (§2, §7): exact or equivalent match, or all.read for *.read, or all.write for *.create|update|delete.
-pub(crate) fn has_permission(permissions: &[String], key: &str) -> bool {
-  let equivs = permission_equivalents(key);
-  let exact = if equivs.is_empty() {
-    permissions.iter().any(|p| p == key)
-  } else {
-    permissions.iter().any(|p| equivs.contains(&p.as_str()))
-  };
-  if exact {
-    return true;
-  }
-  if (key.ends_with(".read") || equivs.iter().any(|e| e.ends_with(".read")))
-    && permissions.iter().any(|p| p == "all.read")
-  {
-    return true;
-  }
-  if (key.ends_with(".write")
-    || key.ends_with(".create")
-    || key.ends_with(".update")
-    || key.ends_with(".delete")
-    || equivs
-      .iter()
-      .any(|e| e.ends_with(".write") || e.ends_with(".create")))
-    && permissions.iter().any(|p| p == "all.write")
-  {
-    return true;
-  }
-  false
-}
-
-/// Returns Some(403 response) if the current user does not have the given permission.
-async fn require_permission(
-  user: &user::Model,
-  db: &DbConnection,
-  permission: &str,
-  scope: Option<&forge_auth::RequestScope>,
-) -> Option<Response> {
-  let permissions = resolve_permissions(db, user, scope).await;
-  if has_permission(&permissions, permission) {
-    return None;
-  }
-  Some(forbidden_response())
-}
-
-/// §9: 403 Forbidden with clear message when permission is missing.
-fn forbidden_response() -> Response {
-  (
-    StatusCode::FORBIDDEN,
-    Json(serde_json::json!({
-      "error": "Forbidden",
-      "message": "Insufficient permissions"
-    })),
-  )
-    .into_response()
-}
-
-/// §5: Dashboard access = has at least one permission in scope (no separate "dashboard" key).
-/// Returns Some(403) if the user has no resolved permissions.
-async fn require_any_permission(
-  user: &user::Model,
-  db: &DbConnection,
-  scope: Option<&forge_auth::RequestScope>,
-) -> Option<Response> {
-  let permissions = resolve_permissions(db, user, scope).await;
-  if permissions.is_empty() {
-    return Some(forbidden_response());
-  }
-  None
-}
-
-/// §6: Single authorization rule — require the corresponding entity.action in scope.
-/// List/get → entity.read, create → entity.create, update → entity.update, delete → entity.delete.
-pub(crate) async fn require_entity_permission(
-  user: &user::Model,
-  db: &DbConnection,
-  scope: Option<&forge_auth::RequestScope>,
-  entity: &str,
-  action: &str,
-) -> Option<Response> {
-  let key = entity_action_key(entity, action);
-  require_permission(user, db, &key, scope).await
-}
 
 /// GET /api/dashboard/permissions — list known permission keys (code-defined). Requires permission.read (§6).
 pub async fn list_permissions(
@@ -1874,6 +1786,7 @@ pub async fn delete_user(
 #[cfg(test)]
 mod tests {
   use super::*;
+  use crate::handlers::auth::{forbidden_response, has_permission};
   use forge_auth::RequestScope;
 
   mod bdd_tests {
