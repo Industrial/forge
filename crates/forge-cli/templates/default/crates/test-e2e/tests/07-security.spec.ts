@@ -68,9 +68,18 @@ test.describe('Cross-Role Scenarios', () => {
 
   test.describe('7.2 Permission Escalation Prevention', () => {
     test.describe('Viewer permissions', () => {
-      test.use({ storageState: 'playwright/.auth/viewer.json' })
-
       test('Viewer cannot access editor-only features', async ({ page }) => {
+        await page.goto('/authentication/login')
+        const loginProgram = Effect.gen(function* () {
+          const loginPageService = yield* LoginPage
+          yield* loginPageService.login(
+            SEED_USERS.viewer.email,
+            SEED_USERS.viewer.password,
+          )
+        })
+        await Effect.runPromise(
+          loginProgram.pipe(Effect.provide(createPageLayers(page))),
+        )
         await page.goto('/dashboard/users')
 
         const program = Effect.gen(function* () {
@@ -87,9 +96,18 @@ test.describe('Cross-Role Scenarios', () => {
     })
 
     test.describe('Editor permissions', () => {
-      test.use({ storageState: 'playwright/.auth/editor.json' })
-
       test('Editor cannot access org-admin-only features', async ({ page }) => {
+        await page.goto('/authentication/login')
+        const loginProgram = Effect.gen(function* () {
+          const loginPageService = yield* LoginPage
+          yield* loginPageService.login(
+            SEED_USERS.editor.email,
+            SEED_USERS.editor.password,
+          )
+        })
+        await Effect.runPromise(
+          loginProgram.pipe(Effect.provide(createPageLayers(page))),
+        )
         await page.goto('/dashboard/organizations')
 
         const error403 = page.locator('[data-testid="error-403"]')
@@ -102,39 +120,77 @@ test.describe('Cross-Role Scenarios', () => {
     })
 
     test.describe('Org Admin permissions', () => {
-      test.use({ storageState: 'playwright/.auth/org-owner.json' })
-
       test('Org Admin cannot access global-admin-only features', async ({
-        request,
+        page,
       }) => {
-        const response = await request.get(`${API_BASE_URL}/api/auth/admin`)
+        await page.goto('/authentication/login')
+        const loginProgram = Effect.gen(function* () {
+          const loginPageService = yield* LoginPage
+          yield* loginPageService.login(
+            SEED_USERS.orgOwner.email,
+            SEED_USERS.orgOwner.password,
+          )
+        })
+        await Effect.runPromise(
+          loginProgram.pipe(Effect.provide(createPageLayers(page))),
+        )
+        const response = await page.request.get(`${API_BASE_URL}/api/auth/admin`)
         expect(response.status()).toBe(403)
       })
     })
 
     test.describe('App Admin permissions', () => {
-      test.use({ storageState: 'playwright/.auth/app-admin.json' })
-
       test('App Admin can access global-admin features', async ({
-        request,
+        page,
       }) => {
-        const response = await request.get(`${API_BASE_URL}/api/auth/admin`)
+        await page.goto('/authentication/login')
+        const loginProgram = Effect.gen(function* () {
+          const loginPageService = yield* LoginPage
+          yield* loginPageService.login(
+            SEED_USERS.appAdmin.email,
+            SEED_USERS.appAdmin.password,
+          )
+        })
+        await Effect.runPromise(
+          loginProgram.pipe(Effect.provide(createPageLayers(page))),
+        )
+        const response = await page.request.get(`${API_BASE_URL}/api/auth/admin`)
         expect(response.status()).toBe(200)
       })
     })
   })
 
   test.describe('7.3 Concurrent Operations', () => {
-    test.use({ storageState: 'playwright/.auth/editor.json' })
-
     test('subscription stream receives invalidation events', async ({
       page,
       context,
     }) => {
+      await page.goto('/authentication/login')
+      const loginProgram = Effect.gen(function* () {
+        const loginPageService = yield* LoginPage
+        yield* loginPageService.login(
+          SEED_USERS.editor.email,
+          SEED_USERS.editor.password,
+        )
+      })
+      await Effect.runPromise(
+        loginProgram.pipe(Effect.provide(createPageLayers(page))),
+      )
       await page.goto('/dashboard/users')
 
       // Create a second page for subscription stream
       const page2 = await context.newPage()
+      await page2.goto('/authentication/login')
+      const loginProgram2 = Effect.gen(function* () {
+        const loginPageService = yield* LoginPage
+        yield* loginPageService.login(
+          SEED_USERS.editor.email,
+          SEED_USERS.editor.password,
+        )
+      })
+      await Effect.runPromise(
+        loginProgram2.pipe(Effect.provide(createPageLayers(page2))),
+      )
       await page2.goto('/dashboard/users')
 
       const testUser = createTestUser()
@@ -181,10 +237,19 @@ test.describe('Cross-Role Scenarios', () => {
     })
 
     test.describe('with Viewer auth', () => {
-      test.use({ storageState: 'playwright/.auth/viewer.json' })
-
-      test('forbidden request returns 403 Forbidden', async ({ request }) => {
-        const response = await request.post(
+      test('forbidden request returns 403 Forbidden', async ({ page }) => {
+        await page.goto('/authentication/login')
+        const loginProgram = Effect.gen(function* () {
+          const loginPageService = yield* LoginPage
+          yield* loginPageService.login(
+            SEED_USERS.viewer.email,
+            SEED_USERS.viewer.password,
+          )
+        })
+        await Effect.runPromise(
+          loginProgram.pipe(Effect.provide(createPageLayers(page))),
+        )
+        const response = await page.request.post(
           `${API_BASE_URL}/api/entities/user`,
           {
             data: { email: 'test@example.com', password: 'password' },
@@ -193,8 +258,19 @@ test.describe('Cross-Role Scenarios', () => {
         expect(response.status()).toBe(403)
       })
 
-      test('not found returns 404 Not Found', async ({ request }) => {
-        const response = await request.get(
+      test('not found returns 404 Not Found', async ({ page }) => {
+        await page.goto('/authentication/login')
+        const loginProgram = Effect.gen(function* () {
+          const loginPageService = yield* LoginPage
+          yield* loginPageService.login(
+            SEED_USERS.viewer.email,
+            SEED_USERS.viewer.password,
+          )
+        })
+        await Effect.runPromise(
+          loginProgram.pipe(Effect.provide(createPageLayers(page))),
+        )
+        const response = await page.request.get(
           `${API_BASE_URL}/api/entities/user/invalid-id`,
         )
         expect(response.status()).toBe(404)
@@ -203,9 +279,18 @@ test.describe('Cross-Role Scenarios', () => {
   })
 
   test.describe('7.5 Session Management', () => {
-    test.use({ storageState: 'playwright/.auth/viewer.json' })
-
     test('logout invalidates token', async ({ page, context }) => {
+      await page.goto('/authentication/login')
+      const loginProgram = Effect.gen(function* () {
+        const loginPageService = yield* LoginPage
+        yield* loginPageService.login(
+          SEED_USERS.viewer.email,
+          SEED_USERS.viewer.password,
+        )
+      })
+      await Effect.runPromise(
+        loginProgram.pipe(Effect.provide(createPageLayers(page))),
+      )
       await page.goto('/dashboard')
 
       const program = Effect.gen(function* () {
@@ -224,9 +309,18 @@ test.describe('Cross-Role Scenarios', () => {
   })
 
   test.describe('7.6 Data Consistency', () => {
-    test.use({ storageState: 'playwright/.auth/editor.json' })
-
     test('created entity appears in list', async ({ page }) => {
+      await page.goto('/authentication/login')
+      const loginProgram = Effect.gen(function* () {
+        const loginPageService = yield* LoginPage
+        yield* loginPageService.login(
+          SEED_USERS.editor.email,
+          SEED_USERS.editor.password,
+        )
+      })
+      await Effect.runPromise(
+        loginProgram.pipe(Effect.provide(createPageLayers(page))),
+      )
       await page.goto('/dashboard/users')
       const testUser = createTestUser()
 

@@ -3,9 +3,9 @@
   "private": true,
   "type": "module",
   "scripts": {
-    "test": "playwright test",
-    "test:ui": "playwright test --ui",
-    "test:headed": "playwright test --headed"
+    "test": "E2E_BASE_URL=http://localhost:5173 playwright test",
+    "test:ui": "E2E_BASE_URL=http://localhost:5173 playwright test --ui",
+    "test:headed": "E2E_BASE_URL=http://localhost:5173 playwright test --headed"
   },
   "devDependencies": {
     "@playwright/test": "1.52.0",

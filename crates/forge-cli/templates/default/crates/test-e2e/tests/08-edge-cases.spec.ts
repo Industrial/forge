@@ -14,12 +14,14 @@ import { test, expect } from '@playwright/test'
 import { Effect } from 'effect'
 
 import {
+  LoginPage,
   DashboardPage,
   UsersPage,
   RolesPage,
   OrganizationsPage,
   AuditLogPage,
 } from '@/pages'
+import { SEED_USERS } from '@/fixtures/test-data'
 import { createPageLayers } from '@/fixtures/page-layers'
 import { API_BASE_URL } from '@/playwright.config'
 import * as ExpectHelpers from '@/helpers/expect'
@@ -28,9 +30,18 @@ import * as PageHelpers from '@/helpers/page'
 
 test.describe('Edge Cases & Boundary Conditions', () => {
   test.describe('8.1 Empty States', () => {
-    test.use({ storageState: 'playwright/.auth/viewer.json' })
-
     test('organizations page shows empty state', async ({ page }) => {
+      await page.goto('/authentication/login')
+      const loginProgram = Effect.gen(function* () {
+        const loginPageService = yield* LoginPage
+        yield* loginPageService.login(
+          SEED_USERS.viewer.email,
+          SEED_USERS.viewer.password,
+        )
+      })
+      await Effect.runPromise(
+        loginProgram.pipe(Effect.provide(createPageLayers(page))),
+      )
       await page.goto('/dashboard/organizations')
 
       const program = Effect.gen(function* () {
@@ -123,9 +134,18 @@ test.describe('Edge Cases & Boundary Conditions', () => {
   })
 
   test.describe('8.2 Large Datasets', () => {
-    test.use({ storageState: 'playwright/.auth/viewer.json' })
-
     test('large user list pagination works correctly', async ({ page }) => {
+      await page.goto('/authentication/login')
+      const loginProgram = Effect.gen(function* () {
+        const loginPageService = yield* LoginPage
+        yield* loginPageService.login(
+          SEED_USERS.viewer.email,
+          SEED_USERS.viewer.password,
+        )
+      })
+      await Effect.runPromise(
+        loginProgram.pipe(Effect.provide(createPageLayers(page))),
+      )
       await page.goto('/dashboard/users')
 
       const program = Effect.gen(function* () {
@@ -226,9 +246,20 @@ test.describe('Edge Cases & Boundary Conditions', () => {
       )
     })
 
-    test('cursor pagination works correctly', async ({ request }) => {
+    test('cursor pagination works correctly', async ({ page }) => {
+      await page.goto('/authentication/login')
+      const loginProgram = Effect.gen(function* () {
+        const loginPageService = yield* LoginPage
+        yield* loginPageService.login(
+          SEED_USERS.viewer.email,
+          SEED_USERS.viewer.password,
+        )
+      })
+      await Effect.runPromise(
+        loginProgram.pipe(Effect.provide(createPageLayers(page))),
+      )
       // Test cursor-based pagination via API
-      const response = await request.get(
+      const response = await page.request.get(
         `${API_BASE_URL}/api/entities/user?limit=10`,
       )
       expect(response.status()).toBe(200)
@@ -238,7 +269,7 @@ test.describe('Edge Cases & Boundary Conditions', () => {
       expect(data).toHaveProperty('data')
       // If cursor exists, verify it can be used for next page
       if (data.cursor) {
-        const nextResponse = await request.get(
+        const nextResponse = await page.request.get(
           `${API_BASE_URL}/api/entities/user?limit=10&cursor=${data.cursor}`,
         )
         expect(nextResponse.status()).toBe(200)
@@ -247,9 +278,18 @@ test.describe('Edge Cases & Boundary Conditions', () => {
   })
 
   test.describe('8.3 Invalid Inputs', () => {
-    test.use({ storageState: 'playwright/.auth/editor.json' })
-
     test('invalid email format shows validation error', async ({ page }) => {
+      await page.goto('/authentication/login')
+      const loginProgram = Effect.gen(function* () {
+        const loginPageService = yield* LoginPage
+        yield* loginPageService.login(
+          SEED_USERS.editor.email,
+          SEED_USERS.editor.password,
+        )
+      })
+      await Effect.runPromise(
+        loginProgram.pipe(Effect.provide(createPageLayers(page))),
+      )
       await page.goto('/dashboard/users')
 
       const program = Effect.gen(function* () {
@@ -325,22 +365,55 @@ test.describe('Edge Cases & Boundary Conditions', () => {
       )
     })
 
-    test('invalid UUID returns 400 Bad Request', async ({ request }) => {
-      const response = await request.get(
+    test('invalid UUID returns 400 Bad Request', async ({ page }) => {
+      await page.goto('/authentication/login')
+      const loginProgram = Effect.gen(function* () {
+        const loginPageService = yield* LoginPage
+        yield* loginPageService.login(
+          SEED_USERS.editor.email,
+          SEED_USERS.editor.password,
+        )
+      })
+      await Effect.runPromise(
+        loginProgram.pipe(Effect.provide(createPageLayers(page))),
+      )
+      const response = await page.request.get(
         `${API_BASE_URL}/api/entities/user/invalid-uuid`,
       )
       expect(response.status()).toBe(400)
     })
 
-    test('invalid filter JSON returns 400 Bad Request', async ({ request }) => {
-      const response = await request.get(
+    test('invalid filter JSON returns 400 Bad Request', async ({ page }) => {
+      await page.goto('/authentication/login')
+      const loginProgram = Effect.gen(function* () {
+        const loginPageService = yield* LoginPage
+        yield* loginPageService.login(
+          SEED_USERS.editor.email,
+          SEED_USERS.editor.password,
+        )
+      })
+      await Effect.runPromise(
+        loginProgram.pipe(Effect.provide(createPageLayers(page))),
+      )
+      const response = await page.request.get(
         `${API_BASE_URL}/api/entities/user?filter=invalid-json`,
       )
       expect(response.status()).toBe(400)
     })
 
-    test('invalid sort field returns 400 Bad Request', async ({ request }) => {
-      const response = await request.get(
+    test('invalid sort field returns 400 Bad Request', async ({ page }) => {
+      await page.goto('/authentication/login')
+      const loginProgram = Effect.gen(function* () {
+        const loginPageService = yield* LoginPage
+        yield* loginPageService.login(
+          SEED_USERS.editor.email,
+          SEED_USERS.editor.password,
+        )
+      })
+      await Effect.runPromise(
+        loginProgram.pipe(Effect.provide(createPageLayers(page))),
+      )
+      const response = await page.request.get(
         `${API_BASE_URL}/api/entities/user?sort=invalid-field`,
       )
       expect(response.status()).toBe(400)
@@ -348,9 +421,18 @@ test.describe('Edge Cases & Boundary Conditions', () => {
   })
 
   test.describe('8.4 Network Conditions', () => {
-    test.use({ storageState: 'playwright/.auth/viewer.json' })
-
     test('slow network shows loading states', async ({ page, context }) => {
+      await page.goto('/authentication/login')
+      const loginProgram = Effect.gen(function* () {
+        const loginPageService = yield* LoginPage
+        yield* loginPageService.login(
+          SEED_USERS.viewer.email,
+          SEED_USERS.viewer.password,
+        )
+      })
+      await Effect.runPromise(
+        loginProgram.pipe(Effect.provide(createPageLayers(page))),
+      )
       // Simulate slow network
       await context.route('**/api/**', async (route) => {
         await new Promise((resolve) => setTimeout(resolve, 1000))
@@ -419,9 +501,18 @@ test.describe('Edge Cases & Boundary Conditions', () => {
   })
 
   test.describe('8.5 Browser Compatibility', () => {
-    test.use({ storageState: 'playwright/.auth/viewer.json' })
-
     test('mobile viewport responsive layout works', async ({ page }) => {
+      await page.goto('/authentication/login')
+      const loginProgram = Effect.gen(function* () {
+        const loginPageService = yield* LoginPage
+        yield* loginPageService.login(
+          SEED_USERS.viewer.email,
+          SEED_USERS.viewer.password,
+        )
+      })
+      await Effect.runPromise(
+        loginProgram.pipe(Effect.provide(createPageLayers(page))),
+      )
       // Set mobile viewport
       await page.setViewportSize({ width: 375, height: 667 })
 

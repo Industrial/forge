@@ -13,7 +13,7 @@ export default function GuestRoute({ children }: GuestRouteProps) {
   const isUserAuthenticated = Option.isSome(authentication.user)
 
   if (isUserAuthenticated) {
-    return <Navigate to="/" replace />
+    return <Navigate to="/dashboard" replace />
   }
 
   return <>{children}</>

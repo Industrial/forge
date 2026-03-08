@@ -35,8 +35,6 @@ import * as LocatorHelpers from '@/helpers/locator'
 import * as PageHelpers from '@/helpers/page'
 
 test.describe('Editor Role', () => {
-  test.use({ storageState: 'playwright/.auth/editor.json' })
-
   test.describe('3.1 Authentication & Profile Selection', () => {
     test('single profile redirects to dashboard', async ({ page }) => {
       await page.goto('/authentication/login')
@@ -63,6 +61,17 @@ test.describe('Editor Role', () => {
 
   test.describe('3.2 Dashboard Access', () => {
     test.beforeEach(async ({ page }) => {
+      await page.goto('/authentication/login')
+      const loginProgram = Effect.gen(function* () {
+        const loginPageService = yield* LoginPage
+        yield* loginPageService.login(
+          SEED_USERS.editor.email,
+          SEED_USERS.editor.password,
+        )
+      })
+      await Effect.runPromise(
+        loginProgram.pipe(Effect.provide(createPageLayers(page))),
+      )
       await page.goto('/dashboard')
     })
 
@@ -108,6 +117,17 @@ test.describe('Editor Role', () => {
 
   test.describe('3.3 Users Page (Create/Update)', () => {
     test.beforeEach(async ({ page }) => {
+      await page.goto('/authentication/login')
+      const loginProgram = Effect.gen(function* () {
+        const loginPageService = yield* LoginPage
+        yield* loginPageService.login(
+          SEED_USERS.editor.email,
+          SEED_USERS.editor.password,
+        )
+      })
+      await Effect.runPromise(
+        loginProgram.pipe(Effect.provide(createPageLayers(page))),
+      )
       await page.goto('/dashboard/users')
     })
 
@@ -204,6 +224,17 @@ test.describe('Editor Role', () => {
 
   test.describe('3.4 Roles Page (Create/Update)', () => {
     test.beforeEach(async ({ page }) => {
+      await page.goto('/authentication/login')
+      const loginProgram = Effect.gen(function* () {
+        const loginPageService = yield* LoginPage
+        yield* loginPageService.login(
+          SEED_USERS.editor.email,
+          SEED_USERS.editor.password,
+        )
+      })
+      await Effect.runPromise(
+        loginProgram.pipe(Effect.provide(createPageLayers(page))),
+      )
       await page.goto('/dashboard/roles')
     })
 
@@ -269,6 +300,17 @@ test.describe('Editor Role', () => {
 
   test.describe('3.5 Permissions Page (Full CRUD)', () => {
     test.beforeEach(async ({ page }) => {
+      await page.goto('/authentication/login')
+      const loginProgram = Effect.gen(function* () {
+        const loginPageService = yield* LoginPage
+        yield* loginPageService.login(
+          SEED_USERS.editor.email,
+          SEED_USERS.editor.password,
+        )
+      })
+      await Effect.runPromise(
+        loginProgram.pipe(Effect.provide(createPageLayers(page))),
+      )
       await page.goto('/dashboard/roles-and-permissions')
     })
 
@@ -308,6 +350,17 @@ test.describe('Editor Role', () => {
 
   test.describe('3.6 Audit Log Page (Blocked)', () => {
     test('should show 403 when accessing audit log page', async ({ page }) => {
+      await page.goto('/authentication/login')
+      const loginProgram = Effect.gen(function* () {
+        const loginPageService = yield* LoginPage
+        yield* loginPageService.login(
+          SEED_USERS.editor.email,
+          SEED_USERS.editor.password,
+        )
+      })
+      await Effect.runPromise(
+        loginProgram.pipe(Effect.provide(createPageLayers(page))),
+      )
       await page.goto('/dashboard/audit-log')
 
       const error403 = page.locator('[data-testid="error-403"]')
@@ -323,6 +376,17 @@ test.describe('Editor Role', () => {
     test('should show 403 when accessing organizations page', async ({
       page,
     }) => {
+      await page.goto('/authentication/login')
+      const loginProgram = Effect.gen(function* () {
+        const loginPageService = yield* LoginPage
+        yield* loginPageService.login(
+          SEED_USERS.editor.email,
+          SEED_USERS.editor.password,
+        )
+      })
+      await Effect.runPromise(
+        loginProgram.pipe(Effect.provide(createPageLayers(page))),
+      )
       await page.goto('/dashboard/organizations')
 
       const error403 = page.locator('[data-testid="error-403"]')
@@ -336,6 +400,17 @@ test.describe('Editor Role', () => {
 
   test.describe('3.8 Profile Management', () => {
     test('should display current profile', async ({ page }) => {
+      await page.goto('/authentication/login')
+      const loginProgram = Effect.gen(function* () {
+        const loginPageService = yield* LoginPage
+        yield* loginPageService.login(
+          SEED_USERS.editor.email,
+          SEED_USERS.editor.password,
+        )
+      })
+      await Effect.runPromise(
+        loginProgram.pipe(Effect.provide(createPageLayers(page))),
+      )
       await page.goto('/scope')
 
       const program = Effect.gen(function* () {
@@ -355,20 +430,42 @@ test.describe('Editor Role', () => {
   })
 
   test.describe('3.9 Generic Entity API', () => {
-    test('POST /api/entities/user returns 201 Created', async ({ request }) => {
+    test('POST /api/entities/user returns 201 Created', async ({ page }) => {
+      await page.goto('/authentication/login')
+      const loginProgram = Effect.gen(function* () {
+        const loginPageService = yield* LoginPage
+        yield* loginPageService.login(
+          SEED_USERS.editor.email,
+          SEED_USERS.editor.password,
+        )
+      })
+      await Effect.runPromise(
+        loginProgram.pipe(Effect.provide(createPageLayers(page))),
+      )
       const testUser = createTestUser()
-      const response = await request.post(`${API_BASE_URL}/api/entities/user`, {
+      const response = await page.request.post(`${API_BASE_URL}/api/entities/user`, {
         data: { email: testUser.email, password: testUser.password },
       })
       expect(response.status()).toBe(201)
     })
 
     test('PATCH /api/entities/user/{id} returns 200 OK', async ({
-      request,
+      page,
     }) => {
+      await page.goto('/authentication/login')
+      const loginProgram = Effect.gen(function* () {
+        const loginPageService = yield* LoginPage
+        yield* loginPageService.login(
+          SEED_USERS.editor.email,
+          SEED_USERS.editor.password,
+        )
+      })
+      await Effect.runPromise(
+        loginProgram.pipe(Effect.provide(createPageLayers(page))),
+      )
       // Create user first
       const testUser = createTestUser()
-      const createResponse = await request.post(
+      const createResponse = await page.request.post(
         `${API_BASE_URL}/api/entities/user`,
         {
           data: { email: testUser.email, password: testUser.password },
@@ -377,7 +474,7 @@ test.describe('Editor Role', () => {
       const created = await createResponse.json()
 
       // Update user
-      const updateResponse = await request.patch(
+      const updateResponse = await page.request.patch(
         `${API_BASE_URL}/api/entities/user/${created.id}`,
         {
           data: { email: `updated-${testUser.email}` },
@@ -387,9 +484,20 @@ test.describe('Editor Role', () => {
     })
 
     test('GET /api/entities/organization returns 403 Forbidden', async ({
-      request,
+      page,
     }) => {
-      const response = await request.get(
+      await page.goto('/authentication/login')
+      const loginProgram = Effect.gen(function* () {
+        const loginPageService = yield* LoginPage
+        yield* loginPageService.login(
+          SEED_USERS.editor.email,
+          SEED_USERS.editor.password,
+        )
+      })
+      await Effect.runPromise(
+        loginProgram.pipe(Effect.provide(createPageLayers(page))),
+      )
+      const response = await page.request.get(
         `${API_BASE_URL}/api/entities/organization`,
       )
       expect(response.status()).toBe(403)
@@ -397,9 +505,20 @@ test.describe('Editor Role', () => {
   })
 
   test.describe('3.10 RPC API (Create/Update)', () => {
-    test('POST /api/rpc entity.create returns 200 OK', async ({ request }) => {
+    test('POST /api/rpc entity.create returns 200 OK', async ({ page }) => {
+      await page.goto('/authentication/login')
+      const loginProgram = Effect.gen(function* () {
+        const loginPageService = yield* LoginPage
+        yield* loginPageService.login(
+          SEED_USERS.editor.email,
+          SEED_USERS.editor.password,
+        )
+      })
+      await Effect.runPromise(
+        loginProgram.pipe(Effect.provide(createPageLayers(page))),
+      )
       const testUser = createTestUser()
-      const response = await request.post(`${API_BASE_URL}/api/rpc`, {
+      const response = await page.request.post(`${API_BASE_URL}/api/rpc`, {
         data: {
           method: 'entity.create',
           params: {
@@ -412,9 +531,20 @@ test.describe('Editor Role', () => {
     })
 
     test('POST /api/rpc entity.delete returns 403 Forbidden', async ({
-      request,
+      page,
     }) => {
-      const response = await request.post(`${API_BASE_URL}/api/rpc`, {
+      await page.goto('/authentication/login')
+      const loginProgram = Effect.gen(function* () {
+        const loginPageService = yield* LoginPage
+        yield* loginPageService.login(
+          SEED_USERS.editor.email,
+          SEED_USERS.editor.password,
+        )
+      })
+      await Effect.runPromise(
+        loginProgram.pipe(Effect.provide(createPageLayers(page))),
+      )
+      const response = await page.request.post(`${API_BASE_URL}/api/rpc`, {
         data: {
           method: 'entity.delete',
           params: { entity: 'user', id: 'test-id' },
@@ -426,9 +556,20 @@ test.describe('Editor Role', () => {
 
   test.describe('3.11 Subscription Stream', () => {
     test('GET /api/subscriptions/stream establishes SSE connection', async ({
-      request,
+      page,
     }) => {
-      const response = await request.get(
+      await page.goto('/authentication/login')
+      const loginProgram = Effect.gen(function* () {
+        const loginPageService = yield* LoginPage
+        yield* loginPageService.login(
+          SEED_USERS.editor.email,
+          SEED_USERS.editor.password,
+        )
+      })
+      await Effect.runPromise(
+        loginProgram.pipe(Effect.provide(createPageLayers(page))),
+      )
+      const response = await page.request.get(
         `${API_BASE_URL}/api/subscriptions/stream`,
         {
           headers: { Accept: 'text/event-stream' },
@@ -439,14 +580,36 @@ test.describe('Editor Role', () => {
   })
 
   test.describe('3.12 Admin Endpoint (Blocked)', () => {
-    test('GET /api/auth/admin returns 403 Forbidden', async ({ request }) => {
-      const response = await request.get(`${API_BASE_URL}/api/auth/admin`)
+    test('GET /api/auth/admin returns 403 Forbidden', async ({ page }) => {
+      await page.goto('/authentication/login')
+      const loginProgram = Effect.gen(function* () {
+        const loginPageService = yield* LoginPage
+        yield* loginPageService.login(
+          SEED_USERS.editor.email,
+          SEED_USERS.editor.password,
+        )
+      })
+      await Effect.runPromise(
+        loginProgram.pipe(Effect.provide(createPageLayers(page))),
+      )
+      const response = await page.request.get(`${API_BASE_URL}/api/auth/admin`)
       expect(response.status()).toBe(403)
     })
   })
 
   test.describe('3.13 Logout', () => {
     test('logout redirects to login', async ({ page }) => {
+      await page.goto('/authentication/login')
+      const loginProgram = Effect.gen(function* () {
+        const loginPageService = yield* LoginPage
+        yield* loginPageService.login(
+          SEED_USERS.editor.email,
+          SEED_USERS.editor.password,
+        )
+      })
+      await Effect.runPromise(
+        loginProgram.pipe(Effect.provide(createPageLayers(page))),
+      )
       await page.goto('/dashboard')
 
       const program = Effect.gen(function* () {

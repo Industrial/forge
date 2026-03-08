@@ -13,7 +13,8 @@
 import { test, expect } from '@playwright/test'
 import { Effect } from 'effect'
 
-import { UsersPage } from '@/pages'
+import { LoginPage, UsersPage } from '@/pages'
+import { SEED_USERS } from '@/fixtures/test-data'
 import { createPageLayers } from '@/fixtures/page-layers'
 import { API_BASE_URL } from '@/playwright.config'
 import * as ExpectHelpers from '@/helpers/expect'
@@ -105,10 +106,19 @@ test.describe('Security Scenarios', () => {
 
   test.describe('9.2 Authorization Security', () => {
     test.describe('Viewer auth', () => {
-      test.use({ storageState: 'playwright/.auth/viewer.json' })
-
-      test('Viewer cannot create entity', async ({ request }) => {
-        const response = await request.post(
+      test('Viewer cannot create entity', async ({ page }) => {
+        await page.goto('/authentication/login')
+        const loginProgram = Effect.gen(function* () {
+          const loginPageService = yield* LoginPage
+          yield* loginPageService.login(
+            SEED_USERS.viewer.email,
+            SEED_USERS.viewer.password,
+          )
+        })
+        await Effect.runPromise(
+          loginProgram.pipe(Effect.provide(createPageLayers(page))),
+        )
+        const response = await page.request.post(
           `${API_BASE_URL}/api/entities/user`,
           {
             data: { email: 'test@example.com', password: 'password' },
@@ -119,13 +129,22 @@ test.describe('Security Scenarios', () => {
     })
 
     test.describe('Editor auth', () => {
-      test.use({ storageState: 'playwright/.auth/editor.json' })
-
       test('Editor cannot delete entity if no delete permission', async ({
-        request,
+        page,
       }) => {
+        await page.goto('/authentication/login')
+        const loginProgram = Effect.gen(function* () {
+          const loginPageService = yield* LoginPage
+          yield* loginPageService.login(
+            SEED_USERS.editor.email,
+            SEED_USERS.editor.password,
+          )
+        })
+        await Effect.runPromise(
+          loginProgram.pipe(Effect.provide(createPageLayers(page))),
+        )
         // Create a user first
-        const createResponse = await request.post(
+        const createResponse = await page.request.post(
           `${API_BASE_URL}/api/entities/user`,
           {
             data: { email: 'test-delete@example.com', password: 'password' },
@@ -137,7 +156,7 @@ test.describe('Security Scenarios', () => {
           const userId = user.data?.id || user.id
 
           // Try to delete (should fail if no delete permission)
-          const deleteResponse = await request.delete(
+          const deleteResponse = await page.request.delete(
             `${API_BASE_URL}/api/entities/user/${userId}`,
           )
           // Editor role may or may not have delete permission - check based on actual permissions
@@ -147,11 +166,20 @@ test.describe('Security Scenarios', () => {
     })
 
     test.describe('Org Admin auth', () => {
-      test.use({ storageState: 'playwright/.auth/org-owner.json' })
-
-      test('Org Admin cannot access other org data', async ({ request }) => {
+      test('Org Admin cannot access other org data', async ({ page }) => {
+        await page.goto('/authentication/login')
+        const loginProgram = Effect.gen(function* () {
+          const loginPageService = yield* LoginPage
+          yield* loginPageService.login(
+            SEED_USERS.orgOwner.email,
+            SEED_USERS.orgOwner.password,
+          )
+        })
+        await Effect.runPromise(
+          loginProgram.pipe(Effect.provide(createPageLayers(page))),
+        )
         // This would require knowing another org's ID - simplified test
-        const response = await request.get(
+        const response = await page.request.get(
           `${API_BASE_URL}/api/entities/organization`,
         )
         expect(response.status()).toBe(200)
@@ -164,10 +192,19 @@ test.describe('Security Scenarios', () => {
     })
 
     test.describe('App Admin auth', () => {
-      test.use({ storageState: 'playwright/.auth/app-admin.json' })
-
-      test('App Admin can access any org data', async ({ request }) => {
-        const response = await request.get(
+      test('App Admin can access any org data', async ({ page }) => {
+        await page.goto('/authentication/login')
+        const loginProgram = Effect.gen(function* () {
+          const loginPageService = yield* LoginPage
+          yield* loginPageService.login(
+            SEED_USERS.appAdmin.email,
+            SEED_USERS.appAdmin.password,
+          )
+        })
+        await Effect.runPromise(
+          loginProgram.pipe(Effect.provide(createPageLayers(page))),
+        )
+        const response = await page.request.get(
           `${API_BASE_URL}/api/entities/organization`,
         )
         expect(response.status()).toBe(200)
@@ -180,9 +217,18 @@ test.describe('Security Scenarios', () => {
   })
 
   test.describe('9.3 CSRF Protection', () => {
-    test.use({ storageState: 'playwright/.auth/editor.json' })
-
     test('form submission includes CSRF token', async ({ page }) => {
+      await page.goto('/authentication/login')
+      const loginProgram = Effect.gen(function* () {
+        const loginPageService = yield* LoginPage
+        yield* loginPageService.login(
+          SEED_USERS.editor.email,
+          SEED_USERS.editor.password,
+        )
+      })
+      await Effect.runPromise(
+        loginProgram.pipe(Effect.provide(createPageLayers(page))),
+      )
       await page.goto('/dashboard/users')
 
       const program = Effect.gen(function* () {
@@ -209,9 +255,20 @@ test.describe('Security Scenarios', () => {
       )
     })
 
-    test('missing CSRF token request is rejected', async ({ request }) => {
+    test('missing CSRF token request is rejected', async ({ page }) => {
+      await page.goto('/authentication/login')
+      const loginProgram = Effect.gen(function* () {
+        const loginPageService = yield* LoginPage
+        yield* loginPageService.login(
+          SEED_USERS.editor.email,
+          SEED_USERS.editor.password,
+        )
+      })
+      await Effect.runPromise(
+        loginProgram.pipe(Effect.provide(createPageLayers(page))),
+      )
       // Try to make a POST request without CSRF token
-      const response = await request.post(`${API_BASE_URL}/api/entities/user`, {
+      const response = await page.request.post(`${API_BASE_URL}/api/entities/user`, {
         data: { email: 'test@example.com', password: 'password' },
         // Intentionally omit CSRF token
       })

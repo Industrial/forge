@@ -44,8 +44,6 @@ import * as LocatorHelpers from '@/helpers/locator'
 import * as PageHelpers from '@/helpers/page'
 
 test.describe('App Admin Role', () => {
-  test.use({ storageState: 'playwright/.auth/app-admin.json' })
-
   test.describe('6.1 Authentication & Profile Selection', () => {
     test('single profile redirects to dashboard', async ({ page }) => {
       await page.goto('/authentication/login')
@@ -72,6 +70,17 @@ test.describe('App Admin Role', () => {
 
   test.describe('6.2 Dashboard Access (Full - Global Scope)', () => {
     test.beforeEach(async ({ page }) => {
+      await page.goto('/authentication/login')
+      const loginProgram = Effect.gen(function* () {
+        const loginPageService = yield* LoginPage
+        yield* loginPageService.login(
+          SEED_USERS.appAdmin.email,
+          SEED_USERS.appAdmin.password,
+        )
+      })
+      await Effect.runPromise(
+        loginProgram.pipe(Effect.provide(createPageLayers(page))),
+      )
       await page.goto('/dashboard')
     })
 
@@ -133,6 +142,17 @@ test.describe('App Admin Role', () => {
 
   test.describe('6.3 Organizations Page (Full CRUD - Global Scope)', () => {
     test('should create organization', async ({ page }) => {
+      await page.goto('/authentication/login')
+      const loginProgram = Effect.gen(function* () {
+        const loginPageService = yield* LoginPage
+        yield* loginPageService.login(
+          SEED_USERS.appAdmin.email,
+          SEED_USERS.appAdmin.password,
+        )
+      })
+      await Effect.runPromise(
+        loginProgram.pipe(Effect.provide(createPageLayers(page))),
+      )
       await page.goto('/dashboard/organizations')
       const testOrg = createTestOrganization()
 
@@ -156,6 +176,17 @@ test.describe('App Admin Role', () => {
 
   test.describe('6.4 Users Page (Full CRUD - Global Scope)', () => {
     test('should create user', async ({ page }) => {
+      await page.goto('/authentication/login')
+      const loginProgram = Effect.gen(function* () {
+        const loginPageService = yield* LoginPage
+        yield* loginPageService.login(
+          SEED_USERS.appAdmin.email,
+          SEED_USERS.appAdmin.password,
+        )
+      })
+      await Effect.runPromise(
+        loginProgram.pipe(Effect.provide(createPageLayers(page))),
+      )
       await page.goto('/dashboard/users')
       const testUser = createTestUser()
 
@@ -176,6 +207,17 @@ test.describe('App Admin Role', () => {
 
   test.describe('6.5 Roles Page (Full CRUD - Global Scope)', () => {
     test('should create role', async ({ page }) => {
+      await page.goto('/authentication/login')
+      const loginProgram = Effect.gen(function* () {
+        const loginPageService = yield* LoginPage
+        yield* loginPageService.login(
+          SEED_USERS.appAdmin.email,
+          SEED_USERS.appAdmin.password,
+        )
+      })
+      await Effect.runPromise(
+        loginProgram.pipe(Effect.provide(createPageLayers(page))),
+      )
       await page.goto('/dashboard/roles')
       const roleName = `test-role-${Date.now()}`
 
@@ -196,6 +238,17 @@ test.describe('App Admin Role', () => {
 
   test.describe('6.6 Permissions Page (Full CRUD - Global Scope)', () => {
     test('should add permission to role', async ({ page }) => {
+      await page.goto('/authentication/login')
+      const loginProgram = Effect.gen(function* () {
+        const loginPageService = yield* LoginPage
+        yield* loginPageService.login(
+          SEED_USERS.appAdmin.email,
+          SEED_USERS.appAdmin.password,
+        )
+      })
+      await Effect.runPromise(
+        loginProgram.pipe(Effect.provide(createPageLayers(page))),
+      )
       await page.goto('/dashboard/roles-and-permissions')
 
       const program = Effect.gen(function* () {
@@ -218,6 +271,17 @@ test.describe('App Admin Role', () => {
 
   test.describe('6.7 Audit Log Page (Global Scope)', () => {
     test('should display audit log list', async ({ page }) => {
+      await page.goto('/authentication/login')
+      const loginProgram = Effect.gen(function* () {
+        const loginPageService = yield* LoginPage
+        yield* loginPageService.login(
+          SEED_USERS.appAdmin.email,
+          SEED_USERS.appAdmin.password,
+        )
+      })
+      await Effect.runPromise(
+        loginProgram.pipe(Effect.provide(createPageLayers(page))),
+      )
       await page.goto('/dashboard/audit-log')
 
       const program = Effect.gen(function* () {
@@ -238,6 +302,17 @@ test.describe('App Admin Role', () => {
 
   test.describe('6.8 Profile Management', () => {
     test('should display current profile', async ({ page }) => {
+      await page.goto('/authentication/login')
+      const loginProgram = Effect.gen(function* () {
+        const loginPageService = yield* LoginPage
+        yield* loginPageService.login(
+          SEED_USERS.appAdmin.email,
+          SEED_USERS.appAdmin.password,
+        )
+      })
+      await Effect.runPromise(
+        loginProgram.pipe(Effect.provide(createPageLayers(page))),
+      )
       await page.goto('/scope')
 
       const program = Effect.gen(function* () {
@@ -257,8 +332,19 @@ test.describe('App Admin Role', () => {
   })
 
   test.describe('6.9 Admin Endpoint (Access Granted)', () => {
-    test('GET /api/auth/admin returns 200 OK', async ({ request }) => {
-      const response = await request.get(`${API_BASE_URL}/api/auth/admin`)
+    test('GET /api/auth/admin returns 200 OK', async ({ page }) => {
+      await page.goto('/authentication/login')
+      const loginProgram = Effect.gen(function* () {
+        const loginPageService = yield* LoginPage
+        yield* loginPageService.login(
+          SEED_USERS.appAdmin.email,
+          SEED_USERS.appAdmin.password,
+        )
+      })
+      await Effect.runPromise(
+        loginProgram.pipe(Effect.provide(createPageLayers(page))),
+      )
+      const response = await page.request.get(`${API_BASE_URL}/api/auth/admin`)
       expect(response.status()).toBe(200)
 
       const data = await response.json()
@@ -268,19 +354,41 @@ test.describe('App Admin Role', () => {
 
   test.describe('6.10 Generic Entity API (Full CRUD - Global Scope)', () => {
     test('GET /api/entities/organization returns 200 OK (all orgs)', async ({
-      request,
+      page,
     }) => {
-      const response = await request.get(
+      await page.goto('/authentication/login')
+      const loginProgram = Effect.gen(function* () {
+        const loginPageService = yield* LoginPage
+        yield* loginPageService.login(
+          SEED_USERS.appAdmin.email,
+          SEED_USERS.appAdmin.password,
+        )
+      })
+      await Effect.runPromise(
+        loginProgram.pipe(Effect.provide(createPageLayers(page))),
+      )
+      const response = await page.request.get(
         `${API_BASE_URL}/api/entities/organization`,
       )
       expect(response.status()).toBe(200)
     })
 
     test('POST /api/entities/organization returns 201 Created', async ({
-      request,
+      page,
     }) => {
+      await page.goto('/authentication/login')
+      const loginProgram = Effect.gen(function* () {
+        const loginPageService = yield* LoginPage
+        yield* loginPageService.login(
+          SEED_USERS.appAdmin.email,
+          SEED_USERS.appAdmin.password,
+        )
+      })
+      await Effect.runPromise(
+        loginProgram.pipe(Effect.provide(createPageLayers(page))),
+      )
       const testOrg = createTestOrganization()
-      const response = await request.post(
+      const response = await page.request.post(
         `${API_BASE_URL}/api/entities/organization`,
         {
           data: { name: testOrg.name, slug: testOrg.slug },
@@ -290,18 +398,40 @@ test.describe('App Admin Role', () => {
     })
 
     test('GET /api/entities/user returns 200 OK (all users, all orgs)', async ({
-      request,
+      page,
     }) => {
-      const response = await request.get(`${API_BASE_URL}/api/entities/user`)
+      await page.goto('/authentication/login')
+      const loginProgram = Effect.gen(function* () {
+        const loginPageService = yield* LoginPage
+        yield* loginPageService.login(
+          SEED_USERS.appAdmin.email,
+          SEED_USERS.appAdmin.password,
+        )
+      })
+      await Effect.runPromise(
+        loginProgram.pipe(Effect.provide(createPageLayers(page))),
+      )
+      const response = await page.request.get(`${API_BASE_URL}/api/entities/user`)
       expect(response.status()).toBe(200)
     })
   })
 
   test.describe('6.11 RPC API (Full CRUD - Global Scope)', () => {
     test('POST /api/rpc entity.list returns 200 OK (all entities, all orgs)', async ({
-      request,
+      page,
     }) => {
-      const response = await request.post(`${API_BASE_URL}/api/rpc`, {
+      await page.goto('/authentication/login')
+      const loginProgram = Effect.gen(function* () {
+        const loginPageService = yield* LoginPage
+        yield* loginPageService.login(
+          SEED_USERS.appAdmin.email,
+          SEED_USERS.appAdmin.password,
+        )
+      })
+      await Effect.runPromise(
+        loginProgram.pipe(Effect.provide(createPageLayers(page))),
+      )
+      const response = await page.request.post(`${API_BASE_URL}/api/rpc`, {
         data: { method: 'entity.list', params: { entity: 'user' } },
       })
       expect(response.status()).toBe(200)
@@ -310,9 +440,20 @@ test.describe('App Admin Role', () => {
 
   test.describe('6.12 Subscription Stream (Global Scope)', () => {
     test('GET /api/subscriptions/stream establishes SSE connection', async ({
-      request,
+      page,
     }) => {
-      const response = await request.get(
+      await page.goto('/authentication/login')
+      const loginProgram = Effect.gen(function* () {
+        const loginPageService = yield* LoginPage
+        yield* loginPageService.login(
+          SEED_USERS.appAdmin.email,
+          SEED_USERS.appAdmin.password,
+        )
+      })
+      await Effect.runPromise(
+        loginProgram.pipe(Effect.provide(createPageLayers(page))),
+      )
+      const response = await page.request.get(
         `${API_BASE_URL}/api/subscriptions/stream`,
         {
           headers: { Accept: 'text/event-stream' },
@@ -324,6 +465,17 @@ test.describe('App Admin Role', () => {
 
   test.describe('6.13 Global Role Management', () => {
     test('should manage global roles', async ({ page }) => {
+      await page.goto('/authentication/login')
+      const loginProgram = Effect.gen(function* () {
+        const loginPageService = yield* LoginPage
+        yield* loginPageService.login(
+          SEED_USERS.appAdmin.email,
+          SEED_USERS.appAdmin.password,
+        )
+      })
+      await Effect.runPromise(
+        loginProgram.pipe(Effect.provide(createPageLayers(page))),
+      )
       await page.goto('/dashboard/roles')
 
       const program = Effect.gen(function* () {
@@ -341,6 +493,17 @@ test.describe('App Admin Role', () => {
 
   test.describe('6.14 Scope Switching (Global Admin)', () => {
     test('should switch profile and see updated data', async ({ page }) => {
+      await page.goto('/authentication/login')
+      const loginProgram = Effect.gen(function* () {
+        const loginPageService = yield* LoginPage
+        yield* loginPageService.login(
+          SEED_USERS.appAdmin.email,
+          SEED_USERS.appAdmin.password,
+        )
+      })
+      await Effect.runPromise(
+        loginProgram.pipe(Effect.provide(createPageLayers(page))),
+      )
       await page.goto('/scope')
 
       const program = Effect.gen(function* () {
@@ -364,20 +527,42 @@ test.describe('App Admin Role', () => {
   })
 
   test.describe('6.15 API Token Management', () => {
-    test('POST /api/auth/tokens returns 201 Created', async ({ request }) => {
-      const response = await request.post(`${API_BASE_URL}/api/auth/tokens`)
+    test('POST /api/auth/tokens returns 201 Created', async ({ page }) => {
+      await page.goto('/authentication/login')
+      const loginProgram = Effect.gen(function* () {
+        const loginPageService = yield* LoginPage
+        yield* loginPageService.login(
+          SEED_USERS.appAdmin.email,
+          SEED_USERS.appAdmin.password,
+        )
+      })
+      await Effect.runPromise(
+        loginProgram.pipe(Effect.provide(createPageLayers(page))),
+      )
+      const response = await page.request.post(`${API_BASE_URL}/api/auth/tokens`)
       expect(response.status()).toBe(201)
     })
 
     test('use token to GET /api/auth/admin returns 200 OK', async ({
-      request,
+      page,
     }) => {
-      const tokenResponse = await request.post(
+      await page.goto('/authentication/login')
+      const loginProgram = Effect.gen(function* () {
+        const loginPageService = yield* LoginPage
+        yield* loginPageService.login(
+          SEED_USERS.appAdmin.email,
+          SEED_USERS.appAdmin.password,
+        )
+      })
+      await Effect.runPromise(
+        loginProgram.pipe(Effect.provide(createPageLayers(page))),
+      )
+      const tokenResponse = await page.request.post(
         `${API_BASE_URL}/api/auth/tokens`,
       )
       const { token } = await tokenResponse.json()
 
-      const adminResponse = await request.get(
+      const adminResponse = await page.request.get(
         `${API_BASE_URL}/api/auth/admin`,
         {
           headers: { Authorization: `Bearer ${token}` },
@@ -389,6 +574,17 @@ test.describe('App Admin Role', () => {
 
   test.describe('6.16 Logout', () => {
     test('logout redirects to login', async ({ page }) => {
+      await page.goto('/authentication/login')
+      const loginProgram = Effect.gen(function* () {
+        const loginPageService = yield* LoginPage
+        yield* loginPageService.login(
+          SEED_USERS.appAdmin.email,
+          SEED_USERS.appAdmin.password,
+        )
+      })
+      await Effect.runPromise(
+        loginProgram.pipe(Effect.provide(createPageLayers(page))),
+      )
       await page.goto('/dashboard')
 
       const program = Effect.gen(function* () {
