@@ -1,0 +1,134 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+# E2E test runner for a single test: run from project root.
+# Usage: bin/test-e2e-single "tests/01-guest.spec.ts:162"
+#        bin/test-e2e-single "tests/01-guest.spec.ts:162:7"
+#        bin/test-e2e-single "Guest/Unauthenticated User › 1.2 Registration Flow › Invalid Input › invalid email shows error"
+
+E2E_API_PORT=30999
+E2E_FRONTEND_PORT=35173
+E2E_BASE_URL="http://localhost:${E2E_FRONTEND_PORT}"
+ROOT="$(pwd)"
+PROJECT_NAME="${PROJECT_NAME:-$(basename "$ROOT")}"
+
+if [[ $# -eq 0 ]]; then
+  echo "Usage: bin/test-e2e-single <test-spec>"
+  echo ""
+  echo "Examples:"
+  echo "  bin/test-e2e-single 'tests/01-guest.spec.ts:162'"
+  echo "  bin/test-e2e-single 'tests/01-guest.spec.ts:162:7'"
+  echo "  bin/test-e2e-single 'Guest/Unauthenticated User › 1.2 Registration Flow › Invalid Input › invalid email shows error'"
+  exit 1
+fi
+
+TEST_SPEC="$1"
+
+echo "> test-e2e-single: $TEST_SPEC"
+
+# Build the project
+echo "> test-e2e-single > cargo build"
+cargo build
+
+# Frontend deps (Vite dev server used for E2E)
+if [[ -f frontend/package.json ]]; then
+  echo "> test-e2e-single > bun install (frontend)"
+  (cd frontend && bun install --frozen-lockfile 2>/dev/null || bun install)
+fi
+
+# Single config and DB for the run
+export FORGE_ENVIRONMENT=production
+echo "> test-e2e-single > writing config (API port $E2E_API_PORT)"
+mkdir -p config
+cat > config/app.toml <<EOF
+[app]
+name = "$PROJECT_NAME"
+
+[server]
+host = "127.0.0.1"
+port = $E2E_API_PORT
+
+[frontend]
+port = 3000
+EOF
+
+E2E_DB_PATH="${TMPDIR:-/tmp}/forge_e2e_single_$$.sqlite"
+rm -f "$E2E_DB_PATH"
+cat > config/db.toml <<EOF
+[database]
+url = "sqlite://${E2E_DB_PATH}?mode=rwc"
+max_connections = 5
+min_connections = 1
+connect_timeout = 10
+idle_timeout = 600
+auto_migrate = true
+auto_seed = true
+EOF
+export E2E_DB_PATH
+
+API_PID=""
+VITE_PID=""
+API_URL="http://127.0.0.1:${E2E_API_PORT}"
+cleanup() {
+  if [[ -n "${VITE_PID:-}" ]] && kill -0 "$VITE_PID" 2>/dev/null; then
+    kill "$VITE_PID" 2>/dev/null || true
+    wait "$VITE_PID" 2>/dev/null || true
+  fi
+  if [[ -n "${API_PID:-}" ]] && kill -0 "$API_PID" 2>/dev/null; then
+    kill "$API_PID" 2>/dev/null || true
+    wait "$API_PID" 2>/dev/null || true
+  fi
+}
+trap cleanup EXIT
+
+echo "> test-e2e-single > starting API server (port $E2E_API_PORT)"
+cargo run --quiet &
+API_PID=$!
+
+echo "> test-e2e-single > waiting for API /healthz"
+for i in {1..50}; do
+  if curl -sf --max-time 1 "$API_URL/healthz" >/dev/null 2>&1; then
+    break
+  fi
+  if [[ $i -eq 50 ]]; then
+    echo "> test-e2e-single > API did not become ready in time"
+    exit 1
+  fi
+  sleep 0.2
+done
+
+if [[ -f frontend/package.json ]]; then
+  echo "> test-e2e-single > starting Vite dev server (port $E2E_FRONTEND_PORT, proxy -> $API_URL)"
+  (cd frontend && VITE_BACKEND_URL="$API_URL" bun run dev -- --port "$E2E_FRONTEND_PORT" --strictPort) &
+  VITE_PID=$!
+
+  echo "> test-e2e-single > waiting for Vite (port $E2E_FRONTEND_PORT)"
+  sleep 2
+  for i in {1..60}; do
+    code=$(curl -s --max-time 3 -o /dev/null -w '%{http_code}' "http://localhost:${E2E_FRONTEND_PORT}/" 2>/dev/null || echo '000')
+    if [[ "$code" =~ ^[2345][0-9][0-9]$ ]] || [[ "$code" =~ ^[2345]$ ]]; then
+      break
+    fi
+    if [[ $i -eq 60 ]]; then
+      echo "> test-e2e-single > Vite did not become ready in time (last code: $code)"
+      exit 1
+    fi
+    sleep 0.5
+  done
+fi
+
+export E2E_BASE_URL
+export E2E_API_URL="$API_URL"
+export E2E_DB_PATH
+
+# Run single Playwright test
+PLAYWRIGHT_EXIT=0
+if [[ -f crates/test-e2e/package.json ]]; then
+  echo "> test-e2e-single > playwright test: $TEST_SPEC"
+  (cd crates/test-e2e && (bun install --frozen-lockfile 2>/dev/null || bun install) && bun run test -- "$TEST_SPEC") || PLAYWRIGHT_EXIT=$?
+else
+  echo "> test-e2e-single > no crates/test-e2e/package.json, skipping Playwright"
+fi
+
+echo "> test-e2e-single > done"
+[[ $PLAYWRIGHT_EXIT -eq 0 ]] || exit 1

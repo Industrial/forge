@@ -28,7 +28,10 @@ export default function ScopePage() {
     <Box data-testid="profile-page">
       <PageHeader title="Scope" data-testid="profile-page-title" />
       {user != null && (
-        <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1 }} data-testid="profile-details">
+        <Box
+          sx={{ display: 'flex', flexDirection: 'column', gap: 1 }}
+          data-testid="profile-details"
+        >
           <Typography color="text.secondary">Email: {user.email}</Typography>
           <Box>
             <Button

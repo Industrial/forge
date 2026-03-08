@@ -11,6 +11,8 @@ export type RoleTableRowProps = {
   orgName: string
   onEdit: (role: Role) => void
   onDelete: (id: string) => void
+  onView?: (role: Role) => void
+  canWrite: boolean
   isDeleting: boolean
 }
 
@@ -19,27 +21,54 @@ export default function RoleTableRow({
   orgName,
   onEdit,
   onDelete,
+  onView,
+  canWrite,
   isDeleting,
 }: RoleTableRowProps) {
+  const handleRowClick = () => {
+    if (onView) {
+      onView(role)
+    } else if (canWrite) {
+      onEdit(role)
+    }
+  }
+
   return (
-    <TableRow data-testid={`role-row-${role.name}`}>
+    <TableRow
+      data-testid={`role-row-${role.name}`}
+      onClick={handleRowClick}
+      sx={{ cursor: 'pointer' }}
+    >
       <TableCell>{orgName}</TableCell>
       <TableCell sx={{ fontWeight: 500 }}>{role.name}</TableCell>
       <TableCell>{role.display_name ?? '—'}</TableCell>
-      <TableCell align="right">
-        <IconButton size="small" aria-label="Edit" onClick={() => onEdit(role)} data-testid={`role-edit-button-${role.name}`}>
-          <EditIcon />
-        </IconButton>
-        <IconButton
-          size="small"
-          aria-label="Delete"
-          onClick={() => onDelete(role.id)}
-          disabled={isDeleting}
-          data-testid={`role-delete-button-${role.name}`}
-        >
-          <DeleteIcon />
-        </IconButton>
-      </TableCell>
+      {canWrite && (
+        <TableCell align="right">
+          <IconButton
+            size="small"
+            aria-label="Edit"
+            onClick={(e) => {
+              e.stopPropagation()
+              onEdit(role)
+            }}
+            data-testid={`role-edit-button-${role.name}`}
+          >
+            <EditIcon />
+          </IconButton>
+          <IconButton
+            size="small"
+            aria-label="Delete"
+            onClick={(e) => {
+              e.stopPropagation()
+              onDelete(role.id)
+            }}
+            disabled={isDeleting}
+            data-testid={`role-delete-button-${role.name}`}
+          >
+            <DeleteIcon />
+          </IconButton>
+        </TableCell>
+      )}
     </TableRow>
   )
 }

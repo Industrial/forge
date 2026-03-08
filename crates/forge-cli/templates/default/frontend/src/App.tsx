@@ -1,3 +1,4 @@
+import React from 'react'
 import { Outlet, Route, Routes } from 'react-router-dom'
 import { createTheme } from '@mui/material/styles'
 import Box from '@mui/material/Box'
@@ -33,6 +34,13 @@ function App() {
       mode: colorSchemeMode,
     },
   })
+
+  // Set data-theme attribute on body for theme toggle test
+  React.useEffect(() => {
+    if (typeof document !== 'undefined') {
+      document.body.setAttribute('data-theme', colorSchemeMode)
+    }
+  }, [colorSchemeMode])
 
   const layoutProps = {
     colorScheme: colorSchemeMode,

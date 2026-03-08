@@ -5,9 +5,12 @@ export const nonEmptyTrimmedString = Schema.NonEmptyTrimmedString
 
 /** Email: non-empty trimmed string with basic email pattern. */
 export const emailSchema = Schema.NonEmptyTrimmedString.pipe(
-  Schema.pattern(/^[^\s@]+@[^\s@]+\.[^\s@]+$/, {
-    message: () => 'Enter a valid email address',
-  }),
+  Schema.pattern(
+    /^(?=.{1,254}$)(?=.{1,64}@)[a-zA-Z0-9!#$%&'*+/=?^_`{|}~-]+(?:\.[a-zA-Z0-9!#$%&'*+/=?^_`{|}~-]+)*@[a-zA-Z0-9](?:[a-zA-Z0-9-]{0,61}[a-zA-Z0-9])?(?:\.[a-zA-Z0-9](?:[a-zA-Z0-9-]{0,61}[a-zA-Z0-9])?)*$/,
+    {
+      message: () => 'Enter a valid email address',
+    },
+  ),
 )
 
 /** Password: min 8 characters. */

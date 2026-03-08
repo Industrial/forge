@@ -21,6 +21,7 @@ export type UserTableRowProps = {
   canWrite: boolean
   onEdit: (user: UserRow) => void
   onDelete: (id: string) => void
+  onView?: (user: UserRow) => void
   isDeleting: boolean
 }
 
@@ -29,10 +30,23 @@ export default function UserTableRow({
   canWrite,
   onEdit,
   onDelete,
+  onView,
   isDeleting,
 }: UserTableRowProps) {
+  const handleRowClick = () => {
+    if (onView) {
+      onView(user)
+    } else if (canWrite) {
+      onEdit(user)
+    }
+  }
+
   return (
-    <TableRow data-testid="user-row">
+    <TableRow
+      data-testid={`user-row-${user.id}`}
+      onClick={handleRowClick}
+      sx={{ cursor: 'pointer' }}
+    >
       <TableCell sx={{ fontWeight: 500 }}>{user.email}</TableCell>
       <TableCell sx={{ maxWidth: 280 }}>
         {membershipsSummary(user.memberships)}

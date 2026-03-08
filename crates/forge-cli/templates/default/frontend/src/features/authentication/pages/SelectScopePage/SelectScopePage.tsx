@@ -104,9 +104,16 @@ export default function SelectScopePage() {
           {errorMessage}
         </Typography>
       )}
-      <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1.5 }} data-testid="profile-list">
+      <Box
+        sx={{ display: 'flex', flexDirection: 'column', gap: 1.5 }}
+        data-testid="profile-list"
+      >
         {scopes.map((p, index) => (
-          <Card key={p.org_id + (p.role_id ?? p.role)} variant="outlined" data-testid={`profile-card-${index}`}>
+          <Card
+            key={p.org_id + (p.role_id ?? p.role)}
+            variant="outlined"
+            data-testid={`profile-card-${index}`}
+          >
             <CardActionArea
               onClick={() =>
                 handleSelectScope(p.org_id, p.role_id ?? '', p.role ?? '')

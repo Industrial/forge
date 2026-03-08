@@ -39,7 +39,10 @@ pub fn make_app(live_backend: Arc<forge_live::InMemoryLiveBackend>) -> App {
   app
     .post_route("/api/auth/register", handlers::auth::register)
     .post_route("/api/auth/login", handlers::auth::login)
-    .post_route("/api/auth/logout", handlers::auth::logout)
+    .route_methods(
+      "/api/auth/logout",
+      axum::routing::get(handlers::auth::logout).post(handlers::auth::logout),
+    )
     .route("/api/auth/me", axum::routing::get(handlers::auth::get_me))
     .route(
       "/api/auth/profiles",

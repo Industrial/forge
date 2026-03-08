@@ -97,7 +97,12 @@ export default function Navbar({
   }
 
   return (
-    <AppBar position="static" color="default" elevation={0} data-testid="dashboard-navbar">
+    <AppBar
+      position="static"
+      color="default"
+      elevation={0}
+      data-testid="dashboard-navbar"
+    >
       <Toolbar sx={{ minHeight: { xs: 56, sm: 64 }, gap: 1 }}>
         {onOpenSidebar != null && (
           <IconButton
@@ -124,7 +129,11 @@ export default function Navbar({
 
         {canAccessDashboard && (
           <>
-            <Button color="inherit" onClick={() => navigate('/dashboard')} data-testid="navbar-dashboard-button">
+            <Button
+              color="inherit"
+              onClick={() => navigate('/dashboard')}
+              data-testid="navbar-dashboard-button"
+            >
               Dashboard
             </Button>
             <Divider orientation="vertical" flexItem sx={{ mx: 0.5 }} />
@@ -138,7 +147,7 @@ export default function Navbar({
               : 'Switch to dark mode'
           }
           onClick={onToggleTheme}
-          data-testid="navbar-theme-toggle-button"
+          data-testid="theme-toggle-button"
         >
           <ThemeIcon isDark={colorScheme === 'dark'} />
         </IconButton>
@@ -205,7 +214,10 @@ export default function Navbar({
             )
           })} */}
           <Divider />
-          <MenuItem onClick={handleLogout} data-testid="navbar-user-menu-logout">
+          <MenuItem
+            onClick={handleLogout}
+            data-testid="navbar-user-menu-logout"
+          >
             <ListItemIcon>
               <Logout fontSize="small" />
             </ListItemIcon>

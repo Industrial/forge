@@ -48,8 +48,10 @@ export default function LoginPage() {
           yield* auth.login(data.email, data.password)
           yield* Effect.logDebug('LoginPage.handleSubmit: login completed')
           setSubmitting(false)
-          yield* Effect.logDebug('LoginPage.handleSubmit: navigating to /')
-          yield* navigateTo(navigate, '/', { replace: true })
+          yield* Effect.logDebug(
+            'LoginPage.handleSubmit: navigating to /dashboard',
+          )
+          yield* navigateTo(navigate, '/dashboard', { replace: true })
           yield* Effect.logDebug('LoginPage.handleSubmit: navigation completed')
         }).pipe(
           Effect.mapError((error) => {
@@ -95,9 +97,13 @@ export default function LoginPage() {
                   label="Email"
                   placeholder="you@example.com"
                   required
-                  slotProps={{ htmlInput: { autoComplete: 'email' } }}
+                  slotProps={{
+                    htmlInput: {
+                      autoComplete: 'email',
+                      'data-testid': 'login-email-input',
+                    },
+                  }}
                   disabled={submitting}
-                  data-testid="login-email-input"
                   fullWidth
                   error={Boolean(fieldState.error)}
                   helperText={fieldState.error?.message}
@@ -116,10 +122,12 @@ export default function LoginPage() {
                   placeholder="••••••••"
                   required
                   slotProps={{
-                    htmlInput: { autoComplete: 'current-password' },
+                    htmlInput: {
+                      autoComplete: 'current-password',
+                      'data-testid': 'login-password-input',
+                    },
                   }}
                   disabled={submitting}
-                  data-testid="login-password-input"
                   fullWidth
                   error={Boolean(fieldState.error)}
                   helperText={fieldState.error?.message}

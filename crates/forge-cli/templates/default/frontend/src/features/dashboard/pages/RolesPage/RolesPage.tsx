@@ -26,6 +26,11 @@ import FormControl from '@mui/material/FormControl'
 import InputLabel from '@mui/material/InputLabel'
 import Select from '@mui/material/Select'
 import MenuItem from '@mui/material/MenuItem'
+import Dialog from '@mui/material/Dialog'
+import DialogActions from '@mui/material/DialogActions'
+import DialogContent from '@mui/material/DialogContent'
+import DialogTitle from '@mui/material/DialogTitle'
+import Typography from '@mui/material/Typography'
 
 import { getApplicationLayer } from '@/lib/appLayer'
 import FormDialog from '@/components/FormDialog'
@@ -34,7 +39,9 @@ import RoleTableRow from '@/features/dashboard/components/RoleTableRow'
 import PageHeader from '@/components/PageHeader'
 import ErrorAlert from '@/components/ErrorAlert'
 import LoadingSpinner from '@/components/LoadingSpinner'
+import { ShowWithPermissions } from '@/components/ShowWithPermissions'
 import { useLiveRefreshTrigger } from '@/hooks/useLiveRefreshTrigger'
+import { usePermission } from '@/hooks/usePermission'
 import type { Role } from '@/features/dashboard/domain/Role'
 import type { Organization } from '@/features/dashboard/domain/Organization'
 import { Roles as RolesService } from '@/features/dashboard/services/Roles'
@@ -42,7 +49,12 @@ import { Dashboard } from '@/features/dashboard/services/Dashboard'
 
 type ListState = AsyncState<readonly Role[], Error>
 
+const ROLES_READ = 'dashboard.roles.read'
+const ROLES_WRITE = 'dashboard.roles.write'
+
 export default function RolesPage() {
+  const canRead = usePermission(ROLES_READ)
+  const canWrite = usePermission(ROLES_WRITE)
   const { trigger: liveRefreshTrigger, connected: wsConnected } =
     useLiveRefreshTrigger('roles')
 
@@ -97,6 +109,7 @@ export default function RolesPage() {
   const [addDisplayName, setAddDisplayName] = useState('')
   const [addOrgId, setAddOrgId] = useState('')
   const [editRole, setEditRole] = useState<Role | null>(null)
+  const [viewRole, setViewRole] = useState<Role | null>(null)
   const [editName, setEditName] = useState('')
   const [editDisplayName, setEditDisplayName] = useState('')
   const [deletingId, setDeletingId] = useState<string | null>(null)
@@ -253,19 +266,21 @@ export default function RolesPage() {
         />
       )}
 
-      <Box sx={{ mb: 2 }}>
-        <Button
-          variant="contained"
-          startIcon={<AddIcon />}
-          onClick={() => {
-            setAddOrgId(organizations[0]?.id ?? '')
-            setAddOpen(true)
-          }}
-          data-testid="roles-create-button"
-        >
-          Add role
-        </Button>
-      </Box>
+      <ShowWithPermissions permissions={[ROLES_WRITE]}>
+        <Box sx={{ mb: 2 }}>
+          <Button
+            variant="contained"
+            startIcon={<AddIcon />}
+            onClick={() => {
+              setAddOrgId(organizations[0]?.id ?? '')
+              setAddOpen(true)
+            }}
+            data-testid="roles-create-button"
+          >
+            Add role
+          </Button>
+        </Box>
+      </ShowWithPermissions>
 
       {loading ? (
         <LoadingSpinner />
@@ -277,7 +292,7 @@ export default function RolesPage() {
                 <TableCell>Organization</TableCell>
                 <TableCell>Name</TableCell>
                 <TableCell>Display name</TableCell>
-                <TableCell align="right">Actions</TableCell>
+                {canWrite && <TableCell align="right">Actions</TableCell>}
               </TableRow>
             </TableHead>
             <TableBody>
@@ -297,6 +312,8 @@ export default function RolesPage() {
                     }
                     onEdit={openEdit}
                     onDelete={handleDelete}
+                    onView={(r) => setViewRole(r)}
+                    canWrite={canWrite}
                     isDeleting={deleting && deletingId === role.id}
                   />
                 ))
@@ -409,6 +426,50 @@ export default function RolesPage() {
           />
         </Box>
       </FormDialog>
+
+      <Dialog
+        open={Boolean(viewRole)}
+        onClose={() => setViewRole(null)}
+        maxWidth="sm"
+        fullWidth
+        data-testid="role-details-dialog"
+      >
+        <DialogTitle>Role Details</DialogTitle>
+        <DialogContent>
+          {viewRole && (
+            <Box
+              sx={{ display: 'flex', flexDirection: 'column', gap: 2, pt: 1 }}
+            >
+              <Box>
+                <Typography variant="subtitle2" color="text.secondary">
+                  Organization
+                </Typography>
+                <Typography variant="body1">
+                  {organizations.find((o) => o.id === viewRole.org_id)?.name ??
+                    viewRole.org_id}
+                </Typography>
+              </Box>
+              <Box>
+                <Typography variant="subtitle2" color="text.secondary">
+                  Name
+                </Typography>
+                <Typography variant="body1">{viewRole.name}</Typography>
+              </Box>
+              <Box>
+                <Typography variant="subtitle2" color="text.secondary">
+                  Display Name
+                </Typography>
+                <Typography variant="body1">
+                  {viewRole.display_name ?? '—'}
+                </Typography>
+              </Box>
+            </Box>
+          )}
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={() => setViewRole(null)}>Close</Button>
+        </DialogActions>
+      </Dialog>
     </Box>
   )
 }

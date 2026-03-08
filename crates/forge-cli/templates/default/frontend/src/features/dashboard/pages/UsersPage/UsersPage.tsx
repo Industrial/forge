@@ -29,6 +29,11 @@ import MenuItem from '@mui/material/MenuItem'
 import Alert from '@mui/material/Alert'
 import FormControlLabel from '@mui/material/FormControlLabel'
 import Checkbox from '@mui/material/Checkbox'
+import Dialog from '@mui/material/Dialog'
+import DialogActions from '@mui/material/DialogActions'
+import DialogContent from '@mui/material/DialogContent'
+import DialogTitle from '@mui/material/DialogTitle'
+import Typography from '@mui/material/Typography'
 import { Effect, Schema } from 'effect'
 
 import FormDialog from '@/components/FormDialog'
@@ -43,6 +48,8 @@ import { useLiveRefreshTrigger } from '@/hooks/useLiveRefreshTrigger'
 import { usePermission } from '@/hooks/usePermission'
 import { getApplicationLayer } from '@/lib/appLayer'
 import { effectSchemaResolver } from '@/lib/effectSchemaResolver'
+import { formatDate } from '@/features/dashboard/utils/formatDate'
+import { membershipsSummary } from '@/features/dashboard/utils/membershipsSummary'
 import {
   userAddFormSchemaStrict,
   userEditFormSchema,
@@ -90,6 +97,7 @@ export default function UsersPage() {
   const [filterActive, setFilterActive] = useState<'' | 'yes' | 'no'>('')
   const [filterAdmin, setFilterAdmin] = useState<'' | 'yes' | 'no'>('')
   const [editUser, setEditUser] = useState<User | null>(null)
+  const [viewUser, setViewUser] = useState<User | null>(null)
   const [deletingId, setDeletingId] = useState<string | null>(null)
 
   const users = listState._tag === 'success' ? [...listState.value] : []
@@ -410,6 +418,7 @@ export default function UsersPage() {
                     canWrite={canWrite}
                     onEdit={(u) => openEdit(u as User)}
                     onDelete={handleDelete}
+                    onView={(u) => setViewUser(u as User)}
                     isDeleting={deleting && deletingId === user.id}
                   />
                 ))
@@ -619,6 +628,67 @@ export default function UsersPage() {
           />
         </Box>
       </FormDialog>
+
+      <Dialog
+        open={Boolean(viewUser)}
+        onClose={() => setViewUser(null)}
+        maxWidth="sm"
+        fullWidth
+        data-testid="user-details-dialog"
+      >
+        <DialogTitle>User Details</DialogTitle>
+        <DialogContent>
+          {viewUser && (
+            <Box
+              sx={{ display: 'flex', flexDirection: 'column', gap: 2, pt: 1 }}
+            >
+              <Box>
+                <Typography variant="subtitle2" color="text.secondary">
+                  Email
+                </Typography>
+                <Typography variant="body1">{viewUser.email}</Typography>
+              </Box>
+              <Box>
+                <Typography variant="subtitle2" color="text.secondary">
+                  Active
+                </Typography>
+                <Typography variant="body1">
+                  {viewUser.is_active ? 'Yes' : 'No'}
+                </Typography>
+              </Box>
+              <Box>
+                <Typography variant="subtitle2" color="text.secondary">
+                  Admin
+                </Typography>
+                <Typography variant="body1">
+                  {viewUser.is_admin ? 'Yes' : 'No'}
+                </Typography>
+              </Box>
+              <Box>
+                <Typography variant="subtitle2" color="text.secondary">
+                  Created
+                </Typography>
+                <Typography variant="body1">
+                  {formatDate(viewUser.created_at)}
+                </Typography>
+              </Box>
+              {viewUser.memberships && viewUser.memberships.length > 0 && (
+                <Box>
+                  <Typography variant="subtitle2" color="text.secondary">
+                    Organizations / Roles
+                  </Typography>
+                  <Typography variant="body1">
+                    {membershipsSummary(viewUser.memberships)}
+                  </Typography>
+                </Box>
+              )}
+            </Box>
+          )}
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={() => setViewUser(null)}>Close</Button>
+        </DialogActions>
+      </Dialog>
     </Box>
   )
 }

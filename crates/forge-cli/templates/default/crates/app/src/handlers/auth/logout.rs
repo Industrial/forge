@@ -1,9 +1,10 @@
-//! POST /api/auth/logout — clear session. Client should discard the token.
+//! GET/POST /api/auth/logout — clear session. Client should discard the token.
+//! Works for both authenticated and anonymous users.
 
 use axum::{Json, http::StatusCode, response::IntoResponse};
 
 pub async fn logout() -> impl IntoResponse {
-  tracing::debug!(target: "app::auth", "route: POST /api/auth/logout");
+  tracing::debug!(target: "app::auth", "route: GET/POST /api/auth/logout");
   (StatusCode::OK, Json(serde_json::json!({ "ok": true }))).into_response()
 }
 

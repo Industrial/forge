@@ -1,14 +1,36 @@
 import React, { useEffect, useState } from 'react'
 import { Navigate } from 'react-router-dom'
-import { Effect, Option } from 'effect'
+import { Effect, Option, pipe, Schema } from 'effect'
+import { HttpClient, HttpClientRequest } from '@effect/platform'
 import Box from '@mui/material/Box'
 import LoadingSpinner from '../../../components/LoadingSpinner'
 import { getApplicationLayer } from '@/lib/appLayer'
 import { useAuthStore } from '@/features/authentication/stores'
 import { Authentication } from '@/features/authentication/services/Authentication'
+import { getBaseUrl } from '@/lib/baseUrl'
 
 export type DashboardScopeGuardProps = {
   children: React.ReactNode
+}
+
+const ProfilesResponseSchema = Schema.Struct({
+  profiles: Schema.optional(
+    Schema.Array(
+      Schema.Struct({
+        org_id: Schema.String,
+        org_name: Schema.String,
+        role_id: Schema.optional(Schema.String),
+        role: Schema.String,
+      }),
+    ),
+  ),
+})
+
+type Profile = {
+  org_id: string
+  org_name: string
+  role_id?: string
+  role: string
 }
 
 /**
@@ -19,22 +41,63 @@ export type DashboardScopeGuardProps = {
 function DashboardScopeGuard({ children }: DashboardScopeGuardProps) {
   const authentication = useAuthStore()
   const isUserAuthenticated = Option.isSome(authentication.user)
-  const needsScopeSelect = Option.getOrElse(
-    authentication.needsScopeSelect,
-    () => false,
-  )
+  const needsScopeSelectValue = authentication.needsScopeSelect
+  const needsScopeSelect = Option.getOrElse(needsScopeSelectValue, () => false)
 
-  // Scopes not in reactive store; extend store/me API to enable single-scope auto-select.
-  const scopes: { org_id: string; role_id?: string; role?: string }[] = []
-  const loading = false
-
+  const [scopes, setScopes] = useState<Profile[]>([])
+  const [loading, setLoading] = useState(false)
   const [autoSelecting, setAutoSelecting] = useState(false)
 
+  // Fetch profiles when user is authenticated
+  // If needsScopeSelect is false, there's exactly one profile - fetch and auto-select it
+  // If needsScopeSelect is true, there are multiple profiles - fetch to check count
+  useEffect(() => {
+    if (!isUserAuthenticated || scopes.length > 0 || loading) {
+      return
+    }
+
+    setLoading(true)
+    Effect.runPromise(
+      Effect.gen(function* () {
+        const client = yield* HttpClient.HttpClient
+        const baseUrl = getBaseUrl()
+        const token = Option.getOrElse(authentication.token, () => '')
+
+        const req = HttpClientRequest.get(`${baseUrl}/api/auth/profiles`).pipe(
+          HttpClientRequest.setHeader('Authorization', `Bearer ${token}`),
+        )
+        const response = yield* client.execute(req)
+
+        if (response.status >= 200 && response.status < 300) {
+          const rawBody = yield* response.json
+          const body = yield* pipe(
+            Schema.decodeUnknown(ProfilesResponseSchema)(rawBody),
+            Effect.catchAll(() =>
+              Effect.succeed({ profiles: [] } as {
+                profiles?: Profile[]
+              }),
+            ),
+          )
+          const profiles = body.profiles ?? []
+          setScopes(profiles)
+        } else {
+          setScopes([])
+        }
+      }).pipe(Effect.provide(getApplicationLayer())),
+    )
+      .catch(() => {
+        setScopes([])
+      })
+      .finally(() => {
+        setLoading(false)
+      })
+  }, [isUserAuthenticated, scopes.length, loading, authentication.token])
+
+  // Auto-select single scope (when there's exactly one profile)
   useEffect(() => {
     if (
       !loading &&
       isUserAuthenticated &&
-      needsScopeSelect &&
       scopes.length === 1 &&
       !autoSelecting
     ) {
@@ -50,15 +113,11 @@ function DashboardScopeGuard({ children }: DashboardScopeGuardProps) {
           Effect.provide(getApplicationLayer()),
           Effect.ensuring(Effect.sync(() => setAutoSelecting(false))),
         ),
-      ).finally(() => setAutoSelecting(false))
+      ).finally(() => {
+        setAutoSelecting(false)
+      })
     }
-  }, [
-    loading,
-    isUserAuthenticated,
-    needsScopeSelect,
-    scopes.length,
-    autoSelecting,
-  ])
+  }, [loading, isUserAuthenticated, scopes.length, autoSelecting, scopes])
 
   if (loading || autoSelecting) {
     return (
@@ -76,7 +135,27 @@ function DashboardScopeGuard({ children }: DashboardScopeGuardProps) {
     )
   }
   if (!isUserAuthenticated) return null
+
+  // If needsScopeSelect is false, user has exactly one profile and it should be auto-selected
+  // If it's true and we have multiple scopes, redirect to selection
+  // If it's true and we have one scope, we're auto-selecting (handled above)
   if (needsScopeSelect) {
+    if (scopes.length === 1) {
+      // Auto-selecting, show loading (handled above)
+      return (
+        <Box
+          sx={{
+            display: 'flex',
+            justifyContent: 'center',
+            alignItems: 'center',
+            flex: 1,
+            minHeight: '40vh',
+          }}
+        >
+          <LoadingSpinner />
+        </Box>
+      )
+    }
     return <Navigate to="/authentication/select-scope" replace />
   }
   return <>{children}</>
