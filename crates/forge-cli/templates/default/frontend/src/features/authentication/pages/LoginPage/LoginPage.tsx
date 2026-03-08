@@ -4,70 +4,148 @@ import Button from '@mui/material/Button'
 import Link from '@mui/material/Link'
 import TextField from '@mui/material/TextField'
 import Typography from '@mui/material/Typography'
-import { Effect } from 'effect'
+import { Effect, Either } from 'effect'
 import { Link as RouterLink, useNavigate } from 'react-router-dom'
-import { Schema } from 'effect'
 import { useCallback, useState } from 'react'
-import { useForm, Controller } from 'react-hook-form'
 
 import { Authentication } from '@/features/authentication/services/Authentication'
-import { effectSchemaResolver } from '@/lib/effectSchemaResolver'
 import { navigateTo } from '@/lib/navigate'
-import {
-  loginFormSchema,
-  type LoginFormValues,
-} from '@/schemas/userFormSchemas'
 import { getApplicationLayer } from '@/lib/appLayer'
-import { AuthenticationError } from '../../errors/AuthenticationError'
+import { AuthenticationError } from '@/features/authentication/errors/AuthenticationError'
+import { useForm } from '@/features/authentication/hooks/useForm'
+import { LoginFormSchema } from '@/features/authentication/schemas/LoginFormSchema'
+import type { LoginFormValues } from '@/features/authentication/schemas/LoginFormSchema'
 
 export default function LoginPage() {
   const navigate = useNavigate()
   const [submitting, setSubmitting] = useState(false)
   const [errorMessage, setErrorMessage] = useState<string | null>(null)
 
-  const form = useForm<LoginFormValues>({
-    resolver: effectSchemaResolver(
-      loginFormSchema as Schema.Schema<LoginFormValues, unknown, never>,
-    ),
-    defaultValues: {
+  const {
+    formState,
+    setFieldValue,
+    setFieldTouched,
+    getFieldError,
+    validateForm,
+    setValidationErrors,
+  } = useForm<LoginFormValues>({
+    schema: LoginFormSchema,
+    initialValues: {
       email: '',
       password: '',
     },
-    mode: 'onChange',
   })
 
+  /**
+   * Effect.ts-based submit handler.
+   * Validates form, then logs in user and navigates on success.
+   * Error handling is done within the Effect pipeline.
+   */
   const handleSubmit = useCallback(
-    (data: LoginFormValues) => {
-      Effect.runPromise(
-        Effect.gen(function* () {
-          yield* Effect.logDebug('LoginPage.handleSubmit: starting login')
-          const auth = yield* Authentication
-          setSubmitting(true)
-          setErrorMessage(null)
-          yield* Effect.logDebug('LoginPage.handleSubmit: calling auth.login')
-          yield* auth.login(data.email, data.password)
-          yield* Effect.logDebug('LoginPage.handleSubmit: login completed')
-          setSubmitting(false)
-          yield* Effect.logDebug(
-            'LoginPage.handleSubmit: navigating to /dashboard',
-          )
-          yield* navigateTo(navigate, '/dashboard', { replace: true })
-          yield* Effect.logDebug('LoginPage.handleSubmit: navigation completed')
-        }).pipe(
-          Effect.mapError((error) => {
-            setSubmitting(false)
-            setErrorMessage(
-              error instanceof AuthenticationError
-                ? error.message
-                : 'Login failed',
-            )
-          }),
-          Effect.provide(getApplicationLayer()),
+    (e: React.FormEvent<HTMLFormElement>) => {
+      e.preventDefault()
+
+      // Validate immediately before submit to show errors and prevent invalid submission
+      const currentValues = formState.values
+      const validationEffect = validateForm(currentValues)
+      const validationResult = Effect.runSync(
+        validationEffect.pipe(
+          Effect.either,
+          Effect.map((either) =>
+            Either.match(either, {
+              onLeft: (errors) => ({ errors, isValid: false }),
+              onRight: () => ({ errors: [], isValid: true }),
+            }),
+          ),
         ),
       )
+
+      // Mark all fields as touched and set validation errors
+      // This ensures errors are displayed for all fields
+      setValidationErrors(validationResult.errors)
+
+      // Don't submit if validation failed
+      // Validation errors are shown via field-level helperText, not top-level Alert
+      if (!validationResult.isValid) {
+        return
+      }
+
+      const submitEffect = Effect.gen(function* () {
+        // Validate form values (should succeed since we validated above)
+        const validated = yield* validateForm(currentValues)
+
+        // Login logic
+        const auth = yield* Authentication
+        yield* auth.login(validated.email, validated.password)
+
+        // Navigate on success
+        yield* navigateTo(navigate, '/dashboard', { replace: true })
+
+        // Return success result
+        return { type: 'success' as const }
+      }).pipe(
+        Effect.catchAll((error) => {
+          return Effect.gen(function* () {
+            // Handle validation errors
+            if (Array.isArray(error)) {
+              return yield* Effect.succeed({
+                type: 'validation' as const,
+                errors: error,
+              })
+            }
+
+            // Handle authentication errors
+            if (error instanceof AuthenticationError) {
+              return yield* Effect.succeed({
+                type: 'authentication' as const,
+                message: error.message,
+              })
+            }
+
+            // Handle other errors
+            return yield* Effect.succeed({
+              type: 'unknown' as const,
+              message: 'Login failed',
+            })
+          })
+        }),
+        Effect.provide(getApplicationLayer()),
+      )
+
+      setSubmitting(true)
+      setErrorMessage(null)
+
+      Effect.runPromise(submitEffect).then((result) => {
+        setSubmitting(false)
+
+        if (result.type === 'success') {
+          // Success - navigation already happened, nothing to do
+          return
+        }
+
+        if (result.type === 'validation') {
+          // Update form state with validation errors
+          // Validation errors are shown via field-level helperText, not top-level Alert
+          setValidationErrors(result.errors)
+        } else if (
+          result.type === 'authentication' ||
+          result.type === 'unknown'
+        ) {
+          // Only show top-level Alert for backend/authentication errors
+          setErrorMessage(result.message)
+        }
+      })
     },
-    [navigate],
+    [
+      navigate,
+      formState.values,
+      validateForm,
+      setValidationErrors,
+    ],
   )
+
+  const emailError = getFieldError('email')
+  const passwordError = getFieldError('password')
 
   return (
     <Box data-testid="login-page">
@@ -75,10 +153,7 @@ export default function LoginPage() {
         Log in
       </Typography>
       <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
-        <form
-          onSubmit={form.handleSubmit(handleSubmit)}
-          data-testid="login-form"
-        >
+        <form onSubmit={handleSubmit} data-testid="login-form">
           <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
             {errorMessage != null && (
               <Alert severity="error" data-testid="login-error-message">
@@ -86,59 +161,49 @@ export default function LoginPage() {
                 {errorMessage}
               </Alert>
             )}
-            <Controller
-              control={form.control}
+            <TextField
               name="email"
-              render={({ field, fieldState }) => (
-                <TextField
-                  {...field}
-                  name="email"
-                  type="email"
-                  label="Email"
-                  placeholder="you@example.com"
-                  required
-                  slotProps={{
-                    htmlInput: {
-                      autoComplete: 'email',
-                      'data-testid': 'login-email-input',
-                    },
-                  }}
-                  disabled={submitting}
-                  fullWidth
-                  error={Boolean(fieldState.error)}
-                  helperText={fieldState.error?.message}
-                />
-              )}
+              type="text"
+              label="Email"
+              placeholder="you@example.com"
+              value={formState.values.email}
+              onChange={(e) => setFieldValue('email', e.target.value)}
+              onBlur={() => setFieldTouched('email')}
+              slotProps={{
+                htmlInput: {
+                  autoComplete: 'email',
+                  'data-testid': 'login-email-input',
+                },
+              }}
+              disabled={submitting}
+              fullWidth
+              error={Boolean(emailError)}
+              helperText={emailError}
             />
-            <Controller
-              control={form.control}
+            <TextField
               name="password"
-              render={({ field, fieldState }) => (
-                <TextField
-                  {...field}
-                  name="password"
-                  type="password"
-                  label="Password"
-                  placeholder="••••••••"
-                  required
-                  slotProps={{
-                    htmlInput: {
-                      autoComplete: 'current-password',
-                      'data-testid': 'login-password-input',
-                    },
-                  }}
-                  disabled={submitting}
-                  fullWidth
-                  error={Boolean(fieldState.error)}
-                  helperText={fieldState.error?.message}
-                />
-              )}
+              type="password"
+              label="Password"
+              placeholder="••••••••"
+              value={formState.values.password}
+              onChange={(e) => setFieldValue('password', e.target.value)}
+              onBlur={() => setFieldTouched('password')}
+              slotProps={{
+                htmlInput: {
+                  autoComplete: 'current-password',
+                  'data-testid': 'login-password-input',
+                },
+              }}
+              disabled={submitting}
+              fullWidth
+              error={Boolean(passwordError)}
+              helperText={passwordError}
             />
             <Box sx={{ display: 'flex', justifyContent: 'flex-end' }}>
               <Button
                 type="submit"
                 variant="contained"
-                disabled={submitting || !form.formState.isValid}
+                disabled={submitting}
                 data-testid="login-submit-button"
               >
                 Log in

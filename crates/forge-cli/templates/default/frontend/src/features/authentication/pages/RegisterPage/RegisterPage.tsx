@@ -74,6 +74,9 @@ export default function RegisterPage() {
         yield* navigateTo(navigate, '/authentication/login', {
           replace: true,
         })
+
+        // Return success result
+        return { type: 'success' as const }
       }).pipe(
         Effect.catchAll((error) => {
           return Effect.gen(function* () {
@@ -110,6 +113,11 @@ export default function RegisterPage() {
 
       Effect.runPromise(submitEffect).then((result) => {
         setSubmitting(false)
+
+        if (result.type === 'success') {
+          // Success - navigation already happened, nothing to do
+          return
+        }
 
         if (result.type === 'validation') {
           // Update form state with validation errors
