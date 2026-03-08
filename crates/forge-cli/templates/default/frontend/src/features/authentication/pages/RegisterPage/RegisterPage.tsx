@@ -182,6 +182,7 @@ export default function RegisterPage() {
               value={formState.values.email}
               onChange={(e) => setFieldValue('email', e.target.value)}
               onBlur={() => setFieldTouched('email')}
+              data-testid="register-email"
               slotProps={{
                 htmlInput: {
                   autoComplete: 'email',
@@ -201,6 +202,7 @@ export default function RegisterPage() {
               value={formState.values.password}
               onChange={(e) => setFieldValue('password', e.target.value)}
               onBlur={() => setFieldTouched('password')}
+              data-testid="register-password"
               slotProps={{
                 htmlInput: {
                   autoComplete: 'new-password',

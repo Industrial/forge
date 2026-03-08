@@ -116,7 +116,7 @@ describe('RegisterPage component', () => {
         wrapper: createWrapper(),
       })
       expect(
-        container.querySelector('[data-testid="register-submit"]'),
+        container.querySelector('[data-testid="register-submit-button"]'),
       ).not.toBeNull()
     })
 
