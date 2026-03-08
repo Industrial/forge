@@ -4,7 +4,7 @@ import {
   assertProjectLayout,
   pathExists,
   readFile,
-} from '../helpers/prebuilt.js'
+} from '../../helpers/prebuilt.js'
 
 test.describe('e2e prebuilt migrations layout', () => {
   test('migrations and workspace layout exist', () => {

@@ -1,6 +1,6 @@
 import { test, expect } from '@playwright/test'
-import { API_BASE_URL } from '../playwright.config.js'
-import { prebuiltExists, assertProjectLayout } from '../helpers/prebuilt.js'
+import { API_BASE_URL } from '../../playwright.config.js'
+import { prebuiltExists, assertProjectLayout } from '../../helpers/prebuilt.js'
 
 function assertHeader(
   headers: Headers,

@@ -4,7 +4,7 @@ import {
   assertProjectLayout,
   pathExists,
   readFile,
-} from '../helpers/prebuilt.js'
+} from '../../helpers/prebuilt.js'
 
 test.describe('e2e authz', () => {
   test('authz layout and protected route: unauthed redirect, register+login then dashboard', async ({

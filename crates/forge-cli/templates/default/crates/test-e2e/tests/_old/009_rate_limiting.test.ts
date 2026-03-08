@@ -1,5 +1,5 @@
 import { test, expect } from '@playwright/test'
-import { prebuiltExists, assertProjectLayout } from '../helpers/prebuilt.js'
+import { prebuiltExists, assertProjectLayout } from '../../helpers/prebuilt.js'
 
 test.describe('e2e rate limiting', () => {
   test('app root loads 5 times', async ({ page }) => {

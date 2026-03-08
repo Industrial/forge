@@ -1,5 +1,5 @@
 import { test, expect } from '@playwright/test'
-import { prebuiltExists, assertProjectLayout } from '../helpers/prebuilt.js'
+import { prebuiltExists, assertProjectLayout } from '../../helpers/prebuilt.js'
 
 test.describe('e2e prebuilt project layout', () => {
   test('prebuilt project exists and has expected layout', () => {

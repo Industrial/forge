@@ -3,7 +3,7 @@ import {
   prebuiltExists,
   assertProjectLayout,
   assertAuthLayout,
-} from '../helpers/prebuilt.js'
+} from '../../helpers/prebuilt.js'
 
 const SEED_PASSWORD = 'password'
 

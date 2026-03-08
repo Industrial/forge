@@ -10,6 +10,8 @@
   "devDependencies": {
     "@playwright/test": "1.52.0",
     "playwright": "1.52.0",
-    "typescript": "^5.2.2"
+    "typescript": "^5.2.2",
+    "effect": "^3.11.0",
+    "@effect/platform": "^0.94.0"
   }
 }
