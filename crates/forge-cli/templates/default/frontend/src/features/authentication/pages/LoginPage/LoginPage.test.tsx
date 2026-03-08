@@ -106,7 +106,7 @@ describe('LoginPage component', () => {
     test('should render submit button', () => {
       const { container } = render(<LoginPage />, { wrapper: createWrapper() })
       expect(
-        container.querySelector('[data-testid="login-submit"]'),
+        container.querySelector('[data-testid="login-submit-button"]'),
       ).not.toBeNull()
     })
 

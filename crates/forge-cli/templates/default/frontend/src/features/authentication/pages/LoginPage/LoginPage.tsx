@@ -163,6 +163,7 @@ export default function LoginPage() {
               value={formState.values.email}
               onChange={(e) => setFieldValue('email', e.target.value)}
               onBlur={() => setFieldTouched('email')}
+              data-testid="login-email"
               slotProps={{
                 htmlInput: {
                   autoComplete: 'email',
@@ -182,6 +183,7 @@ export default function LoginPage() {
               value={formState.values.password}
               onChange={(e) => setFieldValue('password', e.target.value)}
               onBlur={() => setFieldTouched('password')}
+              data-testid="login-password"
               slotProps={{
                 htmlInput: {
                   autoComplete: 'current-password',
