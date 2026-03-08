@@ -1,4 +1,6 @@
 //! Generic REST handler per docs/technical-choices/05-single-generic-rest-handler.md.
+//! This handler is fully generic: it never branches on entity type; all entity behavior
+//! (filter/sort fields, CUD support) is defined in the registry and RestModel implementations.
 //! Single route pattern: entity_id + action; 404 unknown entity; authz and scope from context.
 //! Epic 6: expand/include rejected with 400; relations as IDs only.
 //! Epic 4: list accepts ListQuerySpec (filter, sort, pagination) via query params.
@@ -17,14 +19,16 @@ use crate::Error as ForgeError;
 use crate::handlers::auth::ScopeFromHeaders;
 use crate::handlers::dashboard::require_entity_permission;
 use crate::query_spec::{
-  DEFAULT_LIMIT, FilterCond, FilterOperator, ListQuerySpec, SortDirection, SortSpec,
-  validate_filter_cond, validate_offset_limit, validate_sort_field,
+  CursorLimit, DEFAULT_LIMIT, FilterCond, FilterOperator, ListQuerySpec, OffsetLimit,
+  SortDirection, SortSpec, validate_cursor_limit, validate_filter_cond, validate_offset_limit,
+  validate_sort_field,
 };
 use crate::registry;
 use db::models::user;
 use forge_live::{ChangeEvent, SubscriptionStore};
 
 /// Query params for list: expand/include (rejected), plus filter/sort/pagination (Epic 4).
+/// Pagination: either offset+limit or cursor+limit (not both).
 #[derive(Debug, Deserialize, Default)]
 pub struct ListQueryParams {
   #[serde(default)]
@@ -41,6 +45,8 @@ pub struct ListQueryParams {
   pub offset: Option<u64>,
   #[serde(default)]
   pub limit: Option<u64>,
+  #[serde(default)]
+  pub cursor: Option<String>,
 }
 
 #[derive(Debug, Deserialize)]
@@ -85,9 +91,22 @@ pub fn parse_list_query_spec(params: &ListQueryParams) -> Result<ListQuerySpec, 
     });
   }
 
-  let offset = params.offset.unwrap_or(0);
   let limit = params.limit.unwrap_or(DEFAULT_LIMIT);
-  spec.offset_limit = Some(validate_offset_limit(offset, limit)?);
+  let use_cursor = params.cursor.is_some();
+  if use_cursor {
+    if params.offset.is_some() && params.offset != Some(0) {
+      return Err("cannot use both offset and cursor".to_string());
+    }
+    let cl = validate_cursor_limit(limit)?;
+    spec.cursor_limit = Some(CursorLimit {
+      cursor: params.cursor.clone(),
+      ..cl
+    });
+    spec.offset_limit = None;
+  } else {
+    let offset = params.offset.unwrap_or(0);
+    spec.offset_limit = Some(validate_offset_limit(offset, limit)?);
+  }
 
   Ok(spec)
 }
@@ -185,11 +204,59 @@ pub async fn list_entities(
         .into_response(),
     );
   }
-  match registry::list_models(entity_id.as_str(), &db, &spec)
+
+  let cursor_limit = spec.cursor_limit.clone();
+  let list_spec = if let Some(ref cl) = cursor_limit {
+    let offset = match cl.cursor.as_deref() {
+      None | Some("") => 0,
+      Some(s) => match s.parse::<u64>() {
+        Ok(o) => o,
+        Err(_) => {
+          return Ok(
+            (
+              StatusCode::BAD_REQUEST,
+              Json(serde_json::json!({ "error": "Bad Request", "message": "invalid cursor" })),
+            )
+              .into_response(),
+          );
+        }
+      },
+    };
+    let limit = cl.limit;
+    let mut internal = spec.clone();
+    internal.offset_limit = Some(OffsetLimit {
+      offset,
+      limit: limit + 1,
+    });
+    internal.cursor_limit = None;
+    internal
+  } else {
+    spec.clone()
+  };
+
+  match registry::list_models(entity_id.as_str(), &db, &list_spec)
     .await
     .map_err(crate::Error::from)
   {
-    Ok(v) => Ok(Json(v).into_response()),
+    Ok(mut v) => {
+      if let Some(ref cl) = cursor_limit {
+        let data = v.get_mut("data").and_then(|d| d.as_array_mut());
+        if let Some(arr) = data {
+          let limit = cl.limit as usize;
+          let offset = cl
+            .cursor
+            .as_deref()
+            .and_then(|s| s.parse::<u64>().ok())
+            .unwrap_or(0);
+          if arr.len() > limit {
+            let next_cursor = (offset + cl.limit).to_string();
+            arr.truncate(limit);
+            v["next_cursor"] = serde_json::json!(next_cursor);
+          }
+        }
+      }
+      Ok(Json(v).into_response())
+    }
     Err(ForgeError::Auth(StatusCode::NOT_FOUND, _)) => Ok(
       (
         StatusCode::NOT_FOUND,

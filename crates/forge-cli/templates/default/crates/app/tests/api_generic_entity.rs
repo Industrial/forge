@@ -529,6 +529,107 @@ async fn list_organization_limit_zero_400() {
   assert!(msg.contains("limit"), "expected limit error: {}", msg);
 }
 
+// ---------- List with cursor pagination ----------
+
+#[tokio::test]
+async fn list_organization_cursor_first_page() {
+  let client = test_client_with_migrations().await;
+  let (token, org_id, role_id) =
+    app::auth_with_profile(&client, "admin@admin.com", app::SEED_PASSWORD)
+      .await
+      .expect("login");
+  let scope = scope_headers(org_id.as_str(), role_id.as_str());
+  let path = list_path_with_query(ENTITY_ORGANIZATION, "cursor=&limit=2");
+  let (status, body) = app::test_request(&client, "GET", &path, Some(&token), None, Some(&scope))
+    .await
+    .unwrap();
+  assert_eq!(status, StatusCode::OK);
+  let json: app::serde_json::Value = app::serde_json::from_slice(&body).unwrap();
+  let data = json["data"].as_array().unwrap();
+  assert!(data.len() <= 2, "cursor first page should return at most limit=2");
+  if json.get("next_cursor").is_some() {
+    assert_eq!(data.len(), 2, "next_cursor implies full page");
+  }
+}
+
+#[tokio::test]
+async fn list_organization_cursor_second_page() {
+  let client = test_client_with_migrations().await;
+  let (token, org_id, role_id) =
+    app::auth_with_profile(&client, "admin@admin.com", app::SEED_PASSWORD)
+      .await
+      .expect("login");
+  let scope = scope_headers(org_id.as_str(), role_id.as_str());
+  let path_first = list_path_with_query(ENTITY_ORGANIZATION, "cursor=&limit=2");
+  let (status1, body1) =
+    app::test_request(&client, "GET", &path_first, Some(&token), None, Some(&scope))
+      .await
+      .unwrap();
+  assert_eq!(status1, StatusCode::OK);
+  let json1: app::serde_json::Value = app::serde_json::from_slice(&body1).unwrap();
+  let next_cursor = match json1.get("next_cursor").and_then(|c| c.as_str()) {
+    Some(c) => c.to_string(),
+    None => return,
+  };
+  let path_second = list_path_with_query(
+    ENTITY_ORGANIZATION,
+    &format!("cursor={}&limit=2", encode_query_value(&next_cursor)),
+  );
+  let (status2, body2) =
+    app::test_request(&client, "GET", &path_second, Some(&token), None, Some(&scope))
+      .await
+      .unwrap();
+  assert_eq!(status2, StatusCode::OK);
+  let json2: app::serde_json::Value = app::serde_json::from_slice(&body2).unwrap();
+  let data2 = json2["data"].as_array().unwrap();
+  let data1 = json1["data"].as_array().unwrap();
+  if !data2.is_empty() && !data1.is_empty() {
+    let id1 = data1[0]["id"].as_str().unwrap_or("");
+    let id2_first = data2[0]["id"].as_str().unwrap_or("");
+    assert_ne!(id1, id2_first, "second page should not repeat first page items");
+  }
+}
+
+#[tokio::test]
+async fn list_organization_cursor_invalid_400() {
+  let client = test_client_with_migrations().await;
+  let (token, org_id, role_id) =
+    app::auth_with_profile(&client, "admin@admin.com", app::SEED_PASSWORD)
+      .await
+      .expect("login");
+  let scope = scope_headers(org_id.as_str(), role_id.as_str());
+  let path = list_path_with_query(ENTITY_ORGANIZATION, "cursor=not-a-number&limit=2");
+  let (status, body) = app::test_request(&client, "GET", &path, Some(&token), None, Some(&scope))
+    .await
+    .unwrap();
+  assert_eq!(status, StatusCode::BAD_REQUEST);
+  let json: app::serde_json::Value = app::serde_json::from_slice(&body).unwrap();
+  let msg = json["message"].as_str().unwrap_or("");
+  assert!(msg.contains("cursor"), "expected cursor error: {}", msg);
+}
+
+#[tokio::test]
+async fn list_organization_cursor_and_offset_400() {
+  let client = test_client_with_migrations().await;
+  let (token, org_id, role_id) =
+    app::auth_with_profile(&client, "admin@admin.com", app::SEED_PASSWORD)
+      .await
+      .expect("login");
+  let scope = scope_headers(org_id.as_str(), role_id.as_str());
+  let path = list_path_with_query(ENTITY_ORGANIZATION, "cursor=0&offset=1&limit=2");
+  let (status, body) = app::test_request(&client, "GET", &path, Some(&token), None, Some(&scope))
+    .await
+    .unwrap();
+  assert_eq!(status, StatusCode::BAD_REQUEST);
+  let json: app::serde_json::Value = app::serde_json::from_slice(&body).unwrap();
+  let msg = json["message"].as_str().unwrap_or("");
+  assert!(
+    msg.contains("offset") && msg.contains("cursor"),
+    "expected cannot use both: {}",
+    msg
+  );
+}
+
 // ---------- List error cases: unknown entity, invalid filter/sort, expand/include ----------
 
 #[tokio::test]

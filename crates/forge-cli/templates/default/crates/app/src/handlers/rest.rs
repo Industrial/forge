@@ -2,9 +2,6 @@
 //! Epic 6: list/get responses do not embed relations (e.g. no nested memberships); relations as IDs or separate endpoints.
 
 use crate::Error as ForgeError;
-use axum::Json;
-use axum::extract::State;
-use axum::response::IntoResponse;
 use forge_auth::token_auth::hash_password;
 use forge_db::DbConnection;
 use sea_orm::{ColumnTrait, EntityTrait, QueryFilter, QueryOrder, Set};
@@ -435,7 +432,6 @@ pub async fn add_org_role_permission_impl(
 #[cfg(test)]
 mod unit_tests {
   use super::*;
-  use crate::build_router_for_test;
 
   mod create_org_role_behavior {
     use super::*;
@@ -702,10 +698,6 @@ mod unit_tests {
 #[cfg(test)]
 mod bdd_tests {
   use super::*;
-  use crate::build_router_for_test;
-  use axum::body::Body;
-  use axum::http::{Request, StatusCode};
-  use tower::ServiceExt;
 
   /// BDD-style tests focusing on behavior rather than implementation.
   /// Tests verify REST API handler behaviors for permissions, org roles, and user management.

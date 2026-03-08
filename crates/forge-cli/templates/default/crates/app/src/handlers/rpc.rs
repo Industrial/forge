@@ -41,7 +41,7 @@ pub struct RpcParams {
   pub body: Option<serde_json::Value>,
   /// For unsubscribe: server-assigned subscription id.
   pub subscription_id: Option<String>,
-  /// For entity.list: same as REST query params (filter, sort, order, offset, limit).
+  /// For entity.list: same as REST query params (filter, sort, order, offset, limit, cursor).
   #[serde(default)]
   pub filter: Option<String>,
   #[serde(default)]
@@ -52,6 +52,8 @@ pub struct RpcParams {
   pub offset: Option<u64>,
   #[serde(default)]
   pub limit: Option<u64>,
+  #[serde(default)]
+  pub cursor: Option<String>,
 }
 
 /// POST /api/rpc — same entity operations as REST; body: { method, entity_id, params?, id? }.
@@ -228,6 +230,7 @@ async fn rpc_subscribe(
       order: p.order.clone(),
       offset: p.offset,
       limit: p.limit,
+      cursor: p.cursor.clone(),
     })
     .unwrap_or_default();
   let spec = match parse_list_query_spec(&list_params) {
@@ -338,6 +341,7 @@ async fn rpc_list(
     order: params.and_then(|p| p.order.clone()),
     offset: params.and_then(|p| p.offset),
     limit: params.and_then(|p| p.limit),
+    cursor: params.and_then(|p| p.cursor.clone()),
   };
   let spec = match parse_list_query_spec(&list_params) {
     Ok(s) => s,
