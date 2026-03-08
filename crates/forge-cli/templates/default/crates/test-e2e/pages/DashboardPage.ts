@@ -136,19 +136,25 @@ export const DashboardPageLive = Layer.effect(
 
       clickPermissionsLink: () =>
         Effect.gen(function* () {
-          const permissionsLink = playwrightPage.getByTestId('sidebar-permissions-link')
+          const permissionsLink = playwrightPage.getByTestId(
+            'sidebar-permissions-link',
+          )
           yield* LocatorHelpers.click(permissionsLink)
         }),
 
       clickAuditLogLink: () =>
         Effect.gen(function* () {
-          const auditLogLink = playwrightPage.getByTestId('sidebar-audit-log-link')
+          const auditLogLink = playwrightPage.getByTestId(
+            'sidebar-audit-log-link',
+          )
           yield* LocatorHelpers.click(auditLogLink)
         }),
 
       clickOrganizationsLink: () =>
         Effect.gen(function* () {
-          const organizationsLink = playwrightPage.getByTestId('sidebar-organizations-link')
+          const organizationsLink = playwrightPage.getByTestId(
+            'sidebar-organizations-link',
+          )
           yield* LocatorHelpers.click(organizationsLink)
         }),
 
@@ -167,12 +173,18 @@ export const DashboardPageLive = Layer.effect(
       logout: () =>
         Effect.gen(function* () {
           const userMenu = playwrightPage.getByTestId('navbar-user-menu')
-          const logoutButton = playwrightPage.getByTestId('user-menu-logout-button')
-          
+          const logoutButton = playwrightPage.getByTestId(
+            'user-menu-logout-button',
+          )
+
           yield* LocatorHelpers.click(userMenu)
           yield* LocatorHelpers.click(logoutButton)
-          yield* PageHelpers.waitForURL(playwrightPage, '/authentication/login', { timeout: 5000 })
+          yield* PageHelpers.waitForURL(
+            playwrightPage,
+            '/authentication/login',
+            { timeout: 5000 },
+          )
         }),
     }
-  })
+  }),
 )

@@ -71,15 +71,21 @@ export const LoginPageLive = Layer.effect(
       login: (email: string, password: string) =>
         Effect.gen(function* () {
           const emailInput = playwrightPage.getByTestId('login-email-input')
-          const passwordInput = playwrightPage.getByTestId('login-password-input')
+          const passwordInput = playwrightPage.getByTestId(
+            'login-password-input',
+          )
           const submitButton = playwrightPage.getByTestId('login-submit-button')
-          
+
           yield* LocatorHelpers.fill(emailInput, email)
           yield* LocatorHelpers.fill(passwordInput, password)
           yield* LocatorHelpers.click(submitButton)
-          yield* PageHelpers.waitForURL(playwrightPage, /\/dashboard|\/authentication\/select-scope/, {
-            timeout: 5000,
-          })
+          yield* PageHelpers.waitForURL(
+            playwrightPage,
+            /\/dashboard|\/authentication\/select-scope/,
+            {
+              timeout: 5000,
+            },
+          )
         }),
 
       clickRegisterLink: () =>
@@ -88,5 +94,5 @@ export const LoginPageLive = Layer.effect(
           yield* LocatorHelpers.click(registerLink)
         }),
     }
-  })
+  }),
 )

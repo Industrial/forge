@@ -21,7 +21,7 @@ export type TestOrganization = {
 export const createTestUser = (overrides?: Partial<TestUser>): TestUser => {
   const timestamp = Date.now()
   const random = Math.random().toString(36).substring(7)
-  
+
   return {
     email: `test-${timestamp}-${random}@example.com`,
     password: 'TestPassword123!',
@@ -33,10 +33,12 @@ export const createTestUser = (overrides?: Partial<TestUser>): TestUser => {
 /**
  * Create a unique test organization with timestamp and random suffix
  */
-export const createTestOrganization = (overrides?: Partial<TestOrganization>): TestOrganization => {
+export const createTestOrganization = (
+  overrides?: Partial<TestOrganization>,
+): TestOrganization => {
   const timestamp = Date.now()
   const random = Math.random().toString(36).substring(7)
-  
+
   return {
     name: `Test Org ${timestamp}`,
     slug: `test-org-${timestamp}-${random}`,

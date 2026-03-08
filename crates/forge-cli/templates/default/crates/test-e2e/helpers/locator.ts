@@ -21,7 +21,10 @@ export const fill = (locator: Locator, value: string): Effect.Effect<void> =>
 /**
  * Clear and fill a locator with text
  */
-export const clearAndFill = (locator: Locator, value: string): Effect.Effect<void> =>
+export const clearAndFill = (
+  locator: Locator,
+  value: string,
+): Effect.Effect<void> =>
   Effect.promise(() => locator.clear().then(() => locator.fill(value)))
 
 /**
@@ -59,14 +62,22 @@ export const isChecked = (locator: Locator): Effect.Effect<boolean> =>
  */
 export const waitForVisible = (
   locator: Locator,
-  options?: { timeout?: number; state?: 'attached' | 'detached' | 'visible' | 'hidden' },
+  options?: {
+    timeout?: number
+    state?: 'attached' | 'detached' | 'visible' | 'hidden'
+  },
 ): Effect.Effect<void> =>
-  Effect.promise(() => locator.waitFor({ ...options, state: options?.state ?? 'visible' }))
+  Effect.promise(() =>
+    locator.waitFor({ ...options, state: options?.state ?? 'visible' }),
+  )
 
 /**
  * Wait for locator to be hidden
  */
-export const waitForHidden = (locator: Locator, options?: { timeout?: number }): Effect.Effect<void> =>
+export const waitForHidden = (
+  locator: Locator,
+  options?: { timeout?: number },
+): Effect.Effect<void> =>
   Effect.promise(() => locator.waitFor({ ...options, state: 'hidden' }))
 
 /**
@@ -93,8 +104,7 @@ export const clickRight = (locator: Locator): Effect.Effect<void> =>
 export const selectOption = (
   locator: Locator,
   values: string | string[],
-): Effect.Effect<string[]> =>
-  Effect.promise(() => locator.selectOption(values))
+): Effect.Effect<string[]> => Effect.promise(() => locator.selectOption(values))
 
 /**
  * Check a checkbox or radio button
@@ -111,7 +121,10 @@ export const uncheck = (locator: Locator): Effect.Effect<void> =>
 /**
  * Get attribute value from a locator
  */
-export const getAttribute = (locator: Locator, name: string): Effect.Effect<string | null> =>
+export const getAttribute = (
+  locator: Locator,
+  name: string,
+): Effect.Effect<string | null> =>
   Effect.promise(() => locator.getAttribute(name))
 
 /**
@@ -139,7 +152,10 @@ export const nth = (locator: Locator, index: number): Effect.Effect<Locator> =>
 /**
  * Filter locators by text content
  */
-export const filterByText = (locator: Locator, text: string): Effect.Effect<Locator> =>
+export const filterByText = (
+  locator: Locator,
+  text: string,
+): Effect.Effect<Locator> =>
   Effect.gen(function* () {
     return locator.filter({ hasText: text })
   })
@@ -147,7 +163,10 @@ export const filterByText = (locator: Locator, text: string): Effect.Effect<Loca
 /**
  * Get locator by test ID within parent locator
  */
-export const getByTestId = (locator: Locator, testId: string): Effect.Effect<Locator> =>
+export const getByTestId = (
+  locator: Locator,
+  testId: string,
+): Effect.Effect<Locator> =>
   Effect.gen(function* () {
     return locator.getByTestId(testId)
   })

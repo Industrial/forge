@@ -77,10 +77,14 @@ export const ProfilePageLive = Layer.effect(
 
       switchProfile: (index: number) =>
         Effect.gen(function* () {
-          const profileCard = playwrightPage.getByTestId(`profile-card-${index}`)
+          const profileCard = playwrightPage.getByTestId(
+            `profile-card-${index}`,
+          )
           yield* LocatorHelpers.click(profileCard)
-          yield* PageHelpers.waitForURL(playwrightPage, '/dashboard', { timeout: 5000 })
+          yield* PageHelpers.waitForURL(playwrightPage, '/dashboard', {
+            timeout: 5000,
+          })
         }),
     }
-  })
+  }),
 )

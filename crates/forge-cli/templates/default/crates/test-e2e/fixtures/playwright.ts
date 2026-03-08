@@ -14,5 +14,6 @@ export class PlaywrightPage extends Context.Tag('PlaywrightPage')<
  * Create a Layer that provides PlaywrightPage
  * Use this to inject Page into Effect programs
  */
-export const createPlaywrightPageLayer = (page: Page): Layer.Layer<PlaywrightPage> =>
-  Layer.succeed(PlaywrightPage, page)
+export const createPlaywrightPageLayer = (
+  page: Page,
+): Layer.Layer<PlaywrightPage> => Layer.succeed(PlaywrightPage, page)

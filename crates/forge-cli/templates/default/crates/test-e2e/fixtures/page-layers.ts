@@ -22,7 +22,10 @@ import {
   ProfilePage,
   ProfilePageLive,
 } from '@/pages'
-import { createPlaywrightPageLayer, PlaywrightPage } from '@/fixtures/playwright'
+import {
+  createPlaywrightPageLayer,
+  PlaywrightPage,
+} from '@/fixtures/playwright'
 
 /**
  * Create all page layers from a Playwright Page instance
@@ -31,7 +34,7 @@ import { createPlaywrightPageLayer, PlaywrightPage } from '@/fixtures/playwright
  */
 export const createPageLayers = (page: Page) => {
   const playwrightPageLayer = createPlaywrightPageLayer(page)
-  
+
   return Layer.mergeAll(
     playwrightPageLayer,
     LoginPageLive.pipe(Layer.provide(playwrightPageLayer)),

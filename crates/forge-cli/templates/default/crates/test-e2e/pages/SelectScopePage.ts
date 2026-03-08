@@ -51,10 +51,14 @@ export const SelectScopePageLive = Layer.effect(
 
       selectProfile: (index: number) =>
         Effect.gen(function* () {
-          const selectButton = playwrightPage.getByTestId(`profile-select-button-${index}`)
+          const selectButton = playwrightPage.getByTestId(
+            `profile-select-button-${index}`,
+          )
           yield* LocatorHelpers.click(selectButton)
-          yield* PageHelpers.waitForURL(playwrightPage, '/dashboard', { timeout: 5000 })
+          yield* PageHelpers.waitForURL(playwrightPage, '/dashboard', {
+            timeout: 5000,
+          })
         }),
     }
-  })
+  }),
 )

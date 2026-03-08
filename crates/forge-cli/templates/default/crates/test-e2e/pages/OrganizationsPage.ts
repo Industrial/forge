@@ -33,8 +33,14 @@ export class OrganizationsPage extends Context.Tag('OrganizationsPage')<
     readonly pagination: () => Effect.Effect<Locator>
     readonly paginationNext: () => Effect.Effect<Locator>
     readonly filter: (query: string) => Effect.Effect<void>
-    readonly createOrganization: (name: string, slug?: string) => Effect.Effect<void>
-    readonly updateOrganization: (name: string, newName: string) => Effect.Effect<void>
+    readonly createOrganization: (
+      name: string,
+      slug?: string,
+    ) => Effect.Effect<void>
+    readonly updateOrganization: (
+      name: string,
+      newName: string,
+    ) => Effect.Effect<void>
     readonly deleteOrganization: (name: string) => Effect.Effect<void>
     readonly goToNextPage: () => Effect.Effect<void>
   }
@@ -88,7 +94,9 @@ export const OrganizationsPageLive = Layer.effect(
 
       deleteButton: (name: string) =>
         Effect.gen(function* () {
-          return playwrightPage.getByTestId(`organization-delete-button-${name}`)
+          return playwrightPage.getByTestId(
+            `organization-delete-button-${name}`,
+          )
         }),
 
       createDialog: () =>
@@ -138,12 +146,16 @@ export const OrganizationsPageLive = Layer.effect(
 
       deleteConfirmDialog: () =>
         Effect.gen(function* () {
-          return playwrightPage.getByTestId('organization-delete-confirm-dialog')
+          return playwrightPage.getByTestId(
+            'organization-delete-confirm-dialog',
+          )
         }),
 
       deleteConfirmButton: () =>
         Effect.gen(function* () {
-          return playwrightPage.getByTestId('organization-delete-confirm-button')
+          return playwrightPage.getByTestId(
+            'organization-delete-confirm-button',
+          )
         }),
 
       pagination: () =>
@@ -158,22 +170,34 @@ export const OrganizationsPageLive = Layer.effect(
 
       filter: (query: string) =>
         Effect.gen(function* () {
-          const filterInput = playwrightPage.getByTestId('organizations-filter-input')
+          const filterInput = playwrightPage.getByTestId(
+            'organizations-filter-input',
+          )
           yield* LocatorHelpers.fill(filterInput, query)
         }),
 
       createOrganization: (name: string, slug?: string) =>
         Effect.gen(function* () {
-          const createButton = playwrightPage.getByTestId('organizations-create-button')
-          const createDialog = playwrightPage.getByTestId('organization-create-dialog')
-          const nameInput = playwrightPage.getByTestId('organization-create-name-input')
-          const submitButton = playwrightPage.getByTestId('organization-create-submit-button')
-          
+          const createButton = playwrightPage.getByTestId(
+            'organizations-create-button',
+          )
+          const createDialog = playwrightPage.getByTestId(
+            'organization-create-dialog',
+          )
+          const nameInput = playwrightPage.getByTestId(
+            'organization-create-name-input',
+          )
+          const submitButton = playwrightPage.getByTestId(
+            'organization-create-submit-button',
+          )
+
           yield* LocatorHelpers.click(createButton)
           yield* LocatorHelpers.waitForVisible(createDialog)
           yield* LocatorHelpers.fill(nameInput, name)
           if (slug) {
-            const slugInput = playwrightPage.getByTestId('organization-create-slug-input')
+            const slugInput = playwrightPage.getByTestId(
+              'organization-create-slug-input',
+            )
             yield* LocatorHelpers.fill(slugInput, slug)
           }
           yield* LocatorHelpers.click(submitButton)
@@ -182,11 +206,19 @@ export const OrganizationsPageLive = Layer.effect(
 
       updateOrganization: (name: string, newName: string) =>
         Effect.gen(function* () {
-          const editButton = playwrightPage.getByTestId(`organization-edit-button-${name}`)
-          const editDialog = playwrightPage.getByTestId('organization-edit-dialog')
-          const nameInput = playwrightPage.getByTestId('organization-edit-name-input')
-          const submitButton = playwrightPage.getByTestId('organization-edit-submit-button')
-          
+          const editButton = playwrightPage.getByTestId(
+            `organization-edit-button-${name}`,
+          )
+          const editDialog = playwrightPage.getByTestId(
+            'organization-edit-dialog',
+          )
+          const nameInput = playwrightPage.getByTestId(
+            'organization-edit-name-input',
+          )
+          const submitButton = playwrightPage.getByTestId(
+            'organization-edit-submit-button',
+          )
+
           yield* LocatorHelpers.click(editButton)
           yield* LocatorHelpers.waitForVisible(editDialog)
           yield* LocatorHelpers.fill(nameInput, newName)
@@ -196,10 +228,16 @@ export const OrganizationsPageLive = Layer.effect(
 
       deleteOrganization: (name: string) =>
         Effect.gen(function* () {
-          const deleteButton = playwrightPage.getByTestId(`organization-delete-button-${name}`)
-          const confirmDialog = playwrightPage.getByTestId('organization-delete-confirm-dialog')
-          const confirmButton = playwrightPage.getByTestId('organization-delete-confirm-button')
-          
+          const deleteButton = playwrightPage.getByTestId(
+            `organization-delete-button-${name}`,
+          )
+          const confirmDialog = playwrightPage.getByTestId(
+            'organization-delete-confirm-dialog',
+          )
+          const confirmButton = playwrightPage.getByTestId(
+            'organization-delete-confirm-button',
+          )
+
           yield* LocatorHelpers.click(deleteButton)
           yield* LocatorHelpers.waitForVisible(confirmDialog)
           yield* LocatorHelpers.click(confirmButton)
@@ -208,9 +246,11 @@ export const OrganizationsPageLive = Layer.effect(
 
       goToNextPage: () =>
         Effect.gen(function* () {
-          const nextButton = playwrightPage.getByTestId('organizations-pagination-next')
+          const nextButton = playwrightPage.getByTestId(
+            'organizations-pagination-next',
+          )
           yield* LocatorHelpers.click(nextButton)
         }),
     }
-  })
+  }),
 )

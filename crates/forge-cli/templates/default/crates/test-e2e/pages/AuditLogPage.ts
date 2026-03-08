@@ -97,30 +97,38 @@ export const AuditLogPageLive = Layer.effect(
 
       filter: (query: string) =>
         Effect.gen(function* () {
-          const filterInput = playwrightPage.getByTestId('audit-log-filter-input')
+          const filterInput = playwrightPage.getByTestId(
+            'audit-log-filter-input',
+          )
           yield* LocatorHelpers.fill(filterInput, query)
         }),
 
       goToNextPage: () =>
         Effect.gen(function* () {
-          const nextButton = playwrightPage.getByTestId('audit-log-pagination-next')
+          const nextButton = playwrightPage.getByTestId(
+            'audit-log-pagination-next',
+          )
           yield* LocatorHelpers.click(nextButton)
         }),
 
       goToPage: (page: number) =>
         Effect.gen(function* () {
-          const pageButton = playwrightPage.getByTestId(`audit-log-pagination-page-${page}`)
+          const pageButton = playwrightPage.getByTestId(
+            `audit-log-pagination-page-${page}`,
+          )
           yield* LocatorHelpers.click(pageButton)
         }),
 
       viewEntryDetails: (index: number) =>
         Effect.gen(function* () {
           const row = playwrightPage.getByTestId(`audit-log-row-${index}`)
-          const detailsDialog = playwrightPage.getByTestId('audit-log-details-dialog')
-          
+          const detailsDialog = playwrightPage.getByTestId(
+            'audit-log-details-dialog',
+          )
+
           yield* LocatorHelpers.click(row)
           yield* LocatorHelpers.waitForVisible(detailsDialog)
         }),
     }
-  })
+  }),
 )

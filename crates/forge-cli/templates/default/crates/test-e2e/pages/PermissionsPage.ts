@@ -15,8 +15,14 @@ export class PermissionsPage extends Context.Tag('PermissionsPage')<
     readonly list: () => Effect.Effect<Locator>
     readonly table: () => Effect.Effect<Locator>
     readonly addButton: () => Effect.Effect<Locator>
-    readonly assignmentRow: (roleName: string, permissionName: string) => Effect.Effect<Locator>
-    readonly removeButton: (roleName: string, permissionName: string) => Effect.Effect<Locator>
+    readonly assignmentRow: (
+      roleName: string,
+      permissionName: string,
+    ) => Effect.Effect<Locator>
+    readonly removeButton: (
+      roleName: string,
+      permissionName: string,
+    ) => Effect.Effect<Locator>
     readonly addDialog: () => Effect.Effect<Locator>
     readonly addForm: () => Effect.Effect<Locator>
     readonly addRoleSelect: () => Effect.Effect<Locator>
@@ -24,8 +30,14 @@ export class PermissionsPage extends Context.Tag('PermissionsPage')<
     readonly addSubmitButton: () => Effect.Effect<Locator>
     readonly removeConfirmDialog: () => Effect.Effect<Locator>
     readonly removeConfirmButton: () => Effect.Effect<Locator>
-    readonly addPermission: (roleName: string, permissionName: string) => Effect.Effect<void>
-    readonly removePermission: (roleName: string, permissionName: string) => Effect.Effect<void>
+    readonly addPermission: (
+      roleName: string,
+      permissionName: string,
+    ) => Effect.Effect<void>
+    readonly removePermission: (
+      roleName: string,
+      permissionName: string,
+    ) => Effect.Effect<void>
   }
 >() {}
 
@@ -62,12 +74,16 @@ export const PermissionsPageLive = Layer.effect(
 
       assignmentRow: (roleName: string, permissionName: string) =>
         Effect.gen(function* () {
-          return playwrightPage.getByTestId(`permission-assignment-row-${roleName}-${permissionName}`)
+          return playwrightPage.getByTestId(
+            `permission-assignment-row-${roleName}-${permissionName}`,
+          )
         }),
 
       removeButton: (roleName: string, permissionName: string) =>
         Effect.gen(function* () {
-          return playwrightPage.getByTestId(`permission-remove-button-${roleName}-${permissionName}`)
+          return playwrightPage.getByTestId(
+            `permission-remove-button-${roleName}-${permissionName}`,
+          )
         }),
 
       addDialog: () =>
@@ -109,10 +125,16 @@ export const PermissionsPageLive = Layer.effect(
         Effect.gen(function* () {
           const addButton = playwrightPage.getByTestId('permission-add-button')
           const addDialog = playwrightPage.getByTestId('permission-add-dialog')
-          const roleSelect = playwrightPage.getByTestId('permission-add-role-select')
-          const permissionSelect = playwrightPage.getByTestId('permission-add-permission-select')
-          const submitButton = playwrightPage.getByTestId('permission-add-submit-button')
-          
+          const roleSelect = playwrightPage.getByTestId(
+            'permission-add-role-select',
+          )
+          const permissionSelect = playwrightPage.getByTestId(
+            'permission-add-permission-select',
+          )
+          const submitButton = playwrightPage.getByTestId(
+            'permission-add-submit-button',
+          )
+
           yield* LocatorHelpers.click(addButton)
           yield* LocatorHelpers.waitForVisible(addDialog)
           yield* LocatorHelpers.selectOption(roleSelect, roleName)
@@ -123,15 +145,21 @@ export const PermissionsPageLive = Layer.effect(
 
       removePermission: (roleName: string, permissionName: string) =>
         Effect.gen(function* () {
-          const removeButton = playwrightPage.getByTestId(`permission-remove-button-${roleName}-${permissionName}`)
-          const confirmDialog = playwrightPage.getByTestId('permission-remove-confirm-dialog')
-          const confirmButton = playwrightPage.getByTestId('permission-remove-confirm-button')
-          
+          const removeButton = playwrightPage.getByTestId(
+            `permission-remove-button-${roleName}-${permissionName}`,
+          )
+          const confirmDialog = playwrightPage.getByTestId(
+            'permission-remove-confirm-dialog',
+          )
+          const confirmButton = playwrightPage.getByTestId(
+            'permission-remove-confirm-button',
+          )
+
           yield* LocatorHelpers.click(removeButton)
           yield* LocatorHelpers.waitForVisible(confirmDialog)
           yield* LocatorHelpers.click(confirmButton)
           yield* LocatorHelpers.waitForHidden(confirmDialog)
         }),
     }
-  })
+  }),
 )

@@ -1,6 +1,6 @@
 /**
  * E2E tests for Cross-Role Scenarios
- * 
+ *
  * Tests follow the DAG structure from E2E_TEST_SCENARIOS.md:
  * - 7.1 Multi-Organization User Flow
  * - 7.2 Permission Escalation Prevention
@@ -23,77 +23,90 @@ test.describe('Cross-Role Scenarios', () => {
   test.describe('7.1 Multi-Organization User Flow', () => {
     test('should switch between organizations', async ({ page }) => {
       await page.goto('/authentication/login')
-      
+
       const program = Effect.gen(function* () {
         const loginPageService = yield* LoginPage
         const selectScopePageService = yield* SelectScopePage
         const dashboardPageService = yield* DashboardPage
         const usersPageService = yield* UsersPage
-        
+
         // Login with multi-profile user
-        yield* loginPageService.login(SEED_USERS.multiProfile.email, SEED_USERS.multiProfile.password)
-        
+        yield* loginPageService.login(
+          SEED_USERS.multiProfile.email,
+          SEED_USERS.multiProfile.password,
+        )
+
         yield* ExpectHelpers.toHaveURL(page, '/authentication/select-scope')
-        
+
         const profileList = yield* selectScopePageService.profileList()
         yield* ExpectHelpers.toBeVisible(profileList)
-        
+
         // Select first profile
         yield* selectScopePageService.selectProfile(0)
-        
+
         yield* ExpectHelpers.toHaveURL(page, '/dashboard')
-        
+
         // Navigate to users
         yield* dashboardPageService.clickUsersLink()
         const usersList1 = yield* usersPageService.list()
         yield* ExpectHelpers.toBeVisible(usersList1)
-        
+
         // Switch to different profile
         yield* PageHelpers.goto(page, '/scope')
         yield* selectScopePageService.selectProfile(1)
-        
+
         yield* PageHelpers.goto(page, '/dashboard/users')
         const usersList2 = yield* usersPageService.list()
         yield* ExpectHelpers.toBeVisible(usersList2)
       })
 
-      await Effect.runPromise(program.pipe(Effect.provide(createPageLayers(page))))
+      await Effect.runPromise(
+        program.pipe(Effect.provide(createPageLayers(page))),
+      )
     })
   })
 
   test.describe('7.2 Permission Escalation Prevention', () => {
     test.describe('Viewer permissions', () => {
       test.use({ storageState: 'playwright/.auth/viewer.json' })
-      
+
       test('Viewer cannot access editor-only features', async ({ page }) => {
         await page.goto('/dashboard/users')
-      
-      const program = Effect.gen(function* () {
-        const usersPageService = yield* UsersPage
-        
-        const createButton = yield* usersPageService.createButton()
-        yield* ExpectHelpers.notToBeVisible(createButton)
-      })
 
-      await Effect.runPromise(program.pipe(Effect.provide(createPageLayers(page))))
+        const program = Effect.gen(function* () {
+          const usersPageService = yield* UsersPage
+
+          const createButton = yield* usersPageService.createButton()
+          yield* ExpectHelpers.notToBeVisible(createButton)
+        })
+
+        await Effect.runPromise(
+          program.pipe(Effect.provide(createPageLayers(page))),
+        )
       })
     })
 
     test.describe('Editor permissions', () => {
       test.use({ storageState: 'playwright/.auth/editor.json' })
-      
+
       test('Editor cannot access org-admin-only features', async ({ page }) => {
         await page.goto('/dashboard/organizations')
-      
-      const error403 = page.locator('[data-testid="error-403"]')
-      await expect(error403.or(page.locator('text=403')).or(page.locator('text=Forbidden'))).toBeVisible()
+
+        const error403 = page.locator('[data-testid="error-403"]')
+        await expect(
+          error403
+            .or(page.locator('text=403'))
+            .or(page.locator('text=Forbidden')),
+        ).toBeVisible()
       })
     })
 
     test.describe('Org Admin permissions', () => {
       test.use({ storageState: 'playwright/.auth/org-owner.json' })
-      
-      test('Org Admin cannot access global-admin-only features', async ({ request }) => {
+
+      test('Org Admin cannot access global-admin-only features', async ({
+        request,
+      }) => {
         const response = await request.get(`${API_BASE_URL}/api/auth/admin`)
         expect(response.status()).toBe(403)
       })
@@ -101,8 +114,10 @@ test.describe('Cross-Role Scenarios', () => {
 
     test.describe('App Admin permissions', () => {
       test.use({ storageState: 'playwright/.auth/app-admin.json' })
-      
-      test('App Admin can access global-admin features', async ({ request }) => {
+
+      test('App Admin can access global-admin features', async ({
+        request,
+      }) => {
         const response = await request.get(`${API_BASE_URL}/api/auth/admin`)
         expect(response.status()).toBe(200)
       })
@@ -111,33 +126,40 @@ test.describe('Cross-Role Scenarios', () => {
 
   test.describe('7.3 Concurrent Operations', () => {
     test.use({ storageState: 'playwright/.auth/editor.json' })
-    
-    test('subscription stream receives invalidation events', async ({ page, context }) => {
+
+    test('subscription stream receives invalidation events', async ({
+      page,
+      context,
+    }) => {
       await page.goto('/dashboard/users')
-      
+
       // Create a second page for subscription stream
       const page2 = await context.newPage()
       await page2.goto('/dashboard/users')
-      
+
       const testUser = createTestUser()
-      
+
       // Create user in first page
       const program1 = Effect.gen(function* () {
         const usersPageService = yield* UsersPage
         yield* usersPageService.createUser(testUser.email, testUser.password)
       })
-      
-      await Effect.runPromise(program1.pipe(Effect.provide(createPageLayers(page))))
-      
+
+      await Effect.runPromise(
+        program1.pipe(Effect.provide(createPageLayers(page))),
+      )
+
       // Verify second page sees the update (via subscription stream)
       const program2 = Effect.gen(function* () {
         const usersPageService = yield* UsersPage
         const row = yield* usersPageService.row(testUser.email)
         yield* ExpectHelpers.toBeVisible(row)
       })
-      
-      await Effect.runPromise(program2.pipe(Effect.provide(createPageLayers(page2))))
-      
+
+      await Effect.runPromise(
+        program2.pipe(Effect.provide(createPageLayers(page2))),
+      )
+
       await page2.close()
     })
   })
@@ -151,23 +173,30 @@ test.describe('Cross-Role Scenarios', () => {
       expect(response.status()).toBe(400)
     })
 
-    test('unauthorized request returns 401 Unauthorized', async ({ request }) => {
+    test('unauthorized request returns 401 Unauthorized', async ({
+      request,
+    }) => {
       const response = await request.get(`${API_BASE_URL}/api/auth/me`)
       expect(response.status()).toBe(401)
     })
 
     test.describe('with Viewer auth', () => {
       test.use({ storageState: 'playwright/.auth/viewer.json' })
-      
+
       test('forbidden request returns 403 Forbidden', async ({ request }) => {
-        const response = await request.post(`${API_BASE_URL}/api/entities/user`, {
-        data: { email: 'test@example.com', password: 'password' },
-        })
+        const response = await request.post(
+          `${API_BASE_URL}/api/entities/user`,
+          {
+            data: { email: 'test@example.com', password: 'password' },
+          },
+        )
         expect(response.status()).toBe(403)
       })
 
       test('not found returns 404 Not Found', async ({ request }) => {
-        const response = await request.get(`${API_BASE_URL}/api/entities/user/invalid-id`)
+        const response = await request.get(
+          `${API_BASE_URL}/api/entities/user/invalid-id`,
+        )
         expect(response.status()).toBe(404)
       })
     })
@@ -175,17 +204,19 @@ test.describe('Cross-Role Scenarios', () => {
 
   test.describe('7.5 Session Management', () => {
     test.use({ storageState: 'playwright/.auth/viewer.json' })
-    
+
     test('logout invalidates token', async ({ page, context }) => {
       await page.goto('/dashboard')
-      
+
       const program = Effect.gen(function* () {
         const dashboardPageService = yield* DashboardPage
         yield* dashboardPageService.logout()
       })
-      
-      await Effect.runPromise(program.pipe(Effect.provide(createPageLayers(page))))
-      
+
+      await Effect.runPromise(
+        program.pipe(Effect.provide(createPageLayers(page))),
+      )
+
       // Try to access protected route
       await page.goto('/dashboard')
       await expect(page).toHaveURL('/authentication/login')
@@ -194,21 +225,23 @@ test.describe('Cross-Role Scenarios', () => {
 
   test.describe('7.6 Data Consistency', () => {
     test.use({ storageState: 'playwright/.auth/editor.json' })
-    
+
     test('created entity appears in list', async ({ page }) => {
       await page.goto('/dashboard/users')
       const testUser = createTestUser()
-      
+
       const program = Effect.gen(function* () {
         const usersPageService = yield* UsersPage
-        
+
         yield* usersPageService.createUser(testUser.email, testUser.password)
-        
+
         const row = yield* usersPageService.row(testUser.email)
         yield* ExpectHelpers.toBeVisible(row)
       })
 
-      await Effect.runPromise(program.pipe(Effect.provide(createPageLayers(page))))
+      await Effect.runPromise(
+        program.pipe(Effect.provide(createPageLayers(page))),
+      )
     })
   })
 })

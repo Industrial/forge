@@ -46,44 +46,63 @@ export const notToBeChecked = (locator: Locator): Effect.Effect<void> =>
 /**
  * Assert page has URL
  */
-export const toHaveURL = (page: Page, url: string | RegExp): Effect.Effect<void> =>
-  Effect.promise(() => expect(page).toHaveURL(url))
+export const toHaveURL = (
+  page: Page,
+  url: string | RegExp,
+): Effect.Effect<void> => Effect.promise(() => expect(page).toHaveURL(url))
 
 /**
  * Assert locator has text
  */
-export const toHaveText = (locator: Locator, text: string | RegExp): Effect.Effect<void> =>
-  Effect.promise(() => expect(locator).toHaveText(text))
+export const toHaveText = (
+  locator: Locator,
+  text: string | RegExp,
+): Effect.Effect<void> => Effect.promise(() => expect(locator).toHaveText(text))
 
 /**
  * Assert locator contains text
  */
-export const toContainText = (locator: Locator, text: string | RegExp): Effect.Effect<void> =>
+export const toContainText = (
+  locator: Locator,
+  text: string | RegExp,
+): Effect.Effect<void> =>
   Effect.promise(() => expect(locator).toContainText(text))
 
 /**
  * Assert locator has value
  */
-export const toHaveValue = (locator: Locator, value: string | RegExp): Effect.Effect<void> =>
+export const toHaveValue = (
+  locator: Locator,
+  value: string | RegExp,
+): Effect.Effect<void> =>
   Effect.promise(() => expect(locator).toHaveValue(value))
 
 /**
  * Assert locator has attribute
  */
-export const toHaveAttribute = (locator: Locator, name: string, value: string | RegExp): Effect.Effect<void> =>
+export const toHaveAttribute = (
+  locator: Locator,
+  name: string,
+  value: string | RegExp,
+): Effect.Effect<void> =>
   Effect.promise(() => expect(locator).toHaveAttribute(name, value))
 
 /**
  * Assert locator has count
  */
-export const toHaveCount = (locator: Locator, count: number): Effect.Effect<void> =>
+export const toHaveCount = (
+  locator: Locator,
+  count: number,
+): Effect.Effect<void> =>
   Effect.promise(() => expect(locator).toHaveCount(count))
 
 /**
  * Assert page has title
  */
-export const toHaveTitle = (page: Page, title: string | RegExp): Effect.Effect<void> =>
-  Effect.promise(() => expect(page).toHaveTitle(title))
+export const toHaveTitle = (
+  page: Page,
+  title: string | RegExp,
+): Effect.Effect<void> => Effect.promise(() => expect(page).toHaveTitle(title))
 
 /**
  * Assert locator is focused
@@ -94,5 +113,8 @@ export const toBeFocused = (locator: Locator): Effect.Effect<void> =>
 /**
  * Assert locator has CSS class
  */
-export const toHaveClass = (locator: Locator, className: string | RegExp | (string | RegExp)[]): Effect.Effect<void> =>
+export const toHaveClass = (
+  locator: Locator,
+  className: string | RegExp | (string | RegExp)[],
+): Effect.Effect<void> =>
   Effect.promise(() => expect(locator).toHaveClass(className))

@@ -148,8 +148,10 @@ export const RolesPageLive = Layer.effect(
           const createButton = playwrightPage.getByTestId('roles-create-button')
           const createDialog = playwrightPage.getByTestId('role-create-dialog')
           const nameInput = playwrightPage.getByTestId('role-create-name-input')
-          const submitButton = playwrightPage.getByTestId('role-create-submit-button')
-          
+          const submitButton = playwrightPage.getByTestId(
+            'role-create-submit-button',
+          )
+
           yield* LocatorHelpers.click(createButton)
           yield* LocatorHelpers.waitForVisible(createDialog)
           yield* LocatorHelpers.fill(nameInput, name)
@@ -162,8 +164,10 @@ export const RolesPageLive = Layer.effect(
           const row = playwrightPage.getByTestId(`role-row-${name}`)
           const editDialog = playwrightPage.getByTestId('role-edit-dialog')
           const nameInput = playwrightPage.getByTestId('role-edit-name-input')
-          const submitButton = playwrightPage.getByTestId('role-edit-submit-button')
-          
+          const submitButton = playwrightPage.getByTestId(
+            'role-edit-submit-button',
+          )
+
           yield* LocatorHelpers.click(row)
           yield* LocatorHelpers.waitForVisible(editDialog)
           yield* LocatorHelpers.fill(nameInput, newName)
@@ -173,10 +177,16 @@ export const RolesPageLive = Layer.effect(
 
       deleteRole: (name: string) =>
         Effect.gen(function* () {
-          const deleteButton = playwrightPage.getByTestId(`role-delete-button-${name}`)
-          const confirmDialog = playwrightPage.getByTestId('role-delete-confirm-dialog')
-          const confirmButton = playwrightPage.getByTestId('role-delete-confirm-button')
-          
+          const deleteButton = playwrightPage.getByTestId(
+            `role-delete-button-${name}`,
+          )
+          const confirmDialog = playwrightPage.getByTestId(
+            'role-delete-confirm-dialog',
+          )
+          const confirmButton = playwrightPage.getByTestId(
+            'role-delete-confirm-button',
+          )
+
           yield* LocatorHelpers.click(deleteButton)
           yield* LocatorHelpers.waitForVisible(confirmDialog)
           yield* LocatorHelpers.click(confirmButton)
@@ -186,11 +196,13 @@ export const RolesPageLive = Layer.effect(
       viewRoleDetails: (name: string) =>
         Effect.gen(function* () {
           const row = playwrightPage.getByTestId(`role-row-${name}`)
-          const detailsDialog = playwrightPage.getByTestId('role-details-dialog')
-          
+          const detailsDialog = playwrightPage.getByTestId(
+            'role-details-dialog',
+          )
+
           yield* LocatorHelpers.click(row)
           yield* LocatorHelpers.waitForVisible(detailsDialog)
         }),
     }
-  })
+  }),
 )
