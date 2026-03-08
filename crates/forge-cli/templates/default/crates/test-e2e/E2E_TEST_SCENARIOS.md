@@ -156,7 +156,7 @@ Each scenario includes:
 ### 1.5 Protected Endpoint Access (Unauthenticated)
 ```
 [Guest] → GET `/api/auth/me` → 401 Unauthorized
-[Guest] → GET `/api/auth/profiles` → 401 Unauthorized
+[Guest] → GET `/api/auth/scopes` → 401 Unauthorized
 [Guest] → POST `/api/auth/tokens` → 401 Unauthorized
 [Guest] → GET `/api/auth/admin` → 401 Unauthorized
 [Guest] → GET `/api/entities/organization` → 401 Unauthorized

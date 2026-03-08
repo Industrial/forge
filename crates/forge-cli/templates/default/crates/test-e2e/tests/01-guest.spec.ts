@@ -419,10 +419,10 @@ test.describe('Guest/Unauthenticated User', () => {
       expect(response.status()).toBe(401)
     })
 
-    test('GET /api/auth/profiles returns 401 Unauthorized', async ({
+    test('GET /api/auth/scopes returns 401 Unauthorized', async ({
       request,
     }) => {
-      const response = await request.get(`${API_BASE_URL}/api/auth/profiles`)
+      const response = await request.get(`${API_BASE_URL}/api/auth/scopes`)
       expect(response.status()).toBe(401)
     })
 

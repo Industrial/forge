@@ -577,7 +577,7 @@ pub async fn test_request(
   test_request_impl(client, method, path, token, body, extra_headers).await
 }
 
-/// Log in and return (token, org_id, role_id) from the first profile. Use for dashboard tests that need scope headers (X-Organization-Id, X-Role-Id).
+/// Log in and return (token, org_id, role_id) from the first scope. Use for dashboard tests that need scope headers (X-Organization-Id, X-Role-Id).
 #[cfg(any(test, feature = "test-utils"))]
 pub async fn auth_with_profile(
   client: &TestClient,
@@ -588,7 +588,7 @@ pub async fn auth_with_profile(
   let (status, body) = test_request_impl(
     client,
     "GET",
-    "/api/auth/profiles",
+    "/api/auth/scopes",
     Some(&token),
     None,
     None,
@@ -596,13 +596,13 @@ pub async fn auth_with_profile(
   .await?;
   if status != axum::http::StatusCode::OK {
     let msg = String::from_utf8_lossy(&body);
-    return Err(format!("GET /api/auth/profiles failed {}: {}", status, msg).into());
+    return Err(format!("GET /api/auth/scopes failed {}: {}", status, msg).into());
   }
   let json: serde_json::Value = serde_json::from_slice(&body)?;
-  let profiles = json["profiles"]
+  let scopes = json["scopes"]
     .as_array()
-    .ok_or("profiles array missing")?;
-  let first = profiles.first().ok_or("no profiles")?;
+    .ok_or("scopes array missing")?;
+  let first = scopes.first().ok_or("no scopes")?;
   let org_id = first["org_id"].as_str().ok_or("org_id missing")?;
   let role_id = first["role_id"].as_str().ok_or("role_id missing")?;
   Ok((token, org_id.to_string(), role_id.to_string()))

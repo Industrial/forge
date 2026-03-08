@@ -121,16 +121,16 @@ mod bdd_tests {
     }
   }
 
-  mod profiles_endpoint_behavior {
+  mod scopes_endpoint_behavior {
     use super::*;
 
     #[tokio::test]
-    async fn should_require_authentication_for_profiles_endpoint() {
+    async fn should_require_authentication_for_scopes_endpoint() {
       // Given: an anonymous request
       let client = app::test_client().await.expect("test_client");
 
-      // When: requesting /api/auth/profiles without authentication
-      let (status, _) = app::test_request(&client, "GET", "/api/auth/profiles", None, None, None)
+      // When: requesting /api/auth/scopes without authentication
+      let (status, _) = app::test_request(&client, "GET", "/api/auth/scopes", None, None, None)
         .await
         .unwrap();
 
@@ -139,16 +139,16 @@ mod bdd_tests {
     }
 
     #[tokio::test]
-    async fn should_return_profiles_for_authenticated_users() {
+    async fn should_return_scopes_for_authenticated_users() {
       // Given: an authenticated user
       let client = test_client_with_migrations().await;
       let token = token_for(&client, "viewer@default.org").await;
 
-      // When: requesting /api/auth/profiles with valid token
+      // When: requesting /api/auth/scopes with valid token
       let (status, body) = app::test_request(
         &client,
         "GET",
-        "/api/auth/profiles",
+        "/api/auth/scopes",
         Some(&token),
         None,
         None,
@@ -156,10 +156,10 @@ mod bdd_tests {
       .await
       .unwrap();
 
-      // Then: should return 200 OK with profiles
+      // Then: should return 200 OK with scopes
       assert_eq!(status, StatusCode::OK);
       let json: app::serde_json::Value = app::serde_json::from_slice(&body).unwrap();
-      assert!(json.get("profiles").is_some());
+      assert!(json.get("scopes").is_some());
     }
   }
 
