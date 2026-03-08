@@ -315,7 +315,7 @@ export default function UsersPage() {
   }
 
   return (
-    <>
+    <Box data-testid="users-page">
       <PageHeader
         title="Users"
         description={
@@ -325,6 +325,7 @@ export default function UsersPage() {
           </>
         }
         liveConnected={wsConnected}
+        data-testid="users-page-title"
       />
 
       {error != null && (
@@ -372,6 +373,7 @@ export default function UsersPage() {
               })
               setAddDialogOpen(true)
             }}
+            data-testid="users-create-button"
           >
             Add user
           </Button>
@@ -381,8 +383,8 @@ export default function UsersPage() {
       {loading ? (
         <LoadingSpinner />
       ) : (
-        <TableContainer component={Paper}>
-          <Table size="small" aria-label="Users">
+        <TableContainer component={Paper} data-testid="users-list">
+          <Table size="small" aria-label="Users" data-testid="users-table">
             <TableHead>
               <TableRow>
                 <TableCell>Email</TableCell>
@@ -426,6 +428,8 @@ export default function UsersPage() {
         onSubmit={() => addForm.handleSubmit(handleAdd)()}
         submitDisabled={!addForm.formState.isValid}
         submitting={adding}
+        data-testid="user-create-dialog"
+        submitButtonTestId="user-create-submit-button"
       >
         <Box
           sx={{
@@ -435,6 +439,8 @@ export default function UsersPage() {
             pt: 1,
             minWidth: 320,
           }}
+          component="form"
+          data-testid="user-create-form"
         >
           <Controller
             control={addForm.control}
@@ -448,6 +454,7 @@ export default function UsersPage() {
                 disabled={adding}
                 error={Boolean(fieldState.error)}
                 helperText={fieldState.error?.message}
+                data-testid="user-create-email-input"
               />
             )}
           />
@@ -463,6 +470,7 @@ export default function UsersPage() {
                 disabled={adding}
                 error={Boolean(fieldState.error)}
                 helperText={fieldState.error?.message}
+                data-testid="user-create-password-input"
               />
             )}
           />
@@ -564,6 +572,8 @@ export default function UsersPage() {
         onSubmit={() => editForm.handleSubmit(handleSaveEdit)()}
         submitDisabled={!editForm.formState.isValid}
         submitting={saving}
+        data-testid="user-edit-dialog"
+        submitButtonTestId="user-edit-submit-button"
       >
         <Box
           sx={{
@@ -573,6 +583,8 @@ export default function UsersPage() {
             pt: 1,
             minWidth: 320,
           }}
+          component="form"
+          data-testid="user-edit-form"
         >
           <Controller
             control={editForm.control}
@@ -585,6 +597,7 @@ export default function UsersPage() {
                 disabled={saving}
                 error={Boolean(fieldState.error)}
                 helperText={fieldState.error?.message}
+                data-testid="user-edit-email-input"
               />
             )}
           />
@@ -606,6 +619,6 @@ export default function UsersPage() {
           />
         </Box>
       </FormDialog>
-    </>
+    </Box>
   )
 }

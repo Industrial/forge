@@ -68,7 +68,7 @@ export default function LoginPage() {
   )
 
   return (
-    <>
+    <Box data-testid="login-page">
       <Typography variant="h4" component="h1" gutterBottom>
         Log in
       </Typography>
@@ -79,7 +79,7 @@ export default function LoginPage() {
         >
           <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
             {errorMessage != null && (
-              <Alert severity="error" data-testid="login-error">
+              <Alert severity="error" data-testid="login-error-message">
                 <Typography variant="subtitle2">Login failed</Typography>
                 {errorMessage}
               </Alert>
@@ -97,7 +97,7 @@ export default function LoginPage() {
                   required
                   slotProps={{ htmlInput: { autoComplete: 'email' } }}
                   disabled={submitting}
-                  data-testid="login-email"
+                  data-testid="login-email-input"
                   fullWidth
                   error={Boolean(fieldState.error)}
                   helperText={fieldState.error?.message}
@@ -119,7 +119,7 @@ export default function LoginPage() {
                     htmlInput: { autoComplete: 'current-password' },
                   }}
                   disabled={submitting}
-                  data-testid="login-password"
+                  data-testid="login-password-input"
                   fullWidth
                   error={Boolean(fieldState.error)}
                   helperText={fieldState.error?.message}
@@ -131,7 +131,7 @@ export default function LoginPage() {
                 type="submit"
                 variant="contained"
                 disabled={submitting || !form.formState.isValid}
-                data-testid="login-submit"
+                data-testid="login-submit-button"
               >
                 Log in
               </Button>
@@ -143,11 +143,12 @@ export default function LoginPage() {
             component={RouterLink}
             to="/authentication/register"
             variant="body2"
+            data-testid="login-register-link"
           >
             Don&apos;t have an account? Create an Account
           </Link>
         </Typography>
       </Box>
-    </>
+    </Box>
   )
 }

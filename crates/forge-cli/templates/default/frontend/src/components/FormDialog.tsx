@@ -19,6 +19,8 @@ export type FormDialogProps = {
   maxWidth?: 'xs' | 'sm' | 'md' | 'lg' | 'xl'
   fullWidth?: boolean
   contentSx?: SxProps<Theme>
+  'data-testid'?: string
+  submitButtonTestId?: string
 }
 
 export default function FormDialog({
@@ -34,6 +36,8 @@ export default function FormDialog({
   maxWidth = 'sm',
   fullWidth = true,
   contentSx,
+  'data-testid': testId,
+  submitButtonTestId,
 }: FormDialogProps) {
   const handleClose = () => {
     if (!submitting) onClose()
@@ -47,6 +51,7 @@ export default function FormDialog({
       onClose={handleClose}
       maxWidth={maxWidth}
       fullWidth={fullWidth}
+      data-testid={testId}
     >
       <DialogTitle>{title}</DialogTitle>
       <DialogContent sx={contentSx}>{children}</DialogContent>
@@ -58,6 +63,7 @@ export default function FormDialog({
           variant="contained"
           onClick={onSubmit}
           disabled={submitDisabled || submitting}
+          data-testid={submitButtonTestId}
         >
           {buttonLabel}
         </Button>

@@ -62,7 +62,7 @@ export default function RegisterPage() {
   )
 
   return (
-    <>
+    <Box data-testid="register-page">
       <Typography variant="h4" component="h1" gutterBottom>
         Create an account
       </Typography>
@@ -73,7 +73,7 @@ export default function RegisterPage() {
         >
           <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
             {errorMessage != null && (
-              <Alert severity="error" data-testid="register-error">
+              <Alert severity="error" data-testid="register-error-message">
                 <Typography variant="subtitle2">Registration failed</Typography>
                 {errorMessage}
               </Alert>
@@ -91,7 +91,7 @@ export default function RegisterPage() {
                   required
                   slotProps={{ htmlInput: { autoComplete: 'email' } }}
                   disabled={submitting}
-                  data-testid="register-email"
+                  data-testid="register-email-input"
                   fullWidth
                   error={Boolean(fieldState.error)}
                   helperText={fieldState.error?.message}
@@ -113,7 +113,7 @@ export default function RegisterPage() {
                     htmlInput: { minLength: 8, autoComplete: 'new-password' },
                   }}
                   disabled={submitting}
-                  data-testid="register-password"
+                  data-testid="register-password-input"
                   fullWidth
                   error={Boolean(fieldState.error)}
                   helperText={fieldState.error?.message}
@@ -125,7 +125,7 @@ export default function RegisterPage() {
                 type="submit"
                 variant="contained"
                 disabled={submitting || !form.formState.isValid}
-                data-testid="register-submit"
+                data-testid="register-submit-button"
               >
                 Register
               </Button>
@@ -137,11 +137,12 @@ export default function RegisterPage() {
             component={RouterLink}
             to="/authentication/login"
             variant="body2"
+            data-testid="register-login-link"
           >
             Already have an account? Log in
           </Link>
         </Typography>
       </Box>
-    </>
+    </Box>
   )
 }

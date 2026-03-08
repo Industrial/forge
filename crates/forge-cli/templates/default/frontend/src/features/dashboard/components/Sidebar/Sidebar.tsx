@@ -81,10 +81,23 @@ export default function Sidebar({
 }: SidebarProps) {
   const width = fullWidth ? '100%' : expanded ? 240 : 72
 
+  const getTestIdForNavItem = (to: string): string => {
+    const testIdMap: Record<string, string> = {
+      '/dashboard': 'sidebar-dashboard-link',
+      '/dashboard/organizations': 'sidebar-organizations-link',
+      '/dashboard/users': 'sidebar-users-link',
+      '/dashboard/roles': 'sidebar-roles-link',
+      '/dashboard/roles-and-permissions': 'sidebar-permissions-link',
+      '/dashboard/audit-log': 'sidebar-audit-log-link',
+    }
+    return testIdMap[to] || `sidebar-link-${to.replace(/\//g, '-')}`
+  }
+
   return (
     <Box
       component="aside"
       className="dashboard-sidebar"
+      data-testid="dashboard-sidebar"
       aria-label="Dashboard navigation"
       sx={{
         width,
@@ -107,6 +120,7 @@ export default function Sidebar({
               to={to}
               end={end}
               style={{ textDecoration: 'none', color: 'inherit' }}
+              data-testid={getTestIdForNavItem(to)}
             >
               {({ isActive }) => (
                 <ListItemButton
@@ -152,6 +166,7 @@ export default function Sidebar({
             aria-label={expanded ? 'Collapse sidebar' : 'Expand sidebar'}
             onClick={onToggle}
             size="small"
+            data-testid="sidebar-toggle-button"
           >
             {expanded ? <ChevronLeft /> : <ChevronRight />}
           </IconButton>

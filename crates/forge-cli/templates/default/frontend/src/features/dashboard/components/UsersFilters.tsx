@@ -47,6 +47,7 @@ export default function UsersFilters({
         onChange={(e) => onFilterEmailChange(e.target.value)}
         placeholder="Search by email"
         sx={{ minWidth: 220 }}
+        data-testid="users-filter-input"
       />
       <FormControl size="small" sx={{ minWidth: 180 }}>
         <InputLabel>Organization</InputLabel>

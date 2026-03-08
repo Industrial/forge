@@ -32,7 +32,7 @@ export default function UserTableRow({
   isDeleting,
 }: UserTableRowProps) {
   return (
-    <TableRow>
+    <TableRow data-testid="user-row">
       <TableCell sx={{ fontWeight: 500 }}>{user.email}</TableCell>
       <TableCell sx={{ maxWidth: 280 }}>
         {membershipsSummary(user.memberships)}
@@ -48,6 +48,7 @@ export default function UserTableRow({
             size="small"
             aria-label="Edit"
             onClick={() => onEdit(user)}
+            data-testid="user-edit-button"
           >
             <EditIcon />
           </IconButton>
@@ -56,6 +57,7 @@ export default function UserTableRow({
             aria-label="Delete"
             onClick={() => onDelete(user.id)}
             disabled={isDeleting}
+            data-testid="user-delete-button"
           >
             <DeleteIcon />
           </IconButton>

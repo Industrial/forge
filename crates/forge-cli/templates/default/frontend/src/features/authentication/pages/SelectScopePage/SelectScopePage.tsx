@@ -88,7 +88,7 @@ export default function SelectScopePage() {
   }
 
   return (
-    <>
+    <Box data-testid="select-scope-page">
       <Typography variant="h4" component="h1" gutterBottom>
         Select scope
       </Typography>
@@ -104,15 +104,15 @@ export default function SelectScopePage() {
           {errorMessage}
         </Typography>
       )}
-      <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1.5 }}>
-        {scopes.map((p) => (
-          <Card key={p.org_id + (p.role_id ?? p.role)} variant="outlined">
+      <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1.5 }} data-testid="profile-list">
+        {scopes.map((p, index) => (
+          <Card key={p.org_id + (p.role_id ?? p.role)} variant="outlined" data-testid={`profile-card-${index}`}>
             <CardActionArea
               onClick={() =>
                 handleSelectScope(p.org_id, p.role_id ?? '', p.role ?? '')
               }
               disabled={submitting}
-              data-testid={`scope-${p.org_name}-${p.role}`}
+              data-testid={`profile-select-button-${index}`}
             >
               <CardContent>
                 <Typography variant="subtitle1">
@@ -124,6 +124,6 @@ export default function SelectScopePage() {
           </Card>
         ))}
       </Box>
-    </>
+    </Box>
   )
 }

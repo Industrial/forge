@@ -97,7 +97,7 @@ export default function Navbar({
   }
 
   return (
-    <AppBar position="static" color="default" elevation={0}>
+    <AppBar position="static" color="default" elevation={0} data-testid="dashboard-navbar">
       <Toolbar sx={{ minHeight: { xs: 56, sm: 64 }, gap: 1 }}>
         {onOpenSidebar != null && (
           <IconButton
@@ -105,6 +105,7 @@ export default function Navbar({
             aria-label="Open dashboard menu"
             onClick={onOpenSidebar}
             sx={{ mr: 0.5 }}
+            data-testid="navbar-menu-button"
           >
             <MenuIcon />
           </IconButton>
@@ -114,6 +115,7 @@ export default function Navbar({
           onClick={() => navigate('/')}
           startIcon={<LogoIcon />}
           sx={{ textTransform: 'none', fontSize: '1.125rem', mr: 1 }}
+          data-testid="navbar-logo-button"
         >
           {appName}
         </Button>
@@ -122,7 +124,7 @@ export default function Navbar({
 
         {canAccessDashboard && (
           <>
-            <Button color="inherit" onClick={() => navigate('/dashboard')}>
+            <Button color="inherit" onClick={() => navigate('/dashboard')} data-testid="navbar-dashboard-button">
               Dashboard
             </Button>
             <Divider orientation="vertical" flexItem sx={{ mx: 0.5 }} />
@@ -136,6 +138,7 @@ export default function Navbar({
               : 'Switch to dark mode'
           }
           onClick={onToggleTheme}
+          data-testid="navbar-theme-toggle-button"
         >
           <ThemeIcon isDark={colorScheme === 'dark'} />
         </IconButton>
@@ -148,6 +151,7 @@ export default function Navbar({
           aria-expanded={open ? 'true' : undefined}
           onClick={handleUserClick}
           sx={{ ml: 0.5 }}
+          data-testid="navbar-user-menu-button"
         >
           <Avatar
             sx={{ width: 32, height: 32, bgcolor: 'primary.main' }}
@@ -168,8 +172,9 @@ export default function Navbar({
           anchorOrigin={{ vertical: 'bottom', horizontal: 'right' }}
           transformOrigin={{ vertical: 'top', horizontal: 'right' }}
           slotProps={{ paper: { sx: { minWidth: 220 } } }}
+          data-testid="navbar-user-menu"
         >
-          <MenuItem onClick={handleScope}>
+          <MenuItem onClick={handleScope} data-testid="navbar-user-menu-scope">
             <ListItemIcon>
               <Person fontSize="small" />
             </ListItemIcon>
@@ -200,7 +205,7 @@ export default function Navbar({
             )
           })} */}
           <Divider />
-          <MenuItem onClick={handleLogout}>
+          <MenuItem onClick={handleLogout} data-testid="navbar-user-menu-logout">
             <ListItemIcon>
               <Logout fontSize="small" />
             </ListItemIcon>

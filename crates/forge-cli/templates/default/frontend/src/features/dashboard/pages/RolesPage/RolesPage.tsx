@@ -234,11 +234,12 @@ export default function RolesPage() {
   }
 
   return (
-    <>
+    <Box data-testid="roles-page">
       <PageHeader
         title="Roles"
         description="Manage organization roles. Template roles (owner, admin, editor, viewer) are created when an org is created; you can add custom roles here."
         liveConnected={wsConnected}
+        data-testid="roles-page-title"
       />
 
       {errorMessage != null && (
@@ -260,6 +261,7 @@ export default function RolesPage() {
             setAddOrgId(organizations[0]?.id ?? '')
             setAddOpen(true)
           }}
+          data-testid="roles-create-button"
         >
           Add role
         </Button>
@@ -268,8 +270,8 @@ export default function RolesPage() {
       {loading ? (
         <LoadingSpinner />
       ) : (
-        <TableContainer component={Paper}>
-          <Table size="small" aria-label="Roles">
+        <TableContainer component={Paper} data-testid="roles-list">
+          <Table size="small" aria-label="Roles" data-testid="roles-table">
             <TableHead>
               <TableRow>
                 <TableCell>Organization</TableCell>
@@ -315,6 +317,8 @@ export default function RolesPage() {
           !addName.trim() || (organizations.length > 1 && !addOrgId)
         }
         submitting={adding}
+        data-testid="role-create-dialog"
+        submitButtonTestId="role-create-submit-button"
       >
         <Box
           sx={{
@@ -324,6 +328,8 @@ export default function RolesPage() {
             pt: 1,
             minWidth: 320,
           }}
+          component="form"
+          data-testid="role-create-form"
         >
           {organizations.length > 1 && (
             <FormControl fullWidth size="small" disabled={adding} required>
@@ -349,6 +355,7 @@ export default function RolesPage() {
             required
             disabled={adding}
             fullWidth
+            data-testid="role-create-name-input"
           />
           <TextField
             label="Display name (optional)"
@@ -370,6 +377,8 @@ export default function RolesPage() {
         onSubmit={handleSaveEdit}
         submitDisabled={!editName.trim()}
         submitting={saving}
+        data-testid="role-edit-dialog"
+        submitButtonTestId="role-edit-submit-button"
       >
         <Box
           sx={{
@@ -379,6 +388,8 @@ export default function RolesPage() {
             pt: 1,
             minWidth: 320,
           }}
+          component="form"
+          data-testid="role-edit-form"
         >
           <TextField
             label="Name"
@@ -387,6 +398,7 @@ export default function RolesPage() {
             required
             disabled={saving}
             fullWidth
+            data-testid="role-edit-name-input"
           />
           <TextField
             label="Display name (optional)"
@@ -397,6 +409,6 @@ export default function RolesPage() {
           />
         </Box>
       </FormDialog>
-    </>
+    </Box>
   )
 }

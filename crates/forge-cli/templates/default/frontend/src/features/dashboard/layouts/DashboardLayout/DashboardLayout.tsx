@@ -30,7 +30,7 @@ export default function DashboardLayout({
   }, [location.pathname])
 
   return (
-    <>
+    <Box data-testid="dashboard-layout">
       <Navbar
         appName="App"
         colorScheme={colorScheme}
@@ -80,6 +80,7 @@ export default function DashboardLayout({
         )}
         <Box
           className="dashboard-content"
+          data-testid="dashboard-content"
           sx={{
             flexGrow: 1,
             minWidth: 0,
@@ -91,6 +92,6 @@ export default function DashboardLayout({
           <Outlet />
         </Box>
       </Box>
-    </>
+    </Box>
   )
 }

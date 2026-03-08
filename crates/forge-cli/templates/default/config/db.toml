@@ -1,5 +1,5 @@
 [database]
-url = "sqlite:///tmp/forge_integration_2866319.sqlite?mode=rwc"
+url = "sqlite:///tmp/forge_e2e_3160859.sqlite?mode=rwc"
 max_connections = 5
 min_connections = 1
 connect_timeout = 10

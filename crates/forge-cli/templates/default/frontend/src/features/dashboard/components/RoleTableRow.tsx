@@ -22,12 +22,12 @@ export default function RoleTableRow({
   isDeleting,
 }: RoleTableRowProps) {
   return (
-    <TableRow>
+    <TableRow data-testid={`role-row-${role.name}`}>
       <TableCell>{orgName}</TableCell>
       <TableCell sx={{ fontWeight: 500 }}>{role.name}</TableCell>
       <TableCell>{role.display_name ?? '—'}</TableCell>
       <TableCell align="right">
-        <IconButton size="small" aria-label="Edit" onClick={() => onEdit(role)}>
+        <IconButton size="small" aria-label="Edit" onClick={() => onEdit(role)} data-testid={`role-edit-button-${role.name}`}>
           <EditIcon />
         </IconButton>
         <IconButton
@@ -35,6 +35,7 @@ export default function RoleTableRow({
           aria-label="Delete"
           onClick={() => onDelete(role.id)}
           disabled={isDeleting}
+          data-testid={`role-delete-button-${role.name}`}
         >
           <DeleteIcon />
         </IconButton>
