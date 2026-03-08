@@ -19,6 +19,8 @@ export class RegisterPage extends Context.Tag('RegisterPage')<
     readonly submit: () => Effect.Effect<Locator>
     readonly loginLink: () => Effect.Effect<Locator>
     readonly errorMessage: () => Effect.Effect<Locator>
+    readonly emailError: () => Effect.Effect<Locator>
+    readonly passwordError: () => Effect.Effect<Locator>
     readonly register: (email: string, password: string) => Effect.Effect<void>
     readonly clickLoginLink: () => Effect.Effect<void>
   }
@@ -66,6 +68,31 @@ export const RegisterPageLive = Layer.effect(
       errorMessage: () =>
         Effect.gen(function* () {
           return playwrightPage.getByTestId('register-error-message')
+        }),
+
+      emailError: () =>
+        Effect.gen(function* () {
+          // Material-UI TextField renders helperText in a <p> with class MuiFormHelperText-root
+          // Structure: FormControl > InputBase > input, and FormControl > FormHelperText
+          // We find the input, get its FormControl parent, then find the helper text sibling
+          const emailInput = playwrightPage.getByTestId('register-email-input')
+          // Navigate up to FormControl (parent of InputBase, which is parent of input)
+          // Then find the helper text element within the same FormControl
+          return emailInput
+            .locator('..') // InputBase
+            .locator('..') // FormControl
+            .locator('.MuiFormHelperText-root')
+            .first()
+        }),
+
+      passwordError: () =>
+        Effect.gen(function* () {
+          const passwordInput = playwrightPage.getByTestId('register-password-input')
+          return passwordInput
+            .locator('..') // InputBase
+            .locator('..') // FormControl
+            .locator('.MuiFormHelperText-root')
+            .first()
         }),
 
       register: (email: string, password: string) =>

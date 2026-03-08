@@ -166,14 +166,19 @@ test.describe('Guest/Unauthenticated User', () => {
           const emailLocator = yield* registerPageService.email()
           const passwordLocator = yield* registerPageService.password()
           const submitLocator = yield* registerPageService.submit()
-          const errorMessageLocator = yield* registerPageService.errorMessage()
+          const emailErrorLocator = yield* registerPageService.emailError()
 
           yield* LocatorHelpers.fill(emailLocator, 'invalid-email')
           yield* LocatorHelpers.fill(passwordLocator, 'password123')
           yield* LocatorHelpers.click(submitLocator)
 
-          // Wait for error message
-          yield* ExpectHelpers.toBeVisible(errorMessageLocator)
+          // Wait for field-level error message (helperText)
+          yield* ExpectHelpers.toBeVisible(emailErrorLocator)
+          // Verify error message contains expected text
+          yield* ExpectHelpers.toContainText(
+            emailErrorLocator,
+            'Enter a valid email address',
+          )
         })
 
         await Effect.runPromise(
@@ -193,14 +198,19 @@ test.describe('Guest/Unauthenticated User', () => {
           const emailLocator = yield* registerPageService.email()
           const passwordLocator = yield* registerPageService.password()
           const submitLocator = yield* registerPageService.submit()
-          const errorMessageLocator = yield* registerPageService.errorMessage()
+          const passwordErrorLocator = yield* registerPageService.passwordError()
 
           yield* LocatorHelpers.fill(emailLocator, testUser.email)
           yield* LocatorHelpers.fill(passwordLocator, testUser.password)
           yield* LocatorHelpers.click(submitLocator)
 
-          // Wait for error message
-          yield* ExpectHelpers.toBeVisible(errorMessageLocator)
+          // Wait for field-level error message (helperText)
+          yield* ExpectHelpers.toBeVisible(passwordErrorLocator)
+          // Verify error message contains expected text
+          yield* ExpectHelpers.toContainText(
+            passwordErrorLocator,
+            'Password must be at least 8 characters',
+          )
         })
 
         await Effect.runPromise(
