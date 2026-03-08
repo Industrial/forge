@@ -322,23 +322,29 @@ test.describe('Org Admin Role', () => {
         loginProgram.pipe(Effect.provide(createPageLayers(page))),
       )
       const testUser = createTestUser()
-      const createResponse = await page.request.post(`${API_BASE_URL}/api/rpc`, {
-        data: {
-          method: 'entity.create',
-          params: {
-            entity: 'user',
-            data: { email: testUser.email, password: testUser.password },
+      const createResponse = await page.request.post(
+        `${API_BASE_URL}/api/rpc`,
+        {
+          data: {
+            method: 'entity.create',
+            params: {
+              entity: 'user',
+              data: { email: testUser.email, password: testUser.password },
+            },
           },
         },
-      })
+      )
       const created = await createResponse.json()
 
-      const deleteResponse = await page.request.post(`${API_BASE_URL}/api/rpc`, {
-        data: {
-          method: 'entity.delete',
-          params: { entity: 'user', id: created.result.id },
+      const deleteResponse = await page.request.post(
+        `${API_BASE_URL}/api/rpc`,
+        {
+          data: {
+            method: 'entity.delete',
+            params: { entity: 'user', id: created.result.id },
+          },
         },
-      })
+      )
       expect(deleteResponse.status()).toBe(200)
     })
   })

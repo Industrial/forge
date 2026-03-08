@@ -38,9 +38,9 @@ export interface UseFormConfig<TSchema extends Schema.Schema<any, any, never>> {
  * Generalized Effect.ts-based form hook.
  * Handles validation using Effect.ts Schema and provides Effect-based handlers.
  * The form values type is automatically inferred from the schema.
- * 
+ *
  * @template TSchema - The Effect.ts Schema type (inferred from schema parameter)
- * 
+ *
  * @example
  * ```tsx
  * const { formState, setFieldValue, validateForm } = useForm({
@@ -60,7 +60,8 @@ export function useForm<TSchema extends Schema.Schema<any, any, never>>(
     touched: {},
   }
 
-  const [formState, setFormState] = useState<FormState<TValues>>(initialFormState)
+  const [formState, setFormState] =
+    useState<FormState<TValues>>(initialFormState)
 
   /**
    * Extracts all field errors from a Schema.ParseError using Effect.ts's ArrayFormatter.

@@ -411,7 +411,9 @@ test.describe('App Admin Role', () => {
       await Effect.runPromise(
         loginProgram.pipe(Effect.provide(createPageLayers(page))),
       )
-      const response = await page.request.get(`${API_BASE_URL}/api/entities/user`)
+      const response = await page.request.get(
+        `${API_BASE_URL}/api/entities/user`,
+      )
       expect(response.status()).toBe(200)
     })
   })
@@ -539,7 +541,9 @@ test.describe('App Admin Role', () => {
       await Effect.runPromise(
         loginProgram.pipe(Effect.provide(createPageLayers(page))),
       )
-      const response = await page.request.post(`${API_BASE_URL}/api/auth/tokens`)
+      const response = await page.request.post(
+        `${API_BASE_URL}/api/auth/tokens`,
+      )
       expect(response.status()).toBe(201)
     })
 

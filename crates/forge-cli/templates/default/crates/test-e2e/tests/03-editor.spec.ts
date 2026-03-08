@@ -443,15 +443,16 @@ test.describe('Editor Role', () => {
         loginProgram.pipe(Effect.provide(createPageLayers(page))),
       )
       const testUser = createTestUser()
-      const response = await page.request.post(`${API_BASE_URL}/api/entities/user`, {
-        data: { email: testUser.email, password: testUser.password },
-      })
+      const response = await page.request.post(
+        `${API_BASE_URL}/api/entities/user`,
+        {
+          data: { email: testUser.email, password: testUser.password },
+        },
+      )
       expect(response.status()).toBe(201)
     })
 
-    test('PATCH /api/entities/user/{id} returns 200 OK', async ({
-      page,
-    }) => {
+    test('PATCH /api/entities/user/{id} returns 200 OK', async ({ page }) => {
       await page.goto('/authentication/login')
       const loginProgram = Effect.gen(function* () {
         const loginPageService = yield* LoginPage

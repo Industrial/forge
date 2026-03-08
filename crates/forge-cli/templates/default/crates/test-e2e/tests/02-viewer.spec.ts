@@ -610,16 +610,16 @@ test.describe('Viewer Role', () => {
       await Effect.runPromise(
         loginProgram.pipe(Effect.provide(createPageLayers(page))),
       )
-      const response = await page.request.post(`${API_BASE_URL}/api/auth/tokens`)
+      const response = await page.request.post(
+        `${API_BASE_URL}/api/auth/tokens`,
+      )
       expect(response.status()).toBe(201)
 
       const data = await response.json()
       expect(data).toHaveProperty('token')
     })
 
-    test('use token to GET /api/auth/me returns 200 OK', async ({
-      page,
-    }) => {
+    test('use token to GET /api/auth/me returns 200 OK', async ({ page }) => {
       await page.goto('/authentication/login')
       const loginProgram = Effect.gen(function* () {
         const loginPageService = yield* LoginPage
@@ -661,12 +661,16 @@ test.describe('Viewer Role', () => {
     })
 
     test('GET /api/entities/user returns 200 OK', async ({ page }) => {
-      const response = await page.request.get(`${API_BASE_URL}/api/entities/user`)
+      const response = await page.request.get(
+        `${API_BASE_URL}/api/entities/user`,
+      )
       expect(response.status()).toBe(200)
     })
 
     test('GET /api/entities/role returns 200 OK', async ({ page }) => {
-      const response = await page.request.get(`${API_BASE_URL}/api/entities/role`)
+      const response = await page.request.get(
+        `${API_BASE_URL}/api/entities/role`,
+      )
       expect(response.status()).toBe(200)
     })
 
@@ -678,7 +682,9 @@ test.describe('Viewer Role', () => {
     })
 
     test('GET /api/entities/audit returns 200 OK', async ({ page }) => {
-      const response = await page.request.get(`${API_BASE_URL}/api/entities/audit`)
+      const response = await page.request.get(
+        `${API_BASE_URL}/api/entities/audit`,
+      )
       expect(response.status()).toBe(200)
     })
 

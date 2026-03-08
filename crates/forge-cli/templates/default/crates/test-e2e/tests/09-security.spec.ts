@@ -268,10 +268,13 @@ test.describe('Security Scenarios', () => {
         loginProgram.pipe(Effect.provide(createPageLayers(page))),
       )
       // Try to make a POST request without CSRF token
-      const response = await page.request.post(`${API_BASE_URL}/api/entities/user`, {
-        data: { email: 'test@example.com', password: 'password' },
-        // Intentionally omit CSRF token
-      })
+      const response = await page.request.post(
+        `${API_BASE_URL}/api/entities/user`,
+        {
+          data: { email: 'test@example.com', password: 'password' },
+          // Intentionally omit CSRF token
+        },
+      )
 
       // Should be rejected (403 or 400)
       expect([400, 403]).toContain(response.status())

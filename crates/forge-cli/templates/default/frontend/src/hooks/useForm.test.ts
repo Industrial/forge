@@ -321,7 +321,10 @@ describe('useForm', () => {
       )
 
       // When: validating invalid values for multiple fields
-      const validationEffect = result.current.validateForm({ name: '', age: -1 })
+      const validationEffect = result.current.validateForm({
+        name: '',
+        age: -1,
+      })
       const validationResult = await Effect.runPromise(
         validationEffect.pipe(Effect.either),
       )
@@ -509,9 +512,7 @@ describe('useForm', () => {
       )
 
       // When: setting root error
-      const errors: FieldError[] = [
-        { field: 'root', message: 'Form error' },
-      ]
+      const errors: FieldError[] = [{ field: 'root', message: 'Form error' }]
       act(() => {
         result.current.setValidationErrors(errors)
       })

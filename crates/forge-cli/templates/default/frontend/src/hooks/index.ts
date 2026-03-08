@@ -6,4 +6,3 @@ export * from './useIsMobile'
 export * from './useLiveRefreshTrigger'
 export * from './usePermission'
 export * from './useTablePaginationDefaults'
-

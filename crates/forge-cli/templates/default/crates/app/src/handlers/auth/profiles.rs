@@ -1,4 +1,4 @@
-//! GET /api/auth/profiles — list (org, role) profiles for scope picker.
+//! GET /api/auth/scopes — list (org, role) scopes for scope picker.
 
 use axum::{Json, extract::State, response::IntoResponse};
 use forge_auth::token_auth::RequireAuth;
@@ -20,7 +20,7 @@ pub async fn profiles_list(
     .all(&db)
     .await?;
   if uors.is_empty() {
-    return Ok(Json(serde_json::json!({ "profiles": [] })).into_response());
+    return Ok(Json(serde_json::json!({ "scopes": [] })).into_response());
   }
   let role_ids: Vec<uuid::Uuid> = uors.iter().map(|u| u.role_id).collect();
   let roles = org_role::Entity::find()
@@ -41,7 +41,7 @@ pub async fn profiles_list(
     orgs.into_iter().map(|o| (o.id, o)).collect();
   let role_map: std::collections::HashMap<uuid::Uuid, org_role::Model> =
     roles.into_iter().map(|r| (r.id, r)).collect();
-  let profiles: Vec<serde_json::Value> = uors
+  let scopes: Vec<serde_json::Value> = uors
     .into_iter()
     .filter_map(|u| {
       let r = role_map.get(&u.role_id)?;
@@ -54,7 +54,7 @@ pub async fn profiles_list(
       }))
     })
     .collect();
-  Ok(Json(serde_json::json!({ "profiles": profiles })).into_response())
+  Ok(Json(serde_json::json!({ "scopes": scopes })).into_response())
 }
 
 #[cfg(test)]

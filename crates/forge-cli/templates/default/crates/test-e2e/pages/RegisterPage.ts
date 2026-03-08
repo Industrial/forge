@@ -87,7 +87,9 @@ export const RegisterPageLive = Layer.effect(
 
       passwordError: () =>
         Effect.gen(function* () {
-          const passwordInput = playwrightPage.getByTestId('register-password-input')
+          const passwordInput = playwrightPage.getByTestId(
+            'register-password-input',
+          )
           return passwordInput
             .locator('..') // InputBase
             .locator('..') // FormControl

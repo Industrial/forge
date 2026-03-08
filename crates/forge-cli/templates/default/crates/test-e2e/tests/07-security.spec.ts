@@ -134,15 +134,15 @@ test.describe('Cross-Role Scenarios', () => {
         await Effect.runPromise(
           loginProgram.pipe(Effect.provide(createPageLayers(page))),
         )
-        const response = await page.request.get(`${API_BASE_URL}/api/auth/admin`)
+        const response = await page.request.get(
+          `${API_BASE_URL}/api/auth/admin`,
+        )
         expect(response.status()).toBe(403)
       })
     })
 
     test.describe('App Admin permissions', () => {
-      test('App Admin can access global-admin features', async ({
-        page,
-      }) => {
+      test('App Admin can access global-admin features', async ({ page }) => {
         await page.goto('/authentication/login')
         const loginProgram = Effect.gen(function* () {
           const loginPageService = yield* LoginPage
@@ -154,7 +154,9 @@ test.describe('Cross-Role Scenarios', () => {
         await Effect.runPromise(
           loginProgram.pipe(Effect.provide(createPageLayers(page))),
         )
-        const response = await page.request.get(`${API_BASE_URL}/api/auth/admin`)
+        const response = await page.request.get(
+          `${API_BASE_URL}/api/auth/admin`,
+        )
         expect(response.status()).toBe(200)
       })
     })

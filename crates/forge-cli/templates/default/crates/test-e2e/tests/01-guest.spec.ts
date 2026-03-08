@@ -198,7 +198,8 @@ test.describe('Guest/Unauthenticated User', () => {
           const emailLocator = yield* registerPageService.email()
           const passwordLocator = yield* registerPageService.password()
           const submitLocator = yield* registerPageService.submit()
-          const passwordErrorLocator = yield* registerPageService.passwordError()
+          const passwordErrorLocator =
+            yield* registerPageService.passwordError()
 
           yield* LocatorHelpers.fill(emailLocator, testUser.email)
           yield* LocatorHelpers.fill(passwordLocator, testUser.password)

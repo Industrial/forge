@@ -45,7 +45,7 @@ pub fn make_app(live_backend: Arc<forge_live::InMemoryLiveBackend>) -> App {
     )
     .route("/api/auth/me", axum::routing::get(handlers::auth::get_me))
     .route(
-      "/api/auth/profiles",
+      "/api/auth/scopes",
       axum::routing::get(handlers::auth::profiles_list),
     )
     .post_route("/api/auth/tokens", handlers::auth::create_token)

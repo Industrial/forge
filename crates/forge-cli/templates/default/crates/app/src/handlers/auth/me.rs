@@ -1,4 +1,4 @@
-//! GET /api/auth/me — current user, profiles, permissions (from optional scope headers).
+//! GET /api/auth/me — current user, scopes, permissions (from optional scope headers).
 
 use axum::{Json, extract::State, http::Request, response::IntoResponse};
 use forge_auth::token_auth::RequireAuth;
@@ -24,7 +24,7 @@ pub async fn get_me(
     .filter(user_org_role::Column::UserId.eq(user.id))
     .all(&db)
     .await?;
-  let profiles: Vec<serde_json::Value> = if uors.is_empty() {
+  let scopes: Vec<serde_json::Value> = if uors.is_empty() {
     vec![]
   } else {
     let role_ids: Vec<uuid::Uuid> = uors.iter().map(|u| u.role_id).collect();
@@ -60,13 +60,13 @@ pub async fn get_me(
       })
       .collect()
   };
-  let needs_profile_select = profiles.len() != 1;
+  let needs_scope_select = scopes.len() != 1;
   Ok(Json(serde_json::json!({
     "user": { "id": user.id.to_string(), "email": user.email },
-    "profiles": profiles,
+    "scopes": scopes,
     "permissions": permissions,
     "flash": serde_json::Value::Null,
-    "needs_profile_select": needs_profile_select,
+    "needs_scope_select": needs_scope_select,
   })))
 }
 

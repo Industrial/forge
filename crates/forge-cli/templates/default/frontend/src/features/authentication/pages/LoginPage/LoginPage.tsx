@@ -135,12 +135,7 @@ export default function LoginPage() {
         }
       })
     },
-    [
-      navigate,
-      formState.values,
-      validateForm,
-      setValidationErrors,
-    ],
+    [navigate, formState.values, validateForm, setValidationErrors],
   )
 
   const emailError = getFieldError('email')

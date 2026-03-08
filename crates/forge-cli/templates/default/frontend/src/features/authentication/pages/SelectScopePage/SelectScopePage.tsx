@@ -45,8 +45,10 @@ export default function SelectScopePage() {
           setSubmitting(true)
           setErrorMessage(null)
           yield* auth.selectScope(orgId, roleId)
-          setSubmitting(false)
+          // Navigate before resetting submitting to prevent race condition
+          // with reactive redirect check
           navigate(from, { replace: true })
+          setSubmitting(false)
         }).pipe(
           Effect.mapError((error) => {
             setSubmitting(false)
@@ -70,7 +72,9 @@ export default function SelectScopePage() {
       />
     )
   }
-  if (!loading && user != null && !needs_scope_select) {
+  // Don't redirect while submitting (scope selection in progress) to avoid race condition
+  // with manual navigation in handleSelectScope
+  if (!loading && !submitting && user != null && !needs_scope_select) {
     return <Navigate to={from} replace />
   }
 
