@@ -451,7 +451,8 @@ const effect = Effect.try({
 
 ## Related Skills
 
-- `effect.ts-architect` - Layers, Services, dependency injection
+- `effect.ts-architect` - Layers, Services, dependency injection, reactive stores
+- `effect.ts-react` - **NEW**: Integrating Effect.ts with React (reactive stores, hooks, forms)
 - `effect.ts-testing` - Testing Effect code with Layers
 - `typescript-expert` - TypeScript best practices
 

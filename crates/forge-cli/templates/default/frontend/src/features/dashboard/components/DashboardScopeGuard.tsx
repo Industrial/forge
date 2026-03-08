@@ -53,7 +53,12 @@ function DashboardScopeGuard({ children }: DashboardScopeGuardProps) {
   // Fetch scopes only when needsScopeSelect is true
   // When needsScopeSelect is false, user already has a scope selected (from login), so we don't need to fetch
   useEffect(() => {
-    if (!isUserAuthenticated || !needsScopeSelect || scopes.length > 0 || loading) {
+    if (
+      !isUserAuthenticated ||
+      !needsScopeSelect ||
+      scopes.length > 0 ||
+      loading
+    ) {
       return
     }
 
@@ -82,7 +87,7 @@ function DashboardScopeGuard({ children }: DashboardScopeGuardProps) {
           )
           const scopesList = body.scopes ?? []
 
-          setScopes(scopesList.map(s => ({ ...s })))
+          setScopes(scopesList.map((s) => ({ ...s })))
         } else {
           setScopes([])
         }
@@ -94,7 +99,13 @@ function DashboardScopeGuard({ children }: DashboardScopeGuardProps) {
       .finally(() => {
         setLoading(false)
       })
-  }, [isUserAuthenticated, needsScopeSelect, scopes.length, loading, authentication.token])
+  }, [
+    isUserAuthenticated,
+    needsScopeSelect,
+    scopes.length,
+    loading,
+    authentication.token,
+  ])
 
   // Auto-select single scope when needsScopeSelect is true and we have exactly one scope
   useEffect(() => {
@@ -126,7 +137,15 @@ function DashboardScopeGuard({ children }: DashboardScopeGuardProps) {
       .catch(() => {
         setAutoSelecting(false)
       })
-  }, [needsScopeSelect, loading, isUserAuthenticated, scopes.length, autoSelecting, scopes, autoSelectionAttempted])
+  }, [
+    needsScopeSelect,
+    loading,
+    isUserAuthenticated,
+    scopes.length,
+    autoSelecting,
+    scopes,
+    autoSelectionAttempted,
+  ])
 
   if (!isUserAuthenticated) {
     return null

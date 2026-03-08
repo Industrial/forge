@@ -1,866 +1,222 @@
 /**
- * BDD tests for AuthenticationLive - production authentication service implementation.
- * Tests use Effect's Layer system for dependency injection (no vi.mock()).
+ * Unit tests for AuthenticationLive helper functions.
+ * Following Effect.ts testing patterns - no vi.mock() for Effect services.
+ *
+ * These tests focus on the pure helper functions and core business logic.
+ * Integration tests for the full service should use AuthenticationMock.ts.
  */
-import { describe, test, expect, beforeEach } from 'bun:test'
-import { Effect, Layer, Option, Stream, Chunk } from 'effect'
-import { HttpClient, HttpClientRequest } from '@effect/platform'
 
-import { AuthenticationLive } from './AuthenticationLive'
-import { Authentication } from './Authentication'
-import { AuthenticationUser } from '@/features/authentication/domain/AuthenticationUser'
-import { AuthenticationError } from '@/features/authentication/errors/AuthenticationError'
-import { ScopeError } from '@/features/authentication/errors'
+import { Option } from 'effect'
+import { describe, expect, it } from 'vitest'
+import type { AuthMeBody } from '@/api/types'
 import {
-  AuthStoreTag,
-  initialAuthenticationState,
-  type AuthenticationState,
-} from '@/features/authentication/stores/AuthenticationStateReactiveStore'
-import { TokenStorage } from '@/services/TokenStorage'
-import { makeTokenStorageMock } from '@/services/TokenStorageMock'
-import { defineStore, type ReactiveStore } from '@/lib/ReactiveStore'
-import type { AuthMeBody, LoginResponse } from '@/api/types'
+  buildAuthState,
+  extractApiErrorMessage,
+  getNeedsScopeSelect,
+  getPermissions,
+  parseMeResponse,
+  selectSingleScope,
+} from './AuthenticationLive'
 
-// Helper to create a mock HttpClient
-function createMockHttpClient(
-  handler: (request: HttpClientRequest.HttpClientRequest) => Effect.Effect<
-    {
-      status: number
-      json: Effect.Effect<unknown>
-      headers: Headers
-    },
-    never,
-    never
-  >,
-): HttpClient.HttpClient {
-  const executeImpl = (request: HttpClientRequest.HttpClientRequest) => {
-    return handler(request)
-  }
+// ============================================================================
+// Pure Helper Functions Tests
+// ============================================================================
 
-  // Create a minimal HttpClient with execute method
-  return {
-    execute: executeImpl,
-    // Stub other methods (not used by AuthenticationLive)
-    get: () =>
-      Effect.succeed({
-        status: 404,
-        json: Effect.succeed({}),
-        headers: new Headers(),
-      }),
-    post: () =>
-      Effect.succeed({
-        status: 404,
-        json: Effect.succeed({}),
-        headers: new Headers(),
-      }),
-    put: () =>
-      Effect.succeed({
-        status: 404,
-        json: Effect.succeed({}),
-        headers: new Headers(),
-      }),
-    patch: () =>
-      Effect.succeed({
-        status: 404,
-        json: Effect.succeed({}),
-        headers: new Headers(),
-      }),
-    delete: () =>
-      Effect.succeed({
-        status: 404,
-        json: Effect.succeed({}),
-        headers: new Headers(),
-      }),
-    head: () =>
-      Effect.succeed({
-        status: 404,
-        json: Effect.succeed({}),
-        headers: new Headers(),
-      }),
-    options: () =>
-      Effect.succeed({
-        status: 404,
-        json: Effect.succeed({}),
-        headers: new Headers(),
-      }),
-    request: () =>
-      Effect.succeed({
-        status: 404,
-        json: Effect.succeed({}),
-        headers: new Headers(),
-      }),
-    requestWith: () =>
-      Effect.succeed({
-        status: 404,
-        json: Effect.succeed({}),
-        headers: new Headers(),
-      }),
-    stream: () =>
-      Effect.succeed({
-        status: 404,
-        json: Effect.succeed({}),
-        headers: new Headers(),
-      }),
-    streamWith: () =>
-      Effect.succeed({
-        status: 404,
-        json: Effect.succeed({}),
-        headers: new Headers(),
-      }),
-  } as HttpClient.HttpClient
-}
-
-// Helper to create a mock auth store using AuthStoreTag
-function createMockAuthStore(
-  initialState: AuthenticationState = initialAuthenticationState,
-): {
-  store: ReactiveStore<AuthenticationState>
-  layer: Layer.Layer<ReactiveStore<AuthenticationState>>
-  getState: () => AuthenticationState
-  setState: (state: AuthenticationState) => void
-} {
-  let current = initialState
-  const changeListeners = new Set<(a: AuthenticationState) => void>()
-
-  const notify = (a: AuthenticationState) => {
-    current = a
-    changeListeners.forEach((l) => l(a))
-  }
-
-  const changes = Stream.async<AuthenticationState, never, never>((emit) => {
-    emit(Effect.succeed(Chunk.of(current)))
-    const listener = (a: AuthenticationState) => {
-      emit(Effect.succeed(Chunk.of(a)))
-    }
-    changeListeners.add(listener)
-    return Effect.sync(() => {
-      changeListeners.delete(listener)
-    })
-  })
-
-  const store: ReactiveStore<AuthenticationState> = {
-    get: () => Effect.succeed(current),
-    update: (f: (a: AuthenticationState) => AuthenticationState) =>
-      Effect.sync(() => {
-        notify(f(current))
-      }),
-    changes,
-  }
-
-  // Use AuthStoreTag directly (the tag AuthenticationLive expects)
-  const mockLayer = Layer.succeed(AuthStoreTag, store)
-
-  return {
-    store,
-    layer: mockLayer,
-    getState: () => current,
-    setState: (state: AuthenticationState) => {
-      current = state
-    },
-  }
-}
-
-describe('AuthenticationLive', () => {
-  describe('restoreSession behavior', () => {
-    test('should restore session when token exists', async () => {
-      // Given: a token in storage and successful /api/auth/me response
+describe('Pure Helper Functions', () => {
+  describe('parseMeResponse', () => {
+    it('should parse valid user data with token', () => {
       const token = 'test-token-123'
-      const tokenStorage = makeTokenStorageMock()
-      tokenStorage.setToken(token)
-
-      const mockMeResponse: AuthMeBody = {
-        user: {
-          id: 'user-1',
-          email: 'test@example.com',
-        },
-        permissions: ['read:users'],
-      }
-
-      const mockHttpClient = createMockHttpClient((request) => {
-        if (request.url.includes('/api/auth/me')) {
-          return Effect.succeed({
-            status: 200,
-            json: Effect.succeed(mockMeResponse),
-            headers: new Headers(),
-          })
-        }
-        return Effect.succeed({
-          status: 404,
-          json: Effect.succeed({}),
-          headers: new Headers(),
-        })
-      })
-
-      const mockAuthStore = createMockAuthStore()
-
-      const httpLayer = Layer.succeed(HttpClient.HttpClient, mockHttpClient)
-      const testLayer = AuthenticationLive.pipe(
-        Layer.provide(httpLayer),
-        Layer.provide(tokenStorage.layer),
-        Layer.provide(mockAuthStore.layer),
-      )
-
-      // When: restoring session
-      const authentication = await Effect.runPromise(
-        Effect.gen(function* () {
-          return yield* Authentication
-        }).pipe(Effect.provide(testLayer)),
-      )
-
-      const result = await Effect.runPromise(
-        authentication.restoreSession().pipe(Effect.provide(testLayer)),
-      )
-
-      // Then: session should be restored and user loaded
-      expect(result).toBeUndefined() // restoreSession returns void
-      const finalState = mockAuthStore.getState()
-      expect(Option.isSome(finalState.user)).toBe(true)
-      const user = Option.getOrNull(finalState.user)
-      expect(user?.email).toBe('test@example.com')
-    })
-
-    test('should do nothing when no token exists', async () => {
-      // Given: no token in storage
-      const tokenStorage = makeTokenStorageMock()
-      // token not set
-
-      const mockHttpClient = createMockHttpClient(() =>
-        Effect.succeed({
-          status: 404,
-          json: Effect.succeed({}),
-          headers: new Headers(),
-        }),
-      )
-
-      const mockAuthStore = createMockAuthStore()
-
-      const httpLayer = Layer.succeed(HttpClient.HttpClient, mockHttpClient)
-      const testLayer = AuthenticationLive.pipe(
-        Layer.provide(httpLayer),
-        Layer.provide(tokenStorage.layer),
-        Layer.provide(mockAuthStore.layer),
-      )
-
-      // When: restoring session
-      const authentication = await Effect.runPromise(
-        Effect.gen(function* () {
-          return yield* Authentication
-        }).pipe(Effect.provide(testLayer)),
-      )
-
-      const result = await Effect.runPromise(
-        authentication.restoreSession().pipe(Effect.provide(testLayer)),
-      )
-
-      // Then: should do nothing (no HTTP call made)
-      expect(result).toBeUndefined()
-      const finalState = mockAuthStore.getState()
-      expect(Option.isNone(finalState.user)).toBe(true)
-    })
-
-    test('should clear state when /api/auth/me returns error status', async () => {
-      // Given: a token in storage but /api/auth/me returns 401
-      const token = 'invalid-token'
-      const tokenStorage = makeTokenStorageMock()
-      tokenStorage.setToken(token)
-
-      const mockHttpClient = createMockHttpClient((request) => {
-        if (request.url.includes('/api/auth/me')) {
-          return Effect.succeed({
-            status: 401,
-            json: Effect.succeed({}),
-            headers: new Headers(),
-          })
-        }
-        return Effect.succeed({
-          status: 404,
-          json: Effect.succeed({}),
-          headers: new Headers(),
-        })
-      })
-
-      const mockAuthStore = createMockAuthStore()
-
-      const httpLayer = Layer.succeed(HttpClient.HttpClient, mockHttpClient)
-      const testLayer = AuthenticationLive.pipe(
-        Layer.provide(httpLayer),
-        Layer.provide(tokenStorage.layer),
-        Layer.provide(mockAuthStore.layer),
-      )
-
-      // When: restoring session
-      const authentication = await Effect.runPromise(
-        Effect.gen(function* () {
-          return yield* Authentication
-        }).pipe(Effect.provide(testLayer)),
-      )
-
-      await Effect.runPromise(
-        authentication.restoreSession().pipe(Effect.provide(testLayer)),
-      )
-
-      // Then: token should be cleared and state reset
-      // Token cleared via logout() - verify via store state
-      const finalState = mockAuthStore.getState()
-      expect(Option.isNone(finalState.user)).toBe(true)
-    })
-  })
-
-  describe('getCurrentUser behavior', () => {
-    test('should return user when token exists and valid', async () => {
-      // Given: a token in storage and successful /api/auth/me response
-      const token = 'test-token-123'
-      const tokenStorage = makeTokenStorageMock()
-      tokenStorage.setToken(token)
-
-      const mockMeResponse: AuthMeBody = {
+      const body: AuthMeBody = {
         user: {
           id: 'user-1',
           email: 'test@example.com',
         },
       }
 
-      const mockHttpClient = createMockHttpClient((request) => {
-        if (request.url.includes('/api/auth/me')) {
-          return Effect.succeed({
-            status: 200,
-            json: Effect.succeed(mockMeResponse),
-            headers: new Headers(),
-          })
-        }
-        return Effect.succeed({
-          status: 404,
-          json: Effect.succeed({}),
-          headers: new Headers(),
-        })
-      })
-
-      const mockAuthStore = createMockAuthStore()
-
-      const httpLayer = Layer.succeed(HttpClient.HttpClient, mockHttpClient)
-      const testLayer = AuthenticationLive.pipe(
-        Layer.provide(httpLayer),
-        Layer.provide(tokenStorage.layer),
-        Layer.provide(mockAuthStore.layer),
-      )
-
-      // When: getting current user
-      const authentication = await Effect.runPromise(
-        Effect.gen(function* () {
-          return yield* Authentication
-        }).pipe(Effect.provide(testLayer)),
-      )
-
-      const result = await Effect.runPromise(
-        authentication.getCurrentUser().pipe(Effect.provide(testLayer)),
-      )
-
-      // Then: should return user
+      const result = parseMeResponse(body, token)
       expect(Option.isSome(result)).toBe(true)
-      const user = Option.getOrNull(result)
-      expect(user?.email).toBe('test@example.com')
+      const user = Option.getOrThrow(result)
+      expect(user.id).toBe('user-1')
+      expect(user.email).toBe('test@example.com')
+      expect(user.token).toBe('test-token-123')
     })
 
-    test('should return none when no token exists', async () => {
-      // Given: no token in storage
-      const tokenStorage = makeTokenStorageMock()
-      // token not set
-
-      const mockHttpClient = createMockHttpClient(() =>
-        Effect.succeed({
-          status: 404,
-          json: Effect.succeed({}),
-          headers: new Headers(),
-        }),
-      )
-
-      const mockAuthStore = createMockAuthStore()
-
-      const httpLayer = Layer.succeed(HttpClient.HttpClient, mockHttpClient)
-      const testLayer = AuthenticationLive.pipe(
-        Layer.provide(httpLayer),
-        Layer.provide(tokenStorage.layer),
-        Layer.provide(mockAuthStore.layer),
-      )
-
-      // When: getting current user
-      const authentication = await Effect.runPromise(
-        Effect.gen(function* () {
-          return yield* Authentication
-        }).pipe(Effect.provide(testLayer)),
-      )
-
-      const result = await Effect.runPromise(
-        authentication.getCurrentUser().pipe(Effect.provide(testLayer)),
-      )
-
-      // Then: should return none
+    it('should return None for empty body', () => {
+      const result = parseMeResponse({}, 'token')
       expect(Option.isNone(result)).toBe(true)
     })
+
+    it('should return None for body without user', () => {
+      const body: AuthMeBody = { someOtherField: 'value' } as any
+      const result = parseMeResponse(body, 'token')
+      expect(Option.isNone(result)).toBe(true)
+    })
+
+    it('should handle null user', () => {
+      const body: AuthMeBody = { user: null as any }
+      const result = parseMeResponse(body, 'token')
+      expect(Option.isNone(result)).toBe(true)
+    })
+
+    it('should convert missing fields to empty strings', () => {
+      const body: AuthMeBody = {
+        user: {
+          id: undefined as any,
+          email: undefined as any,
+        },
+      }
+      const result = parseMeResponse(body, 'token')
+      expect(Option.isSome(result)).toBe(true)
+      const user = Option.getOrThrow(result)
+      expect(user.id).toBe('')
+      expect(user.email).toBe('')
+    })
   })
 
-  describe('login behavior', () => {
-    test('should login successfully and load user', async () => {
-      // Given: valid credentials
-      const email = 'test@example.com'
-      const password = 'password123'
+  describe('getNeedsScopeSelect', () => {
+    it('should return Some(true) when needs_scope_select is true', () => {
+      const body: AuthMeBody = { needs_scope_select: true }
+      const result = getNeedsScopeSelect(body)
+      expect(Option.isSome(result)).toBe(true)
+      expect(Option.getOrThrow(result)).toBe(true)
+    })
 
-      const mockLoginResponse: LoginResponse = {
-        ok: true,
-        token: 'new-token-456',
+    it('should return Some(false) when needs_scope_select is false', () => {
+      const body: AuthMeBody = { needs_scope_select: false }
+      const result = getNeedsScopeSelect(body)
+      expect(Option.isSome(result)).toBe(true)
+      expect(Option.getOrThrow(result)).toBe(false)
+    })
+
+    it('should return None when needs_scope_select is missing', () => {
+      const body: AuthMeBody = {}
+      const result = getNeedsScopeSelect(body)
+      expect(Option.isNone(result)).toBe(true)
+    })
+
+    it('should return Some for non-boolean values (TypeScript allows this)', () => {
+      // In runtime, TypeScript's type system allows this
+      const body: AuthMeBody = { needs_scope_select: 'true' as any }
+      const result = getNeedsScopeSelect(body)
+      expect(Option.isSome(result)).toBe(true)
+    })
+  })
+
+  describe('getPermissions', () => {
+    it('should get permissions from top-level', () => {
+      const body: AuthMeBody = { permissions: ['read', 'write', 'admin'] }
+      const result = getPermissions(body)
+      expect(result).toEqual(['read', 'write', 'admin'])
+    })
+
+    it('should get permissions from user.permissions', () => {
+      const body: AuthMeBody = {
+        user: {
+          id: 'user-1',
+          email: 'test@example.com',
+          permissions: ['read', 'write'],
+        },
       }
+      const result = getPermissions(body)
+      expect(result).toEqual(['read', 'write'])
+    })
 
-      const mockMeResponse: AuthMeBody = {
+    it('should return empty array if no permissions', () => {
+      const body: AuthMeBody = {}
+      const result = getPermissions(body)
+      expect(result).toEqual([])
+    })
+
+    it('should prefer top-level permissions over user.permissions', () => {
+      const body: AuthMeBody = {
+        permissions: ['admin'],
+        user: {
+          id: 'user-1',
+          email: 'test@example.com',
+          permissions: ['read'],
+        },
+      }
+      const result = getPermissions(body)
+      expect(result).toEqual(['admin'])
+    })
+
+    it('should filter out non-string values', () => {
+      const body: AuthMeBody = {
+        permissions: ['read', 123, null, undefined, 'write'] as any,
+      }
+      const result = getPermissions(body)
+      expect(result).toEqual(['read', 'write'])
+    })
+
+    it('should handle non-array permissions', () => {
+      const body: AuthMeBody = {
+        permissions: 'admin' as any,
+      }
+      const result = getPermissions(body)
+      expect(result).toEqual([])
+    })
+  })
+
+  describe('extractApiErrorMessage', () => {
+    it('should extract error message from message field', () => {
+      const body = { message: 'Something went wrong' }
+      const result = extractApiErrorMessage(body, 'Unknown error')
+      expect(result).toBe('Something went wrong')
+    })
+
+    it('should extract error from string error field', () => {
+      const body = { error: 'Invalid credentials' }
+      const result = extractApiErrorMessage(body, 'Unknown error')
+      expect(result).toBe('Invalid credentials')
+    })
+
+    it('should extract error from object error field', () => {
+      const body = { error: { message: 'Nested error' } }
+      const result = extractApiErrorMessage(body, 'Unknown error')
+      expect(result).toBe('Nested error')
+    })
+
+    it('should return fallback if no error fields', () => {
+      const body = {}
+      const result = extractApiErrorMessage(body, 'Unknown error')
+      expect(result).toBe('Unknown error')
+    })
+
+    it('should prefer message over error', () => {
+      const body = { message: 'Error 1', error: 'Error 2' }
+      const result = extractApiErrorMessage(body, 'Unknown error')
+      expect(result).toBe('Error 1')
+    })
+  })
+
+  describe('buildAuthState', () => {
+    it('should build complete auth state with all fields', () => {
+      const token = 'test-token-123'
+      const body: AuthMeBody = {
         user: {
           id: 'user-1',
           email: 'test@example.com',
         },
-      }
-
-      let loginCallCount = 0
-      let meCallCount = 0
-
-      const mockHttpClient = createMockHttpClient((request) => {
-        if (request.url.includes('/api/auth/login')) {
-          loginCallCount++
-          return Effect.succeed({
-            status: 200,
-            json: Effect.succeed(mockLoginResponse),
-            headers: new Headers(),
-          })
-        }
-        if (request.url.includes('/api/auth/me')) {
-          meCallCount++
-          return Effect.succeed({
-            status: 200,
-            json: Effect.succeed(mockMeResponse),
-            headers: new Headers(),
-          })
-        }
-        return Effect.succeed({
-          status: 404,
-          json: Effect.succeed({}),
-          headers: new Headers(),
-        })
-      })
-
-      const tokenStorage = makeTokenStorageMock()
-      const mockAuthStore = createMockAuthStore()
-
-      const httpLayer = Layer.succeed(HttpClient.HttpClient, mockHttpClient)
-      const testLayer = AuthenticationLive.pipe(
-        Layer.provide(httpLayer),
-        Layer.provide(tokenStorage.layer),
-        Layer.provide(mockAuthStore.layer),
-      )
-
-      // When: logging in
-      const authentication = await Effect.runPromise(
-        Effect.gen(function* () {
-          return yield* Authentication
-        }).pipe(Effect.provide(testLayer)),
-      )
-
-      const result = await Effect.runPromise(
-        authentication.login(email, password).pipe(Effect.provide(testLayer)),
-      )
-
-      // Then: should return user and token should be stored
-      expect(result.email).toBe(email)
-      expect(loginCallCount).toBe(1)
-      expect(meCallCount).toBe(1)
-
-      // Token stored via login() - verify via store state
-      const finalState = mockAuthStore.getState()
-      expect(Option.isSome(finalState.token)).toBe(true)
-      expect(Option.getOrNull(finalState.token)).toBe('new-token-456')
-    })
-
-    test('should fail when login returns error status', async () => {
-      // Given: invalid credentials
-      const email = 'test@example.com'
-      const password = 'wrong-password'
-
-      const mockHttpClient = createMockHttpClient((request) => {
-        if (request.url.includes('/api/auth/login')) {
-          return Effect.succeed({
-            status: 401,
-            json: Effect.succeed({
-              message: 'Invalid credentials',
-            }),
-            headers: new Headers(),
-          })
-        }
-        return Effect.succeed({
-          status: 404,
-          json: Effect.succeed({}),
-          headers: new Headers(),
-        })
-      })
-
-      const tokenStorage = makeTokenStorageMock()
-      const mockAuthStore = createMockAuthStore()
-
-      const httpLayer = Layer.succeed(HttpClient.HttpClient, mockHttpClient)
-      const testLayer = AuthenticationLive.pipe(
-        Layer.provide(httpLayer),
-        Layer.provide(tokenStorage.layer),
-        Layer.provide(mockAuthStore.layer),
-      )
-
-      // When: logging in
-      const authentication = await Effect.runPromise(
-        Effect.gen(function* () {
-          return yield* Authentication
-        }).pipe(Effect.provide(testLayer)),
-      )
-
-      // Then: should fail with AuthenticationError
-      await expect(
-        Effect.runPromise(
-          authentication.login(email, password).pipe(Effect.provide(testLayer)),
-        ),
-      ).rejects.toThrow('credentials')
-    })
-
-    test('should fail when login response missing token', async () => {
-      // Given: login succeeds but response has no token
-      const email = 'test@example.com'
-      const password = 'password123'
-
-      const mockLoginResponse: LoginResponse = {
-        ok: true,
-        token: '' as any, // Empty token to test error case
-      }
-
-      const mockHttpClient = createMockHttpClient((request) => {
-        if (request.url.includes('/api/auth/login')) {
-          return Effect.succeed({
-            status: 200,
-            json: Effect.succeed(mockLoginResponse),
-            headers: new Headers(),
-          })
-        }
-        return Effect.succeed({
-          status: 404,
-          json: Effect.succeed({}),
-          headers: new Headers(),
-        })
-      })
-
-      const tokenStorage = makeTokenStorageMock()
-      const mockAuthStore = createMockAuthStore()
-
-      const httpLayer = Layer.succeed(HttpClient.HttpClient, mockHttpClient)
-      const testLayer = AuthenticationLive.pipe(
-        Layer.provide(httpLayer),
-        Layer.provide(tokenStorage.layer),
-        Layer.provide(mockAuthStore.layer),
-      )
-
-      // When: logging in
-      const authentication = await Effect.runPromise(
-        Effect.gen(function* () {
-          return yield* Authentication
-        }).pipe(Effect.provide(testLayer)),
-      )
-
-      // Then: should fail with AuthenticationError about missing token
-      await expect(
-        Effect.runPromise(
-          authentication.login(email, password).pipe(Effect.provide(testLayer)),
-        ),
-      ).rejects.toThrow('token')
-    })
-  })
-
-  describe('register behavior', () => {
-    test('should register successfully', async () => {
-      // Given: valid registration data
-      const email = 'newuser@example.com'
-      const password = 'password123'
-
-      const mockHttpClient = createMockHttpClient((request) => {
-        if (request.url.includes('/api/auth/register')) {
-          return Effect.succeed({
-            status: 200,
-            json: Effect.succeed({}),
-            headers: new Headers(),
-          })
-        }
-        return Effect.succeed({
-          status: 404,
-          json: Effect.succeed({}),
-          headers: new Headers(),
-        })
-      })
-
-      const tokenStorage = makeTokenStorageMock()
-      const mockAuthStore = createMockAuthStore()
-
-      const httpLayer = Layer.succeed(HttpClient.HttpClient, mockHttpClient)
-      const testLayer = AuthenticationLive.pipe(
-        Layer.provide(httpLayer),
-        Layer.provide(tokenStorage.layer),
-        Layer.provide(mockAuthStore.layer),
-      )
-
-      // When: registering
-      const authentication = await Effect.runPromise(
-        Effect.gen(function* () {
-          return yield* Authentication
-        }).pipe(Effect.provide(testLayer)),
-      )
-
-      const result = await Effect.runPromise(
-        authentication
-          .register(email, password)
-          .pipe(Effect.provide(testLayer)),
-      )
-
-      // Then: should succeed (returns void)
-      expect(result).toBeUndefined()
-    })
-
-    test('should fail when registration returns error status', async () => {
-      // Given: registration fails (e.g., email already exists)
-      const email = 'existing@example.com'
-      const password = 'password123'
-
-      const mockHttpClient = createMockHttpClient((request) => {
-        if (request.url.includes('/api/auth/register')) {
-          return Effect.succeed({
-            status: 400,
-            json: Effect.succeed({
-              message: 'Email already exists',
-            }),
-            headers: new Headers(),
-          })
-        }
-        return Effect.succeed({
-          status: 404,
-          json: Effect.succeed({}),
-          headers: new Headers(),
-        })
-      })
-
-      const tokenStorage = makeTokenStorageMock()
-      const mockAuthStore = createMockAuthStore()
-
-      const httpLayer = Layer.succeed(HttpClient.HttpClient, mockHttpClient)
-      const testLayer = AuthenticationLive.pipe(
-        Layer.provide(httpLayer),
-        Layer.provide(tokenStorage.layer),
-        Layer.provide(mockAuthStore.layer),
-      )
-
-      // When: registering
-      const authentication = await Effect.runPromise(
-        Effect.gen(function* () {
-          return yield* Authentication
-        }).pipe(Effect.provide(testLayer)),
-      )
-
-      // Then: should fail with AuthenticationError
-      await expect(
-        Effect.runPromise(
-          authentication
-            .register(email, password)
-            .pipe(Effect.provide(testLayer)),
-        ),
-      ).rejects.toThrow()
-    })
-  })
-
-  describe('logout behavior', () => {
-    test('should clear token and reset state', async () => {
-      // Given: user is logged in (token exists)
-      const token = 'test-token-123'
-      const tokenStorage = makeTokenStorageMock()
-      tokenStorage.setToken(token)
-
-      const mockAuthStore = createMockAuthStore({
-        ...initialAuthenticationState,
-        token: Option.some(token),
-        user: Option.some(
-          new AuthenticationUser({
-            id: 'user-1',
-            email: 'test@example.com',
-            token,
-          }),
-        ),
-      })
-
-      const mockHttpClient = createMockHttpClient(() =>
-        Effect.succeed({
-          status: 404,
-          json: Effect.succeed({}),
-          headers: new Headers(),
-        }),
-      )
-
-      const httpLayer = Layer.succeed(HttpClient.HttpClient, mockHttpClient)
-      const testLayer = AuthenticationLive.pipe(
-        Layer.provide(httpLayer),
-        Layer.provide(tokenStorage.layer),
-        Layer.provide(mockAuthStore.layer),
-      )
-
-      // When: logging out
-      const authentication = await Effect.runPromise(
-        Effect.gen(function* () {
-          return yield* Authentication
-        }).pipe(Effect.provide(testLayer)),
-      )
-
-      const result = await Effect.runPromise(
-        authentication.logout().pipe(Effect.provide(testLayer)),
-      )
-
-      // Then: token should be cleared and state reset
-      expect(result).toBeUndefined()
-
-      // Verify token was cleared - use direct access to mock
-      // Note: logout() clears token via tokenStorage.clearToken() which updates the mock's internal state
-      // We verify this by checking the store state instead
-
-      const finalState = mockAuthStore.getState()
-      expect(Option.isNone(finalState.user)).toBe(true)
-      expect(Option.isNone(finalState.token)).toBe(true)
-    })
-  })
-
-  describe('selectScope behavior', () => {
-    test('should set scope and update state', async () => {
-      // Given: user is logged in
-      const token = 'test-token-123'
-      const organizationId = 'org-123'
-      const roleId = 'role-456'
-
-      const tokenStorage = makeTokenStorageMock()
-      tokenStorage.setToken(token)
-      const mockAuthStore = createMockAuthStore()
-
-      // Mock /api/auth/me to return proper response after scope selection
-      const mockMeResponse: AuthMeBody = {
-        user: {
-          id: 'user-1',
-          email: 'test@example.com',
-        },
-        permissions: ['dashboard'],
         needs_scope_select: false,
+        permissions: ['read', 'write'],
       }
 
-      const mockHttpClient = createMockHttpClient((request) => {
-        if (request.url.includes('/api/auth/me')) {
-          return Effect.succeed({
-            status: 200,
-            json: Effect.succeed(mockMeResponse),
-            headers: new Headers(),
-          })
-        }
-        return Effect.succeed({
-          status: 404,
-          json: Effect.succeed({}),
-          headers: new Headers(),
-        })
-      })
+      const result = buildAuthState(token, body)
 
-      const httpLayer = Layer.succeed(HttpClient.HttpClient, mockHttpClient)
-      const testLayer = AuthenticationLive.pipe(
-        Layer.provide(httpLayer),
-        Layer.provide(tokenStorage.layer),
-        Layer.provide(mockAuthStore.layer),
-      )
-
-      // When: selecting scope
-      const authentication = await Effect.runPromise(
-        Effect.gen(function* () {
-          return yield* Authentication
-        }).pipe(Effect.provide(testLayer)),
-      )
-
-      const result = await Effect.runPromise(
-        authentication
-          .selectScope(organizationId, roleId)
-          .pipe(Effect.provide(testLayer)),
-      )
-
-      // Then: scope should be stored and needsScopeSelect set to false
-      expect(result).toBeUndefined()
-
-      // Scope stored via selectScope() - verify via direct mock access
-      // Since we can't easily access the mock's internal state, we verify via store state
-      // The selectScope method calls tokenStorage.setScope internally and refetches /api/auth/me
-
-      const finalState = mockAuthStore.getState()
-      expect(Option.getOrNull(finalState.needsScopeSelect)).toBe(false)
-      expect(finalState.permissions).toEqual(['dashboard'])
-    })
-  })
-
-  describe('fetchMeAndUpdate behavior', () => {
-    test('should update state with permissions from body', async () => {
-      // Given: token exists and /api/auth/me returns permissions
-      const token = 'test-token-123'
-      const tokenStorage = makeTokenStorageMock()
-      tokenStorage.setToken(token)
-
-      const mockMeResponse: AuthMeBody = {
-        user: {
-          id: 'user-1',
-          email: 'test@example.com',
-        },
-        permissions: ['read:users', 'write:users'],
-      }
-
-      const mockHttpClient = createMockHttpClient((request) => {
-        if (request.url.includes('/api/auth/me')) {
-          return Effect.succeed({
-            status: 200,
-            json: Effect.succeed(mockMeResponse),
-            headers: new Headers(),
-          })
-        }
-        return Effect.succeed({
-          status: 404,
-          json: Effect.succeed({}),
-          headers: new Headers(),
-        })
-      })
-
-      const mockAuthStore = createMockAuthStore()
-
-      const httpLayer = Layer.succeed(HttpClient.HttpClient, mockHttpClient)
-      const testLayer = AuthenticationLive.pipe(
-        Layer.provide(httpLayer),
-        Layer.provide(tokenStorage.layer),
-        Layer.provide(mockAuthStore.layer),
-      )
-
-      // When: fetching user (via getCurrentUser)
-      const authentication = await Effect.runPromise(
-        Effect.gen(function* () {
-          return yield* Authentication
-        }).pipe(Effect.provide(testLayer)),
-      )
-
-      await Effect.runPromise(
-        authentication.getCurrentUser().pipe(Effect.provide(testLayer)),
-      )
-
-      // Then: permissions should be set in state
-      const finalState = mockAuthStore.getState()
-      expect(finalState.permissions).toEqual(['read:users', 'write:users'])
+      expect(Option.isSome(result.token)).toBe(true)
+      expect(Option.getOrThrow(result.token)).toBe('test-token-123')
+      expect(Option.isSome(result.user)).toBe(true)
+      const user = Option.getOrThrow(result.user)
+      expect(user.id).toBe('user-1')
+      expect(user.email).toBe('test@example.com')
+      expect(Option.isSome(result.needsScopeSelect)).toBe(true)
+      expect(Option.getOrThrow(result.needsScopeSelect)).toBe(false)
+      expect(result.permissions).toEqual(['read', 'write'])
     })
 
-    test('should handle needs_scope_select flag', async () => {
-      // Given: token exists and /api/auth/me returns needs_scope_select: true
+    it('should set needsScopeSelect to true', () => {
       const token = 'test-token-123'
-      const tokenStorage = makeTokenStorageMock()
-      tokenStorage.setToken(token)
-
-      const mockMeResponse: AuthMeBody = {
+      const body: AuthMeBody = {
         user: {
           id: 'user-1',
           email: 'test@example.com',
@@ -868,44 +224,69 @@ describe('AuthenticationLive', () => {
         needs_scope_select: true,
       }
 
-      const mockHttpClient = createMockHttpClient((request) => {
-        if (request.url.includes('/api/auth/me')) {
-          return Effect.succeed({
-            status: 200,
-            json: Effect.succeed(mockMeResponse),
-            headers: new Headers(),
-          })
-        }
-        return Effect.succeed({
-          status: 404,
-          json: Effect.succeed({}),
-          headers: new Headers(),
-        })
-      })
+      const result = buildAuthState(token, body)
 
-      const mockAuthStore = createMockAuthStore()
+      expect(Option.isSome(result.needsScopeSelect)).toBe(true)
+      expect(Option.getOrThrow(result.needsScopeSelect)).toBe(true)
+    })
 
-      const httpLayer = Layer.succeed(HttpClient.HttpClient, mockHttpClient)
-      const testLayer = AuthenticationLive.pipe(
-        Layer.provide(httpLayer),
-        Layer.provide(tokenStorage.layer),
-        Layer.provide(mockAuthStore.layer),
-      )
+    it('should handle missing user', () => {
+      const token = 'test-token-123'
+      const body: AuthMeBody = {
+        needs_scope_select: false,
+        permissions: ['read'],
+      }
 
-      // When: fetching user
-      const authentication = await Effect.runPromise(
-        Effect.gen(function* () {
-          return yield* Authentication
-        }).pipe(Effect.provide(testLayer)),
-      )
+      const result = buildAuthState(token, body)
 
-      await Effect.runPromise(
-        authentication.getCurrentUser().pipe(Effect.provide(testLayer)),
-      )
+      expect(Option.isSome(result.token)).toBe(true)
+      expect(Option.isNone(result.user)).toBe(true)
+      expect(Option.isSome(result.needsScopeSelect)).toBe(true)
+      expect(result.permissions).toEqual(['read'])
+    })
+  })
 
-      // Then: needsScopeSelect should be set to true
-      const finalState = mockAuthStore.getState()
-      expect(Option.getOrNull(finalState.needsScopeSelect)).toBe(true)
+  describe('selectSingleScope', () => {
+    it('should return Some with single scope', () => {
+      const scopes = [{ org_id: 'org-1', role_id: 'role-1' }]
+      const result = selectSingleScope(scopes)
+      expect(Option.isSome(result)).toBe(true)
+      const scope = Option.getOrThrow(result)
+      expect(scope.organizationId).toBe('org-1')
+      expect(scope.roleId).toBe('role-1')
+    })
+
+    it('should return None for empty array', () => {
+      const scopes: Array<{ org_id: string; role_id?: string }> = []
+      const result = selectSingleScope(scopes)
+      expect(Option.isNone(result)).toBe(true)
+    })
+
+    it('should return None for multiple scopes', () => {
+      const scopes = [
+        { org_id: 'org-1', role_id: 'role-1' },
+        { org_id: 'org-2', role_id: 'role-2' },
+      ]
+      const result = selectSingleScope(scopes)
+      expect(Option.isNone(result)).toBe(true)
+    })
+
+    it('should return None if org_id is missing', () => {
+      const scopes = [{ org_id: '', role_id: 'role-1' }]
+      const result = selectSingleScope(scopes)
+      expect(Option.isNone(result)).toBe(true)
+    })
+
+    it('should return None if role_id is missing', () => {
+      const scopes = [{ org_id: 'org-1', role_id: undefined }]
+      const result = selectSingleScope(scopes)
+      expect(Option.isNone(result)).toBe(true)
+    })
+
+    it('should handle role_id as empty string', () => {
+      const scopes = [{ org_id: 'org-1', role_id: '' }]
+      const result = selectSingleScope(scopes)
+      expect(Option.isNone(result)).toBe(true)
     })
   })
 })

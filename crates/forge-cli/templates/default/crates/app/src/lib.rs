@@ -585,23 +585,14 @@ pub async fn auth_with_profile(
   password: &str,
 ) -> Result<(String, String, String), Box<dyn std::error::Error + Send + Sync>> {
   let token = login_as_seed_user_impl(client, email, password).await?;
-  let (status, body) = test_request_impl(
-    client,
-    "GET",
-    "/api/auth/scopes",
-    Some(&token),
-    None,
-    None,
-  )
-  .await?;
+  let (status, body) =
+    test_request_impl(client, "GET", "/api/auth/scopes", Some(&token), None, None).await?;
   if status != axum::http::StatusCode::OK {
     let msg = String::from_utf8_lossy(&body);
     return Err(format!("GET /api/auth/scopes failed {}: {}", status, msg).into());
   }
   let json: serde_json::Value = serde_json::from_slice(&body)?;
-  let scopes = json["scopes"]
-    .as_array()
-    .ok_or("scopes array missing")?;
+  let scopes = json["scopes"].as_array().ok_or("scopes array missing")?;
   let first = scopes.first().ok_or("no scopes")?;
   let org_id = first["org_id"].as_str().ok_or("org_id missing")?;
   let role_id = first["role_id"].as_str().ok_or("role_id missing")?;

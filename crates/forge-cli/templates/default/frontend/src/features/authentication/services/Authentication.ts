@@ -8,8 +8,14 @@
 import { Context, Effect, Option } from 'effect'
 
 import type { AuthenticationUser } from '@/features/authentication/domain/AuthenticationUser'
-import type { AuthenticationError } from '@/features/authentication/errors/AuthenticationError'
-import type { ScopeError } from '@/features/authentication/errors'
+import type {
+  InvalidTokenError,
+  LoginFailedError,
+  RegistrationFailedError,
+  ScopeError,
+  TokenMissingError,
+  UserNotFoundError,
+} from '@/features/authentication/errors'
 
 export interface Authentication {
   /**
@@ -21,7 +27,7 @@ export interface Authentication {
   /** Load current user from storage/API; updates reactive store. Returns none if not logged in or token invalid. */
   readonly getCurrentUser: () => Effect.Effect<
     Option.Option<AuthenticationUser>,
-    AuthenticationError,
+    InvalidTokenError | UserNotFoundError,
     never
   >
 
@@ -29,13 +35,17 @@ export interface Authentication {
   readonly login: (
     email: string,
     password: string,
-  ) => Effect.Effect<AuthenticationUser, AuthenticationError, never>
+  ) => Effect.Effect<
+    AuthenticationUser,
+    LoginFailedError | TokenMissingError | UserNotFoundError,
+    never
+  >
 
   /** Register with email/password. Does not log in; use login after. */
   readonly register: (
     email: string,
     password: string,
-  ) => Effect.Effect<void, AuthenticationError, never>
+  ) => Effect.Effect<void, RegistrationFailedError, never>
 
   /** Clear session (storage, ref, reactive store). */
   readonly logout: () => Effect.Effect<void, never, never>

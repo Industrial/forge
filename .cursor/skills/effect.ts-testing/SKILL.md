@@ -610,6 +610,7 @@ See `apps/risk-calculator/src/db/DatabaseMock.ts` and `apps/risk-calculator/src/
 
 - `effect.ts-fundamentals` - Effect as value, pipe/flatMap, FP data types
 - `effect.ts-architect` - Layers, Services, dependency injection
+- `effect.ts-react` - **NEW**: Integrating Effect.ts with React (reactive stores, hooks, forms)
 - `typescript-expert` - TypeScript best practices
 - `error-handling-patterns` - Error handling strategies
 - `systematic-debugging` - Debugging techniques

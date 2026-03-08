@@ -145,16 +145,10 @@ mod bdd_tests {
       let token = token_for(&client, "viewer@default.org").await;
 
       // When: requesting /api/auth/scopes with valid token
-      let (status, body) = app::test_request(
-        &client,
-        "GET",
-        "/api/auth/scopes",
-        Some(&token),
-        None,
-        None,
-      )
-      .await
-      .unwrap();
+      let (status, body) =
+        app::test_request(&client, "GET", "/api/auth/scopes", Some(&token), None, None)
+          .await
+          .unwrap();
 
       // Then: should return 200 OK with scopes
       assert_eq!(status, StatusCode::OK);

@@ -28,7 +28,7 @@ export function PermissionGuard({
   // Show loading spinner instead of blocking or redirecting
   const isAuthenticated = Option.isSome(user)
   const permissionsLoading = isAuthenticated && userPermissions.length === 0
-  
+
   if (permissionsLoading) {
     // Permissions are loading, show loading spinner
     return (
@@ -45,7 +45,7 @@ export function PermissionGuard({
       </Box>
     )
   }
-  
+
   const allowed = hasPermission(userPermissions, permissions)
   if (!allowed) {
     return <Navigate to={redirectTo} replace />

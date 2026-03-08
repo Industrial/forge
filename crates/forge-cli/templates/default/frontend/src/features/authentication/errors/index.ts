@@ -1,1 +1,8 @@
+export { AuthenticationError } from './AuthenticationError'
 export { ScopeError } from './ScopeError'
+export { LoginFailedError } from './LoginFailedError'
+export { RegistrationFailedError } from './RegistrationFailedError'
+export { UserNotFoundError } from './UserNotFoundError'
+export { InvalidTokenError } from './InvalidTokenError'
+export { TokenMissingError } from './TokenMissingError'
+export { ScopeSelectionFailedError } from './ScopeSelectionFailedError'

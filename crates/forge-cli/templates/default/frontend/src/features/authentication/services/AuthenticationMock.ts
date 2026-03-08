@@ -1,39 +1,59 @@
 /**
- * Mock implementation of Authentication for tests.
- * In-memory user and scope; no localStorage or real HTTP. Use Layer.succeed(Authentication, mock)
- * or createMockAuthentication() and provide via Effect.provide(mockLayer).
+ * Mock implementation of Authentication for testing.
+ * Follows Effect.ts testing patterns - creates real mock objects, not vi.fn() mocks.
  *
- * @see effect.ts-testing – never use vi.mock() for Effect services; use this Layer instead.
+ * This mock provides a controllable authentication service for testing without
+ * requiring actual HTTP calls or persistent storage. It maintains in-memory state
+ * and allows tests to configure behavior (success/failure responses).
+ *
+ * @example
+ * ```typescript
+ * import { createMockAuthentication } from './AuthenticationMock'
+ * import { Effect, Layer } from 'effect'
+ * import { Authentication } from './Authentication'
+ *
+ * describe('myFeature', () => {
+ *   const { authentication, setUser, setLoginError } = createMockAuthentication()
+ *   const mockLayer = Layer.succeed(Authentication, authentication)
+ *
+ *   it('should handle authenticated user', async () => {
+ *     const user = new AuthenticationUser({ id: '1', email: 'test@example.com', token: 'token' })
+ *     setUser(user)
+ *
+ *     const result = await Effect.runPromise(
+ *       myFeature().pipe(Effect.provide(mockLayer))
+ *     )
+ *
+ *     expect(result).toBeDefined()
+ *   })
+ * })
+ * ```
  */
+
 import { Effect, Option } from 'effect'
-import { Layer } from 'effect'
+import { Authentication } from './Authentication'
+import { AuthenticationUser } from '../domain/AuthenticationUser'
+import { AuthenticationError } from '../errors/AuthenticationError'
+import { ScopeError } from '../errors'
 
-import { Authentication } from '@/features/authentication/services/Authentication'
-import { AuthenticationUser } from '@/features/authentication/domain/AuthenticationUser'
-import { AuthenticationError } from '@/features/authentication/errors/AuthenticationError'
-import { ScopeError } from '@/features/authentication/errors'
-
-export interface MockAuthenticationState {
+/** Internal state for the mock authentication service */
+interface MockAuthenticationState {
   user: Option.Option<AuthenticationUser>
   scope: { organizationId: string; roleId: string } | null
-  /** If set, getCurrentUser fails with this error. */
   getCurrentUserError: Option.Option<AuthenticationError>
-  /** If set, login fails with this error. */
   loginError: Option.Option<AuthenticationError>
-  /** If set, selectScope fails with this error. */
+  registerError: Option.Option<AuthenticationError>
   selectScopeError: Option.Option<ScopeError>
 }
 
 /**
- * Creates a mock Authentication service and control API for tests.
- * Each test can set user, scope, and error behaviour without module mocks.
+ * Creates a mock authentication service that implements the Authentication interface.
+ * Provides full control over authentication state and error conditions for testing.
  *
- * @example
- * const { authentication, setUser, clearUser, setLoginError } = createMockAuthentication()
- * const mockLayer = Layer.succeed(Authentication, authentication)
- * const result = await Effect.runPromise(
- *   myEffect.pipe(Effect.provide(mockLayer))
- * )
+ * @returns An object containing:
+ *   - authentication: The mock Authentication service
+ *   - state: Internal state (for inspection in tests)
+ *   - Control functions to configure mock behavior
  */
 export function createMockAuthentication(): {
   authentication: Authentication
@@ -44,18 +64,22 @@ export function createMockAuthentication(): {
   clearScope: () => void
   setGetCurrentUserError: (error: AuthenticationError | null) => void
   setLoginError: (error: AuthenticationError | null) => void
+  setRegisterError: (error: AuthenticationError | null) => void
   setSelectScopeError: (error: ScopeError | null) => void
 } {
+  // Internal state
   const state: MockAuthenticationState = {
     user: Option.none(),
     scope: null,
     getCurrentUserError: Option.none(),
     loginError: Option.none(),
+    registerError: Option.none(),
     selectScopeError: Option.none(),
   }
 
+  // Control functions
   const setUser = (user: AuthenticationUser | null) => {
-    state.user = user != null ? Option.some(user) : Option.none()
+    state.user = user ? Option.some(user) : Option.none()
   }
 
   const clearUser = () => {
@@ -71,18 +95,22 @@ export function createMockAuthentication(): {
   }
 
   const setGetCurrentUserError = (error: AuthenticationError | null) => {
-    state.getCurrentUserError =
-      error != null ? Option.some(error) : Option.none()
+    state.getCurrentUserError = error ? Option.some(error) : Option.none()
   }
 
   const setLoginError = (error: AuthenticationError | null) => {
-    state.loginError = error != null ? Option.some(error) : Option.none()
+    state.loginError = error ? Option.some(error) : Option.none()
+  }
+
+  const setRegisterError = (error: AuthenticationError | null) => {
+    state.registerError = error ? Option.some(error) : Option.none()
   }
 
   const setSelectScopeError = (error: ScopeError | null) => {
-    state.selectScopeError = error != null ? Option.some(error) : Option.none()
+    state.selectScopeError = error ? Option.some(error) : Option.none()
   }
 
+  // Mock Authentication implementation
   const authentication: Authentication = {
     restoreSession: () => Effect.void,
 
@@ -106,7 +134,11 @@ export function createMockAuthentication(): {
         onSome: (e) => Effect.fail(e),
       }),
 
-    register: (_email: string, _password: string) => Effect.void,
+    register: (_email: string, _password: string) =>
+      Option.match(state.registerError, {
+        onNone: () => Effect.void,
+        onSome: (e) => Effect.fail(e),
+      }),
 
     logout: () =>
       Effect.sync(() => {
@@ -133,12 +165,15 @@ export function createMockAuthentication(): {
     clearScope,
     setGetCurrentUserError,
     setLoginError,
+    setRegisterError,
     setSelectScopeError,
   }
 }
 
-/** Layer that provides a default mock Authentication. For per-test control use createMockAuthentication() and Layer.succeed(Authentication, result.authentication). */
-export const AuthenticationMockLayer = Layer.succeed(
-  Authentication,
-  createMockAuthentication().authentication,
-)
+/**
+ * Default mock Authentication Layer for simple test cases.
+ * For tests that need more control, use createMockAuthentication() and Layer.succeed().
+ */
+export const MockAuthenticationLayer = Effect.sync(
+  () => createMockAuthentication().authentication,
+).pipe(Effect.map((auth) => ({ [Authentication.key]: auth })))

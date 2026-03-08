@@ -446,6 +446,77 @@ export async function calculateRiskProfileScore(...) {
 - Better composition (can combine with other Effects)
 - Type-safe error handling
 
+### Pattern 5: Singleton Application Layer for React/Frontend
+
+When building React or frontend applications, create a **singleton application layer** that provides all services. This ensures consistent service instances across your app.
+
+```typescript
+// lib/appLayer.ts
+import { FetchHttpClient, type HttpClient } from '@effect/platform'
+import { Layer, Logger, LogLevel } from 'effect'
+
+export type AppServices =
+  | HttpClient.HttpClient
+  | AuthenticationService
+  | EntityApiService
+  // ... all services
+
+const LoggerLayer = Logger.minimumLogLevel(LogLevel.Trace)
+const HttpClientLayer = FetchHttpClient.layer
+
+/**
+ * Builds the full application layer.
+ * Composes all service layers with their dependencies.
+ */
+export function buildApplicationLayer() {
+  const authStoreLayer = getAuthenticationStateStoreLayer()
+  
+  const BaseLayer = Layer.mergeAll(
+    authStoreLayer,
+    HttpClientLayer,
+    TokenStorageLive,
+    AuthenticationLive.pipe(
+      Layer.provide(authStoreLayer),
+      Layer.provide(HttpClientLayer),
+      Layer.provide(TokenStorageLive),
+    ),
+  )
+
+  const ServicesLayer = Layer.mergeAll(
+    EntityApiLive,
+    RpcApiLive,
+    // ... other service layers
+  ).pipe(Layer.provide(BaseLayer))
+
+  return Layer.mergeAll(BaseLayer, ServicesLayer, LoggerLayer)
+}
+
+// Cached singleton
+let applicationLayer: Layer.Layer<AppServices, never, never> | undefined
+
+/**
+ * Returns the singleton application layer.
+ * Built once on first call, then cached.
+ */
+export function getApplicationLayer() {
+  if (applicationLayer === undefined) {
+    applicationLayer = buildApplicationLayer()
+  }
+  return applicationLayer
+}
+```
+
+**Why**: Singleton layer:
+- Ensures consistent service instances (same HttpClient, auth state, etc.)
+- Simplifies Effect.provide calls throughout the app
+- Enables easy testing with layer overrides
+- Provides single source of truth for dependencies
+
+**Use Cases**:
+- React/frontend applications (see `effect.ts-react` skill)
+- CLI applications
+- Any application where services should be shared globally
+
 ### Pattern 6: Resource Management
 
 **Best Practice**: Use Effect's resource management for cleanup.
@@ -468,6 +539,114 @@ const program = Effect.gen(function* () {
 - Resources are always cleaned up
 - Cleanup runs even on errors
 - Type-safe resource management
+
+---
+
+## Reactive Stores for React Integration
+
+When building React applications with Effect.ts, use **reactive stores** to bridge Effect services and React components. This pattern allows Effect services to update state that React components can subscribe to.
+
+### Pattern: defineStore for Effect-React Bridge
+
+```typescript
+// lib/ReactiveStore.ts
+import { Context, Effect, Layer, Stream, Chunk } from 'effect'
+
+/**
+ * Reactive store interface: current value, updates, and a stream of changes.
+ */
+export interface ReactiveStore<A> {
+  readonly get: () => Effect.Effect<A, never, never>
+  readonly update: (f: (a: A) => A) => Effect.Effect<void, never, never>
+  readonly changes: Stream.Stream<A, never, never>
+}
+
+/**
+ * Defines a reactive store with in-memory state and Layer.sync.
+ * Same instance shared by Effect code and React.
+ */
+export function defineStore<A>(
+  name: string,
+  initial: A,
+): {
+  tag: Context.Tag<ReactiveStore<A>, ReactiveStore<A>>
+  layer: Layer.Layer<ReactiveStore<A>, never, never>
+} {
+  const tag = Context.GenericTag<ReactiveStore<A>>(name)
+  
+  let current: A = initial
+  const changeListeners = new Set<(a: A) => void>()
+
+  const notify = (a: A) => {
+    current = a
+    changeListeners.forEach((l) => l(a))
+  }
+
+  const changes = Stream.async<A, never, never>((emit) => {
+    emit(Effect.succeed(Chunk.of(current)))
+    const listener = (a: A) => {
+      emit(Effect.succeed(Chunk.of(a)))
+    }
+    changeListeners.add(listener)
+    return Effect.sync(() => {
+      changeListeners.delete(listener)
+    })
+  })
+
+  const store: ReactiveStore<A> = {
+    get: () => Effect.succeed(current),
+    update: (f: (a: A) => A) => Effect.sync(() => notify(f(current))),
+    changes,
+  }
+
+  const layer = Layer.sync(tag, () => store)
+  return { tag, layer }
+}
+```
+
+### Using Reactive Stores with Services
+
+Services can depend on reactive stores and update them:
+
+```typescript
+// Authentication service updates the auth store
+const AuthenticationLive = Layer.effect(
+  Authentication,
+  Effect.gen(function* () {
+    const client = yield* HttpClient.HttpClient
+    const store = yield* AuthStoreTag  // Access reactive store
+    
+    return {
+      login: (email: string, password: string) =>
+        Effect.gen(function* () {
+          const response = yield* client.post('/api/auth/login', { email, password })
+          const user = yield* response.json
+          
+          // Update the reactive store
+          yield* store.update(() => ({
+            user: Option.some(user),
+            token: Option.some(user.token),
+          }))
+          
+          return user
+        }),
+    }
+  }),
+)
+```
+
+**Why**: Reactive stores:
+- Bridge the gap between Effect services and React components
+- Provide type-safe, reactive state management
+- Work seamlessly with Effect's dependency injection
+- Enable React components to subscribe to Effect-managed state
+
+**Use Cases**:
+- Authentication state (user, token, permissions)
+- Real-time connection status
+- Any state that needs to be shared between Effect services and React components
+
+For complete React integration patterns, see the `effect.ts-react` skill.
 
 ---
 
@@ -1255,10 +1434,11 @@ const runnable = program.pipe(Effect.provide(Cache.Default))
 ## Related Skills
 
 - `effect.ts-fundamentals` - Effect as value, pipe/flatMap, FP data types, Schema
+- `effect.ts-react` - **NEW**: Integrating Effect.ts with React (reactive stores, hooks, forms)
 - `effect.ts-testing` - Testing Effect.ts code
 - `typescript-expert` - TypeScript best practices
 - `error-handling-patterns` - Error handling strategies
 
 ---
 
-**Remember**: Effect.ts is designed for **explicit dependency management** and **type-safe composition**. Embrace its patterns rather than fighting them. Write pure Effect functions, use Layers for dependencies, **avoid requirement leakage**, and compose at boundaries.
+**Remember**: Effect.ts is designed for **explicit dependency management** and **type-safe composition**. Embrace its patterns rather than fighting them. Write pure Effect functions, use Layers for dependencies, **avoid requirement leakage**, and compose at boundaries. For React applications, use reactive stores to bridge Effect services and React components (see `effect.ts-react` skill).
