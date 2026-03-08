@@ -110,6 +110,11 @@ pub fn load_config_from_dir(base: &Path) -> Result<ForgeConfig, Box<dyn std::err
       .into()
     })?;
 
+  // Override database URL from environment variable if set (for e2e tests)
+  if let Ok(db_url) = std::env::var("FORGE_DATABASE_URL") {
+    config.database.url = db_url;
+  }
+
   let cache_config_path = base.join("config/cache.toml");
   if cache_config_path.exists() {
     config.cache = Some(
