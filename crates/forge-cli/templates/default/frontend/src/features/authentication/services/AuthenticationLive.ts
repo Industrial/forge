@@ -319,58 +319,57 @@ export const AuthenticationLive = Layer.effect(
           
           // Refetch user and permissions after scope selection since permissions are scope-dependent
           const tokenOpt = yield* tokenStorage.getToken()
-          yield* pipe(
-            Option.match(tokenOpt, {
-              onNone: () => Effect.void,
-              onSome: (token) =>
-                Effect.gen(function* () {
-                  // Include scope headers when fetching /api/auth/me to get scope-dependent permissions
-                  const req = HttpClientRequest.get(`${baseUrl}/api/auth/me`).pipe(
-                    HttpClientRequest.setHeader('Authorization', `Bearer ${token}`),
-                    HttpClientRequest.setHeader('x-organization-id', organizationId),
-                    HttpClientRequest.setHeader('x-role-id', roleId),
-                  )
-                  const response = yield* client.execute(req)
-                  const ok = response.status >= 200 && response.status < 300
-                  yield* Effect.logDebug(
-                    `AuthenticationLive.selectScope: fetchMe status=${response.status}`,
-                  )
-
-                  if (!ok) {
-                    return
-                  }
-                  const rawBody = yield* response.json
-                  const body = yield* pipe(
-                    Schema.decodeUnknown(AuthMeBodySchema)(rawBody),
-                    Effect.catchAll(() => Effect.succeed({} as AuthMeBody)),
-                  )
-                  yield* Effect.logDebug(
-                    `AuthenticationLive.selectScope: permissions count=${getPermissions(body).length}`,
-                  )
-
-                  const user = parseMeResponse(body, token)
-                  const permissions = getPermissions(body)
-                  const needsScopeSelect = getNeedsScopeSelect(body)
-                  const newState: AuthenticationState = {
-                    token: Option.some(token),
-                    user,
-                    needsScopeSelect,
-                    permissions,
-                  }
-
-                  yield* store.update(() => newState)
-                }),
-            }),
-            Effect.catchAll((error) =>
+          if (Option.isSome(tokenOpt)) {
+            const token = tokenOpt.value
+            yield* pipe(
               Effect.gen(function* () {
-                // If refetch fails, log but don't fail scope selection (scope is already set)
-                yield* Effect.logDebug(
-                  `AuthenticationLive.selectScope: failed to refetch permissions: ${String(error)}`,
+                // Include scope headers when fetching /api/auth/me to get scope-dependent permissions
+                const req = HttpClientRequest.get(`${baseUrl}/api/auth/me`).pipe(
+                  HttpClientRequest.setHeader('Authorization', `Bearer ${token}`),
+                  HttpClientRequest.setHeader('x-organization-id', organizationId),
+                  HttpClientRequest.setHeader('x-role-id', roleId),
                 )
-                return Effect.void
+                const response = yield* client.execute(req)
+                const ok = response.status >= 200 && response.status < 300
+                yield* Effect.logDebug(
+                  `AuthenticationLive.selectScope: fetchMe status=${response.status}`,
+                )
+
+                if (!ok) {
+                  return
+                }
+                const rawBody = yield* response.json
+                const body = yield* pipe(
+                  Schema.decodeUnknown(AuthMeBodySchema)(rawBody),
+                  Effect.catchAll(() => Effect.succeed({} as AuthMeBody)),
+                )
+                yield* Effect.logDebug(
+                  `AuthenticationLive.selectScope: permissions count=${getPermissions(body).length}`,
+                )
+
+                const user = parseMeResponse(body, token)
+                const permissions = getPermissions(body)
+                const needsScopeSelect = getNeedsScopeSelect(body)
+                const newState: AuthenticationState = {
+                  token: Option.some(token),
+                  user,
+                  needsScopeSelect,
+                  permissions,
+                }
+
+                yield* store.update(() => newState)
               }),
-            ),
-          )
+              Effect.catchAll((error) =>
+                Effect.gen(function* () {
+                  // If refetch fails, log but don't fail scope selection (scope is already set)
+                  yield* Effect.logDebug(
+                    `AuthenticationLive.selectScope: failed to refetch permissions: ${String(error)}`,
+                  )
+                }),
+              ),
+              Effect.asVoid,
+            )
+          }
         }),
     }
   }),
