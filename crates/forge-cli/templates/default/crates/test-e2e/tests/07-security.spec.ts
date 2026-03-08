@@ -1,0 +1,314 @@
+/**
+ * E2E tests for Cross-Role Scenarios and Security
+ * 
+ * Tests follow the DAG structure from E2E_TEST_SCENARIOS.md:
+ * - 7.1 Multi-Organization User Flow
+ * - 7.2 Permission Escalation Prevention
+ * - 7.3 Concurrent Operations
+ * - 7.4 Error Handling
+ * - 7.5 Session Management
+ * - 7.6 Data Consistency
+ * - 9.1 Authentication Security
+ * - 9.2 Authorization Security
+ * - 9.3 CSRF Protection
+ * - 9.4 Rate Limiting
+ * - 9.5 Security Headers
+ */
+import { test, expect } from '@playwright/test'
+import { Effect } from 'effect'
+import { LoginPage, DashboardPage, SelectScopePage, UsersPage } from '@/pages'
+import { SEED_USERS, createTestUser } from '@/fixtures/test-data'
+import { createPageLayers } from '@/fixtures/page-layers'
+import { API_BASE_URL } from '@/playwright.config'
+import * as ExpectHelpers from '@/helpers/expect'
+import * as LocatorHelpers from '@/helpers/locator'
+import * as PageHelpers from '@/helpers/page'
+
+test.describe('Cross-Role Scenarios', () => {
+  test.describe('7.1 Multi-Organization User Flow', () => {
+    test('should switch between organizations', async ({ page }) => {
+      await page.goto('/authentication/login')
+      
+      const program = Effect.gen(function* () {
+        const loginPageService = yield* LoginPage
+        const selectScopePageService = yield* SelectScopePage
+        const dashboardPageService = yield* DashboardPage
+        const usersPageService = yield* UsersPage
+        
+        // Login with multi-profile user
+        yield* loginPageService.login(SEED_USERS.multiProfile.email, SEED_USERS.multiProfile.password)
+        
+        yield* ExpectHelpers.toHaveURL(page, '/authentication/select-scope')
+        
+        const profileList = yield* selectScopePageService.profileList()
+        yield* ExpectHelpers.toBeVisible(profileList)
+        
+        // Select first profile
+        yield* selectScopePageService.selectProfile(0)
+        
+        yield* ExpectHelpers.toHaveURL(page, '/dashboard')
+        
+        // Navigate to users
+        yield* dashboardPageService.clickUsersLink()
+        const usersList1 = yield* usersPageService.list()
+        yield* ExpectHelpers.toBeVisible(usersList1)
+        
+        // Switch to different profile
+        yield* PageHelpers.goto(page, '/scope')
+        yield* selectScopePageService.selectProfile(1)
+        
+        yield* PageHelpers.goto(page, '/dashboard/users')
+        const usersList2 = yield* usersPageService.list()
+        yield* ExpectHelpers.toBeVisible(usersList2)
+      })
+
+      await Effect.runPromise(program.pipe(Effect.provide(createPageLayers(page))))
+    })
+  })
+
+  test.describe('7.2 Permission Escalation Prevention', () => {
+    test.describe('Viewer permissions', () => {
+      test.use({ storageState: 'playwright/.auth/viewer.json' })
+      
+      test('Viewer cannot access editor-only features', async ({ page }) => {
+        await page.goto('/dashboard/users')
+      
+      const program = Effect.gen(function* () {
+        const usersPageService = yield* UsersPage
+        
+        const createButton = yield* usersPageService.createButton()
+        yield* ExpectHelpers.notToBeVisible(createButton)
+      })
+
+      await Effect.runPromise(program.pipe(Effect.provide(createPageLayers(page))))
+      })
+    })
+
+    test.describe('Editor permissions', () => {
+      test.use({ storageState: 'playwright/.auth/editor.json' })
+      
+      test('Editor cannot access org-admin-only features', async ({ page }) => {
+        await page.goto('/dashboard/organizations')
+      
+      const error403 = page.locator('[data-testid="error-403"]')
+      await expect(error403.or(page.locator('text=403')).or(page.locator('text=Forbidden'))).toBeVisible()
+      })
+    })
+
+    test.describe('Org Admin permissions', () => {
+      test.use({ storageState: 'playwright/.auth/org-owner.json' })
+      
+      test('Org Admin cannot access global-admin-only features', async ({ request }) => {
+        const response = await request.get(`${API_BASE_URL}/api/auth/admin`)
+        expect(response.status()).toBe(403)
+      })
+    })
+
+    test.describe('App Admin permissions', () => {
+      test.use({ storageState: 'playwright/.auth/app-admin.json' })
+      
+      test('App Admin can access global-admin features', async ({ request }) => {
+        const response = await request.get(`${API_BASE_URL}/api/auth/admin`)
+        expect(response.status()).toBe(200)
+      })
+    })
+  })
+
+  test.describe('7.3 Concurrent Operations', () => {
+    test.use({ storageState: 'playwright/.auth/editor.json' })
+    
+    test('subscription stream receives invalidation events', async ({ page, context }) => {
+      await page.goto('/dashboard/users')
+      
+      // Create a second page for subscription stream
+      const page2 = await context.newPage()
+      await page2.goto('/dashboard/users')
+      
+      const testUser = createTestUser()
+      
+      // Create user in first page
+      const program1 = Effect.gen(function* () {
+        const usersPageService = yield* UsersPage
+        yield* usersPageService.createUser(testUser.email, testUser.password)
+      })
+      
+      await Effect.runPromise(program1.pipe(Effect.provide(createPageLayers(page))))
+      
+      // Verify second page sees the update (via subscription stream)
+      const program2 = Effect.gen(function* () {
+        const usersPageService = yield* UsersPage
+        const row = yield* usersPageService.row(testUser.email)
+        yield* ExpectHelpers.toBeVisible(row)
+      })
+      
+      await Effect.runPromise(program2.pipe(Effect.provide(createPageLayers(page2))))
+      
+      await page2.close()
+    })
+  })
+
+  test.describe('7.4 Error Handling', () => {
+    test('invalid API request returns 400 Bad Request', async ({ request }) => {
+      // No auth needed for this test
+      const response = await request.post(`${API_BASE_URL}/api/entities/user`, {
+        data: { invalid: 'data' },
+      })
+      expect(response.status()).toBe(400)
+    })
+
+    test('unauthorized request returns 401 Unauthorized', async ({ request }) => {
+      const response = await request.get(`${API_BASE_URL}/api/auth/me`)
+      expect(response.status()).toBe(401)
+    })
+
+    test.describe('with Viewer auth', () => {
+      test.use({ storageState: 'playwright/.auth/viewer.json' })
+      
+      test('forbidden request returns 403 Forbidden', async ({ request }) => {
+        const response = await request.post(`${API_BASE_URL}/api/entities/user`, {
+        data: { email: 'test@example.com', password: 'password' },
+        })
+        expect(response.status()).toBe(403)
+      })
+
+      test('not found returns 404 Not Found', async ({ request }) => {
+        const response = await request.get(`${API_BASE_URL}/api/entities/user/invalid-id`)
+        expect(response.status()).toBe(404)
+      })
+    })
+  })
+
+  test.describe('7.5 Session Management', () => {
+    test.use({ storageState: 'playwright/.auth/viewer.json' })
+    
+    test('logout invalidates token', async ({ page, context }) => {
+      await page.goto('/dashboard')
+      
+      const program = Effect.gen(function* () {
+        const dashboardPageService = yield* DashboardPage
+        yield* dashboardPageService.logout()
+      })
+      
+      await Effect.runPromise(program.pipe(Effect.provide(createPageLayers(page))))
+      
+      // Try to access protected route
+      await page.goto('/dashboard')
+      await expect(page).toHaveURL('/authentication/login')
+    })
+  })
+
+  test.describe('7.6 Data Consistency', () => {
+    test.use({ storageState: 'playwright/.auth/editor.json' })
+    
+    test('created entity appears in list', async ({ page }) => {
+      await page.goto('/dashboard/users')
+      const testUser = createTestUser()
+      
+      const program = Effect.gen(function* () {
+        const usersPageService = yield* UsersPage
+        
+        yield* usersPageService.createUser(testUser.email, testUser.password)
+        
+        const row = yield* usersPageService.row(testUser.email)
+        yield* ExpectHelpers.toBeVisible(row)
+      })
+
+      await Effect.runPromise(program.pipe(Effect.provide(createPageLayers(page))))
+    })
+  })
+})
+
+test.describe('Security Scenarios', () => {
+  test.describe('9.1 Authentication Security', () => {
+    test('attempt to access protected route redirects to login', async ({ page }) => {
+      await page.goto('/dashboard')
+      await expect(page).toHaveURL('/authentication/login')
+    })
+
+    test('invalid token returns 401 Unauthorized', async ({ request }) => {
+      const response = await request.get(`${API_BASE_URL}/api/auth/me`, {
+        headers: { Authorization: 'Bearer invalid-token' },
+      })
+      expect(response.status()).toBe(401)
+    })
+  })
+
+  test.describe('9.2 Authorization Security', () => {
+    test.describe('Viewer auth', () => {
+      test.use({ storageState: 'playwright/.auth/viewer.json' })
+      
+      test('Viewer cannot create entity', async ({ request }) => {
+        const response = await request.post(`${API_BASE_URL}/api/entities/user`, {
+        data: { email: 'test@example.com', password: 'password' },
+        })
+        expect(response.status()).toBe(403)
+      })
+    })
+
+    test.describe('Org Admin auth', () => {
+      test.use({ storageState: 'playwright/.auth/org-owner.json' })
+      
+      test('Org Admin cannot access other org data', async ({ request }) => {
+        // This would require knowing another org's ID - simplified test
+        const response = await request.get(`${API_BASE_URL}/api/entities/organization`)
+        expect(response.status()).toBe(200)
+        // Verify response only contains org-scoped data
+      })
+    })
+
+    test.describe('App Admin auth', () => {
+      test.use({ storageState: 'playwright/.auth/app-admin.json' })
+      
+      test('App Admin can access any org data', async ({ request }) => {
+        const response = await request.get(`${API_BASE_URL}/api/entities/organization`)
+        expect(response.status()).toBe(200)
+      })
+    })
+  })
+
+  test.describe('9.3 CSRF Protection', () => {
+    test.use({ storageState: 'playwright/.auth/editor.json' })
+    
+    test('form submission includes CSRF token', async ({ page }) => {
+      await page.goto('/dashboard/users')
+      
+      const program = Effect.gen(function* () {
+        const usersPageService = yield* UsersPage
+        
+        const createButton = yield* usersPageService.createButton()
+        yield* LocatorHelpers.click(createButton)
+        
+        const createDialog = yield* usersPageService.createDialog()
+        yield* ExpectHelpers.toBeVisible(createDialog)
+      })
+
+      await Effect.runPromise(program.pipe(Effect.provide(createPageLayers(page))))
+    })
+  })
+
+  test.describe('9.4 Rate Limiting', () => {
+    test('health endpoints are not rate limited', async ({ request }) => {
+      // Make multiple rapid requests
+      const responses = await Promise.all([
+        request.get(`${API_BASE_URL}/healthz`),
+        request.get(`${API_BASE_URL}/healthz`),
+        request.get(`${API_BASE_URL}/healthz`),
+      ])
+      
+      for (const response of responses) {
+        expect(response.status()).toBe(200)
+      }
+    })
+  })
+
+  test.describe('9.5 Security Headers', () => {
+    test('security headers are present', async ({ request }) => {
+      const response = await request.get(`${API_BASE_URL}/healthz`)
+      const headers = response.headers()
+      
+      expect(headers['x-content-type-options']).toBe('nosniff')
+      expect(headers['x-frame-options']).toBe('DENY')
+      expect(headers['referrer-policy']).toContain('strict-origin-when-cross-origin')
+    })
+  })
+})

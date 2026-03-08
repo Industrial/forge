@@ -9,6 +9,18 @@ import {
   DashboardPageLive,
   SelectScopePage,
   SelectScopePageLive,
+  UsersPage,
+  UsersPageLive,
+  RolesPage,
+  RolesPageLive,
+  PermissionsPage,
+  PermissionsPageLive,
+  AuditLogPage,
+  AuditLogPageLive,
+  OrganizationsPage,
+  OrganizationsPageLive,
+  ProfilePage,
+  ProfilePageLive,
 } from '@/pages'
 import { createPlaywrightPageLayer, PlaywrightPage } from '@/fixtures/playwright'
 
@@ -26,10 +38,27 @@ export const createPageLayers = (page: Page) => {
     RegisterPageLive.pipe(Layer.provide(playwrightPageLayer)),
     DashboardPageLive.pipe(Layer.provide(playwrightPageLayer)),
     SelectScopePageLive.pipe(Layer.provide(playwrightPageLayer)),
+    UsersPageLive.pipe(Layer.provide(playwrightPageLayer)),
+    RolesPageLive.pipe(Layer.provide(playwrightPageLayer)),
+    PermissionsPageLive.pipe(Layer.provide(playwrightPageLayer)),
+    AuditLogPageLive.pipe(Layer.provide(playwrightPageLayer)),
+    OrganizationsPageLive.pipe(Layer.provide(playwrightPageLayer)),
+    ProfilePageLive.pipe(Layer.provide(playwrightPageLayer)),
   )
 }
 
 /**
  * Type for the combined page layers context
  */
-export type PageLayersContext = PlaywrightPage | LoginPage | RegisterPage | DashboardPage | SelectScopePage
+export type PageLayersContext =
+  | PlaywrightPage
+  | LoginPage
+  | RegisterPage
+  | DashboardPage
+  | SelectScopePage
+  | UsersPage
+  | RolesPage
+  | PermissionsPage
+  | AuditLogPage
+  | OrganizationsPage
+  | ProfilePage

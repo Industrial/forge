@@ -2,6 +2,8 @@ import { Locator } from '@playwright/test'
 import { Effect, Context, Layer } from 'effect'
 
 import { PlaywrightPage } from '@/fixtures/playwright'
+import * as LocatorHelpers from '@/helpers/locator'
+import * as PageHelpers from '@/helpers/page'
 
 /**
  * RegisterPage service - Effect.ts service for registration page interactions
@@ -68,25 +70,20 @@ export const RegisterPageLive = Layer.effect(
 
       register: (email: string, password: string) =>
         Effect.gen(function* () {
-          yield* Effect.promise(() =>
-            playwrightPage.getByTestId('register-email-input').fill(email)
-          )
-          yield* Effect.promise(() =>
-            playwrightPage.getByTestId('register-password-input').fill(password)
-          )
-          yield* Effect.promise(() =>
-            playwrightPage.getByTestId('register-submit-button').click()
-          )
-          yield* Effect.promise(() =>
-            playwrightPage.waitForURL('/authentication/login', { timeout: 5000 })
-          )
+          const emailInput = playwrightPage.getByTestId('register-email-input')
+          const passwordInput = playwrightPage.getByTestId('register-password-input')
+          const submitButton = playwrightPage.getByTestId('register-submit-button')
+          
+          yield* LocatorHelpers.fill(emailInput, email)
+          yield* LocatorHelpers.fill(passwordInput, password)
+          yield* LocatorHelpers.click(submitButton)
+          yield* PageHelpers.waitForURL(playwrightPage, '/authentication/login', { timeout: 5000 })
         }),
 
       clickLoginLink: () =>
         Effect.gen(function* () {
-          yield* Effect.promise(() =>
-            playwrightPage.getByTestId('register-login-link').click()
-          )
+          const loginLink = playwrightPage.getByTestId('register-login-link')
+          yield* LocatorHelpers.click(loginLink)
         }),
     }
   })

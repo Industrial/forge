@@ -2,6 +2,8 @@ import { Locator } from '@playwright/test'
 import { Effect, Context, Layer } from 'effect'
 
 import { PlaywrightPage } from '@/fixtures/playwright'
+import * as LocatorHelpers from '@/helpers/locator'
+import * as PageHelpers from '@/helpers/page'
 
 /**
  * SelectScopePage service - Effect.ts service for scope selection page interactions
@@ -49,12 +51,9 @@ export const SelectScopePageLive = Layer.effect(
 
       selectProfile: (index: number) =>
         Effect.gen(function* () {
-          yield* Effect.promise(() =>
-            playwrightPage.getByTestId(`profile-select-button-${index}`).click()
-          )
-          yield* Effect.promise(() =>
-            playwrightPage.waitForURL('/dashboard', { timeout: 5000 })
-          )
+          const selectButton = playwrightPage.getByTestId(`profile-select-button-${index}`)
+          yield* LocatorHelpers.click(selectButton)
+          yield* PageHelpers.waitForURL(playwrightPage, '/dashboard', { timeout: 5000 })
         }),
     }
   })

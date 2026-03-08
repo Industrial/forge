@@ -15,6 +15,8 @@ import { Effect } from 'effect'
 
 import { LoginPage, RegisterPage } from '@/pages'
 import { createPageLayers } from '@/fixtures/page-layers'
+import * as ExpectHelpers from '@/helpers/expect'
+import * as LocatorHelpers from '@/helpers/locator'
 import { createTestUser, SEED_USERS } from '@/fixtures/test-data'
 import { API_BASE_URL } from '@/playwright.config'
 
@@ -28,9 +30,9 @@ test.describe('Guest/Unauthenticated User', () => {
         const container = yield* loginPageService.container()
         const form = yield* loginPageService.form()
         
-        yield* Effect.promise(() => expect(page).toHaveURL('/authentication/login'))
-        yield* Effect.promise(() => expect(container).toBeVisible())
-        yield* Effect.promise(() => expect(form).toBeVisible())
+        yield* ExpectHelpers.toHaveURL(page, '/authentication/login')
+        yield* ExpectHelpers.toBeVisible(container)
+        yield* ExpectHelpers.toBeVisible(form)
       })
 
       await Effect.runPromise(program.pipe(Effect.provide(createPageLayers(page))))
@@ -43,8 +45,8 @@ test.describe('Guest/Unauthenticated User', () => {
         const loginPageService = yield* LoginPage
         const container = yield* loginPageService.container()
         
-        yield* Effect.promise(() => expect(page).toHaveURL('/authentication/login'))
-        yield* Effect.promise(() => expect(container).toBeVisible())
+        yield* ExpectHelpers.toHaveURL(page, '/authentication/login')
+        yield* ExpectHelpers.toBeVisible(container)
       })
 
       await Effect.runPromise(program.pipe(Effect.provide(createPageLayers(page))))
@@ -63,12 +65,12 @@ test.describe('Guest/Unauthenticated User', () => {
         const submit = yield* loginPageService.submit()
         const registerLink = yield* loginPageService.registerLink()
         
-        yield* Effect.promise(() => expect(container).toBeVisible())
-        yield* Effect.promise(() => expect(form).toBeVisible())
-        yield* Effect.promise(() => expect(email).toBeVisible())
-        yield* Effect.promise(() => expect(password).toBeVisible())
-        yield* Effect.promise(() => expect(submit).toBeVisible())
-        yield* Effect.promise(() => expect(registerLink).toBeVisible())
+        yield* ExpectHelpers.toBeVisible(container)
+        yield* ExpectHelpers.toBeVisible(form)
+        yield* ExpectHelpers.toBeVisible(email)
+        yield* ExpectHelpers.toBeVisible(password)
+        yield* ExpectHelpers.toBeVisible(submit)
+        yield* ExpectHelpers.toBeVisible(registerLink)
       })
 
       await Effect.runPromise(program.pipe(Effect.provide(createPageLayers(page))))
@@ -87,12 +89,12 @@ test.describe('Guest/Unauthenticated User', () => {
         const submit = yield* registerPageService.submit()
         const loginLink = yield* registerPageService.loginLink()
         
-        yield* Effect.promise(() => expect(container).toBeVisible())
-        yield* Effect.promise(() => expect(form).toBeVisible())
-        yield* Effect.promise(() => expect(email).toBeVisible())
-        yield* Effect.promise(() => expect(password).toBeVisible())
-        yield* Effect.promise(() => expect(submit).toBeVisible())
-        yield* Effect.promise(() => expect(loginLink).toBeVisible())
+        yield* ExpectHelpers.toBeVisible(container)
+        yield* ExpectHelpers.toBeVisible(form)
+        yield* ExpectHelpers.toBeVisible(email)
+        yield* ExpectHelpers.toBeVisible(password)
+        yield* ExpectHelpers.toBeVisible(submit)
+        yield* ExpectHelpers.toBeVisible(loginLink)
       })
 
       await Effect.runPromise(program.pipe(Effect.provide(createPageLayers(page))))
@@ -107,9 +109,9 @@ test.describe('Guest/Unauthenticated User', () => {
         
         yield* loginPageService.clickRegisterLink()
         
-        yield* Effect.promise(() => expect(page).toHaveURL('/authentication/register'))
+        yield* ExpectHelpers.toHaveURL(page, '/authentication/register')
         const container = yield* registerPageService.container()
-        yield* Effect.promise(() => expect(container).toBeVisible())
+        yield* ExpectHelpers.toBeVisible(container)
       })
 
       await Effect.runPromise(program.pipe(Effect.provide(createPageLayers(page))))
@@ -124,9 +126,9 @@ test.describe('Guest/Unauthenticated User', () => {
         
         yield* registerPageService.clickLoginLink()
         
-        yield* Effect.promise(() => expect(page).toHaveURL('/authentication/login'))
+        yield* ExpectHelpers.toHaveURL(page, '/authentication/login')
         const container = yield* loginPageService.container()
-        yield* Effect.promise(() => expect(container).toBeVisible())
+        yield* ExpectHelpers.toBeVisible(container)
       })
 
       await Effect.runPromise(program.pipe(Effect.provide(createPageLayers(page))))
@@ -148,12 +150,12 @@ test.describe('Guest/Unauthenticated User', () => {
           const submitLocator = yield* registerPageService.submit()
           const errorMessageLocator = yield* registerPageService.errorMessage()
           
-          yield* Effect.promise(() => emailLocator.fill('invalid-email'))
-          yield* Effect.promise(() => passwordLocator.fill('password123'))
-          yield* Effect.promise(() => submitLocator.click())
+          yield* LocatorHelpers.fill(emailLocator, 'invalid-email')
+          yield* LocatorHelpers.fill(passwordLocator, 'password123')
+          yield* LocatorHelpers.click(submitLocator)
           
           // Wait for error message
-          yield* Effect.promise(() => expect(errorMessageLocator).toBeVisible())
+          yield* ExpectHelpers.toBeVisible(errorMessageLocator)
         })
 
         await Effect.runPromise(program.pipe(Effect.provide(createPageLayers(page))))
@@ -173,12 +175,12 @@ test.describe('Guest/Unauthenticated User', () => {
           const submitLocator = yield* registerPageService.submit()
           const errorMessageLocator = yield* registerPageService.errorMessage()
           
-          yield* Effect.promise(() => emailLocator.fill(testUser.email))
-          yield* Effect.promise(() => passwordLocator.fill(testUser.password))
-          yield* Effect.promise(() => submitLocator.click())
+          yield* LocatorHelpers.fill(emailLocator, testUser.email)
+          yield* LocatorHelpers.fill(passwordLocator, testUser.password)
+          yield* LocatorHelpers.click(submitLocator)
           
           // Wait for error message
-          yield* Effect.promise(() => expect(errorMessageLocator).toBeVisible())
+          yield* ExpectHelpers.toBeVisible(errorMessageLocator)
         })
 
         await Effect.runPromise(program.pipe(Effect.provide(createPageLayers(page))))
@@ -197,12 +199,12 @@ test.describe('Guest/Unauthenticated User', () => {
           
           yield* registerPageService.register(testUser.email, testUser.password)
           
-          yield* Effect.promise(() => expect(page).toHaveURL('/authentication/login'))
+          yield* ExpectHelpers.toHaveURL(page, '/authentication/login')
           const loginContainer = yield* loginPageService.container()
-          yield* Effect.promise(() => expect(loginContainer).toBeVisible())
+          yield* ExpectHelpers.toBeVisible(loginContainer)
           
           const errorMessage = yield* registerPageService.errorMessage()
-          yield* Effect.promise(() => expect(errorMessage).not.toBeVisible())
+          yield* ExpectHelpers.notToBeVisible(errorMessage)
         })
 
         await Effect.runPromise(program.pipe(Effect.provide(createPageLayers(page))))
@@ -222,10 +224,10 @@ test.describe('Guest/Unauthenticated User', () => {
           yield* loginPageService.login(testUser.email, testUser.password)
 
           // Should redirect to dashboard or scope selection
-          yield* Effect.promise(() => expect(page).toHaveURL(/\/dashboard|\/authentication\/select-scope/))
+          yield* ExpectHelpers.toHaveURL(page, /\/dashboard|\/authentication\/select-scope/)
           
           const errorMessage = yield* loginPageService.errorMessage()
-          yield* Effect.promise(() => expect(errorMessage).not.toBeVisible())
+          yield* ExpectHelpers.notToBeVisible(errorMessage)
         })
 
         await Effect.runPromise(program.pipe(Effect.provide(createPageLayers(page))))
@@ -239,9 +241,9 @@ test.describe('Guest/Unauthenticated User', () => {
         
         yield* registerPageService.clickLoginLink()
         
-        yield* Effect.promise(() => expect(page).toHaveURL('/authentication/login'))
+        yield* ExpectHelpers.toHaveURL(page, '/authentication/login')
         const container = yield* loginPageService.container()
-        yield* Effect.promise(() => expect(container).toBeVisible())
+        yield* ExpectHelpers.toBeVisible(container)
       })
 
       await Effect.runPromise(program.pipe(Effect.provide(createPageLayers(page))))
@@ -263,12 +265,12 @@ test.describe('Guest/Unauthenticated User', () => {
           const submitLocator = yield* loginPageService.submit()
           const errorMessageLocator = yield* loginPageService.errorMessage()
           
-          yield* Effect.promise(() => emailLocator.fill('invalid@example.com'))
-          yield* Effect.promise(() => passwordLocator.fill('password'))
-          yield* Effect.promise(() => submitLocator.click())
+          yield* LocatorHelpers.fill(emailLocator, 'invalid@example.com')
+          yield* LocatorHelpers.fill(passwordLocator, 'password')
+          yield* LocatorHelpers.click(submitLocator)
           
           // Wait for error message
-          yield* Effect.promise(() => expect(errorMessageLocator).toBeVisible())
+          yield* ExpectHelpers.toBeVisible(errorMessageLocator)
         })
 
         await Effect.runPromise(program.pipe(Effect.provide(createPageLayers(page))))
@@ -284,9 +286,9 @@ test.describe('Guest/Unauthenticated User', () => {
           
           yield* loginPageService.login(SEED_USERS.viewer.email, SEED_USERS.viewer.password)
           
-          yield* Effect.promise(() => expect(page).toHaveURL('/dashboard'))
+          yield* ExpectHelpers.toHaveURL(page, '/dashboard')
           const errorMessage = yield* loginPageService.errorMessage()
-          yield* Effect.promise(() => expect(errorMessage).not.toBeVisible())
+          yield* ExpectHelpers.notToBeVisible(errorMessage)
         })
 
         await Effect.runPromise(program.pipe(Effect.provide(createPageLayers(page))))
@@ -300,9 +302,9 @@ test.describe('Guest/Unauthenticated User', () => {
           
           yield* loginPageService.login(SEED_USERS.multiProfile.email, SEED_USERS.multiProfile.password)
           
-          yield* Effect.promise(() => expect(page).toHaveURL('/authentication/select-scope'))
+          yield* ExpectHelpers.toHaveURL(page, '/authentication/select-scope')
           const errorMessage = yield* loginPageService.errorMessage()
-          yield* Effect.promise(() => expect(errorMessage).not.toBeVisible())
+          yield* ExpectHelpers.notToBeVisible(errorMessage)
         })
 
         await Effect.runPromise(program.pipe(Effect.provide(createPageLayers(page))))
@@ -316,15 +318,15 @@ test.describe('Guest/Unauthenticated User', () => {
         
         // Navigate to register
         yield* loginPageService.clickRegisterLink()
-        yield* Effect.promise(() => expect(page).toHaveURL('/authentication/register'))
+        yield* ExpectHelpers.toHaveURL(page, '/authentication/register')
         const registerContainer = yield* registerPageService.container()
-        yield* Effect.promise(() => expect(registerContainer).toBeVisible())
+        yield* ExpectHelpers.toBeVisible(registerContainer)
 
         // Navigate back to login
         yield* registerPageService.clickLoginLink()
-        yield* Effect.promise(() => expect(page).toHaveURL('/authentication/login'))
+        yield* ExpectHelpers.toHaveURL(page, '/authentication/login')
         const loginContainer = yield* loginPageService.container()
-        yield* Effect.promise(() => expect(loginContainer).toBeVisible())
+        yield* ExpectHelpers.toBeVisible(loginContainer)
       })
 
       await Effect.runPromise(program.pipe(Effect.provide(createPageLayers(page))))
