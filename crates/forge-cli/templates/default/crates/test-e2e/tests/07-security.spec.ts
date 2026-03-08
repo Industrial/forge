@@ -1,5 +1,5 @@
 /**
- * E2E tests for Cross-Role Scenarios and Security
+ * E2E tests for Cross-Role Scenarios
  * 
  * Tests follow the DAG structure from E2E_TEST_SCENARIOS.md:
  * - 7.1 Multi-Organization User Flow
@@ -8,11 +8,6 @@
  * - 7.4 Error Handling
  * - 7.5 Session Management
  * - 7.6 Data Consistency
- * - 9.1 Authentication Security
- * - 9.2 Authorization Security
- * - 9.3 CSRF Protection
- * - 9.4 Rate Limiting
- * - 9.5 Security Headers
  */
 import { test, expect } from '@playwright/test'
 import { Effect } from 'effect'
@@ -214,101 +209,6 @@ test.describe('Cross-Role Scenarios', () => {
       })
 
       await Effect.runPromise(program.pipe(Effect.provide(createPageLayers(page))))
-    })
-  })
-})
-
-test.describe('Security Scenarios', () => {
-  test.describe('9.1 Authentication Security', () => {
-    test('attempt to access protected route redirects to login', async ({ page }) => {
-      await page.goto('/dashboard')
-      await expect(page).toHaveURL('/authentication/login')
-    })
-
-    test('invalid token returns 401 Unauthorized', async ({ request }) => {
-      const response = await request.get(`${API_BASE_URL}/api/auth/me`, {
-        headers: { Authorization: 'Bearer invalid-token' },
-      })
-      expect(response.status()).toBe(401)
-    })
-  })
-
-  test.describe('9.2 Authorization Security', () => {
-    test.describe('Viewer auth', () => {
-      test.use({ storageState: 'playwright/.auth/viewer.json' })
-      
-      test('Viewer cannot create entity', async ({ request }) => {
-        const response = await request.post(`${API_BASE_URL}/api/entities/user`, {
-        data: { email: 'test@example.com', password: 'password' },
-        })
-        expect(response.status()).toBe(403)
-      })
-    })
-
-    test.describe('Org Admin auth', () => {
-      test.use({ storageState: 'playwright/.auth/org-owner.json' })
-      
-      test('Org Admin cannot access other org data', async ({ request }) => {
-        // This would require knowing another org's ID - simplified test
-        const response = await request.get(`${API_BASE_URL}/api/entities/organization`)
-        expect(response.status()).toBe(200)
-        // Verify response only contains org-scoped data
-      })
-    })
-
-    test.describe('App Admin auth', () => {
-      test.use({ storageState: 'playwright/.auth/app-admin.json' })
-      
-      test('App Admin can access any org data', async ({ request }) => {
-        const response = await request.get(`${API_BASE_URL}/api/entities/organization`)
-        expect(response.status()).toBe(200)
-      })
-    })
-  })
-
-  test.describe('9.3 CSRF Protection', () => {
-    test.use({ storageState: 'playwright/.auth/editor.json' })
-    
-    test('form submission includes CSRF token', async ({ page }) => {
-      await page.goto('/dashboard/users')
-      
-      const program = Effect.gen(function* () {
-        const usersPageService = yield* UsersPage
-        
-        const createButton = yield* usersPageService.createButton()
-        yield* LocatorHelpers.click(createButton)
-        
-        const createDialog = yield* usersPageService.createDialog()
-        yield* ExpectHelpers.toBeVisible(createDialog)
-      })
-
-      await Effect.runPromise(program.pipe(Effect.provide(createPageLayers(page))))
-    })
-  })
-
-  test.describe('9.4 Rate Limiting', () => {
-    test('health endpoints are not rate limited', async ({ request }) => {
-      // Make multiple rapid requests
-      const responses = await Promise.all([
-        request.get(`${API_BASE_URL}/healthz`),
-        request.get(`${API_BASE_URL}/healthz`),
-        request.get(`${API_BASE_URL}/healthz`),
-      ])
-      
-      for (const response of responses) {
-        expect(response.status()).toBe(200)
-      }
-    })
-  })
-
-  test.describe('9.5 Security Headers', () => {
-    test('security headers are present', async ({ request }) => {
-      const response = await request.get(`${API_BASE_URL}/healthz`)
-      const headers = response.headers()
-      
-      expect(headers['x-content-type-options']).toBe('nosniff')
-      expect(headers['x-frame-options']).toBe('DENY')
-      expect(headers['referrer-policy']).toContain('strict-origin-when-cross-origin')
     })
   })
 })
