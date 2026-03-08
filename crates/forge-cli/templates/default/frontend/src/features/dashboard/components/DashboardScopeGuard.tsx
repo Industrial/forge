@@ -47,10 +47,11 @@ function DashboardScopeGuard({ children }: DashboardScopeGuardProps) {
   const [scopes, setScopes] = useState<Scope[]>([])
   const [loading, setLoading] = useState(false)
   const [autoSelecting, setAutoSelecting] = useState(false)
+  const [autoSelectionAttempted, setAutoSelectionAttempted] = useState(false)
 
   // Fetch scopes when user is authenticated
-  // If needsScopeSelect is false, there's exactly one scope - fetch and auto-select it
-  // If needsScopeSelect is true, there are multiple scopes - fetch to check count
+  // If needsScopeSelect is false, user has exactly one scope - fetch and auto-select it
+  // If needsScopeSelect is true, there are multiple scopes - fetch to check count and auto-select if only one
   useEffect(() => {
     if (!isUserAuthenticated || scopes.length > 0 || loading) {
       return
@@ -96,14 +97,18 @@ function DashboardScopeGuard({ children }: DashboardScopeGuardProps) {
   }, [isUserAuthenticated, scopes.length, loading, authentication.token])
 
   // Auto-select single scope (when there's exactly one scope)
+  // When needsScopeSelect is false, user has exactly one scope - fetch and auto-select it
+  // When needsScopeSelect is true and we have one scope, also auto-select it
   useEffect(() => {
     if (
       !loading &&
       isUserAuthenticated &&
       scopes.length === 1 &&
-      !autoSelecting
+      !autoSelecting &&
+      !autoSelectionAttempted
     ) {
       setAutoSelecting(true)
+      setAutoSelectionAttempted(true)
       Effect.runPromise(
         Effect.gen(function* () {
           const p = scopes[0]
@@ -111,16 +116,60 @@ function DashboardScopeGuard({ children }: DashboardScopeGuardProps) {
           const roleId = p.role_id ?? ''
           const auth = yield* Authentication
           yield* auth.selectScope(orgId, roleId)
-        }).pipe(
-          Effect.provide(getApplicationLayer()),
-          Effect.ensuring(Effect.sync(() => setAutoSelecting(false))),
-        ),
-      ).finally(() => {
-        setAutoSelecting(false)
-      })
+        }).pipe(Effect.provide(getApplicationLayer())),
+      )
+        .then(() => {
+          setAutoSelecting(false)
+        })
+        .catch(() => {
+          setAutoSelecting(false)
+        })
     }
-  }, [loading, isUserAuthenticated, scopes.length, autoSelecting, scopes])
+  }, [loading, isUserAuthenticated, scopes.length, autoSelecting, scopes, autoSelectionAttempted])
 
+  if (!isUserAuthenticated) {
+    return null
+  }
+
+  // If needsScopeSelect is false, user has exactly one scope - wait for auto-selection
+  if (!needsScopeSelect) {
+    // Wait for scopes to be fetched
+    if (loading || scopes.length === 0) {
+      return (
+        <Box
+          sx={{
+            display: 'flex',
+            justifyContent: 'center',
+            alignItems: 'center',
+            flex: 1,
+            minHeight: '40vh',
+          }}
+        >
+          <LoadingSpinner />
+        </Box>
+      )
+    }
+    // If we have one scope, wait for auto-selection to complete
+    if (scopes.length === 1 && (autoSelecting || !autoSelectionAttempted)) {
+      return (
+        <Box
+          sx={{
+            display: 'flex',
+            justifyContent: 'center',
+            alignItems: 'center',
+            flex: 1,
+            minHeight: '40vh',
+          }}
+        >
+          <LoadingSpinner />
+        </Box>
+      )
+    }
+    // Auto-selection completed (or no scope needed), render children
+    return <>{children}</>
+  }
+
+  // If needsScopeSelect is true, we need to fetch scopes and either redirect or auto-select
   if (loading || autoSelecting) {
     return (
       <Box
@@ -137,34 +186,42 @@ function DashboardScopeGuard({ children }: DashboardScopeGuardProps) {
     )
   }
 
-  if (!isUserAuthenticated) {
-    return null
-  }
-
-  // If needsScopeSelect is false, user has exactly one scope and it should be auto-selected
-  // If it's true and we have multiple scopes, redirect to selection
-  // If it's true and we have one scope, we're auto-selecting (handled above)
-  if (needsScopeSelect) {
-    if (scopes.length === 1) {
-      // Auto-selecting, show loading (handled above)
-      return (
-        <Box
-          sx={{
-            display: 'flex',
-            justifyContent: 'center',
-            alignItems: 'center',
-            flex: 1,
-            minHeight: '40vh',
-          }}
-        >
-          <LoadingSpinner />
-        </Box>
-      )
-    }
+  // If needsScopeSelect is true and we have multiple scopes, redirect to selection
+  if (scopes.length > 1) {
     return <Navigate to="/authentication/select-scope" replace />
   }
 
-  return <>{children}</>
+  // If needsScopeSelect is true and we have one scope, we're auto-selecting (handled above)
+  if (scopes.length === 1) {
+    return (
+      <Box
+        sx={{
+          display: 'flex',
+          justifyContent: 'center',
+          alignItems: 'center',
+          flex: 1,
+          minHeight: '40vh',
+        }}
+      >
+        <LoadingSpinner />
+      </Box>
+    )
+  }
+
+  // Still loading or no scopes yet
+  return (
+    <Box
+      sx={{
+        display: 'flex',
+        justifyContent: 'center',
+        alignItems: 'center',
+        flex: 1,
+        minHeight: '40vh',
+      }}
+    >
+      <LoadingSpinner />
+    </Box>
+  )
 }
 
 export default DashboardScopeGuard

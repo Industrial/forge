@@ -109,7 +109,7 @@ export const DashboardPageLive = Layer.effect(
 
       userMenu: () =>
         Effect.gen(function* () {
-          return playwrightPage.getByTestId('navbar-user-menu')
+          return playwrightPage.getByTestId('navbar-user-menu-button')
         }),
 
       userMenuDropdown: () =>
@@ -166,13 +166,13 @@ export const DashboardPageLive = Layer.effect(
 
       openUserMenu: () =>
         Effect.gen(function* () {
-          const userMenu = playwrightPage.getByTestId('navbar-user-menu')
+          const userMenu = playwrightPage.getByTestId('navbar-user-menu-button')
           yield* LocatorHelpers.click(userMenu)
         }),
 
       logout: () =>
         Effect.gen(function* () {
-          const userMenu = playwrightPage.getByTestId('navbar-user-menu')
+          const userMenu = playwrightPage.getByTestId('navbar-user-menu-button')
           const logoutButton = playwrightPage.getByTestId(
             'user-menu-logout-button',
           )

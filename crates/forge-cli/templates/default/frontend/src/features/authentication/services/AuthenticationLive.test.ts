@@ -733,19 +733,38 @@ describe('AuthenticationLive', () => {
   describe('selectScope behavior', () => {
     test('should set scope and update state', async () => {
       // Given: user is logged in
+      const token = 'test-token-123'
       const organizationId = 'org-123'
       const roleId = 'role-456'
 
       const tokenStorage = makeTokenStorageMock()
+      tokenStorage.setToken(token)
       const mockAuthStore = createMockAuthStore()
 
-      const mockHttpClient = createMockHttpClient(() =>
-        Effect.succeed({
+      // Mock /api/auth/me to return proper response after scope selection
+      const mockMeResponse: AuthMeBody = {
+        user: {
+          id: 'user-1',
+          email: 'test@example.com',
+        },
+        permissions: ['dashboard'],
+        needs_scope_select: false,
+      }
+
+      const mockHttpClient = createMockHttpClient((request) => {
+        if (request.url.includes('/api/auth/me')) {
+          return Effect.succeed({
+            status: 200,
+            json: Effect.succeed(mockMeResponse),
+            headers: new Headers(),
+          })
+        }
+        return Effect.succeed({
           status: 404,
           json: Effect.succeed({}),
           headers: new Headers(),
-        }),
-      )
+        })
+      })
 
       const httpLayer = Layer.succeed(HttpClient.HttpClient, mockHttpClient)
       const testLayer = AuthenticationLive.pipe(
@@ -772,10 +791,11 @@ describe('AuthenticationLive', () => {
 
       // Scope stored via selectScope() - verify via direct mock access
       // Since we can't easily access the mock's internal state, we verify via store state
-      // The selectScope method calls tokenStorage.setScope internally
+      // The selectScope method calls tokenStorage.setScope internally and refetches /api/auth/me
 
       const finalState = mockAuthStore.getState()
       expect(Option.getOrNull(finalState.needsScopeSelect)).toBe(false)
+      expect(finalState.permissions).toEqual(['dashboard'])
     })
   })
 
