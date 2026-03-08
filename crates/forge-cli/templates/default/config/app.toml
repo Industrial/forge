@@ -1,9 +1,9 @@
 [app]
-name = "{{PROJECT_NAME}}"
+name = "default"
 
 [server]
-host = "localhost"
-port = 4000
+host = "127.0.0.1"
+port = 30998
 
 [frontend]
 port = 3000

@@ -19,3 +19,24 @@ tasks:
       - '.github/workflows/*.yml'
     options:
       cache: false
+  # Integration tests (API server + cargo test -p app)
+  test-integration:
+    command: 'bash'
+    args: ['bin/test-integration']
+    inputs:
+      - 'bin/test-integration'
+      - 'Cargo.toml'
+      - 'Cargo.lock'
+      - 'crates/**/*.rs'
+      - 'config/**/*'
+  # E2E tests (API + Vite + Playwright)
+  test-e2e:
+    command: 'bash'
+    args: ['bin/test-e2e']
+    inputs:
+      - 'bin/test-e2e'
+      - 'Cargo.toml'
+      - 'Cargo.lock'
+      - 'crates/**/*.rs'
+      - 'frontend/**/*'
+      - 'crates/test-e2e/**/*'

@@ -3,6 +3,7 @@ import path from 'node:path'
 import { fileURLToPath } from 'node:url'
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url))
+/** Project root (crates/test-e2e -> crates -> root). */
 const repoRoot = path.resolve(__dirname, '../..')
 
 /** Non-standard port (like integration tests) to avoid clashing with dev servers. Set by bin/test-e2e. */
@@ -28,4 +29,5 @@ export default defineConfig({
 })
 
 export const REPO_ROOT = repoRoot
-export const PREBUILT_ROOT = path.join(repoRoot, '.tmp', 'e2e_prebuilt')
+/** Project under test (when run from project root via bin/test-e2e, this is the project; in monorepo it is .tmp/e2e_prebuilt). */
+export const PREBUILT_ROOT = repoRoot

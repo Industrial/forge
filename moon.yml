@@ -34,7 +34,7 @@ tasks:
       - 'Cargo.toml'
       - 'Cargo.lock'
       - '**/*.rs'
-  # Integration tests (complex script, keep as bash)
+  # Integration tests: forge new then run template bin/test-integration
   test-integration:
     command: 'bash'
     args: ['bin/test-integration']
@@ -44,7 +44,7 @@ tasks:
       - 'Cargo.lock'
       - 'crates/**/*.rs'
       - 'crates/forge-cli/templates/**/*'
-  # E2E tests (complex script, keep as bash)
+  # E2E tests: forge new then run template bin/test-e2e (Playwright in templates/default/test/e2e)
   test-e2e:
     command: 'bash'
     args: ['bin/test-e2e']
@@ -54,7 +54,6 @@ tasks:
       - 'Cargo.lock'
       - 'crates/**/*.rs'
       - 'crates/forge-cli/templates/**/*'
-      - 'test/e2e/**/*'
   # Frontend unit tests (template frontend)
   test-frontend:
     command: 'bash'

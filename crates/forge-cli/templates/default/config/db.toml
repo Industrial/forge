@@ -1,6 +1,5 @@
 [database]
-# SQLite connection string. The file will be created in the project root.
-url = "sqlite://db.sqlite?mode=rwc"
+url = "sqlite:///tmp/forge_integration_2866319.sqlite?mode=rwc"
 max_connections = 5
 min_connections = 1
 connect_timeout = 10

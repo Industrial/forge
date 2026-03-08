@@ -1,0 +1,10 @@
+[package]
+name = "test-integration"
+version = "0.1.0"
+edition = "2024"
+description = "Rust integration tests for the app (API server + cargo test)"
+
+[dependencies]
+app = { path = "../app", features = ["test-utils"] }
+axum = { version = "0.8" }
+tokio = { version = "1", features = ["full"] }

@@ -28,7 +28,10 @@ fn template_dir() -> PathBuf {
 
 /// Directories that must not be copied into new projects (local caches, deps, etc.).
 pub(crate) fn should_skip_dir(name: &str) -> bool {
-  matches!(name, ".devenv" | "node_modules" | ".git" | "target")
+  matches!(
+    name,
+    ".devenv" | "node_modules" | ".git" | "target" | "test-results"
+  )
 }
 
 pub fn create_new_project(name: &str) -> Result<(), Box<dyn std::error::Error>> {

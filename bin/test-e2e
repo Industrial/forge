@@ -1,154 +1,27 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-E2E_API_PORT=30999
-# Use a distinct port so e2e does not clash with a running Vite dev server (default 5173).
-E2E_FRONTEND_PORT=35173
-# Use localhost so Vite (which binds to localhost) and curl agree; tests use same URL.
-E2E_BASE_URL="http://localhost:${E2E_FRONTEND_PORT}"
+# Monorepo runner: build forge-cli, forge new into .tmp, then run the generated project's bin/test-e2e.
+# The actual test logic lives in crates/forge-cli/templates/default/bin/test-e2e (run from project root).
+
 PREBUILT=".tmp/e2e_prebuilt"
+ROOT="$(pwd)"
 
 echo "> test-e2e"
 
-# Create and clear .tmp at repo root
 mkdir -p .tmp
-rm -rf .tmp/*
+rm -rf .tmp/e2e_prebuilt
 
-# Build forge CLI so we can run it
 echo "> test-e2e > building forge CLI"
 cargo build -p forge-cli
 
-# Create project in .tmp using forge (run from .tmp so project is .tmp/e2e_prebuilt)
 echo "> test-e2e > forge new e2e_prebuilt in .tmp"
-ROOT="$(pwd)"
-# Use repo templates so e2e sees latest template (e.g. ws-demo page)
 (cd .tmp && FORGE_TEMPLATES_DIR="$ROOT/crates/forge-cli/templates" "$ROOT/target/debug/forge" new e2e_prebuilt)
 
-# Build the generated project (target under repo to avoid noexec on .tmp)
-echo "> test-e2e > cargo build (e2e_prebuilt)"
-CARGO_TARGET_DIR="$ROOT/target/e2e_prebuilt" cargo build --manifest-path "$PREBUILT/Cargo.toml"
+# Use repo target dir so .tmp is not written (e.g. noexec)
+export CARGO_TARGET_DIR="$ROOT/target/e2e_prebuilt"
+mkdir -p "$CARGO_TARGET_DIR"
 
-# Frontend deps (Vite dev server used for E2E; build optional for CI consistency)
-if [[ -f "$PREBUILT/frontend/package.json" ]]; then
-  echo "> test-e2e > bun install (frontend)"
-  (cd "$PREBUILT/frontend" && bun install --frozen-lockfile 2>/dev/null || bun install)
-fi
-
-# Single config and DB for the whole e2e run (API + Vite started below)
-export FORGE_ENVIRONMENT=production
-echo "> test-e2e > writing config (API port $E2E_API_PORT)"
-cat > "$PREBUILT/config/app.toml" <<EOF
-[app]
-name = "e2e_prebuilt"
-
-[server]
-host = "127.0.0.1"
-port = $E2E_API_PORT
-
-[frontend]
-port = 3000
-EOF
-# Use a writable DB path (TMPDIR) so SQLite is never readonly in Nix/CI or when .tmp is read-only
-E2E_DB_PATH="${TMPDIR:-/tmp}/forge_e2e_$$.sqlite"
-rm -f "$E2E_DB_PATH"
-# Enable seed so auth e2e tests can use seed users (admin@admin.com, viewer@default.org, etc.)
-cat > "$PREBUILT/config/db.toml" <<EOF
-[database]
-url = "sqlite://${E2E_DB_PATH}?mode=rwc"
-max_connections = 5
-min_connections = 1
-connect_timeout = 10
-idle_timeout = 600
-auto_migrate = true
-auto_seed = true
-EOF
-export E2E_DB_PATH
-
-# Start API server and Vite dev server; kill on exit (success or failure)
-API_PID=""
-VITE_PID=""
-CHROMEDRIVER_PID=""
-API_URL="http://127.0.0.1:${E2E_API_PORT}"
-cleanup() {
-  if [[ -n "${CHROMEDRIVER_PID:-}" ]] && kill -0 "$CHROMEDRIVER_PID" 2>/dev/null; then
-    kill "$CHROMEDRIVER_PID" 2>/dev/null || true
-    wait "$CHROMEDRIVER_PID" 2>/dev/null || true
-  fi
-  if [[ -n "${VITE_PID:-}" ]] && kill -0 "$VITE_PID" 2>/dev/null; then
-    kill "$VITE_PID" 2>/dev/null || true
-    wait "$VITE_PID" 2>/dev/null || true
-  fi
-  if [[ -n "${API_PID:-}" ]] && kill -0 "$API_PID" 2>/dev/null; then
-    kill "$API_PID" 2>/dev/null || true
-    wait "$API_PID" 2>/dev/null || true
-  fi
-}
-trap cleanup EXIT
-
-echo "> test-e2e > starting API server (port $E2E_API_PORT)"
-(cd "$PREBUILT" && CARGO_TARGET_DIR="$ROOT/target/e2e_prebuilt" cargo run --quiet) &
-API_PID=$!
-
-echo "> test-e2e > waiting for API /healthz"
-for i in {1..50}; do
-  if curl -sf --max-time 1 "$API_URL/healthz" >/dev/null 2>&1; then
-    break
-  fi
-  if [[ $i -eq 50 ]]; then
-    echo "> test-e2e > API did not become ready in time"
-    exit 1
-  fi
-  sleep 0.2
-done
-
-echo "> test-e2e > starting Vite dev server (port $E2E_FRONTEND_PORT, proxy -> $API_URL)"
-(cd "$PREBUILT/frontend" && VITE_BACKEND_URL="$API_URL" bun run dev -- --port "$E2E_FRONTEND_PORT" --strictPort) &
-VITE_PID=$!
-
-echo "> test-e2e > waiting for Vite (port $E2E_FRONTEND_PORT)"
-sleep 2
-for i in {1..60}; do
-  code=$(curl -s --max-time 3 -o /dev/null -w '%{http_code}' "http://localhost:${E2E_FRONTEND_PORT}/" 2>/dev/null || echo '000')
-  if [[ "$code" =~ ^[2345][0-9][0-9]$ ]] || [[ "$code" =~ ^[2345]$ ]]; then
-    break
-  fi
-  if [[ $i -eq 60 ]]; then
-    echo "> test-e2e > Vite did not become ready in time (last code: $code)"
-    exit 1
-  fi
-  sleep 0.5
-done
-
-# # Start chromedriver for fantoccini (001_cli browser check)
-# if command -v chromedriver &>/dev/null; then
-#   echo "> test-e2e > starting chromedriver (port 9515)"
-#   chromedriver --port=9515 --log-path=/dev/null 2>/dev/null &
-#   CHROMEDRIVER_PID=$!
-#   sleep 1
-#   export E2E_WEBDRIVER_URL="http://localhost:9515"
-# fi
-
-export E2E_BASE_URL
-export E2E_API_URL="$API_URL"
-export E2E_DB_PATH
-
-# # Run Rust e2e tests serially (shared server + single chromedriver)
-# echo "> test-e2e > cargo test (Rust e2e, --test-threads=1)"
-# RUSTFLAGS='-D warnings' cargo test -p forge-e2e-tests -- --test-threads=1
-# RUST_EXIT=$?
-
-# Run Playwright e2e tests in parallel
-PLAYWRIGHT_EXIT=0
-if [[ -f test/e2e/package.json ]]; then
-  echo "> test-e2e > playwright test (parallel)"
-  (cd test/e2e && (bun install --frozen-lockfile 2>/dev/null || bun install) && bun run test) || PLAYWRIGHT_EXIT=$?
-fi
-
+echo "> test-e2e > running project bin/test-e2e"
+(cd "$ROOT/$PREBUILT" && CARGO_TARGET_DIR="$CARGO_TARGET_DIR" bash bin/test-e2e)
 echo "> test-e2e > done"
-# if [[ $RUST_EXIT -ne 0 ]] || [[ $PLAYWRIGHT_EXIT -ne 0 ]]; then
-#   exit 1
-# fi
-if [[ $PLAYWRIGHT_EXIT -ne 0 ]]; then
-  exit 1
-fi
-exit 0

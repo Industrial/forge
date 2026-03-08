@@ -1,91 +1,27 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-# Backend integration tests: spawn API server (no Vite), then run Rust integration tests.
-# Same prebuilt project and server lifecycle as test-e2e, but API-only.
+# Monorepo runner: build forge-cli, forge new into .tmp, then run the generated project's bin/test-integration.
+# The actual test logic lives in crates/forge-cli/templates/default/bin/test-integration (run from project root).
 
-INTEGRATION_API_PORT=30998
 PREBUILT=".tmp/integration_prebuilt"
+ROOT="$(pwd)"
 
 echo "> test-integration"
 
-# Create and clear .tmp at repo root
 mkdir -p .tmp
-rm -rf .tmp/*
+rm -rf .tmp/integration_prebuilt
 
-# Build forge CLI
 echo "> test-integration > building forge CLI"
 cargo build -p forge-cli
 
-# Create project in .tmp using forge (run from .tmp so project is .tmp/integration_prebuilt)
 echo "> test-integration > forge new integration_prebuilt in .tmp"
-ROOT="$(pwd)"
-rm -rf .tmp/integration_prebuilt
 (cd .tmp && FORGE_TEMPLATES_DIR="$ROOT/crates/forge-cli/templates" "$ROOT/target/debug/forge" new integration_prebuilt)
 
-# Build the generated project (clean target to avoid stale dep-info from prior runs)
-echo "> test-integration > cargo build (integration_prebuilt)"
-rm -rf "$ROOT/target/integration_prebuilt" 2>/dev/null || true
-mkdir -p "$ROOT/target/integration_prebuilt"
-(cd "$ROOT/$PREBUILT" && CARGO_TARGET_DIR="$ROOT/target/integration_prebuilt" cargo build)
+# Use repo target dir so .tmp is not written (e.g. noexec)
+export CARGO_TARGET_DIR="$ROOT/target/integration_prebuilt"
+mkdir -p "$CARGO_TARGET_DIR"
 
-# Single config and DB for the run (use development so rate limiting is off and tests don't hit 429)
-echo "> test-integration > writing config (API port $INTEGRATION_API_PORT)"
-cat > "$PREBUILT/config/app.toml" <<EOF
-[app]
-name = "integration_prebuilt"
-
-[server]
-host = "127.0.0.1"
-port = $INTEGRATION_API_PORT
-
-[frontend]
-port = 3000
-EOF
-
-E2E_DB_PATH="${TMPDIR:-/tmp}/forge_integration_$$.sqlite"
-rm -f "$E2E_DB_PATH"
-cat > "$PREBUILT/config/db.toml" <<EOF
-[database]
-url = "sqlite://${E2E_DB_PATH}?mode=rwc"
-max_connections = 5
-min_connections = 1
-connect_timeout = 10
-idle_timeout = 600
-auto_migrate = true
-auto_seed = true
-EOF
-export E2E_DB_PATH
-
-API_PID=""
-API_URL="http://127.0.0.1:${INTEGRATION_API_PORT}"
-cleanup() {
-  if [[ -n "${API_PID:-}" ]] && kill -0 "$API_PID" 2>/dev/null; then
-    kill "$API_PID" 2>/dev/null || true
-    wait "$API_PID" 2>/dev/null || true
-  fi
-}
-trap cleanup EXIT
-
-echo "> test-integration > starting API server (port $INTEGRATION_API_PORT)"
-(cd "$PREBUILT" && CARGO_TARGET_DIR="$ROOT/target/integration_prebuilt" FORGE_ENVIRONMENT=development cargo run --quiet) &
-API_PID=$!
-
-echo "> test-integration > waiting for API /healthz"
-for i in {1..50}; do
-  if curl -sf --max-time 1 "$API_URL/healthz" >/dev/null 2>&1; then
-    break
-  fi
-  if [[ $i -eq 50 ]]; then
-    echo "> test-integration > API did not become ready in time"
-    exit 1
-  fi
-  sleep 0.2
-done
-
-export E2E_API_URL="$API_URL"
-export E2E_BASE_URL="$API_URL"
-
-echo "> test-integration > running integration tests (prebuilt app)"
-(cd "$ROOT/$PREBUILT" && CARGO_TARGET_DIR="$ROOT/target/integration_prebuilt" RUSTFLAGS='-D warnings' cargo test -p app --features app/test-utils -- --test-threads=1)
+echo "> test-integration > running project bin/test-integration"
+(cd "$ROOT/$PREBUILT" && CARGO_TARGET_DIR="$CARGO_TARGET_DIR" bash bin/test-integration)
 echo "> test-integration > done"

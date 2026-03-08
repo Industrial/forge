@@ -251,6 +251,8 @@ pub async fn test_client_with_migrations()
     let (router, db_conn, guard) = build_router_for_test_with_db().await?;
 
     // Run migrations manually (available when compiling test binaries)
+    // Note: build_router_for_test_with_db() also runs migrations, but we run them again here
+    // to ensure they complete before we return the client
     let db_ref: &sea_orm::DatabaseConnection = db_conn.as_ref();
     migrations::Migrator::up(db_ref, None)
       .await

@@ -160,13 +160,13 @@ impl RestModel for User {
     _body: serde_json::Value,
   ) -> Result<serde_json::Value, ModelError> {
     Err(ModelError::Validation(
-      "update not supported for this model; use PATCH /api/dashboard/users/:id".to_string(),
+      "update not implemented via generic handler; use PATCH /api/users/:id".to_string(),
     ))
   }
 
   async fn delete(_db: &DbConnection, _id: Uuid) -> Result<bool, ModelError> {
     Err(ModelError::Validation(
-      "delete not supported for this model; use DELETE /api/dashboard/users/:id".to_string(),
+      "delete not implemented via generic handler; use DELETE /api/users/:id".to_string(),
     ))
   }
 }
