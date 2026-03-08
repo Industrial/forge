@@ -12,9 +12,8 @@ import { Authentication } from '@/features/authentication/services/Authenticatio
 import { navigateTo } from '@/lib/navigate'
 import { getApplicationLayer } from '@/lib/appLayer'
 import { AuthenticationError } from '@/features/authentication/errors/AuthenticationError'
-import { useForm } from '@/features/authentication/hooks/useForm'
+import { useForm } from '@/hooks/useForm'
 import { LoginFormSchema } from '@/features/authentication/schemas/LoginFormSchema'
-import type { LoginFormValues } from '@/features/authentication/schemas/LoginFormSchema'
 
 export default function LoginPage() {
   const navigate = useNavigate()
@@ -28,7 +27,7 @@ export default function LoginPage() {
     getFieldError,
     validateForm,
     setValidationErrors,
-  } = useForm<LoginFormValues>({
+  } = useForm({
     schema: LoginFormSchema,
     initialValues: {
       email: '',

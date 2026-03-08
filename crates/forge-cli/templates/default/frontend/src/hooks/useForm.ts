@@ -19,24 +19,27 @@ export interface FormState<TValues extends Record<string, unknown>> {
 
 /**
  * Configuration for useForm hook.
+ * Type is inferred from the schema.
  */
-export interface UseFormConfig<TValues extends Record<string, unknown>> {
+export interface UseFormConfig<TSchema extends Schema.Schema<any, any, never>> {
   /**
    * Effect.ts Schema for form validation.
    * Must have Context = never (no dependencies).
+   * The form values type is inferred from this schema.
    */
-  readonly schema: Schema.Schema<TValues, unknown, never>
+  readonly schema: TSchema
   /**
-   * Initial form values.
+   * Initial form values matching the schema type.
    */
-  readonly initialValues: TValues
+  readonly initialValues: Schema.Schema.Type<TSchema>
 }
 
 /**
  * Generalized Effect.ts-based form hook.
  * Handles validation using Effect.ts Schema and provides Effect-based handlers.
+ * The form values type is automatically inferred from the schema.
  * 
- * @template TValues - The type of form values (inferred from schema)
+ * @template TSchema - The Effect.ts Schema type (inferred from schema parameter)
  * 
  * @example
  * ```tsx
@@ -46,9 +49,10 @@ export interface UseFormConfig<TValues extends Record<string, unknown>> {
  * })
  * ```
  */
-export function useForm<TValues extends Record<string, unknown>>(
-  config: UseFormConfig<TValues>,
+export function useForm<TSchema extends Schema.Schema<any, any, never>>(
+  config: UseFormConfig<TSchema>,
 ) {
+  type TValues = Schema.Schema.Type<TSchema>
   const initialFormState: FormState<TValues> = {
     values: config.initialValues,
     errors: [],

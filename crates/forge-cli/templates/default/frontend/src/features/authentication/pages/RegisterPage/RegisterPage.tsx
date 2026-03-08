@@ -12,7 +12,8 @@ import { getApplicationLayer } from '@/lib/appLayer'
 import { Authentication } from '@/features/authentication/services/Authentication'
 import { navigateTo } from '@/lib/navigate'
 import { AuthenticationError } from '@/features/authentication/errors/AuthenticationError'
-import { useRegisterForm } from '@/features/authentication/hooks/useRegisterForm'
+import { useForm } from '@/hooks/useForm'
+import { RegisterFormSchema } from '@/features/authentication/schemas/RegisterFormSchema'
 
 export default function RegisterPage() {
   const navigate = useNavigate()
@@ -26,7 +27,13 @@ export default function RegisterPage() {
     getFieldError,
     validateForm,
     setValidationErrors,
-  } = useRegisterForm()
+  } = useForm({
+    schema: RegisterFormSchema,
+    initialValues: {
+      email: '',
+      password: '',
+    },
+  })
 
   /**
    * Effect.ts-based submit handler.
