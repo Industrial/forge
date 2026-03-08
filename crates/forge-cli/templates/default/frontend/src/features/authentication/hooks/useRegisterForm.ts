@@ -1,8 +1,7 @@
+import { Schema, Effect, Either, ParseResult } from 'effect'
 import { useState, useCallback } from 'react'
-import { Schema, Effect, Either, pipe, ParseResult } from 'effect'
 
 import { RegisterFormSchema } from '@/features/authentication/schemas/RegisterFormSchema'
-import type { ParseError } from 'effect/ParseResult'
 
 export interface FieldError {
   readonly field: string
@@ -46,108 +45,57 @@ export function useRegisterForm() {
    * Extracts all field errors from a Schema.ParseError using Effect.ts's ArrayFormatter.
    * The formatter handles nested/composite errors automatically.
    */
-  const extractFieldErrors = (parseError: ParseError): FieldError[] => {
+  const extractFieldErrors = (
+    parseError: ParseResult.ParseError,
+  ): FieldError[] => {
     const issues = ParseResult.ArrayFormatter.formatErrorSync(parseError)
-    debugger
-    const result = issues.map((issue) => ({
+    return issues.map((issue) => ({
       field: issue.path.length > 0 ? String(issue.path[0]) : 'root',
       message: issue.message,
     }))
-    debugger
-    return result
   }
 
   /**
    * Validates form values using Effect.ts Schema.
    * Returns an Effect that succeeds with validated data or fails with validation errors.
+   * Uses { errors: "all" } to collect all validation errors, not just the first one.
    */
   const validateForm = useCallback(
-    (values: FormState['values']) =>
-      pipe(
-        Schema.decodeUnknownEither(RegisterFormSchema)(values),
-        Either.match({
-          onLeft: (parseError: ParseError) =>
-            Effect.fail(extractFieldErrors(parseError)),
-          onRight: (validated) => Effect.succeed(validated),
-        }),
-      ),
+    (values: FormState['values']) => {
+      const result = Schema.decodeUnknownEither(RegisterFormSchema, {
+        errors: 'all',
+      })(values)
+
+      if (Either.isLeft(result)) {
+        return Effect.fail(extractFieldErrors(result.left))
+      }
+
+      return Effect.succeed(result.right)
+    },
     [],
   )
 
   /**
-   * Updates a field value and validates if the field has been touched.
+   * Updates a field value without validation.
+   * Validation only happens when the form is submitted.
    */
-  const setFieldValue = useCallback(
-    (field: 'email' | 'password', value: string) => {
-      setFormState((prev) => {
-        const newValues = { ...prev.values, [field]: value }
-        const isTouched = prev.touched[field]
-
-        // Only validate if field has been touched
-        if (isTouched) {
-          const validationEffect = validateForm(newValues)
-          const result = Effect.runSync(
-            validationEffect.pipe(
-              Effect.either,
-              Effect.map((either) =>
-                Either.match(either, {
-                  onLeft: (errors) => ({ errors, isValid: false }),
-                  onRight: () => ({ errors: [], isValid: true }),
-                }),
-              ),
-            ),
-          )
-
-          return {
-            ...prev,
-            values: newValues,
-            errors: result.errors,
-            isValid: result.isValid,
-          }
-        }
-
-        return {
-          ...prev,
-          values: newValues,
-        }
-      })
-    },
-    [validateForm],
-  )
+  const setFieldValue = useCallback((field: 'email' | 'password', value: string) => {
+    setFormState((prev) => ({
+      ...prev,
+      values: { ...prev.values, [field]: value },
+    }))
+  }, [])
 
   /**
-   * Marks a field as touched.
+   * Marks a field as touched without validation.
+   * Validation only happens when the form is submitted.
    */
-  const setFieldTouched = useCallback(
-    (field: 'email' | 'password') => {
-      setFormState((prev) => {
-        const newTouched = { ...prev.touched, [field]: true }
-        const newValues = prev.values
-
-        // Validate when field is touched
-        const validationEffect = validateForm(newValues)
-        const result = Effect.runSync(
-          validationEffect.pipe(
-            Effect.either,
-            Effect.map((either) =>
-              Either.match(either, {
-                onLeft: (errors) => ({ errors, isValid: false }),
-                onRight: () => ({ errors: [], isValid: true }),
-              }),
-            ),
-          ),
-        )
-
-        return {
-          ...prev,
-          touched: newTouched,
-          errors: result.errors,
-          isValid: result.isValid,
-        }
-      })
-    },
-    [validateForm],
-  )
+  const setFieldTouched = useCallback((field: 'email' | 'password') => {
+    setFormState((prev) => ({
+      ...prev,
+      touched: { ...prev.touched, [field]: true },
+    }))
+  }, [])
 
   /**
    * Gets error message for a specific field.

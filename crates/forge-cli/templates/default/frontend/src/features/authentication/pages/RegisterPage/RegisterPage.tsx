@@ -5,7 +5,7 @@ import Button from '@mui/material/Button'
 import Link from '@mui/material/Link'
 import TextField from '@mui/material/TextField'
 import Typography from '@mui/material/Typography'
-import { Effect } from 'effect'
+import { Effect, Either } from 'effect'
 import { useCallback, useState } from 'react'
 
 import { getApplicationLayer } from '@/lib/appLayer'
@@ -37,13 +37,34 @@ export default function RegisterPage() {
     (e: React.FormEvent<HTMLFormElement>) => {
       e.preventDefault()
 
-      // Mark all fields as touched so errors show
-      setFieldTouched('email')
-      setFieldTouched('password')
+      // Validate immediately before submit to show errors and prevent invalid submission
+      const currentValues = formState.values
+      const validationEffect = validateForm(currentValues)
+      const validationResult = Effect.runSync(
+        validationEffect.pipe(
+          Effect.either,
+          Effect.map((either) =>
+            Either.match(either, {
+              onLeft: (errors) => ({ errors, isValid: false }),
+              onRight: () => ({ errors: [], isValid: true }),
+            }),
+          ),
+        ),
+      )
+
+      // Mark all fields as touched and set validation errors
+      // This ensures errors are displayed for all fields
+      setValidationErrors(validationResult.errors)
+
+      // Don't submit if validation failed
+      // Validation errors are shown via field-level helperText, not top-level Alert
+      if (!validationResult.isValid) {
+        return
+      }
 
       const submitEffect = Effect.gen(function* () {
-        // Validate form values
-        const validated = yield* validateForm(formState.values)
+        // Validate form values (should succeed since we validated above)
+        const validated = yield* validateForm(currentValues)
 
         // Registration logic
         const auth = yield* Authentication
@@ -92,13 +113,13 @@ export default function RegisterPage() {
 
         if (result.type === 'validation') {
           // Update form state with validation errors
+          // Validation errors are shown via field-level helperText, not top-level Alert
           setValidationErrors(result.errors)
-          // Show top-level validation error message
-          setErrorMessage('Please correct the errors in the form')
         } else if (
           result.type === 'authentication' ||
           result.type === 'unknown'
         ) {
+          // Only show top-level Alert for backend/authentication errors
           setErrorMessage(result.message)
         }
       })
@@ -154,7 +175,6 @@ export default function RegisterPage() {
               }}
               disabled={submitting}
               fullWidth
-              required
               error={Boolean(emailError)}
               helperText={emailError}
             />
@@ -174,7 +194,6 @@ export default function RegisterPage() {
               }}
               disabled={submitting}
               fullWidth
-              required
               error={Boolean(passwordError)}
               helperText={passwordError}
             />

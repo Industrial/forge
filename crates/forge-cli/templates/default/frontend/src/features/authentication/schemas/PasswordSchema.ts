@@ -1,32 +1,27 @@
 import { Schema } from 'effect'
 
 /**
- * Password validation options: minimum length and user-friendly error message.
+ * Password minimum length: 8 characters.
  */
-const passwordValidationOptions = {
-  message: () => 'Password must be at least 8 characters' as const,
-}
+export const passwordMinLength = 8
 
 /**
- * Applies password length validation to any string schema.
- * Does NOT validate that the field is required - that should be handled at the form schema level.
- *
- * @example
- * ```ts
- * const schema = applyPasswordValidation(Schema.String)
- * const requiredPassword = applyPasswordValidation(RequiredStringSchema)
- * ```
+ * Password validation message: user-friendly error message for short passwords.
  */
-export const applyPasswordValidation = (schema: Schema.Schema<string>) =>
-  schema.pipe(
-    Schema.minLength(8, passwordValidationOptions),
-  ) as Schema.Schema<string>
+export const passwordMessage = () =>
+  'Password must be at least 8 characters' as const
+
+/**
+ * Password length transformation: applies minimum length validation to any string schema.
+ */
+export const passwordLengthTransform = Schema.minLength(passwordMinLength, {
+  message: passwordMessage,
+})
 
 /**
  * Password schema: validates minimum length of 8 characters.
- * Uses Schema.String as the base - for required validation, use applyPasswordValidation(RequiredStringSchema).
- * Provides user-friendly error message for short passwords.
+ * Convenience export for Schema.String with password length validation.
  */
-export const PasswordSchema = applyPasswordValidation(Schema.String)
+export const PasswordSchema = Schema.String.pipe(passwordLengthTransform)
 
 export type Password = Schema.Schema.Type<typeof PasswordSchema>
