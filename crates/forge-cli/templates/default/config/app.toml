@@ -3,7 +3,7 @@ name = "default"
 
 [server]
 host = "127.0.0.1"
-port = 30999
+port = 4000
 
 [frontend]
 port = 3000
