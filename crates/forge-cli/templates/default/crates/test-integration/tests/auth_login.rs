@@ -1,5 +1,5 @@
 //! BDD tests for login and GET profile (template auth).
-//! Uses prebuilt server when E2E_API_URL is set.
+//! Uses prebuilt server when FORGE_BACKEND_HOST + FORGE_SERVER_PORT are set.
 //!
 //! BDD-style tests focusing on behavior rather than implementation.
 //! Tests are organized by feature/behavior area with descriptive names.
@@ -7,7 +7,7 @@
 use axum::http::StatusCode;
 
 /// Helper function to create a test client with migrations run.
-/// Uses the shared app::test_client_with_migrations() which checks E2E_API_URL first.
+/// Uses the shared app::test_client_with_migrations() which uses FORGE_BACKEND_HOST + port when set.
 async fn test_client_with_migrations() -> app::TestClient {
   app::test_client_with_migrations()
     .await

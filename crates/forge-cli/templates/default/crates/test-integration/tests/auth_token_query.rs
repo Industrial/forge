@@ -2,13 +2,13 @@
 //! Backend accepts `?token=...` when Authorization header is not set so browsers can auth WebSocket upgrades.
 //!
 //! BDD-style tests focusing on behavior rather than implementation.
-//! Run with the same harness as other app tests: `cargo test --features test-utils` (with E2E_API_URL
+//! Run with the same harness as other app tests: `cargo test --features test-utils` (with FORGE_BACKEND_HOST + port
 //! set to a running server) or in-process where supported.
 
 use axum::http::StatusCode;
 
 /// Helper function to create a test client with migrations run.
-/// Uses the shared app::test_client_with_migrations() which checks E2E_API_URL first.
+/// Uses the shared app::test_client_with_migrations() which uses FORGE_BACKEND_HOST + port when set.
 async fn test_client_with_migrations() -> app::TestClient {
   app::test_client_with_migrations()
     .await

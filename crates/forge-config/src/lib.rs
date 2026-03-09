@@ -21,8 +21,14 @@ pub struct ForgeConfig {
   pub frontend: FrontendConfig,
 }
 
+fn default_frontend_host() -> String {
+  "127.0.0.1".to_string()
+}
+
 #[derive(Debug, Clone, Deserialize)]
 pub struct FrontendConfig {
+  #[serde(default = "default_frontend_host")]
+  pub host: String,
   pub port: u16,
 }
 
@@ -75,7 +81,76 @@ pub fn effective_environment_from_config(config: &ForgeConfig) -> String {
     .unwrap_or_else(|| "development".to_string())
 }
 
+/// Apply environment variable overrides to config. Every config option can be overridden by a
+/// FORGE_* env var (e.g. FORGE_SERVER_PORT, FORGE_FRONTEND_PORT) so deployments can configure
+/// via env without editing .toml files. If an env var is set and non-empty, it overrides the
+/// value from the config files.
+fn apply_env_overrides(config: &mut ForgeConfig) {
+  if let Some(v) = std::env::var("FORGE_APP_NAME").ok().filter(|s| !s.is_empty()) {
+    config.app.name = v;
+  }
+  if let Some(v) = std::env::var("FORGE_ENVIRONMENT").ok().filter(|s| !s.is_empty()) {
+    config.app.environment = Some(v);
+  }
+  if let Some(v) = std::env::var("FORGE_SERVER_HOST").ok().filter(|s| !s.is_empty()) {
+    config.server.host = v;
+  }
+  if let Some(v) = std::env::var("FORGE_BACKEND_HOST").ok().filter(|s| !s.is_empty()) {
+    config.server.host = v;
+  }
+  if let Some(v) = std::env::var("FORGE_FRONTEND_HOST").ok().filter(|s| !s.is_empty()) {
+    config.frontend.host = v;
+  }
+  // FORGE_BACKEND_PORT is an alias for server port (same as FORGE_SERVER_PORT); FORGE_SERVER_PORT wins if both set
+  if let Ok(v) = std::env::var("FORGE_BACKEND_PORT") {
+    if let Ok(p) = v.parse::<u16>() {
+      config.server.port = p;
+    }
+  }
+  if let Ok(v) = std::env::var("FORGE_SERVER_PORT") {
+    if let Ok(p) = v.parse::<u16>() {
+      config.server.port = p;
+    }
+  }
+  if let Ok(v) = std::env::var("FORGE_FRONTEND_PORT") {
+    if let Ok(p) = v.parse::<u16>() {
+      config.frontend.port = p;
+    }
+  }
+  if let Some(v) = std::env::var("FORGE_DATABASE_URL").ok().filter(|s| !s.is_empty()) {
+    config.database.url = v;
+  }
+  if let Ok(v) = std::env::var("FORGE_DATABASE_MAX_CONNECTIONS") {
+    if let Ok(n) = v.parse::<u32>() {
+      config.database.max_connections = Some(n);
+    }
+  }
+  if let Ok(v) = std::env::var("FORGE_DATABASE_MIN_CONNECTIONS") {
+    if let Ok(n) = v.parse::<u32>() {
+      config.database.min_connections = Some(n);
+    }
+  }
+  if let Ok(v) = std::env::var("FORGE_DATABASE_CONNECT_TIMEOUT") {
+    if let Ok(n) = v.parse::<u64>() {
+      config.database.connect_timeout = Some(n);
+    }
+  }
+  if let Ok(v) = std::env::var("FORGE_DATABASE_IDLE_TIMEOUT") {
+    if let Ok(n) = v.parse::<u64>() {
+      config.database.idle_timeout = Some(n);
+    }
+  }
+  if let Ok(v) = std::env::var("FORGE_DATABASE_AUTO_MIGRATE") {
+    config.database.auto_migrate = v.eq_ignore_ascii_case("true") || v == "1";
+  }
+  if let Ok(v) = std::env::var("FORGE_DATABASE_AUTO_SEED") {
+    config.database.auto_seed = v.eq_ignore_ascii_case("true") || v == "1";
+  }
+}
+
 /// Load configuration from a given directory (looks for `config/app.toml`, `config/db.toml`, optional `config/cache.toml`).
+/// Environment variables (FORGE_APP_NAME, FORGE_SERVER_PORT, FORGE_FRONTEND_PORT, FORGE_DATABASE_URL, etc.)
+/// override the values from the config files when set.
 pub fn load_config_from_dir(base: &Path) -> Result<ForgeConfig, Box<dyn std::error::Error>> {
   let app_config_path = base.join("config/app.toml");
   let db_config_path = base.join("config/db.toml");
@@ -110,10 +185,7 @@ pub fn load_config_from_dir(base: &Path) -> Result<ForgeConfig, Box<dyn std::err
       .into()
     })?;
 
-  // Override database URL from environment variable if set (for e2e tests)
-  if let Ok(db_url) = std::env::var("FORGE_DATABASE_URL") {
-    config.database.url = db_url;
-  }
+  apply_env_overrides(&mut config);
 
   let cache_config_path = base.join("config/cache.toml");
   if cache_config_path.exists() {
@@ -411,6 +483,48 @@ auto_seed = false
     let err = res.unwrap_err();
     let msg = err.to_string();
     assert!(msg.contains("cache.toml"), "{}", msg);
+  }
+
+  #[test]
+  fn load_config_env_overrides_ports() {
+    let dir = tempfile::tempdir().unwrap();
+    let app_toml = r#"[app]
+name = "myapp"
+[server]
+host = "127.0.0.1"
+port = 4000
+[frontend]
+port = 3000
+"#;
+    let db_toml = r#"[database]
+url = "sqlite::memory:"
+auto_migrate = true
+auto_seed = false
+"#;
+    write_test_config(dir.path(), app_toml, db_toml);
+    let prev_server = std::env::var("FORGE_SERVER_PORT").ok();
+    let prev_frontend = std::env::var("FORGE_FRONTEND_PORT").ok();
+    unsafe {
+      std::env::set_var("FORGE_SERVER_PORT", "39999");
+      std::env::set_var("FORGE_FRONTEND_PORT", "39998");
+    }
+    let res = load_config_from_dir(dir.path());
+    unsafe {
+      if let Some(p) = prev_server {
+        std::env::set_var("FORGE_SERVER_PORT", p);
+      } else {
+        std::env::remove_var("FORGE_SERVER_PORT");
+      }
+      if let Some(p) = prev_frontend {
+        std::env::set_var("FORGE_FRONTEND_PORT", p);
+      } else {
+        std::env::remove_var("FORGE_FRONTEND_PORT");
+      }
+    }
+    assert!(res.is_ok(), "{:?}", res.err());
+    let cfg = res.unwrap();
+    assert_eq!(cfg.server.port, 39999);
+    assert_eq!(cfg.frontend.port, 39998);
   }
 
   #[test]
@@ -726,8 +840,8 @@ auto_seed = false
       }
 
       #[test]
-      fn should_prefer_config_over_env_when_both_set() {
-        // Given: config with environment and FORGE_ENVIRONMENT env var
+      fn should_prefer_env_over_config_when_both_set() {
+        // Given: config with environment and FORGE_ENVIRONMENT env var (env overrides config)
         let dir = tempfile::tempdir().unwrap();
         let app_toml = r#"[app]
 name = "test"
@@ -750,13 +864,13 @@ auto_seed = false
         }
         let config = load_config_from_dir(dir.path()).unwrap();
 
-        // When: getting effective environment from config
+        // When: getting effective environment from config (already applied env overrides)
         let env = effective_environment_from_config(&config);
 
-        // Then: should prefer config value
+        // Then: env var override wins (config.app.environment was set from FORGE_ENVIRONMENT in apply_env_overrides)
         assert_eq!(
-          env, "staging",
-          "Should prefer config.environment over env var"
+          env, "production",
+          "Should use FORGE_ENVIRONMENT when set (env overrides config)"
         );
 
         // Restore environment
@@ -795,10 +909,13 @@ auto_seed = false
         }
         let config = load_config_from_dir(dir.path()).unwrap();
 
-        // When: getting effective environment from config
+        // Then: apply_env_overrides should have set config.app.environment from env
+        assert_eq!(
+          config.app.environment.as_deref(),
+          Some("production"),
+          "Should apply FORGE_ENVIRONMENT into config when set"
+        );
         let env = effective_environment_from_config(&config);
-
-        // Then: should use env var
         assert_eq!(env, "production", "Should use env var when config not set");
 
         // Restore environment

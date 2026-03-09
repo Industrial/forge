@@ -3,19 +3,27 @@ set -euo pipefail
 
 # Backend integration tests: run from project root. Start API server, then run Rust integration tests.
 # Used by: moon test-integration (from project root after forge new).
+# Uses random ports (>= 30000) via FORGE_SERVER_PORT/FORGE_FRONTEND_PORT so env overrides config.
 
-INTEGRATION_API_PORT=30998
 ROOT="$(pwd)"
 PROJECT_NAME="${PROJECT_NAME:-$(basename "$ROOT")}"
 
-echo "> test-integration"
+# Random ports above 30000 so multiple runs or parallel jobs don't clash
+FORGE_BACKEND_HOST="${FORGE_BACKEND_HOST:-127.0.0.1}"
+FORGE_SERVER_PORT="${FORGE_SERVER_PORT:-$((30000 + RANDOM % 2768))}"
+FORGE_FRONTEND_PORT="${FORGE_FRONTEND_PORT:-$((30000 + RANDOM % 2768))}"
+export FORGE_BACKEND_HOST
+export FORGE_SERVER_PORT
+export FORGE_FRONTEND_PORT
+
+echo "> test-integration (backend port $FORGE_SERVER_PORT, frontend port $FORGE_FRONTEND_PORT)"
 
 # Build the project
 echo "> test-integration > cargo build"
 cargo build
 
-# Single config and DB for the run (use development so rate limiting is off)
-echo "> test-integration > writing config (API port $INTEGRATION_API_PORT)"
+# Config files must exist; ports are overridden by FORGE_SERVER_PORT / FORGE_FRONTEND_PORT
+echo "> test-integration > writing config (ports from env)"
 mkdir -p config
 cat > config/app.toml <<EOF
 [app]
@@ -23,23 +31,21 @@ name = "$PROJECT_NAME"
 
 [server]
 host = "127.0.0.1"
-port = $INTEGRATION_API_PORT
+port = 4000
 
 [frontend]
 port = 3000
 EOF
 
-# Use a temporary database file in the project directory for integration tests
-# Don't overwrite config/db.toml - use environment variable override instead
+# Use a temporary database file; forge-config reads FORGE_DATABASE_URL
 E2E_DB_PATH="${ROOT}/data/forge_integration_$$.sqlite"
 mkdir -p "${ROOT}/data"
 rm -f "$E2E_DB_PATH"
-# Override database URL via environment variable (forge-config supports FORGE_DATABASE_URL)
 export FORGE_DATABASE_URL="sqlite://${E2E_DB_PATH}?mode=rwc"
 export E2E_DB_PATH
 
 API_PID=""
-API_URL="http://127.0.0.1:${INTEGRATION_API_PORT}"
+API_URL="http://${FORGE_BACKEND_HOST}:${FORGE_SERVER_PORT}"
 cleanup() {
   if [[ -n "${API_PID:-}" ]] && kill -0 "$API_PID" 2>/dev/null; then
     kill "$API_PID" 2>/dev/null || true
@@ -48,8 +54,8 @@ cleanup() {
 }
 trap cleanup EXIT
 
-echo "> test-integration > starting API server (port $INTEGRATION_API_PORT)"
-FORGE_ENVIRONMENT=development cargo run --quiet &
+echo "> test-integration > starting API server (port $FORGE_SERVER_PORT)"
+FORGE_ENVIRONMENT=development cargo run -p server --quiet &
 API_PID=$!
 
 echo "> test-integration > waiting for API /healthz"
@@ -63,9 +69,6 @@ for i in {1..100}; do
   fi
   sleep 0.3
 done
-
-export E2E_API_URL="$API_URL"
-export E2E_BASE_URL="$API_URL"
 
 echo "> test-integration > running integration tests (cargo test -p test-integration)"
 RUSTFLAGS="${RUSTFLAGS:--D warnings}" cargo test -p test-integration -- --test-threads=1

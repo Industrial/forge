@@ -448,8 +448,8 @@ import { fileURLToPath } from 'node:url'
 const __dirname = path.dirname(fileURLToPath(import.meta.url))
 const repoRoot = path.resolve(__dirname, '../..')
 
-const baseURL = process.env.E2E_BASE_URL ?? 'http://127.0.0.1:35173'
-export const API_BASE_URL = process.env.E2E_API_URL ?? 'http://127.0.0.1:30999'
+const baseURL = `http://${process.env.FORGE_FRONTEND_HOST ?? '127.0.0.1'}:${process.env.FORGE_FRONTEND_PORT ?? '35173'}`
+export const API_BASE_URL = `http://${process.env.FORGE_BACKEND_HOST ?? '127.0.0.1'}:${process.env.FORGE_SERVER_PORT ?? '30999'}`
 
 export default defineConfig({
   testDir: path.join(__dirname, 'tests'),

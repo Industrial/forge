@@ -3,11 +3,11 @@
   "private": true,
   "type": "module",
   "scripts": {
-    "test": "E2E_BASE_URL=http://localhost:5173 E2E_API_URL=http://127.0.0.1:30999 playwright test",
-    "test:single": "E2E_BASE_URL=http://localhost:5173 E2E_API_URL=http://127.0.0.1:30999 playwright test",
-    "test:ui": "E2E_BASE_URL=http://localhost:5173 E2E_API_URL=http://127.0.0.1:30999 playwright test --ui",
-    "test:headed": "E2E_BASE_URL=http://localhost:5173 E2E_API_URL=http://127.0.0.1:30999 playwright test --headed",
-    "test:debug": "E2E_BASE_URL=http://localhost:5173 E2E_API_URL=http://127.0.0.1:30999 playwright test --debug"
+    "test": "FORGE_FRONTEND_HOST=127.0.0.1 FORGE_FRONTEND_PORT=5173 FORGE_BACKEND_HOST=127.0.0.1 FORGE_SERVER_PORT=30999 playwright test",
+    "test:single": "FORGE_FRONTEND_HOST=127.0.0.1 FORGE_FRONTEND_PORT=5173 FORGE_BACKEND_HOST=127.0.0.1 FORGE_SERVER_PORT=30999 playwright test",
+    "test:ui": "FORGE_FRONTEND_HOST=127.0.0.1 FORGE_FRONTEND_PORT=5173 FORGE_BACKEND_HOST=127.0.0.1 FORGE_SERVER_PORT=30999 playwright test --ui",
+    "test:headed": "FORGE_FRONTEND_HOST=127.0.0.1 FORGE_FRONTEND_PORT=5173 FORGE_BACKEND_HOST=127.0.0.1 FORGE_SERVER_PORT=30999 playwright test --headed",
+    "test:debug": "FORGE_FRONTEND_HOST=127.0.0.1 FORGE_FRONTEND_PORT=5173 FORGE_BACKEND_HOST=127.0.0.1 FORGE_SERVER_PORT=30999 playwright test --debug"
   },
   "devDependencies": {
     "@playwright/test": "1.52.0",

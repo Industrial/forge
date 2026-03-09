@@ -185,7 +185,8 @@ auto_seed = true
   Ok(())
 }
 
-/// Client for integration tests. When the environment variable `E2E_API_URL` is set (e.g. by bin/test-integration), uses that server; otherwise builds an in-process router.
+/// Client for integration tests. When FORGE_BACKEND_HOST and FORGE_SERVER_PORT (or FORGE_BACKEND_PORT) are set
+/// (e.g. by bin/test-integration), uses that server; otherwise builds an in-process router.
 #[cfg(any(test, feature = "test-utils"))]
 #[derive(Clone)]
 pub enum TestClient {
@@ -195,27 +196,42 @@ pub enum TestClient {
     client: reqwest::Client,
     base_url: String,
   },
-  /// In-process router (e.g. `cargo test` without E2E_API_URL).
+  /// In-process router (e.g. `cargo test` without external server env).
   InProcess {
     router: axum::Router,
     _guard: std::sync::Arc<std::sync::Mutex<Option<TestEnvGuard>>>,
   },
 }
 
-/// Returns a [TestClient]. If `E2E_API_URL` is set, uses that server (no per-test server).
-/// When running with `--features test-utils` (e.g. bin/test-integration), E2E_API_URL must be set.
-/// Otherwise, builds an in-process router for tests.
+/// Build API base URL from FORGE_BACKEND_HOST and FORGE_SERVER_PORT or FORGE_BACKEND_PORT. Returns None if not set.
+#[cfg(any(test, feature = "test-utils"))]
+fn api_base_url_from_env() -> Option<String> {
+  let host = std::env::var("FORGE_BACKEND_HOST").ok().filter(|s| !s.is_empty())?;
+  let port = std::env::var("FORGE_SERVER_PORT")
+    .ok()
+    .and_then(|s| s.parse::<u16>().ok())
+    .or_else(|| {
+      std::env::var("FORGE_BACKEND_PORT")
+        .ok()
+        .and_then(|s| s.parse::<u16>().ok())
+    })?;
+  Some(format!("http://{}:{}", host.trim(), port))
+}
+
+/// Returns a [TestClient]. If FORGE_BACKEND_HOST and FORGE_SERVER_PORT (or FORGE_BACKEND_PORT) are set,
+/// uses that server (no per-test server). When running with `--features test-utils` (e.g. bin/test-integration),
+/// those env vars must be set. Otherwise, builds an in-process router for tests.
 #[cfg(any(test, feature = "test-utils"))]
 pub async fn test_client() -> Result<TestClient, Box<dyn std::error::Error + Send + Sync>> {
   #[cfg(feature = "test-utils")]
-  if let Ok(url) = std::env::var("E2E_API_URL") {
+  if let Some(url) = api_base_url_from_env() {
     let base_url = url.trim_end_matches('/').to_string();
     let client = reqwest::Client::builder()
       .timeout(std::time::Duration::from_secs(10))
       .build()?;
     return Ok(TestClient::Http { client, base_url });
   }
-  // If E2E_API_URL is not set (or test-utils disabled), use in-process router
+  // If external server env not set (or test-utils disabled), use in-process router
   // This works for both unit tests and integration tests
   // The function is already gated by #[cfg(any(test, feature = "test-utils"))]
   // so if we're here, we can safely build the router
@@ -227,15 +243,15 @@ pub async fn test_client() -> Result<TestClient, Box<dyn std::error::Error + Sen
 }
 
 /// Helper function to create a test client with migrations run.
-/// Checks for E2E_API_URL first and uses the external server if available (server already has migrations/seeds).
-/// If E2E_API_URL is not set, creates an in-process router and runs migrations manually.
+/// Checks FORGE_BACKEND_HOST + port first and uses the external server if available (server already has migrations/seeds).
+/// If not set, creates an in-process router and runs migrations manually.
 /// This is needed because migrations don't run automatically for integration tests
 /// due to #[cfg(test)] conditional compilation in build_router_for_test_with_db.
 #[cfg(any(test, feature = "test-utils"))]
 pub async fn test_client_with_migrations()
 -> Result<TestClient, Box<dyn std::error::Error + Send + Sync>> {
   #[cfg(feature = "test-utils")]
-  if let Ok(url) = std::env::var("E2E_API_URL") {
+  if let Some(url) = api_base_url_from_env() {
     let base_url = url.trim_end_matches('/').to_string();
     let client = reqwest::Client::builder()
       .timeout(std::time::Duration::from_secs(10))
@@ -289,7 +305,7 @@ pub async fn test_client_with_migrations()
 }
 
 /// Build the API router for integration tests (in-process). Only compiled when not using `test-utils` feature.
-/// When using `test-utils`, use E2E_API_URL and the HTTP client instead.
+/// When using `test-utils`, use FORGE_BACKEND_HOST + FORGE_SERVER_PORT and the HTTP client instead.
 #[cfg(any(test, feature = "test-utils"))]
 pub async fn build_router_for_test()
 -> Result<(axum::Router, TestEnvGuard), Box<dyn std::error::Error + Send + Sync>> {
@@ -341,7 +357,7 @@ pub async fn build_router_for_test_with_db() -> Result<
   // But then migrations won't run for integration tests because cfg!(test) is false.
   // The real solution: Make migrations available when test-utils is enabled, but we can't due to circular dependency.
   // Workaround: Use #[cfg(test)] for now. Integration tests that use test_client() without E2E_API_URL
-  // will fail because migrations don't run. They should use E2E_API_URL instead (server runs migrations).
+  // will fail because migrations don't run. They should use FORGE_BACKEND_HOST + port (server runs migrations).
   // But the user wants all tests to work, so we need migrations to run for integration tests.
   // Let me check if we can use a different approach: compile migrations code conditionally.
   // Since migrations is available when compiling test binaries, we should be able to use it.
@@ -371,7 +387,7 @@ pub async fn build_router_for_test_with_db() -> Result<
   // But if migrations depends on app, we have a circular dependency.
   // Let me check the migrations crate to see if it depends on app.
   // Actually, I think the solution is simpler: use #[cfg(test)] for now, and for integration tests,
-  // ensure migrations run via E2E_API_URL or make migrations available another way.
+  // ensure migrations run via FORGE_BACKEND_HOST + port or make migrations available another way.
   // But the user wants all tests to work, so we need migrations to run for integration tests.
   // Let me try a different approach: use a feature flag to make migrations available.
   // But we can't do that easily.
@@ -383,7 +399,7 @@ pub async fn build_router_for_test_with_db() -> Result<
   // I think the only solution is to make migrations available when test-utils is enabled.
   // But we can't due to circular dependency. So we need to break the circular dependency or use a different approach.
   // Actually, let me check if we can use a different mechanism to make migrations available.
-  // Or we can accept that integration tests need E2E_API_URL.
+  // Or we can accept that integration tests need external server env (FORGE_BACKEND_HOST + port).
   // But the user wants all tests to work, so we need migrations to run for integration tests.
   // Let me try: use #[cfg(test)] and see if we can make integration tests work by ensuring migrations run.
   // Actually, I think the solution is to use #[cfg(test)] for now, and for integration tests,
@@ -553,7 +569,7 @@ async fn test_request_impl(
 }
 
 /// Log in as a seed user via POST /api/auth/login; returns the Bearer token.
-/// Use [test_client] (uses E2E_API_URL when set, else in-process router). Seed users: admin@admin.com, viewer@default.org, etc.
+/// Use [test_client] (uses FORGE_BACKEND_HOST + port when set, else in-process router). Seed users: admin@admin.com, viewer@default.org, etc.
 #[cfg(any(test, feature = "test-utils"))]
 pub async fn login_as_seed_user(
   client: &TestClient,
@@ -814,9 +830,9 @@ mod tests {
       fn should_prefer_e2e_api_url_when_set() {
         // Given: E2E_API_URL environment variable
         // When: calling test_client
-        // Then: should use Http variant if E2E_API_URL is set
-        // test_client checks E2E_API_URL first
-        assert!(true, "test_client should prefer E2E_API_URL when set");
+        // Then: should use Http variant when FORGE_BACKEND_HOST + port set
+        // test_client checks api_base_url_from_env() first
+        assert!(true, "test_client should use Http when FORGE_BACKEND_HOST + port set");
       }
     }
   }

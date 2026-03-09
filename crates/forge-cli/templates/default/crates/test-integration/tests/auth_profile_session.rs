@@ -4,7 +4,7 @@
 use axum::http::StatusCode;
 
 /// Helper function to create a test client with migrations run.
-/// Uses the shared app::test_client_with_migrations() which checks E2E_API_URL first.
+/// Uses the shared app::test_client_with_migrations() which uses FORGE_BACKEND_HOST + port when set.
 async fn test_client_with_migrations() -> app::TestClient {
   app::test_client_with_migrations()
     .await

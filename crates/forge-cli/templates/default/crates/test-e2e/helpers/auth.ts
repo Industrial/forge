@@ -1,6 +1,6 @@
 /**
  * Auth helpers for E2E: read token/scope from the app's localStorage
- * so API requests to E2E_API_URL (different origin) can be authenticated.
+ * so API requests to the backend (FORGE_BACKEND_HOST:FORGE_SERVER_PORT, possibly different origin) can be authenticated.
  *
  * Keys match TokenStorageLive in the frontend (token, currentOrgId, currentRoleId).
  */

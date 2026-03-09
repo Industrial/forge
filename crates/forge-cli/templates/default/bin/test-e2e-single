@@ -6,9 +6,11 @@ set -euo pipefail
 #        bin/test-e2e-single "tests/01-guest.spec.ts:162:7"
 #        bin/test-e2e-single "Guest/Unauthenticated User › 1.2 Registration Flow › Invalid Input › invalid email shows error"
 
-E2E_API_PORT=30999
-E2E_FRONTEND_PORT=35173
-E2E_BASE_URL="http://localhost:${E2E_FRONTEND_PORT}"
+FORGE_BACKEND_HOST="${FORGE_BACKEND_HOST:-127.0.0.1}"
+FORGE_SERVER_PORT="${FORGE_SERVER_PORT:-$((30000 + RANDOM % 2768))}"
+FORGE_FRONTEND_HOST="${FORGE_FRONTEND_HOST:-127.0.0.1}"
+FORGE_FRONTEND_PORT="${FORGE_FRONTEND_PORT:-$((30000 + RANDOM % 2768))}"
+export FORGE_BACKEND_HOST FORGE_SERVER_PORT FORGE_FRONTEND_HOST FORGE_FRONTEND_PORT
 ROOT="$(pwd)"
 PROJECT_NAME="${PROJECT_NAME:-$(basename "$ROOT")}"
 
@@ -36,9 +38,9 @@ if [[ -f frontend/package.json ]]; then
   (cd frontend && bun install --frozen-lockfile 2>/dev/null || bun install)
 fi
 
-# Single config and DB for the run
+# Config and DB for the run; ports from FORGE_* env
 export FORGE_ENVIRONMENT=production
-echo "> test-e2e-single > writing config (API port $E2E_API_PORT)"
+echo "> test-e2e-single > writing config"
 mkdir -p config
 cat > config/app.toml <<EOF
 [app]
@@ -46,9 +48,10 @@ name = "$PROJECT_NAME"
 
 [server]
 host = "127.0.0.1"
-port = $E2E_API_PORT
+port = 4000
 
 [frontend]
+host = "127.0.0.1"
 port = 3000
 EOF
 
@@ -63,7 +66,7 @@ export E2E_DB_PATH
 
 API_PID=""
 VITE_PID=""
-API_URL="http://127.0.0.1:${E2E_API_PORT}"
+API_URL="http://${FORGE_BACKEND_HOST}:${FORGE_SERVER_PORT}"
 cleanup() {
   if [[ -n "${VITE_PID:-}" ]] && kill -0 "$VITE_PID" 2>/dev/null; then
     kill "$VITE_PID" 2>/dev/null || true
@@ -76,8 +79,8 @@ cleanup() {
 }
 trap cleanup EXIT
 
-echo "> test-e2e-single > starting API server (port $E2E_API_PORT)"
-cargo run --quiet &
+echo "> test-e2e-single > starting API server (port $FORGE_SERVER_PORT)"
+FORGE_SERVER_PORT="$FORGE_SERVER_PORT" FORGE_BACKEND_HOST="$FORGE_BACKEND_HOST" cargo run -p server --quiet &
 API_PID=$!
 
 echo "> test-e2e-single > waiting for API /healthz"
@@ -93,14 +96,14 @@ for i in {1..50}; do
 done
 
 if [[ -f frontend/package.json ]]; then
-  echo "> test-e2e-single > starting Vite dev server (port $E2E_FRONTEND_PORT, proxy -> $API_URL)"
-  (cd frontend && VITE_BACKEND_URL="$API_URL" bun run dev -- --port "$E2E_FRONTEND_PORT" --strictPort) &
+  echo "> test-e2e-single > starting Vite dev server (port $FORGE_FRONTEND_PORT, proxy -> $API_URL)"
+  (cd frontend && VITE_BACKEND_URL="$API_URL" bun run dev -- --port "$FORGE_FRONTEND_PORT" --strictPort --host "$FORGE_FRONTEND_HOST") &
   VITE_PID=$!
 
-  echo "> test-e2e-single > waiting for Vite (port $E2E_FRONTEND_PORT)"
+  echo "> test-e2e-single > waiting for Vite (port $FORGE_FRONTEND_PORT)"
   sleep 2
   for i in {1..60}; do
-    code=$(curl -s --max-time 3 -o /dev/null -w '%{http_code}' "http://localhost:${E2E_FRONTEND_PORT}/" 2>/dev/null || echo '000')
+    code=$(curl -s --max-time 3 -o /dev/null -w '%{http_code}' "http://${FORGE_FRONTEND_HOST}:${FORGE_FRONTEND_PORT}/" 2>/dev/null || echo '000')
     if [[ "$code" =~ ^[2345][0-9][0-9]$ ]] || [[ "$code" =~ ^[2345]$ ]]; then
       break
     fi
@@ -112,8 +115,6 @@ if [[ -f frontend/package.json ]]; then
   done
 fi
 
-export E2E_BASE_URL
-export E2E_API_URL="$API_URL"
 export E2E_DB_PATH
 
 # Run single Playwright test

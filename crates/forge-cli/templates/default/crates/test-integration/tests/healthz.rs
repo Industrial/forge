@@ -1,5 +1,5 @@
 //! BDD tests for health endpoints (forge layer).
-//! Uses prebuilt server when E2E_API_URL is set.
+//! Uses prebuilt server when FORGE_BACKEND_HOST + FORGE_SERVER_PORT are set.
 //!
 //! BDD-style tests focusing on behavior of /healthz, /livez, /readyz.
 

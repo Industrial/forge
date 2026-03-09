@@ -566,7 +566,7 @@ All E2E tests are located in `test/e2e/tests/` and use Playwright for browser au
 - **12 test files** covering authentication, dashboard, entities, and health checks
 - **50+ test cases** verifying API endpoints, authorization, and business logic
 - Tests use BDD-style organization with descriptive names
-- Tests support both in-process router and external server (via E2E_API_URL)
+- Tests support both in-process router and external server (via FORGE_BACKEND_HOST + FORGE_SERVER_PORT)
 
 ### End-to-End Tests Summary:
 - **11 test files** covering CLI, config, database, migrations, auth, authorization, permissions, health, rate limiting, profile selection, and security
