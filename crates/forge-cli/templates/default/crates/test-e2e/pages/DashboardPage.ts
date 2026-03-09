@@ -179,11 +179,7 @@ export const DashboardPageLive = Layer.effect(
 
           yield* LocatorHelpers.click(userMenu)
           yield* LocatorHelpers.click(logoutButton)
-          yield* PageHelpers.waitForURL(
-            playwrightPage,
-            '/authentication/login',
-            { timeout: 5000 },
-          )
+          yield* PageHelpers.waitForURL(playwrightPage, '/authentication/login')
         }),
     }
   }),

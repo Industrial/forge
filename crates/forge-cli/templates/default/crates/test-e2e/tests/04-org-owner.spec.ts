@@ -39,6 +39,7 @@ import { API_BASE_URL } from '@/playwright.config'
 import * as ExpectHelpers from '@/helpers/expect'
 import * as LocatorHelpers from '@/helpers/locator'
 import * as PageHelpers from '@/helpers/page'
+import { getAuthHeadersFromPage } from '@/helpers/auth'
 
 test.describe('Org Owner Role', () => {
   test.describe('4.1 Authentication & Profile Selection', () => {
@@ -79,6 +80,7 @@ test.describe('Org Owner Role', () => {
         loginProgram.pipe(Effect.provide(createPageLayers(page))),
       )
       await page.goto('/dashboard')
+      await page.getByTestId('dashboard-layout').waitFor({ state: 'visible' })
     })
 
     test('should show all navigation links', async ({ page }) => {
@@ -121,6 +123,7 @@ test.describe('Org Owner Role', () => {
         loginProgram.pipe(Effect.provide(createPageLayers(page))),
       )
       await page.goto('/dashboard/organizations')
+      await page.getByTestId('dashboard-layout').waitFor({ state: 'visible' })
     })
 
     test('should create organization', async ({ page }) => {
@@ -219,6 +222,7 @@ test.describe('Org Owner Role', () => {
         loginProgram.pipe(Effect.provide(createPageLayers(page))),
       )
       await page.goto('/dashboard/users')
+      await page.getByTestId('dashboard-layout').waitFor({ state: 'visible' })
     })
 
     test('should create user', async ({ page }) => {
@@ -290,6 +294,7 @@ test.describe('Org Owner Role', () => {
         loginProgram.pipe(Effect.provide(createPageLayers(page))),
       )
       await page.goto('/dashboard/roles')
+      await page.getByTestId('dashboard-layout').waitFor({ state: 'visible' })
     })
 
     test('should create role', async ({ page }) => {
@@ -342,6 +347,7 @@ test.describe('Org Owner Role', () => {
         loginProgram.pipe(Effect.provide(createPageLayers(page))),
       )
       await page.goto('/dashboard/roles-and-permissions')
+      await page.getByTestId('dashboard-layout').waitFor({ state: 'visible' })
     })
 
     test('should add permission to role', async ({ page }) => {
@@ -399,6 +405,7 @@ test.describe('Org Owner Role', () => {
         loginProgram.pipe(Effect.provide(createPageLayers(page))),
       )
       await page.goto('/dashboard/audit-log')
+      await page.getByTestId('dashboard-layout').waitFor({ state: 'visible' })
     })
 
     test('should display audit log list', async ({ page }) => {
@@ -464,10 +471,15 @@ test.describe('Org Owner Role', () => {
       await Effect.runPromise(
         loginProgram.pipe(Effect.provide(createPageLayers(page))),
       )
+      await page.getByTestId('dashboard-layout').waitFor({
+        state: 'visible',
+      })
+      const headers = await getAuthHeadersFromPage(page)
       const testOrg = createTestOrganization()
       const response = await page.request.post(
         `${API_BASE_URL}/api/entities/organization`,
         {
+          headers: { ...headers, 'Content-Type': 'application/json' },
           data: { name: testOrg.name, slug: testOrg.slug },
         },
       )
@@ -488,10 +500,15 @@ test.describe('Org Owner Role', () => {
       await Effect.runPromise(
         loginProgram.pipe(Effect.provide(createPageLayers(page))),
       )
+      await page.getByTestId('dashboard-layout').waitFor({
+        state: 'visible',
+      })
+      const headers = await getAuthHeadersFromPage(page)
       const testOrg = createTestOrganization()
       const createResponse = await page.request.post(
         `${API_BASE_URL}/api/entities/organization`,
         {
+          headers: { ...headers, 'Content-Type': 'application/json' },
           data: { name: testOrg.name, slug: testOrg.slug },
         },
       )
@@ -499,6 +516,7 @@ test.describe('Org Owner Role', () => {
 
       const deleteResponse = await page.request.delete(
         `${API_BASE_URL}/api/entities/organization/${created.id}`,
+        { headers },
       )
       expect(deleteResponse.status()).toBe(200)
     })
@@ -517,15 +535,20 @@ test.describe('Org Owner Role', () => {
       await Effect.runPromise(
         loginProgram.pipe(Effect.provide(createPageLayers(page))),
       )
+      await page.getByTestId('dashboard-layout').waitFor({
+        state: 'visible',
+      })
+      const headers = await getAuthHeadersFromPage(page)
       const testUser = createTestUser()
       const createResponse = await page.request.post(
         `${API_BASE_URL}/api/rpc`,
         {
+          headers: { ...headers, 'Content-Type': 'application/json' },
           data: {
             method: 'entity.create',
+            entity_id: 'user',
             params: {
-              entity: 'user',
-              data: { email: testUser.email, password: testUser.password },
+              body: { email: testUser.email, password: testUser.password },
             },
           },
         },
@@ -535,9 +558,11 @@ test.describe('Org Owner Role', () => {
       const deleteResponse = await page.request.post(
         `${API_BASE_URL}/api/rpc`,
         {
+          headers: { ...headers, 'Content-Type': 'application/json' },
           data: {
             method: 'entity.delete',
-            params: { entity: 'user', id: created.result.id },
+            entity_id: 'user',
+            params: { id: created.result.id },
           },
         },
       )
@@ -560,10 +585,14 @@ test.describe('Org Owner Role', () => {
       await Effect.runPromise(
         loginProgram.pipe(Effect.provide(createPageLayers(page))),
       )
+      await page.getByTestId('dashboard-layout').waitFor({
+        state: 'visible',
+      })
+      const headers = await getAuthHeadersFromPage(page)
       const response = await page.request.get(
         `${API_BASE_URL}/api/subscriptions/stream`,
         {
-          headers: { Accept: 'text/event-stream' },
+          headers: { ...headers, Accept: 'text/event-stream' },
         },
       )
       expect(response.status()).toBe(200)
@@ -583,7 +612,14 @@ test.describe('Org Owner Role', () => {
       await Effect.runPromise(
         loginProgram.pipe(Effect.provide(createPageLayers(page))),
       )
-      const response = await page.request.get(`${API_BASE_URL}/api/auth/admin`)
+      await page.getByTestId('dashboard-layout').waitFor({
+        state: 'visible',
+      })
+      const headers = await getAuthHeadersFromPage(page)
+      const response = await page.request.get(
+        `${API_BASE_URL}/api/auth/admin`,
+        { headers },
+      )
       expect(response.status()).toBe(403)
     })
   })
@@ -640,6 +676,7 @@ test.describe('Org Owner Role', () => {
         loginProgram.pipe(Effect.provide(createPageLayers(page))),
       )
       await page.goto('/dashboard')
+      await page.getByTestId('dashboard-layout').waitFor({ state: 'visible' })
 
       const program = Effect.gen(function* () {
         const dashboardPageService = yield* DashboardPage

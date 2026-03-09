@@ -22,7 +22,7 @@ const NAV_ITEMS = [
     label: 'Dashboard',
     end: true,
     icon: Dashboard,
-    permissions: ['dashboard'],
+    permissions: ['user.read'],
   },
   {
     to: '/dashboard/organizations',

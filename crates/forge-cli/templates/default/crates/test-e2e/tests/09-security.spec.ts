@@ -26,6 +26,7 @@ test.describe('Security Scenarios', () => {
       page,
     }) => {
       await page.goto('/dashboard')
+      await page.getByTestId('dashboard-layout').waitFor({ state: 'visible' })
       await expect(page).toHaveURL('/authentication/login')
     })
 
@@ -230,6 +231,7 @@ test.describe('Security Scenarios', () => {
         loginProgram.pipe(Effect.provide(createPageLayers(page))),
       )
       await page.goto('/dashboard/users')
+      await page.getByTestId('dashboard-layout').waitFor({ state: 'visible' })
 
       const program = Effect.gen(function* () {
         const usersPageService = yield* UsersPage

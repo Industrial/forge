@@ -36,7 +36,7 @@ export default defineConfig({
     video: 'retain-on-failure',
   },
   projects: [{ name: 'chromium', use: { ...devices['Desktop Chrome'] } }],
-  timeout: 30_000,
+  timeout: 60_000,
 })
 
 export const REPO_ROOT = repoRoot

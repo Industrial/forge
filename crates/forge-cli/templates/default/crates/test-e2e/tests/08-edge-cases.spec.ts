@@ -43,6 +43,7 @@ test.describe('Edge Cases & Boundary Conditions', () => {
         loginProgram.pipe(Effect.provide(createPageLayers(page))),
       )
       await page.goto('/dashboard/organizations')
+      await page.getByTestId('dashboard-layout').waitFor({ state: 'visible' })
 
       const program = Effect.gen(function* () {
         const organizationsPageService = yield* OrganizationsPage
@@ -68,6 +69,7 @@ test.describe('Edge Cases & Boundary Conditions', () => {
 
     test('users page shows empty state', async ({ page }) => {
       await page.goto('/dashboard/users')
+      await page.getByTestId('dashboard-layout').waitFor({ state: 'visible' })
 
       const program = Effect.gen(function* () {
         const usersPageService = yield* UsersPage
@@ -90,6 +92,7 @@ test.describe('Edge Cases & Boundary Conditions', () => {
 
     test('roles page shows empty state', async ({ page }) => {
       await page.goto('/dashboard/roles')
+      await page.getByTestId('dashboard-layout').waitFor({ state: 'visible' })
 
       const program = Effect.gen(function* () {
         const rolesPageService = yield* RolesPage
@@ -112,6 +115,7 @@ test.describe('Edge Cases & Boundary Conditions', () => {
 
     test('audit log page shows empty state', async ({ page }) => {
       await page.goto('/dashboard/audit-log')
+      await page.getByTestId('dashboard-layout').waitFor({ state: 'visible' })
 
       const program = Effect.gen(function* () {
         const auditLogPageService = yield* AuditLogPage
@@ -147,6 +151,7 @@ test.describe('Edge Cases & Boundary Conditions', () => {
         loginProgram.pipe(Effect.provide(createPageLayers(page))),
       )
       await page.goto('/dashboard/users')
+      await page.getByTestId('dashboard-layout').waitFor({ state: 'visible' })
 
       const program = Effect.gen(function* () {
         const usersPageService = yield* UsersPage
@@ -168,7 +173,7 @@ test.describe('Edge Cases & Boundary Conditions', () => {
           const nextButtonEnabled = yield* LocatorHelpers.isEnabled(nextButton)
           if (nextButtonCount > 0 && nextButtonEnabled) {
             yield* LocatorHelpers.click(nextButton)
-            yield* PageHelpers.waitForURL(page, /page=/, { timeout: 5000 })
+            yield* PageHelpers.waitForURL(page, /page=/)
           }
         }
       })
@@ -182,6 +187,7 @@ test.describe('Edge Cases & Boundary Conditions', () => {
       page,
     }) => {
       await page.goto('/dashboard/organizations')
+      await page.getByTestId('dashboard-layout').waitFor({ state: 'visible' })
 
       const program = Effect.gen(function* () {
         const organizationsPageService = yield* OrganizationsPage
@@ -204,7 +210,7 @@ test.describe('Edge Cases & Boundary Conditions', () => {
           const nextButtonEnabled = yield* LocatorHelpers.isEnabled(nextButton)
           if (nextButtonCount > 0 && nextButtonEnabled) {
             yield* LocatorHelpers.click(nextButton)
-            yield* PageHelpers.waitForURL(page, /page=/, { timeout: 5000 })
+            yield* PageHelpers.waitForURL(page, /page=/)
           }
         }
       })
@@ -216,6 +222,7 @@ test.describe('Edge Cases & Boundary Conditions', () => {
 
     test('large audit log pagination works correctly', async ({ page }) => {
       await page.goto('/dashboard/audit-log')
+      await page.getByTestId('dashboard-layout').waitFor({ state: 'visible' })
 
       const program = Effect.gen(function* () {
         const auditLogPageService = yield* AuditLogPage
@@ -236,7 +243,7 @@ test.describe('Edge Cases & Boundary Conditions', () => {
           const nextButtonEnabled = yield* LocatorHelpers.isEnabled(nextButton)
           if (nextButtonCount > 0 && nextButtonEnabled) {
             yield* LocatorHelpers.click(nextButton)
-            yield* PageHelpers.waitForURL(page, /page=/, { timeout: 5000 })
+            yield* PageHelpers.waitForURL(page, /page=/)
           }
         }
       })
@@ -291,6 +298,7 @@ test.describe('Edge Cases & Boundary Conditions', () => {
         loginProgram.pipe(Effect.provide(createPageLayers(page))),
       )
       await page.goto('/dashboard/users')
+      await page.getByTestId('dashboard-layout').waitFor({ state: 'visible' })
 
       const program = Effect.gen(function* () {
         const usersPageService = yield* UsersPage
@@ -329,6 +337,7 @@ test.describe('Edge Cases & Boundary Conditions', () => {
 
     test('short password shows validation error', async ({ page }) => {
       await page.goto('/dashboard/users')
+      await page.getByTestId('dashboard-layout').waitFor({ state: 'visible' })
 
       const program = Effect.gen(function* () {
         const usersPageService = yield* UsersPage
@@ -440,6 +449,7 @@ test.describe('Edge Cases & Boundary Conditions', () => {
       })
 
       await page.goto('/dashboard/users')
+      await page.getByTestId('dashboard-layout').waitFor({ state: 'visible' })
 
       const program = Effect.gen(function* () {
         // Check for loading indicator
@@ -475,12 +485,13 @@ test.describe('Edge Cases & Boundary Conditions', () => {
       })
 
       await page.goto('/dashboard/users')
+      await page.getByTestId('dashboard-layout').waitFor({ state: 'visible' })
 
       // Check for error message
       const errorMessage = page
         .locator('[data-testid="error-message"]')
         .or(page.locator('text=/error/i'))
-      await expect(errorMessage.first()).toBeVisible({ timeout: 5000 })
+      await expect(errorMessage.first()).toBeVisible()
     })
 
     test('timeout shows error message', async ({ page, context }) => {
@@ -491,12 +502,13 @@ test.describe('Edge Cases & Boundary Conditions', () => {
       })
 
       await page.goto('/dashboard/users')
+      await page.getByTestId('dashboard-layout').waitFor({ state: 'visible' })
 
       // Check for timeout error
       const errorMessage = page
         .locator('[data-testid="error-message"]')
         .or(page.locator('text=/timeout/i'))
-      await expect(errorMessage.first()).toBeVisible({ timeout: 15000 })
+      await expect(errorMessage.first()).toBeVisible()
     })
   })
 
@@ -517,6 +529,7 @@ test.describe('Edge Cases & Boundary Conditions', () => {
       await page.setViewportSize({ width: 375, height: 667 })
 
       await page.goto('/dashboard')
+      await page.getByTestId('dashboard-layout').waitFor({ state: 'visible' })
 
       const program = Effect.gen(function* () {
         const dashboardPageService = yield* DashboardPage
@@ -542,6 +555,7 @@ test.describe('Edge Cases & Boundary Conditions', () => {
 
     test('dark/light theme toggle works', async ({ page }) => {
       await page.goto('/dashboard')
+      await page.getByTestId('dashboard-layout').waitFor({ state: 'visible' })
 
       const program = Effect.gen(function* () {
         const dashboardPageService = yield* DashboardPage
@@ -583,6 +597,7 @@ test.describe('Edge Cases & Boundary Conditions', () => {
 
     test('browser back/forward navigation works', async ({ page }) => {
       await page.goto('/dashboard')
+      await page.getByTestId('dashboard-layout').waitFor({ state: 'visible' })
 
       const program = Effect.gen(function* () {
         const dashboardPageService = yield* DashboardPage

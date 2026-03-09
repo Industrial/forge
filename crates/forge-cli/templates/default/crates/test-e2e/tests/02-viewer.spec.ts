@@ -113,8 +113,8 @@ test.describe('Viewer Role', () => {
       )
       await page.goto('/dashboard')
       await page
-        .getByTestId('dashboard-page')
-        .waitFor({ state: 'visible', timeout: 20000 })
+        .getByTestId('dashboard-layout')
+        .waitFor({ state: 'visible' })
     })
 
     test('should display dashboard page', async ({ page }) => {
@@ -216,8 +216,8 @@ test.describe('Viewer Role', () => {
       )
       await page.goto('/dashboard')
       await page
-        .getByTestId('dashboard-page')
-        .waitFor({ state: 'visible', timeout: 20000 })
+        .getByTestId('dashboard-layout')
+        .waitFor({ state: 'visible' })
       const program = Effect.gen(function* () {
         const dashboardPageService = yield* DashboardPage
         yield* dashboardPageService.clickUsersLink()
@@ -314,8 +314,8 @@ test.describe('Viewer Role', () => {
       )
       await page.goto('/dashboard')
       await page
-        .getByTestId('dashboard-page')
-        .waitFor({ state: 'visible', timeout: 20000 })
+        .getByTestId('dashboard-layout')
+        .waitFor({ state: 'visible' })
       const program = Effect.gen(function* () {
         const dashboardPageService = yield* DashboardPage
         yield* dashboardPageService.clickRolesLink()
@@ -395,8 +395,8 @@ test.describe('Viewer Role', () => {
       )
       await page.goto('/dashboard')
       await page
-        .getByTestId('dashboard-page')
-        .waitFor({ state: 'visible', timeout: 20000 })
+        .getByTestId('dashboard-layout')
+        .waitFor({ state: 'visible' })
       const program = Effect.gen(function* () {
         const dashboardPageService = yield* DashboardPage
         yield* dashboardPageService.clickPermissionsLink()
@@ -454,8 +454,8 @@ test.describe('Viewer Role', () => {
       )
       await page.goto('/dashboard')
       await page
-        .getByTestId('dashboard-page')
-        .waitFor({ state: 'visible', timeout: 20000 })
+        .getByTestId('dashboard-layout')
+        .waitFor({ state: 'visible' })
       const program = Effect.gen(function* () {
         const dashboardPageService = yield* DashboardPage
         yield* dashboardPageService.clickAuditLogLink()
@@ -508,7 +508,7 @@ test.describe('Viewer Role', () => {
 
         yield* auditLogPageService.goToNextPage()
 
-        yield* PageHelpers.waitForURL(page, /page=/, { timeout: 5000 })
+        yield* PageHelpers.waitForURL(page, /page=/)
       })
 
       await Effect.runPromise(
@@ -557,7 +557,7 @@ test.describe('Viewer Role', () => {
         error403
           .or(page.locator('text=403'))
           .or(page.locator('text=Forbidden')),
-      ).toBeVisible({ timeout: 15000 })
+      ).toBeVisible()
     })
   })
 
@@ -626,9 +626,8 @@ test.describe('Viewer Role', () => {
       await Effect.runPromise(
         loginProgram.pipe(Effect.provide(createPageLayers(page))),
       )
-      await page.getByTestId('dashboard-page').waitFor({
+      await page.getByTestId('dashboard-layout').waitFor({
         state: 'visible',
-        timeout: 15000,
       })
       const headers = await getAuthHeadersFromPage(page)
       const response = await page.request.post(
@@ -656,9 +655,8 @@ test.describe('Viewer Role', () => {
       await Effect.runPromise(
         loginProgram.pipe(Effect.provide(createPageLayers(page))),
       )
-      await page.getByTestId('dashboard-page').waitFor({
+      await page.getByTestId('dashboard-layout').waitFor({
         state: 'visible',
-        timeout: 15000,
       })
       const headers = await getAuthHeadersFromPage(page)
       const tokenResponse = await page.request.post(
@@ -690,9 +688,8 @@ test.describe('Viewer Role', () => {
       await Effect.runPromise(
         loginProgram.pipe(Effect.provide(createPageLayers(page))),
       )
-      await page.getByTestId('dashboard-page').waitFor({
+      await page.getByTestId('dashboard-layout').waitFor({
         state: 'visible',
-        timeout: 15000,
       })
     })
 
@@ -771,9 +768,8 @@ test.describe('Viewer Role', () => {
       await Effect.runPromise(
         loginProgram.pipe(Effect.provide(createPageLayers(page))),
       )
-      await page.getByTestId('dashboard-page').waitFor({
+      await page.getByTestId('dashboard-layout').waitFor({
         state: 'visible',
-        timeout: 15000,
       })
     })
 
@@ -838,9 +834,8 @@ test.describe('Viewer Role', () => {
       await Effect.runPromise(
         loginProgram.pipe(Effect.provide(createPageLayers(page))),
       )
-      await page.getByTestId('dashboard-page').waitFor({
+      await page.getByTestId('dashboard-layout').waitFor({
         state: 'visible',
-        timeout: 15000,
       })
       const headers = await getAuthHeadersFromPage(page)
       const response = await page.request.get(
@@ -867,9 +862,8 @@ test.describe('Viewer Role', () => {
       await Effect.runPromise(
         loginProgram.pipe(Effect.provide(createPageLayers(page))),
       )
-      await page.getByTestId('dashboard-page').waitFor({
+      await page.getByTestId('dashboard-layout').waitFor({
         state: 'visible',
-        timeout: 15000,
       })
       const headers = await getAuthHeadersFromPage(page)
       const response = await page.request.get(
@@ -896,9 +890,8 @@ test.describe('Viewer Role', () => {
         loginProgram.pipe(Effect.provide(createPageLayers(page))),
       )
       await page.goto('/dashboard')
-      await page.getByTestId('dashboard-page').waitFor({
+      await page.getByTestId('dashboard-layout').waitFor({
         state: 'visible',
-        timeout: 15000,
       })
 
       const program = Effect.gen(function* () {
@@ -932,9 +925,8 @@ test.describe('Viewer Role', () => {
         loginProgram.pipe(Effect.provide(createPageLayers(page))),
       )
       await page.goto('/dashboard')
-      await page.getByTestId('dashboard-page').waitFor({
+      await page.getByTestId('dashboard-layout').waitFor({
         state: 'visible',
-        timeout: 15000,
       })
 
       const program = Effect.gen(function* () {

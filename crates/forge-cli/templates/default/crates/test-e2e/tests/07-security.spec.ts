@@ -81,6 +81,7 @@ test.describe('Cross-Role Scenarios', () => {
           loginProgram.pipe(Effect.provide(createPageLayers(page))),
         )
         await page.goto('/dashboard/users')
+        await page.getByTestId('dashboard-layout').waitFor({ state: 'visible' })
 
         const program = Effect.gen(function* () {
           const usersPageService = yield* UsersPage
@@ -109,6 +110,7 @@ test.describe('Cross-Role Scenarios', () => {
           loginProgram.pipe(Effect.provide(createPageLayers(page))),
         )
         await page.goto('/dashboard/organizations')
+        await page.getByTestId('dashboard-layout').waitFor({ state: 'visible' })
 
         const error403 = page.locator('[data-testid="error-403"]')
         await expect(
@@ -179,6 +181,7 @@ test.describe('Cross-Role Scenarios', () => {
         loginProgram.pipe(Effect.provide(createPageLayers(page))),
       )
       await page.goto('/dashboard/users')
+        await page.getByTestId('dashboard-layout').waitFor({ state: 'visible' })
 
       // Create a second page for subscription stream
       const page2 = await context.newPage()
@@ -294,6 +297,7 @@ test.describe('Cross-Role Scenarios', () => {
         loginProgram.pipe(Effect.provide(createPageLayers(page))),
       )
       await page.goto('/dashboard')
+        await page.getByTestId('dashboard-layout').waitFor({ state: 'visible' })
 
       const program = Effect.gen(function* () {
         const dashboardPageService = yield* DashboardPage
@@ -306,6 +310,7 @@ test.describe('Cross-Role Scenarios', () => {
 
       // Try to access protected route
       await page.goto('/dashboard')
+        await page.getByTestId('dashboard-layout').waitFor({ state: 'visible' })
       await expect(page).toHaveURL('/authentication/login')
     })
   })
@@ -324,6 +329,7 @@ test.describe('Cross-Role Scenarios', () => {
         loginProgram.pipe(Effect.provide(createPageLayers(page))),
       )
       await page.goto('/dashboard/users')
+        await page.getByTestId('dashboard-layout').waitFor({ state: 'visible' })
       const testUser = createTestUser()
 
       const program = Effect.gen(function* () {

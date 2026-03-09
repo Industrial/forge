@@ -16,8 +16,11 @@ export interface AuthHeaders {
  * Read token and scope from the page's localStorage and return headers
  * suitable for API requests (Bearer token + scope headers).
  * Call after login and after dashboard has loaded (so scope is set).
+ * Returns Record<string, string> for use with Playwright request APIs.
  */
-export async function getAuthHeadersFromPage(page: Page): Promise<AuthHeaders> {
+export async function getAuthHeadersFromPage(
+  page: Page,
+): Promise<Record<string, string>> {
   const storage = await page.evaluate(() => ({
     token: localStorage.getItem('token'),
     orgId: localStorage.getItem('currentOrgId'),
@@ -28,7 +31,7 @@ export async function getAuthHeadersFromPage(page: Page): Promise<AuthHeaders> {
       'getAuthHeadersFromPage: no token in localStorage. Ensure login ran and dashboard has loaded.',
     )
   }
-  const headers: AuthHeaders = {
+  const headers: Record<string, string> = {
     Authorization: `Bearer ${storage.token}`,
   }
   if (storage.orgId) headers['X-Organization-Id'] = storage.orgId
