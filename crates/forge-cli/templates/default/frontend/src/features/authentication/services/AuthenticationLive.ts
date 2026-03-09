@@ -853,7 +853,16 @@ export const AuthenticationLive = Layer.effect(
                 yield* Effect.logDebug(
                   `AuthenticationLive.selectScope: permissions count=${state.permissions.length}`,
                 )
-                yield* updateAuthState(store, state)
+                // After successful scope selection, force needsScopeSelect false and keep
+                // the selected scope. Otherwise a /me response that still has
+                // needs_scope_select: true (e.g. session not yet updated) would overwrite
+                // the optimistic update and send the user back to the select-scope page.
+                const stateForStore: AuthenticationState = {
+                  ...state,
+                  needsScopeSelect: Option.some(false),
+                  currentScope: Option.some({ organizationId, roleId }),
+                }
+                yield* updateAuthState(store, stateForStore)
               }),
               Effect.catchAll((error) =>
                 Effect.gen(function* () {
