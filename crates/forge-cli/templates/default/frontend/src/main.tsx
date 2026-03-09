@@ -1,6 +1,8 @@
+import React from 'react'
 import ReactDOM from 'react-dom/client'
 import { BrowserRouter } from 'react-router-dom'
-import { Effect, pipe } from 'effect'
+import { Effect, pipe, Runtime } from 'effect'
+import { EffectRuntimeProvider } from 'react-effect-hooks'
 
 import '@/reset.css'
 import App from '@/App.tsx'
@@ -24,9 +26,13 @@ await Effect.runPromise(
         }
 
         yield* Effect.sync(() => {
+          const layer = getApplicationLayer()
+          const runtime = Runtime.make(layer)
           ReactDOM.createRoot(rootElement).render(
             <BrowserRouter>
-              <App />
+              <EffectRuntimeProvider runtime={runtime}>
+                <App />
+              </EffectRuntimeProvider>
             </BrowserRouter>,
           )
         })
