@@ -1,48 +1,94 @@
-# Forge
+# Forge 🔥
 
 [![CI](https://github.com/Industrial/forge/actions/workflows/ci.yml/badge.svg)](https://github.com/Industrial/forge/actions/workflows/ci.yml)
 [![crates.io](https://img.shields.io/crates/v/forge.svg)](https://crates.io/crates/forge)
 [![docs.rs](https://img.shields.io/docsrs/forge)](https://docs.rs/forge)
 [![License: CC BY-SA 4.0](https://img.shields.io/badge/License-CC%20BY--SA%204.0-green.svg)](https://creativecommons.org/licenses/by-sa/4.0/)
 
-A full-stack web framework for Rust: convention over configuration, batteries-included, one CLI from zero to shipped. The story is simple: **Rails or Django ergonomics, with Rust’s performance and type safety, and no Node/npm in the critical path.**
+## The First Batteries-Included Rust Framework
 
-## How it compares
+**Rails ergonomics. Rust performance. Zero compromises.**
 
-**Next.js** gives you a single language (JS/TS) and a huge ecosystem, but you still choose auth, DB, jobs, and real-time piece by piece. The “full-stack” is often a thin API layer over serverless or a separate backend. Forge is the opposite: one stack, one process, one config story—auth, DB, jobs, WebSockets, and live updates are built in and wired by convention.
+Forge is the first full-stack Rust framework that gives you everything: auth, database, real-time, background jobs, rate limiting, caching, and more—all wired together by convention. No assembly required. No Node.js in the critical path. Just pure Rust, from zero to shipped.
 
-**Rails and Django** are the spiritual model: sensible defaults, generators, migrations, and “it just works” for CRUD and dashboards. Forge aims for that feel in Rust. You don’t get Ruby or Python’s dynamism or their maturity of gems/packages; you get a single, coherent stack, strong typing, and no GIL—so the trade is clarity and performance for a smaller plugin ecosystem and a younger project.
+```bash
+curl -fsSL https://raw.githubusercontent.com/Industrial/forge/main/install.sh | sh
+forge new myapp && cd myapp && forge dev
+# → http://localhost:3000
+```
 
-**Other Rust web stacks** (raw Axum, Actix, etc.) are powerful but leave you to assemble auth, sessions, rate limiting, background jobs, and real-time yourself. Forge sits on top of Axum and Tokio and gives you those layers out of the box, so you spend time on product logic instead of glue.
+## Why Forge Exists
 
-Honest gaps: Forge is **early**. Not every edge is polished; the API may still evolve. If you want a stable, “boring” framework, Rails or Django are safer today. If you want one coherent Rust backend with real-time and live data sync, and you’re okay helping shape it, Forge is built for that.
+**The Problem:** Rust web frameworks are powerful but incomplete. You spend weeks gluing together auth, sessions, rate limiting, background jobs, WebSockets, and real-time sync. By the time you're shipping, you've built half a framework yourself.
 
-## What you get
+**The Solution:** Forge ships with everything wired. Auth? Built-in. Real-time Live Query system? Built-in. Background jobs with SQLite (no Redis needed)? Built-in. Multi-tenant isolation with Ghost Mode? Built-in. Security headers, audit logging, rate limiting, caching? All built-in.
 
-- **One CLI**: `forge new myapp`, `forge dev` / `forge serve`, migrations, generators. Strict project layout (`config/`, migrations, routes) so the tooling knows where everything lives.
-- **Config as single source of truth**: No CLI flags for port or env—everything comes from `config/app.toml` (and related files). Figment-based layering for env-specific overrides.
-- **Database**: SeaORM + SQLite by default. Connection and pool config in `config/db.toml`. Migrations and seeds are first-class; `forge new` generates the schema you need for users, orgs, and memberships.
-- **Auth and authorization**: Sessions and login; password hashing (Argon2id); API tokens (stored as hashes). Authorization is “shallow gate + deep scope”: handler-level guards (`Action`, `Role`) and DB-level scoping so tenant data is isolated and wrong-tenant reads look like 404 (Ghost Mode). Roles are per-organization, not global.
-- **Audit logging**: First-class events and outcomes so you can record who did what, when.
-- **Health and observability**: Health/live/ready endpoints; optional OpenTelemetry and tracing so you can plug into existing observability stacks.
-- **Rate limiting**: Governor-based, keyed by requester/org so you can throttle per user or per tenant.
-- **Validation**: Shared validation types and helpers so request and domain rules stay consistent.
-- **Background jobs**: Apalis-based task queue with SQLite storage by default—no Redis required. Define tasks, dispatch from handlers, run workers in-process or as a separate process. Recurring work is “scheduled tasks” enqueued on a timer.
-- **API token auth**: Bearer tokens for programmatic access; tokens are hashed and checked against the DB. Scope (org, role) can come from headers or token metadata.
-- **Security**: Security headers (CSP, HSTS, etc.) applied by default so responses are hardened out of the box.
-- **Real-time**: WebSockets and SSE via Axum. Raw `ws` and `sse` for custom endpoints. On top of that, a **Live Query** system: clients subscribe to scoped channels (e.g. per-org, per-resource-type); the server derives subscriptions from the session and permissions, so the client doesn’t send a channel list. When data changes, handlers call a broadcast API and every subscribed connection gets the update. Single process uses in-memory pub/sub; multi-instance can use a swappable backend (e.g. Redis) so all instances see the same events. Result: UIs stay in sync without polling or hand-rolled WebSocket routing.
-- **Caching**: Application cache (key-value get/set/delete) and optional HTTP response cache (middleware). Backed by Moka in-process; manual invalidation so you control when entries are busted.
-- **i18n**: Hooks for internationalization so you can drive locale and translations from config and request context.
-- **Frontend**: Straight-up Vite SPA (React, Vue, or Svelte). `forge dev` runs the backend and Vite dev server with HMR; production builds the frontend and serves static assets.
-- **Deploy**: Documented path with Shuttle (Rust hosting, no Dockerfile) and Turso (hosted SQLite-compatible DB). One service runs HTTP + in-process worker; local dev uses file SQLite, production uses Turso via config/env.
+**The Trade:** You get Rails/Django-level productivity with Rust's performance and type safety. The ecosystem is smaller than Ruby/Python's, but you need fewer packages because everything's already included.
 
-Rust all the way on the backend: Axum, Tokio, Tower. The default template includes a Vite SPA; no JS build step if you stick to API-only.
+## What Makes Forge Different
 
-## Status: early and growing
+### 🚀 **Live Query: Real-Time Without the Pain**
 
-Forge is a **new project**. We’re building in the open: not every edge is polished, and the API may evolve. If you like the direction and want to shape it, this is the right time—issues, docs, and code are welcome.
+Most frameworks make you manually manage WebSocket channels, subscriptions, and broadcasts. Forge's **Live Query** system does it automatically:
 
-## Quick start
+```rust
+// Server: Broadcast when data changes
+live::broadcast("org:123", "users", &updated_user).await?;
+
+// Client: Automatically subscribed based on session permissions
+// UI updates instantly, no polling, no manual channel management
+```
+
+Clients subscribe to scoped channels (per-org, per-resource-type). The server derives subscriptions from session permissions. When you broadcast, every subscribed connection gets the update. Single process uses in-memory pub/sub; multi-instance can swap in Redis. **UIs stay in sync without you writing WebSocket routing code.**
+
+### 👻 **Ghost Mode: Multi-Tenant Security by Default**
+
+Wrong-tenant data reads return 404, not empty arrays. Authorization is "shallow gate + deep scope": handler-level guards (`Action`, `Role`) plus DB-level scoping so tenant data is isolated. Roles are per-organization, not global. **You can't accidentally leak data between tenants.**
+
+### ⚡ **One Process, Zero Redis**
+
+Background jobs run on SQLite by default. No Redis required for development or small deployments. Run workers in-process or as a separate process. When you need Redis for multi-instance Live Query, swap it in. **Start simple, scale when needed.**
+
+### 🎯 **Convention Over Configuration**
+
+Strict project layout (`config/`, migrations, routes) so tooling knows where everything lives. Config is the single source of truth—no CLI flags for ports or env. Figment-based layering for env-specific overrides. **Less decision fatigue, more shipping.**
+
+## The Full Stack
+
+- **🔐 Auth & Authorization**: Sessions, password hashing (Argon2id), API tokens (hashed), per-org roles, Ghost Mode tenant isolation
+- **💾 Database**: SeaORM + SQLite by default, migrations, seeds, connection pooling
+- **⚡ Real-Time**: WebSockets, SSE, Live Query with automatic subscription management
+- **📦 Background Jobs**: Apalis-based task queue, SQLite storage, in-process or separate workers
+- **🛡️ Security**: Security headers (CSP, HSTS) applied by default
+- **📊 Observability**: Health/live/ready endpoints, optional OpenTelemetry tracing
+- **🚦 Rate Limiting**: Governor-based, per-user or per-tenant throttling
+- **💨 Caching**: Application cache + optional HTTP response cache (Moka-backed)
+- **🌍 i18n**: Locale and translation hooks
+- **🎨 Frontend**: Vite SPA (React/Vue/Svelte) with HMR in dev, static assets in production
+- **🚢 Deploy**: Shuttle (Rust hosting) + Turso (hosted SQLite), one service, zero Dockerfile
+
+**Rust all the way:** Axum, Tokio, Tower. No Node.js in the critical path. The default template includes a Vite SPA, but you can skip the frontend entirely for API-only apps.
+
+## How It Compares
+
+| Feature | Next.js | Rails/Django | Axum/Actix | **Forge** |
+|---------|---------|--------------|------------|-----------|
+| Auth | ❌ Choose library | ✅ Built-in | ❌ DIY | ✅ **Built-in** |
+| Real-time | ⚠️ Partial | ⚠️ Partial | ❌ DIY | ✅ **Live Query** |
+| Background Jobs | ❌ External | ✅ Built-in | ❌ DIY | ✅ **Built-in** |
+| Multi-tenant | ❌ DIY | ⚠️ Partial | ❌ DIY | ✅ **Ghost Mode** |
+| Rate Limiting | ❌ DIY | ⚠️ Partial | ❌ DIY | ✅ **Built-in** |
+| Type Safety | ⚠️ TypeScript | ❌ Dynamic | ✅ Rust | ✅ **Rust** |
+| Performance | ⚠️ Good | ❌ Slower | ✅ Excellent | ✅ **Excellent** |
+| Batteries Included | ❌ | ✅ | ❌ | ✅ **Yes** |
+
+**Next.js** gives you one language but you still assemble auth, DB, jobs, and real-time piece by piece. **Rails/Django** have everything but lack Rust's performance and type safety. **Raw Rust frameworks** are fast but leave you building infrastructure. **Forge** gives you Rails-level productivity with Rust's performance, all in one coherent stack.
+
+## Status: Early & Shaping the Future
+
+Forge is **new and actively evolving**. We're building in the open: not every edge is polished, and the API may change. If you want a stable, "boring" framework, Rails or Django are safer today. **If you want to shape the future of Rust web development and get Rails ergonomics with Rust performance, Forge is built for you.**
+
+## Quick Start
 
 Install the CLI (no Rust toolchain required), then create and run an app.
 
@@ -66,13 +112,13 @@ Then open http://localhost:3000. For production: build frontend and run `forge s
 - **With Rust:** `cargo install forge-cli` (when on crates.io) or `cargo install --git https://github.com/Industrial/forge forge-cli --bin forge`
 - **From clone:** `git clone https://github.com/Industrial/forge.git && cd forge && cargo run -p forge-cli -- new myapp`
 
-## Documentation (in-repo)
+## Documentation
 
 Details live in the `docs/` folder: CLI and project layout, config, database and SeaORM, migrations, authentication, authorization, audit logging, health and observability, rate limiting, validation, background jobs, API token auth, security, WebSockets and real-time, i18n, caching, and deploy (Shuttle + Turso). Live Query design (channels, permissions, broadcast, swappable backend) is in the multi-crate and live-channels docs.
 
 ## Contributing
 
-We’re **open source** and **community-first**. Contributions are welcome: code, docs, issues, and ideas. Check open issues, comment on design discussions, or open a PR. Be respectful and constructive; we’ll do the same.
+We're **open source** and **community-first**. Contributions are welcome: code, docs, issues, and ideas. Check open issues, comment on design discussions, or open a PR. Be respectful and constructive; we'll do the same.
 
 1. Fork the repo, create a branch, make your changes.
 2. Run tests and linters (see [Development](#development) below).
@@ -104,7 +150,7 @@ This project is licensed under the **Creative Commons Attribution-ShareAlike 4.0
 
 The Rust crates in this repository also offer dual licensing under **MIT OR Apache-2.0** where noted in their `Cargo.toml`; for maximum permissibility in dependency use, you may use the code under those terms when applicable.
 
-## To Do
+## Roadmap
 
 ### Tier 1 — Immediate DX Multipliers (Highest Impact)
 
@@ -116,7 +162,7 @@ The Rust crates in this repository also offer dual licensing under **MIT OR Apac
    `cargo install --git` adds friction. A first impression should feel like Rails or Bun — instant.  
    **Impact:** Removes Rust toolchain friction from evaluators.
 
-2. **“Golden Path” 5-Minute Tutorial**  
+2. **"Golden Path" 5-Minute Tutorial**  
    A guided, opinionated walkthrough that:
    - Creates app
    - Adds model
