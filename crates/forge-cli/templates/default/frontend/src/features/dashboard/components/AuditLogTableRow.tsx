@@ -1,5 +1,4 @@
-import TableCell from '@mui/material/TableCell'
-import TableRow from '@mui/material/TableRow'
+import EntityTableRow from '@/components/EntityTableRow'
 import { formatDate } from '../utils/formatDate'
 
 export type AuditLogEntryRow = {
@@ -19,31 +18,35 @@ export type AuditLogTableRowProps = {
 
 export default function AuditLogTableRow({ entry }: AuditLogTableRowProps) {
   return (
-    <TableRow>
-      <TableCell sx={{ whiteSpace: 'nowrap' }}>
-        {formatDate(entry.occurred_at)}
-      </TableCell>
-      <TableCell
-        sx={{
-          fontFamily: 'monospace',
-          fontSize: '0.75rem',
-        }}
-      >
-        {entry.actor_id.slice(0, 8)}…
-      </TableCell>
-      <TableCell>{entry.event_kind}</TableCell>
-      <TableCell>{entry.action}</TableCell>
-      <TableCell>{entry.resource_type}</TableCell>
-      <TableCell>{entry.outcome}</TableCell>
-      <TableCell
-        sx={{
-          maxWidth: 200,
-          overflow: 'hidden',
-          textOverflow: 'ellipsis',
-        }}
-      >
-        {entry.reason ?? '—'}
-      </TableCell>
-    </TableRow>
+    <EntityTableRow<AuditLogEntryRow>
+      item={entry}
+      getRowId={(e) => e.id}
+      testIdPrefix="audit-log-row"
+      columns={[
+        {
+          key: 'occurred_at',
+          render: (e) => formatDate(e.occurred_at),
+          cellSx: { whiteSpace: 'nowrap' },
+        },
+        {
+          key: 'actor_id',
+          render: (e) => `${e.actor_id.slice(0, 8)}…`,
+          cellSx: { fontFamily: 'monospace', fontSize: '0.75rem' },
+        },
+        { key: 'event_kind', render: (e) => e.event_kind },
+        { key: 'action', render: (e) => e.action },
+        { key: 'resource_type', render: (e) => e.resource_type },
+        { key: 'outcome', render: (e) => e.outcome },
+        {
+          key: 'reason',
+          render: (e) => e.reason ?? '—',
+          cellSx: {
+            maxWidth: 200,
+            overflow: 'hidden',
+            textOverflow: 'ellipsis',
+          },
+        },
+      ]}
+    />
   )
 }

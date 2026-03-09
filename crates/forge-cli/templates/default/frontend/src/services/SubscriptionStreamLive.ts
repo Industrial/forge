@@ -19,13 +19,6 @@ function toError(e: unknown): Error {
   return e instanceof Error ? e : new Error(String(e))
 }
 
-/** Fetch Response-like shape: body as ReadableStream (exposed by FetchHttpClient). */
-interface ResponseWithBody {
-  readonly status: number
-  readonly ok: boolean
-  readonly body?: ReadableStream<Uint8Array> | null
-}
-
 async function* readSSEEvents(
   reader: ReadableStreamDefaultReader<Uint8Array>,
 ): AsyncGenerator<SubscriptionStreamEvent, void, unknown> {
@@ -92,14 +85,30 @@ const SubscriptionStreamLiveFn = (baseUrl: string) =>
           const response = yield* client
             .execute(req)
             .pipe(Effect.mapError(toError))
-          const res = response as unknown as ResponseWithBody
-          if (!res.ok) {
+          const res = response as unknown as Record<string, unknown>
+          const inner =
+            (res.response as Record<string, unknown> | undefined) ?? res
+          const status = Number(
+            res.status ??
+              res.statusCode ??
+              inner?.status ??
+              inner?.statusCode ??
+              0,
+          )
+          const ok =
+            (status >= 200 && status < 300) ||
+            res.ok === true ||
+            inner?.ok === true
+          if (!ok) {
             return yield* Effect.fail(
-              new Error(`Subscription stream failed: ${res.status}`),
+              new Error(`Subscription stream failed: ${status || 'unknown'}`),
             )
           }
-          const body = res.body
-          if (!body) {
+          const body = (res.body ?? inner?.body) as
+            | ReadableStream<Uint8Array>
+            | undefined
+            | null
+          if (!body || typeof body.getReader !== 'function') {
             return yield* Effect.fail(new Error('Subscription stream: no body'))
           }
           const reader = body.getReader()

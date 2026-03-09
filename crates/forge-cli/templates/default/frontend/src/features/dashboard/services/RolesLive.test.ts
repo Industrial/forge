@@ -6,6 +6,7 @@ import { describe, test, expect } from 'bun:test'
 import { Effect, Layer } from 'effect'
 import { HttpClient, HttpClientRequest } from '@effect/platform'
 
+import { AuthenticatedHttpClient } from '@/services/AuthenticatedHttpClient'
 import { RolesLive } from './RolesLive'
 import { Roles } from './Roles'
 import { Role } from '../domain/Role'
@@ -136,7 +137,7 @@ describe('RolesLive', () => {
         })
       })
 
-      const httpLayer = Layer.succeed(HttpClient.HttpClient, mockHttpClient)
+      const httpLayer = Layer.succeed(AuthenticatedHttpClient, mockHttpClient)
       const testLayer = RolesLive.pipe(Layer.provide(httpLayer))
 
       // When: fetching roles
@@ -177,7 +178,7 @@ describe('RolesLive', () => {
         })
       })
 
-      const httpLayer = Layer.succeed(HttpClient.HttpClient, mockHttpClient)
+      const httpLayer = Layer.succeed(AuthenticatedHttpClient, mockHttpClient)
       const testLayer = RolesLive.pipe(Layer.provide(httpLayer))
 
       // When: fetching roles
@@ -212,7 +213,7 @@ describe('RolesLive', () => {
         })
       })
 
-      const httpLayer = Layer.succeed(HttpClient.HttpClient, mockHttpClient)
+      const httpLayer = Layer.succeed(AuthenticatedHttpClient, mockHttpClient)
       const testLayer = RolesLive.pipe(Layer.provide(httpLayer))
 
       // When: fetching roles
@@ -247,7 +248,7 @@ describe('RolesLive', () => {
         })
       })
 
-      const httpLayer = Layer.succeed(HttpClient.HttpClient, mockHttpClient)
+      const httpLayer = Layer.succeed(AuthenticatedHttpClient, mockHttpClient)
       const testLayer = RolesLive.pipe(Layer.provide(httpLayer))
 
       // When: fetching roles
@@ -280,7 +281,7 @@ describe('RolesLive', () => {
         })
       })
 
-      const httpLayer = Layer.succeed(HttpClient.HttpClient, mockHttpClient)
+      const httpLayer = Layer.succeed(AuthenticatedHttpClient, mockHttpClient)
       const testLayer = RolesLive.pipe(Layer.provide(httpLayer))
 
       // When: fetching roles
@@ -332,7 +333,7 @@ describe('RolesLive', () => {
         })
       })
 
-      const httpLayer = Layer.succeed(HttpClient.HttpClient, mockHttpClient)
+      const httpLayer = Layer.succeed(AuthenticatedHttpClient, mockHttpClient)
       const testLayer = RolesLive.pipe(Layer.provide(httpLayer))
 
       // When: fetching roles by org
@@ -366,7 +367,7 @@ describe('RolesLive', () => {
         })
       })
 
-      const httpLayer = Layer.succeed(HttpClient.HttpClient, mockHttpClient)
+      const httpLayer = Layer.succeed(AuthenticatedHttpClient, mockHttpClient)
       const testLayer = RolesLive.pipe(Layer.provide(httpLayer))
 
       // When: fetching roles with empty orgId
@@ -405,7 +406,7 @@ describe('RolesLive', () => {
         })
       })
 
-      const httpLayer = Layer.succeed(HttpClient.HttpClient, mockHttpClient)
+      const httpLayer = Layer.succeed(AuthenticatedHttpClient, mockHttpClient)
       const testLayer = RolesLive.pipe(Layer.provide(httpLayer))
 
       // When: fetching roles by org
@@ -444,7 +445,7 @@ describe('RolesLive', () => {
         })
       })
 
-      const httpLayer = Layer.succeed(HttpClient.HttpClient, mockHttpClient)
+      const httpLayer = Layer.succeed(AuthenticatedHttpClient, mockHttpClient)
       const testLayer = RolesLive.pipe(Layer.provide(httpLayer))
 
       // When: fetching roles by org
@@ -490,7 +491,7 @@ describe('RolesLive', () => {
         })
       })
 
-      const httpLayer = Layer.succeed(HttpClient.HttpClient, mockHttpClient)
+      const httpLayer = Layer.succeed(AuthenticatedHttpClient, mockHttpClient)
       const testLayer = RolesLive.pipe(Layer.provide(httpLayer))
 
       // When: creating role
@@ -533,7 +534,7 @@ describe('RolesLive', () => {
         })
       })
 
-      const httpLayer = Layer.succeed(HttpClient.HttpClient, mockHttpClient)
+      const httpLayer = Layer.succeed(AuthenticatedHttpClient, mockHttpClient)
       const testLayer = RolesLive.pipe(Layer.provide(httpLayer))
 
       // When: creating role
@@ -576,7 +577,7 @@ describe('RolesLive', () => {
         })
       })
 
-      const httpLayer = Layer.succeed(HttpClient.HttpClient, mockHttpClient)
+      const httpLayer = Layer.succeed(AuthenticatedHttpClient, mockHttpClient)
       const testLayer = RolesLive.pipe(Layer.provide(httpLayer))
 
       // When: creating role
@@ -622,7 +623,7 @@ describe('RolesLive', () => {
         })
       })
 
-      const httpLayer = Layer.succeed(HttpClient.HttpClient, mockHttpClient)
+      const httpLayer = Layer.succeed(AuthenticatedHttpClient, mockHttpClient)
       const testLayer = RolesLive.pipe(Layer.provide(httpLayer))
 
       // When: updating role
@@ -665,7 +666,7 @@ describe('RolesLive', () => {
         })
       })
 
-      const httpLayer = Layer.succeed(HttpClient.HttpClient, mockHttpClient)
+      const httpLayer = Layer.succeed(AuthenticatedHttpClient, mockHttpClient)
       const testLayer = RolesLive.pipe(Layer.provide(httpLayer))
 
       // When: updating role
@@ -708,7 +709,7 @@ describe('RolesLive', () => {
         })
       })
 
-      const httpLayer = Layer.succeed(HttpClient.HttpClient, mockHttpClient)
+      const httpLayer = Layer.succeed(AuthenticatedHttpClient, mockHttpClient)
       const testLayer = RolesLive.pipe(Layer.provide(httpLayer))
 
       // When: updating role
@@ -750,7 +751,7 @@ describe('RolesLive', () => {
         })
       })
 
-      const httpLayer = Layer.succeed(HttpClient.HttpClient, mockHttpClient)
+      const httpLayer = Layer.succeed(AuthenticatedHttpClient, mockHttpClient)
       const testLayer = RolesLive.pipe(Layer.provide(httpLayer))
 
       // When: deleting role
@@ -788,7 +789,7 @@ describe('RolesLive', () => {
         })
       })
 
-      const httpLayer = Layer.succeed(HttpClient.HttpClient, mockHttpClient)
+      const httpLayer = Layer.succeed(AuthenticatedHttpClient, mockHttpClient)
       const testLayer = RolesLive.pipe(Layer.provide(httpLayer))
 
       // When: deleting role
@@ -826,7 +827,7 @@ describe('RolesLive', () => {
         })
       })
 
-      const httpLayer = Layer.succeed(HttpClient.HttpClient, mockHttpClient)
+      const httpLayer = Layer.succeed(AuthenticatedHttpClient, mockHttpClient)
       const testLayer = RolesLive.pipe(Layer.provide(httpLayer))
 
       // When: deleting role

@@ -1,22 +1,14 @@
 import AppBar from '@mui/material/AppBar'
-import Avatar from '@mui/material/Avatar'
 import Box from '@mui/material/Box'
 import Button from '@mui/material/Button'
 import Divider from '@mui/material/Divider'
 import IconButton from '@mui/material/IconButton'
-import ListItemIcon from '@mui/material/ListItemIcon'
-import Logout from '@mui/icons-material/Logout'
-import Menu from '@mui/material/Menu'
 import MenuIcon from '@mui/icons-material/Menu'
-import MenuItem from '@mui/material/MenuItem'
-import Person from '@mui/icons-material/Person'
 import Toolbar from '@mui/material/Toolbar'
 import { useNavigate } from 'react-router-dom'
-import { useState } from 'react'
 import { Effect } from 'effect'
-import { Option } from 'effect'
 
-import { useAuthStore } from '@/features/authentication/stores'
+import NavbarUserMenu from './NavbarUserMenu'
 import { Authentication } from '@/features/authentication/services/Authentication'
 import { getApplicationLayer } from '@/lib/appLayer'
 
@@ -74,27 +66,9 @@ export default function Navbar({
   onOpenSidebar,
 }: NavbarProps) {
   const navigate = useNavigate()
-
-  const authentication = useAuthStore()
   const canAccessDashboard = false
-  const [anchorEl, setAnchorEl] = useState<null | HTMLElement>(null)
-  const open = Boolean(anchorEl)
-
-  const handleUserClick = (event: React.MouseEvent<HTMLElement>) => {
-    setAnchorEl(event.currentTarget)
-  }
-
-  const handleClose = () => {
-    setAnchorEl(null)
-  }
-
-  const handleScope = () => {
-    handleClose()
-    navigate('/scope')
-  }
 
   const handleLogout = () => {
-    handleClose()
     Effect.runPromise(
       Effect.gen(function* () {
         const auth = yield* Authentication
@@ -161,78 +135,7 @@ export default function Navbar({
           <ThemeIcon isDark={colorScheme === 'dark'} />
         </IconButton>
 
-        <IconButton
-          color="inherit"
-          aria-label="User menu"
-          aria-controls={open ? 'user-menu' : undefined}
-          aria-haspopup="true"
-          aria-expanded={open ? 'true' : undefined}
-          onClick={handleUserClick}
-          sx={{ ml: 0.5 }}
-          data-testid="navbar-user-menu-button"
-        >
-          <Avatar
-            sx={{ width: 32, height: 32, bgcolor: 'primary.main' }}
-            alt={
-              Option.getOrElse(authentication.user, () => null)?.email ?? 'User'
-            }
-          >
-            {Option.getOrElse(authentication.user, () => null)
-              ?.email?.charAt(0)
-              ?.toUpperCase() ?? 'U'}
-          </Avatar>
-        </IconButton>
-        <Menu
-          id="user-menu"
-          anchorEl={anchorEl}
-          open={open}
-          onClose={handleClose}
-          anchorOrigin={{ vertical: 'bottom', horizontal: 'right' }}
-          transformOrigin={{ vertical: 'top', horizontal: 'right' }}
-          slotProps={{ paper: { sx: { minWidth: 220 } } }}
-          data-testid="navbar-user-menu"
-        >
-          <MenuItem onClick={handleScope} data-testid="navbar-user-menu-scope">
-            <ListItemIcon>
-              <Person fontSize="small" />
-            </ListItemIcon>
-            Scope
-          </MenuItem>
-          <Divider />
-          {/* {scopes.map((p) => {
-            const isCurrentScope =
-              currentOrgId != null &&
-              currentRoleId != null &&
-              p.org_id === currentOrgId &&
-              (p.role_id ?? '') === currentRoleId
-            return (
-              <MenuItem
-                key={p.role_id ?? p.org_id}
-                selected={isCurrentScope}
-                onClick={() =>
-                  handleSwitchScope(p.org_id, p.role_id ?? '', p.role ?? '')
-                }
-              >
-                <ListItemIcon>
-                  <Business fontSize="small" />
-                </ListItemIcon>
-                <ListItemText
-                  primary={`${(p.role ?? '').charAt(0).toUpperCase()}${(p.role ?? '').slice(1)} · ${p.org_name}`}
-                />
-              </MenuItem>
-            )
-          })} */}
-          <Divider />
-          <MenuItem
-            onClick={handleLogout}
-            data-testid="navbar-user-menu-logout"
-          >
-            <ListItemIcon>
-              <Logout fontSize="small" />
-            </ListItemIcon>
-            Log out
-          </MenuItem>
-        </Menu>
+        <NavbarUserMenu onLogout={handleLogout} />
       </Toolbar>
     </AppBar>
   )

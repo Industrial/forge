@@ -1,9 +1,4 @@
-import TableCell from '@mui/material/TableCell'
-import TableRow from '@mui/material/TableRow'
-import IconButton from '@mui/material/IconButton'
-import EditIcon from '@mui/icons-material/Edit'
-import DeleteIcon from '@mui/icons-material/Delete'
-
+import EntityTableRow from '@/components/EntityTableRow'
 import { formatDate } from '@/features/dashboard/utils/formatDate'
 import { membershipsSummary } from '@/features/dashboard/utils/membershipsSummary'
 
@@ -33,50 +28,45 @@ export default function UserTableRow({
   onView,
   isDeleting,
 }: UserTableRowProps) {
-  const handleRowClick = () => {
-    if (onView) {
-      onView(user)
-    } else if (canWrite) {
-      onEdit(user)
-    }
+  const onRowClick = () => {
+    if (onView) onView(user)
+    else if (canWrite) onEdit(user)
   }
-
   return (
-    <TableRow
-      data-testid={`user-row-${user.id}`}
-      onClick={handleRowClick}
-      sx={{ cursor: 'pointer' }}
-    >
-      <TableCell sx={{ fontWeight: 500 }}>{user.email}</TableCell>
-      <TableCell sx={{ maxWidth: 280 }}>
-        {membershipsSummary(user.memberships)}
-      </TableCell>
-      <TableCell>{user.is_active ? 'Yes' : 'No'}</TableCell>
-      <TableCell>{user.is_admin ? 'Yes' : 'No'}</TableCell>
-      <TableCell sx={{ whiteSpace: 'nowrap' }}>
-        {formatDate(user.created_at)}
-      </TableCell>
-      {canWrite && (
-        <TableCell align="right">
-          <IconButton
-            size="small"
-            aria-label="Edit"
-            onClick={() => onEdit(user)}
-            data-testid="user-edit-button"
-          >
-            <EditIcon />
-          </IconButton>
-          <IconButton
-            size="small"
-            aria-label="Delete"
-            onClick={() => onDelete(user.id)}
-            disabled={isDeleting}
-            data-testid="user-delete-button"
-          >
-            <DeleteIcon />
-          </IconButton>
-        </TableCell>
-      )}
-    </TableRow>
+    <EntityTableRow<UserRow>
+      item={user}
+      getRowId={(u) => u.id}
+      testIdPrefix="user-row"
+      onRowClick={onRowClick}
+      canEditDelete={canWrite}
+      onEdit={onEdit}
+      onDelete={(u) => onDelete(u.id)}
+      isDeleting={isDeleting}
+      columns={[
+        {
+          key: 'email',
+          render: (u) => u.email,
+          cellSx: { fontWeight: 500 },
+        },
+        {
+          key: 'memberships',
+          render: (u) => membershipsSummary(u.memberships),
+          cellSx: { maxWidth: 280 },
+        },
+        {
+          key: 'is_active',
+          render: (u) => (u.is_active ? 'Yes' : 'No'),
+        },
+        {
+          key: 'is_admin',
+          render: (u) => (u.is_admin ? 'Yes' : 'No'),
+        },
+        {
+          key: 'created_at',
+          render: (u) => formatDate(u.created_at),
+          cellSx: { whiteSpace: 'nowrap' },
+        },
+      ]}
+    />
   )
 }

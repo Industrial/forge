@@ -6,6 +6,7 @@ import { describe, test, expect } from 'bun:test'
 import { Effect, Layer } from 'effect'
 import { HttpClient, HttpClientRequest } from '@effect/platform'
 
+import { AuthenticatedHttpClient } from '@/services/AuthenticatedHttpClient'
 import { PermissionsLive } from './PermissionsLive'
 import { Permissions } from './Permissions'
 import { Assignment } from '../domain/Assignment'
@@ -148,7 +149,7 @@ describe('PermissionsLive', () => {
         })
       })
 
-      const httpLayer = Layer.succeed(HttpClient.HttpClient, mockHttpClient)
+      const httpLayer = Layer.succeed(AuthenticatedHttpClient, mockHttpClient)
       const testLayer = PermissionsLive.pipe(Layer.provide(httpLayer))
 
       // When: fetching data
@@ -196,7 +197,7 @@ describe('PermissionsLive', () => {
         })
       })
 
-      const httpLayer = Layer.succeed(HttpClient.HttpClient, mockHttpClient)
+      const httpLayer = Layer.succeed(AuthenticatedHttpClient, mockHttpClient)
       const testLayer = PermissionsLive.pipe(Layer.provide(httpLayer))
 
       // When: fetching data
@@ -239,7 +240,7 @@ describe('PermissionsLive', () => {
         })
       })
 
-      const httpLayer = Layer.succeed(HttpClient.HttpClient, mockHttpClient)
+      const httpLayer = Layer.succeed(AuthenticatedHttpClient, mockHttpClient)
       const testLayer = PermissionsLive.pipe(Layer.provide(httpLayer))
 
       // When: fetching data
@@ -282,7 +283,7 @@ describe('PermissionsLive', () => {
         })
       })
 
-      const httpLayer = Layer.succeed(HttpClient.HttpClient, mockHttpClient)
+      const httpLayer = Layer.succeed(AuthenticatedHttpClient, mockHttpClient)
       const testLayer = PermissionsLive.pipe(Layer.provide(httpLayer))
 
       // When: fetching data
@@ -324,7 +325,7 @@ describe('PermissionsLive', () => {
         })
       })
 
-      const httpLayer = Layer.succeed(HttpClient.HttpClient, mockHttpClient)
+      const httpLayer = Layer.succeed(AuthenticatedHttpClient, mockHttpClient)
       const testLayer = PermissionsLive.pipe(Layer.provide(httpLayer))
 
       // When: fetching data
@@ -366,7 +367,7 @@ describe('PermissionsLive', () => {
         })
       })
 
-      const httpLayer = Layer.succeed(HttpClient.HttpClient, mockHttpClient)
+      const httpLayer = Layer.succeed(AuthenticatedHttpClient, mockHttpClient)
       const testLayer = PermissionsLive.pipe(Layer.provide(httpLayer))
 
       // When: fetching data
@@ -408,7 +409,7 @@ describe('PermissionsLive', () => {
         })
       })
 
-      const httpLayer = Layer.succeed(HttpClient.HttpClient, mockHttpClient)
+      const httpLayer = Layer.succeed(AuthenticatedHttpClient, mockHttpClient)
       const testLayer = PermissionsLive.pipe(Layer.provide(httpLayer))
 
       // When: fetching data
@@ -454,7 +455,7 @@ describe('PermissionsLive', () => {
         })
       })
 
-      const httpLayer = Layer.succeed(HttpClient.HttpClient, mockHttpClient)
+      const httpLayer = Layer.succeed(AuthenticatedHttpClient, mockHttpClient)
       const testLayer = PermissionsLive.pipe(Layer.provide(httpLayer))
 
       // When: adding assignment
@@ -498,7 +499,7 @@ describe('PermissionsLive', () => {
         })
       })
 
-      const httpLayer = Layer.succeed(HttpClient.HttpClient, mockHttpClient)
+      const httpLayer = Layer.succeed(AuthenticatedHttpClient, mockHttpClient)
       const testLayer = PermissionsLive.pipe(Layer.provide(httpLayer))
 
       // When: adding assignment
@@ -542,7 +543,7 @@ describe('PermissionsLive', () => {
         })
       })
 
-      const httpLayer = Layer.succeed(HttpClient.HttpClient, mockHttpClient)
+      const httpLayer = Layer.succeed(AuthenticatedHttpClient, mockHttpClient)
       const testLayer = PermissionsLive.pipe(Layer.provide(httpLayer))
 
       // When: adding assignment
@@ -586,7 +587,7 @@ describe('PermissionsLive', () => {
         })
       })
 
-      const httpLayer = Layer.succeed(HttpClient.HttpClient, mockHttpClient)
+      const httpLayer = Layer.succeed(AuthenticatedHttpClient, mockHttpClient)
       const testLayer = PermissionsLive.pipe(Layer.provide(httpLayer))
 
       // When: adding assignment
@@ -596,12 +597,12 @@ describe('PermissionsLive', () => {
         }).pipe(Effect.provide(testLayer)),
       )
 
-      // Then: should fail with default error message
+      // Then: should fail with message from body
       await expect(
         Effect.runPromise(
           permissions.add(body).pipe(Effect.provide(testLayer)),
         ),
-      ).rejects.toThrow('Request failed.')
+      ).rejects.toThrow('Server error')
     })
   })
 
@@ -633,7 +634,7 @@ describe('PermissionsLive', () => {
         })
       })
 
-      const httpLayer = Layer.succeed(HttpClient.HttpClient, mockHttpClient)
+      const httpLayer = Layer.succeed(AuthenticatedHttpClient, mockHttpClient)
       const testLayer = PermissionsLive.pipe(Layer.provide(httpLayer))
 
       // When: deleting assignment
@@ -678,7 +679,7 @@ describe('PermissionsLive', () => {
         })
       })
 
-      const httpLayer = Layer.succeed(HttpClient.HttpClient, mockHttpClient)
+      const httpLayer = Layer.succeed(AuthenticatedHttpClient, mockHttpClient)
       const testLayer = PermissionsLive.pipe(Layer.provide(httpLayer))
 
       // When: deleting assignment
@@ -723,7 +724,7 @@ describe('PermissionsLive', () => {
         })
       })
 
-      const httpLayer = Layer.succeed(HttpClient.HttpClient, mockHttpClient)
+      const httpLayer = Layer.succeed(AuthenticatedHttpClient, mockHttpClient)
       const testLayer = PermissionsLive.pipe(Layer.provide(httpLayer))
 
       // When: deleting assignment
@@ -768,7 +769,7 @@ describe('PermissionsLive', () => {
         })
       })
 
-      const httpLayer = Layer.succeed(HttpClient.HttpClient, mockHttpClient)
+      const httpLayer = Layer.succeed(AuthenticatedHttpClient, mockHttpClient)
       const testLayer = PermissionsLive.pipe(Layer.provide(httpLayer))
 
       // When: deleting assignment
@@ -813,7 +814,7 @@ describe('PermissionsLive', () => {
         })
       })
 
-      const httpLayer = Layer.succeed(HttpClient.HttpClient, mockHttpClient)
+      const httpLayer = Layer.succeed(AuthenticatedHttpClient, mockHttpClient)
       const testLayer = PermissionsLive.pipe(Layer.provide(httpLayer))
 
       // When: deleting assignment
@@ -823,12 +824,12 @@ describe('PermissionsLive', () => {
         }).pipe(Effect.provide(testLayer)),
       )
 
-      // Then: should fail with default error message
+      // Then: should fail with message from body
       await expect(
         Effect.runPromise(
           permissions.delete(body).pipe(Effect.provide(testLayer)),
         ),
-      ).rejects.toThrow('Request failed.')
+      ).rejects.toThrow('Server error')
     })
   })
 })

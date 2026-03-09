@@ -2,24 +2,19 @@
  * Live implementation of Dashboard service using HttpClient.
  */
 
-import { HttpClient, HttpClientRequest } from '@effect/platform'
+import { HttpClientRequest } from '@effect/platform'
 import { Effect, Layer } from 'effect'
+import { AuthenticatedHttpClient } from '@/services/AuthenticatedHttpClient'
 import { Dashboard } from './Dashboard'
 import type { DashboardService } from './Dashboard'
 import { Organization } from '../domain/Organization'
+import { parseError } from '@/lib/parseError'
 import { DashboardRole } from '../domain/DashboardRole'
-
-function parseErr(body: unknown): string {
-  if (typeof body === 'object' && body !== null && 'error' in body) {
-    return String((body as { error: unknown }).error)
-  }
-  return 'Request failed.'
-}
 
 const DashboardLive = Layer.effect(
   Dashboard,
   Effect.gen(function* () {
-    const client = yield* HttpClient.HttpClient
+    const client = yield* AuthenticatedHttpClient
 
     const getOrganizations: DashboardService['getOrganizations'] = () =>
       Effect.gen(function* () {
@@ -29,7 +24,7 @@ const DashboardLive = Layer.effect(
         )
         const body = yield* response.json
         if (response.status < 200 || response.status >= 300) {
-          return yield* Effect.fail(new Error(parseErr(body)))
+          return yield* Effect.fail(new Error(parseError(body)))
         }
         const data = body as {
           organizations?: Array<{

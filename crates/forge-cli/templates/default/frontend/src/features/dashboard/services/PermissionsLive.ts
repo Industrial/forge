@@ -2,23 +2,18 @@
  * Live implementation of Permissions service using HttpClient.
  */
 
-import { HttpClient, HttpClientRequest } from '@effect/platform'
+import { HttpClientRequest } from '@effect/platform'
 import { Effect, Layer } from 'effect'
+import { AuthenticatedHttpClient } from '@/services/AuthenticatedHttpClient'
 import { Permissions } from './Permissions'
 import type { PermissionsService } from './Permissions'
+import { parseError } from '@/lib/parseError'
 import { Assignment } from '../domain/Assignment'
-
-function parseErr(body: unknown): string {
-  if (typeof body === 'object' && body !== null && 'error' in body) {
-    return String((body as { error: unknown }).error)
-  }
-  return 'Request failed.'
-}
 
 const PermissionsLive = Layer.effect(
   Permissions,
   Effect.gen(function* () {
-    const client = yield* HttpClient.HttpClient
+    const client = yield* AuthenticatedHttpClient
 
     const getData: PermissionsService['getData'] = () =>
       Effect.gen(function* () {
@@ -82,7 +77,7 @@ const PermissionsLive = Layer.effect(
           )
         }
         if (response.status < 200 || response.status >= 300) {
-          return yield* Effect.fail(new Error(parseErr(resBody)))
+          return yield* Effect.fail(new Error(parseError(resBody)))
         }
         yield* Effect.logDebug('PermissionsLive.add: success')
       })
@@ -104,7 +99,7 @@ const PermissionsLive = Layer.effect(
           )
         }
         if (response.status < 200 || response.status >= 300) {
-          return yield* Effect.fail(new Error(parseErr(resBody)))
+          return yield* Effect.fail(new Error(parseError(resBody)))
         }
         yield* Effect.logDebug('PermissionsLive.delete: success')
       })

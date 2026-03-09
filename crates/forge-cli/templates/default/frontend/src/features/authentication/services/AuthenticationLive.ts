@@ -27,6 +27,7 @@ import {
 } from '@/api/types'
 import { Authentication } from '@/features/authentication/services/Authentication'
 import { AuthenticationUser } from '@/features/authentication/domain/AuthenticationUser'
+import { Scope } from '@/features/authentication/domain/Scope'
 import {
   ScopeError,
   LoginFailedError,
@@ -97,12 +98,19 @@ export function extractApiErrorMessage(
 export function buildAuthState(
   token: string,
   body: AuthMeBody,
+  currentScope?: { organizationId: string; roleId: string },
 ): AuthenticationState {
   return {
     token: Option.some(token),
     user: parseMeResponse(body, token),
     needsScopeSelect: getNeedsScopeSelect(body),
     permissions: getPermissions(body),
+    currentScope: currentScope
+      ? Option.some({
+          organizationId: currentScope.organizationId,
+          roleId: currentScope.roleId,
+        })
+      : Option.none(),
   }
 }
 
@@ -189,6 +197,24 @@ export const ScopesResponseSchema = Schema.Struct({
 
 export type ScopesResponse = Schema.Schema.Type<typeof ScopesResponseSchema>
 
+/** Schema for /api/auth/scopes response with display fields (org_name, role). */
+export const ScopesResponseFullSchema = Schema.Struct({
+  scopes: Schema.optional(
+    Schema.Array(
+      Schema.Struct({
+        org_id: Schema.String,
+        org_name: Schema.String,
+        role_id: Schema.optional(Schema.String),
+        role: Schema.String,
+      }),
+    ),
+  ),
+})
+
+export type ScopesResponseFull = Schema.Schema.Type<
+  typeof ScopesResponseFullSchema
+>
+
 // ============================================================================
 // SECTION 4: Response Parsers (Effect, R = never)
 // ============================================================================
@@ -246,6 +272,17 @@ export function parseScopesResponse(
   return pipe(
     rawBody,
     Schema.decodeUnknown(ScopesResponseSchema),
+    Effect.catchAll(() => Effect.succeed({ scopes: [] })),
+  )
+}
+
+/** Parse /api/auth/scopes response body with full scope fields. */
+export function parseScopesResponseFull(
+  rawBody: unknown,
+): Effect.Effect<ScopesResponseFull, never, never> {
+  return pipe(
+    rawBody,
+    Schema.decodeUnknown(ScopesResponseFullSchema),
     Effect.catchAll(() => Effect.succeed({ scopes: [] })),
   )
 }
@@ -320,6 +357,45 @@ export function fetchScopes(
 
     const scopesBody = yield* parseScopesResponse(rawBody)
     return scopesBody.scopes ?? []
+  })
+}
+
+/**
+ * Fetch /api/auth/scopes and parse as full Scope[] (org_name, role for display).
+ */
+export function fetchScopesFull(
+  baseUrl: string,
+  token: string,
+): Effect.Effect<readonly Scope[], never, HttpClient.HttpClient> {
+  return Effect.gen(function* () {
+    const client = yield* HttpClient.HttpClient
+    const request = buildAuthRequest(baseUrl, token, '/api/auth/scopes')
+
+    const response = yield* client
+      .execute(request)
+      .pipe(Effect.catchAll(() => Effect.succeed(null)))
+
+    if (!response || response.status < 200 || response.status >= 300) {
+      return []
+    }
+
+    const rawBody = yield* response.json.pipe(
+      Effect.catchAll(() => Effect.succeed(null)),
+    )
+
+    if (!rawBody) return []
+
+    const scopesBody = yield* parseScopesResponseFull(rawBody)
+    const list = scopesBody.scopes ?? []
+    return list.map(
+      (s) =>
+        new Scope({
+          org_id: s.org_id,
+          org_name: s.org_name ?? s.org_id,
+          role_id: s.role_id,
+          role: s.role ?? '',
+        }),
+    )
   })
 }
 
@@ -439,7 +515,7 @@ export function fetchMeAndBuildState(
   return Effect.gen(function* () {
     const body = yield* fetchAuthMe(baseUrl, token, scope)
     if (!body) return null
-    return buildAuthState(token, body)
+    return buildAuthState(token, body, scope)
   })
 }
 
@@ -767,6 +843,17 @@ export const AuthenticationLive = Layer.effect(
               Effect.asVoid,
             )
           }
+        }),
+
+      getScopes: (): Effect.Effect<readonly Scope[], never, never> =>
+        Effect.gen(function* () {
+          const tokenOpt = yield* tokenStorage.getToken()
+          const token = Option.getOrElse(tokenOpt, () => '')
+          if (token === '') return []
+          return yield* fetchScopesFull(baseUrl, token).pipe(
+            Effect.provide(Layer.succeed(HttpClient.HttpClient, client)),
+            Effect.catchAll(() => Effect.succeed([])),
+          )
         }),
     }
   }),

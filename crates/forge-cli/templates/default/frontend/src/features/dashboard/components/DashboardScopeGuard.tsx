@@ -2,8 +2,7 @@ import React, { useEffect, useState } from 'react'
 import { Navigate } from 'react-router-dom'
 import { Effect, Option, pipe, Schema } from 'effect'
 import { HttpClient, HttpClientRequest } from '@effect/platform'
-import Box from '@mui/material/Box'
-import LoadingSpinner from '../../../components/LoadingSpinner'
+import CenteredLoader from '@/components/CenteredLoader'
 import { getApplicationLayer } from '@/lib/appLayer'
 import { useAuthStore } from '@/features/authentication/stores'
 import { Authentication } from '@/features/authentication/services/Authentication'
@@ -157,38 +156,14 @@ function DashboardScopeGuard({ children }: DashboardScopeGuardProps) {
     // Check if permissions are loaded (non-empty for authenticated users)
     // If permissions are empty, they're still loading, show spinner
     if (permissions.length === 0) {
-      return (
-        <Box
-          sx={{
-            display: 'flex',
-            justifyContent: 'center',
-            alignItems: 'center',
-            flex: 1,
-            minHeight: '40vh',
-          }}
-        >
-          <LoadingSpinner />
-        </Box>
-      )
+      return <CenteredLoader />
     }
     return <>{children}</>
   }
 
   // If needsScopeSelect is true, we need to fetch scopes and either redirect or auto-select
   if (loading || autoSelecting) {
-    return (
-      <Box
-        sx={{
-          display: 'flex',
-          justifyContent: 'center',
-          alignItems: 'center',
-          flex: 1,
-          minHeight: '40vh',
-        }}
-      >
-        <LoadingSpinner />
-      </Box>
-    )
+    return <CenteredLoader />
   }
 
   // If needsScopeSelect is true and we have multiple scopes, redirect to selection
@@ -198,35 +173,10 @@ function DashboardScopeGuard({ children }: DashboardScopeGuardProps) {
 
   // If needsScopeSelect is true and we have one scope, we're auto-selecting (handled above)
   if (scopes.length === 1) {
-    return (
-      <Box
-        sx={{
-          display: 'flex',
-          justifyContent: 'center',
-          alignItems: 'center',
-          flex: 1,
-          minHeight: '40vh',
-        }}
-      >
-        <LoadingSpinner />
-      </Box>
-    )
+    return <CenteredLoader />
   }
 
-  // Still loading or no scopes yet
-  return (
-    <Box
-      sx={{
-        display: 'flex',
-        justifyContent: 'center',
-        alignItems: 'center',
-        flex: 1,
-        minHeight: '40vh',
-      }}
-    >
-      <LoadingSpinner />
-    </Box>
-  )
+  return <CenteredLoader />
 }
 
 export default DashboardScopeGuard

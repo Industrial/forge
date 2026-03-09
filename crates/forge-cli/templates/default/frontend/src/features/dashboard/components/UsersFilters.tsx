@@ -1,10 +1,5 @@
-import TextField from '@mui/material/TextField'
-import FormControl from '@mui/material/FormControl'
-import InputLabel from '@mui/material/InputLabel'
-import MenuItem from '@mui/material/MenuItem'
-import Select from '@mui/material/Select'
-
-import FiltersPanel from '@/components/FiltersPanel'
+import FilterPanelFromConfig from '@/components/FilterPanelFromConfig'
+import type { FilterField } from '@/components/FilterPanelFromConfig'
 
 export type OrgOption = { id: string; name: string }
 
@@ -23,6 +18,12 @@ export type UsersFiltersProps = {
   onFilterAdminChange: (value: '' | 'yes' | 'no') => void
 }
 
+const YES_NO_OPTIONS = [
+  { value: '', label: 'All' },
+  { value: 'yes', label: 'Yes' },
+  { value: 'no', label: 'No' },
+] as const
+
 export default function UsersFilters({
   filterEmail,
   filterOrgId,
@@ -37,76 +38,69 @@ export default function UsersFilters({
   onFilterActiveChange,
   onFilterAdminChange,
 }: UsersFiltersProps) {
+  const values = {
+    email: filterEmail,
+    orgId: filterOrgId,
+    role: filterRole,
+    active: filterActive,
+    admin: filterAdmin,
+  }
+  const onChange = (key: string, value: string) => {
+    if (key === 'email') onFilterEmailChange(value)
+    else if (key === 'orgId') onFilterOrgIdChange(value)
+    else if (key === 'role') onFilterRoleChange(value)
+    else if (key === 'active') onFilterActiveChange(value as '' | 'yes' | 'no')
+    else if (key === 'admin') onFilterAdminChange(value as '' | 'yes' | 'no')
+  }
+  const fields: FilterField[] = [
+    {
+      type: 'text',
+      key: 'email',
+      label: 'Email',
+      placeholder: 'Search by email',
+      minWidth: 220,
+      inputType: 'search',
+    },
+    {
+      type: 'select',
+      key: 'orgId',
+      label: 'Organization',
+      minWidth: 180,
+      options: [
+        { value: '', label: 'All' },
+        ...organizations.map((org) => ({ value: org.id, label: org.name })),
+      ],
+    },
+    {
+      type: 'select',
+      key: 'role',
+      label: 'Role',
+      minWidth: 120,
+      options: [
+        { value: '', label: 'All' },
+        ...roleOptions.map((r) => ({ value: r, label: r })),
+      ],
+    },
+    {
+      type: 'select',
+      key: 'active',
+      label: 'Active',
+      minWidth: 100,
+      options: [...YES_NO_OPTIONS],
+    },
+    {
+      type: 'select',
+      key: 'admin',
+      label: 'Admin',
+      minWidth: 100,
+      options: [...YES_NO_OPTIONS],
+    },
+  ]
   return (
-    <FiltersPanel>
-      <TextField
-        label="Email"
-        type="search"
-        size="small"
-        value={filterEmail}
-        onChange={(e) => onFilterEmailChange(e.target.value)}
-        placeholder="Search by email"
-        sx={{ minWidth: 220 }}
-        data-testid="users-filter-input"
-      />
-      <FormControl size="small" sx={{ minWidth: 180 }}>
-        <InputLabel>Organization</InputLabel>
-        <Select
-          label="Organization"
-          value={filterOrgId}
-          onChange={(e) => onFilterOrgIdChange(e.target.value)}
-        >
-          <MenuItem value="">All</MenuItem>
-          {organizations.map((org) => (
-            <MenuItem key={org.id} value={org.id}>
-              {org.name}
-            </MenuItem>
-          ))}
-        </Select>
-      </FormControl>
-      <FormControl size="small" sx={{ minWidth: 120 }}>
-        <InputLabel>Role</InputLabel>
-        <Select
-          label="Role"
-          value={filterRole}
-          onChange={(e) => onFilterRoleChange(e.target.value)}
-        >
-          <MenuItem value="">All</MenuItem>
-          {roleOptions.map((r) => (
-            <MenuItem key={r} value={r}>
-              {r}
-            </MenuItem>
-          ))}
-        </Select>
-      </FormControl>
-      <FormControl size="small" sx={{ minWidth: 100 }}>
-        <InputLabel>Active</InputLabel>
-        <Select
-          label="Active"
-          value={filterActive}
-          onChange={(e) =>
-            onFilterActiveChange(e.target.value as '' | 'yes' | 'no')
-          }
-        >
-          <MenuItem value="">All</MenuItem>
-          <MenuItem value="yes">Yes</MenuItem>
-          <MenuItem value="no">No</MenuItem>
-        </Select>
-      </FormControl>
-      <FormControl size="small" sx={{ minWidth: 100 }}>
-        <InputLabel>Admin</InputLabel>
-        <Select
-          label="Admin"
-          value={filterAdmin}
-          onChange={(e) =>
-            onFilterAdminChange(e.target.value as '' | 'yes' | 'no')
-          }
-        >
-          <MenuItem value="">All</MenuItem>
-          <MenuItem value="yes">Yes</MenuItem>
-          <MenuItem value="no">No</MenuItem>
-        </Select>
-      </FormControl>
-    </FiltersPanel>
+    <FilterPanelFromConfig
+      fields={fields}
+      values={values}
+      onChange={onChange}
+    />
   )
 }

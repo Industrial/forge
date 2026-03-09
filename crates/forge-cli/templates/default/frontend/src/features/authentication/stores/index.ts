@@ -7,6 +7,7 @@ export {
   initialAuthenticationState,
   type AuthenticationState,
   type AuthenticationStateReactiveStore,
+  type CurrentScope,
 } from './AuthenticationStateReactiveStore'
 export {
   useAuthStore,

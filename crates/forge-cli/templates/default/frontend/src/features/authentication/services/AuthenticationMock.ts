@@ -154,6 +154,8 @@ export function createMockAuthentication(): {
           }),
         onSome: (e) => Effect.fail(e),
       }),
+
+    getScopes: () => Effect.succeed([]),
   }
 
   return {

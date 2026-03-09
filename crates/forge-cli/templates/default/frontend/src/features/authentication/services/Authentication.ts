@@ -8,6 +8,7 @@
 import { Context, Effect, Option } from 'effect'
 
 import type { AuthenticationUser } from '@/features/authentication/domain/AuthenticationUser'
+import type { Scope } from '@/features/authentication/domain/Scope'
 import type {
   InvalidTokenError,
   LoginFailedError,
@@ -55,6 +56,9 @@ export interface Authentication {
     organizationId: string,
     roleId: string,
   ) => Effect.Effect<void, ScopeError, never>
+
+  /** Fetch available scopes (org + role) for the current user. */
+  readonly getScopes: () => Effect.Effect<readonly Scope[], never, never>
 }
 
 export const Authentication = Context.GenericTag<Authentication>(

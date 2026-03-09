@@ -1,7 +1,4 @@
-import TableCell from '@mui/material/TableCell'
-import TableRow from '@mui/material/TableRow'
-import IconButton from '@mui/material/IconButton'
-import DeleteIcon from '@mui/icons-material/Delete'
+import EntityTableRow from '@/components/EntityTableRow'
 import type { Assignment } from '../domain/Assignment'
 
 export type AssignmentTableRowProps = {
@@ -15,21 +12,21 @@ export default function AssignmentTableRow({
   onDelete,
   isDeleting,
 }: AssignmentTableRowProps) {
+  const getRowId = (a: Assignment) =>
+    `${a.scope}-${a.role_name}-${a.permission_key}`
   return (
-    <TableRow>
-      <TableCell>{assignment.scope}</TableCell>
-      <TableCell>{assignment.role_name}</TableCell>
-      <TableCell>{assignment.permission_key}</TableCell>
-      <TableCell align="right">
-        <IconButton
-          size="small"
-          aria-label="Remove"
-          onClick={() => onDelete(assignment)}
-          disabled={isDeleting}
-        >
-          <DeleteIcon />
-        </IconButton>
-      </TableCell>
-    </TableRow>
+    <EntityTableRow<Assignment>
+      item={assignment}
+      getRowId={getRowId}
+      canDeleteOnly
+      onDelete={onDelete}
+      isDeleting={isDeleting}
+      deleteAriaLabel="Remove"
+      columns={[
+        { key: 'scope', render: (a) => a.scope },
+        { key: 'role_name', render: (a) => a.role_name },
+        { key: 'permission_key', render: (a) => a.permission_key },
+      ]}
+    />
   )
 }

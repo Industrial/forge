@@ -6,6 +6,7 @@ import { describe, test, expect } from 'bun:test'
 import { Effect, Layer } from 'effect'
 import { HttpClient, HttpClientRequest } from '@effect/platform'
 
+import { AuthenticatedHttpClient } from '@/services/AuthenticatedHttpClient'
 import { DashboardLive } from './DashboardLive'
 import { Dashboard } from './Dashboard'
 import { Organization } from '../domain/Organization'
@@ -134,7 +135,7 @@ describe('DashboardLive', () => {
         })
       })
 
-      const httpLayer = Layer.succeed(HttpClient.HttpClient, mockHttpClient)
+      const httpLayer = Layer.succeed(AuthenticatedHttpClient, mockHttpClient)
       const testLayer = DashboardLive.pipe(Layer.provide(httpLayer))
 
       // When: fetching organizations
@@ -178,7 +179,7 @@ describe('DashboardLive', () => {
         })
       })
 
-      const httpLayer = Layer.succeed(HttpClient.HttpClient, mockHttpClient)
+      const httpLayer = Layer.succeed(AuthenticatedHttpClient, mockHttpClient)
       const testLayer = DashboardLive.pipe(Layer.provide(httpLayer))
 
       // When: fetching organizations
@@ -213,7 +214,7 @@ describe('DashboardLive', () => {
         })
       })
 
-      const httpLayer = Layer.succeed(HttpClient.HttpClient, mockHttpClient)
+      const httpLayer = Layer.succeed(AuthenticatedHttpClient, mockHttpClient)
       const testLayer = DashboardLive.pipe(Layer.provide(httpLayer))
 
       // When: fetching organizations
@@ -248,7 +249,7 @@ describe('DashboardLive', () => {
         })
       })
 
-      const httpLayer = Layer.succeed(HttpClient.HttpClient, mockHttpClient)
+      const httpLayer = Layer.succeed(AuthenticatedHttpClient, mockHttpClient)
       const testLayer = DashboardLive.pipe(Layer.provide(httpLayer))
 
       // When: fetching organizations
@@ -283,7 +284,7 @@ describe('DashboardLive', () => {
         })
       })
 
-      const httpLayer = Layer.succeed(HttpClient.HttpClient, mockHttpClient)
+      const httpLayer = Layer.succeed(AuthenticatedHttpClient, mockHttpClient)
       const testLayer = DashboardLive.pipe(Layer.provide(httpLayer))
 
       // When: fetching organizations
@@ -293,12 +294,12 @@ describe('DashboardLive', () => {
         }).pipe(Effect.provide(testLayer)),
       )
 
-      // Then: should fail with default error message
+      // Then: should fail with message from body
       await expect(
         Effect.runPromise(
           dashboard.getOrganizations().pipe(Effect.provide(testLayer)),
         ),
-      ).rejects.toThrow('Request failed.')
+      ).rejects.toThrow('Bad request')
     })
   })
 
@@ -337,7 +338,7 @@ describe('DashboardLive', () => {
         })
       })
 
-      const httpLayer = Layer.succeed(HttpClient.HttpClient, mockHttpClient)
+      const httpLayer = Layer.succeed(AuthenticatedHttpClient, mockHttpClient)
       const testLayer = DashboardLive.pipe(Layer.provide(httpLayer))
 
       // When: fetching roles
@@ -374,7 +375,7 @@ describe('DashboardLive', () => {
         }),
       )
 
-      const httpLayer = Layer.succeed(HttpClient.HttpClient, mockHttpClient)
+      const httpLayer = Layer.succeed(AuthenticatedHttpClient, mockHttpClient)
       const testLayer = DashboardLive.pipe(Layer.provide(httpLayer))
 
       // When: fetching roles with empty orgId
@@ -414,7 +415,7 @@ describe('DashboardLive', () => {
         })
       })
 
-      const httpLayer = Layer.succeed(HttpClient.HttpClient, mockHttpClient)
+      const httpLayer = Layer.succeed(AuthenticatedHttpClient, mockHttpClient)
       const testLayer = DashboardLive.pipe(Layer.provide(httpLayer))
 
       // When: fetching roles
@@ -454,7 +455,7 @@ describe('DashboardLive', () => {
         })
       })
 
-      const httpLayer = Layer.succeed(HttpClient.HttpClient, mockHttpClient)
+      const httpLayer = Layer.succeed(AuthenticatedHttpClient, mockHttpClient)
       const testLayer = DashboardLive.pipe(Layer.provide(httpLayer))
 
       // When: fetching roles
@@ -494,7 +495,7 @@ describe('DashboardLive', () => {
         })
       })
 
-      const httpLayer = Layer.succeed(HttpClient.HttpClient, mockHttpClient)
+      const httpLayer = Layer.succeed(AuthenticatedHttpClient, mockHttpClient)
       const testLayer = DashboardLive.pipe(Layer.provide(httpLayer))
 
       // When: fetching roles
@@ -535,7 +536,7 @@ describe('DashboardLive', () => {
         })
       })
 
-      const httpLayer = Layer.succeed(HttpClient.HttpClient, mockHttpClient)
+      const httpLayer = Layer.succeed(AuthenticatedHttpClient, mockHttpClient)
       const testLayer = DashboardLive.pipe(Layer.provide(httpLayer))
 
       // When: fetching roles

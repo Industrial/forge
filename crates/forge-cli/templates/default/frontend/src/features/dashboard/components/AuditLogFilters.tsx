@@ -1,10 +1,6 @@
 import Button from '@mui/material/Button'
-import TextField from '@mui/material/TextField'
-import FormControl from '@mui/material/FormControl'
-import InputLabel from '@mui/material/InputLabel'
-import MenuItem from '@mui/material/MenuItem'
-import Select from '@mui/material/Select'
-import FiltersPanel from '../../../components/FiltersPanel'
+import FilterPanelFromConfig from '@/components/FilterPanelFromConfig'
+import type { FilterField } from '@/components/FilterPanelFromConfig'
 
 const OUTCOMES = ['success', 'failure', 'allowed', 'denied'] as const
 const EVENT_KINDS = ['auth', 'authz', 'mutation', 'custom'] as const
@@ -29,6 +25,48 @@ export type AuditLogFiltersProps = {
   onReset: () => void
 }
 
+const FIELDS: readonly FilterField[] = [
+  { type: 'date', key: 'from', label: 'From (date)', minWidth: 140 },
+  { type: 'date', key: 'to', label: 'To (date)', minWidth: 140 },
+  {
+    type: 'select',
+    key: 'outcome',
+    label: 'Outcome',
+    minWidth: 120,
+    options: [
+      { value: '', label: 'All' },
+      ...OUTCOMES.map((o) => ({ value: o, label: o })),
+    ],
+  },
+  {
+    type: 'select',
+    key: 'eventKind',
+    label: 'Event kind',
+    minWidth: 120,
+    options: [
+      { value: '', label: 'All' },
+      ...EVENT_KINDS.map((k) => ({ value: k, label: k })),
+    ],
+  },
+  {
+    type: 'select',
+    key: 'action',
+    label: 'Action',
+    minWidth: 100,
+    options: [
+      { value: '', label: 'All' },
+      ...ACTIONS.map((a) => ({ value: a, label: a })),
+    ],
+  },
+  {
+    type: 'text',
+    key: 'reason',
+    label: 'Reason contains',
+    placeholder: 'Search in reason',
+    minWidth: 160,
+  },
+]
+
 export default function AuditLogFilters({
   from,
   to,
@@ -45,83 +83,29 @@ export default function AuditLogFilters({
   onApply,
   onReset,
 }: AuditLogFiltersProps) {
-  return (
-    <FiltersPanel>
-      <TextField
-        label="From (date)"
-        type="date"
-        size="small"
-        value={from}
-        onChange={(e) => onFromChange(e.target.value)}
-        InputLabelProps={{ shrink: true }}
-        sx={{ minWidth: 140 }}
-      />
-      <TextField
-        label="To (date)"
-        type="date"
-        size="small"
-        value={to}
-        onChange={(e) => onToChange(e.target.value)}
-        InputLabelProps={{ shrink: true }}
-        sx={{ minWidth: 140 }}
-      />
-      <FormControl size="small" sx={{ minWidth: 120 }}>
-        <InputLabel>Outcome</InputLabel>
-        <Select
-          value={outcome}
-          label="Outcome"
-          onChange={(e) => onOutcomeChange(e.target.value)}
-        >
-          <MenuItem value="">All</MenuItem>
-          {OUTCOMES.map((o) => (
-            <MenuItem key={o} value={o}>
-              {o}
-            </MenuItem>
-          ))}
-        </Select>
-      </FormControl>
-      <FormControl size="small" sx={{ minWidth: 120 }}>
-        <InputLabel>Event kind</InputLabel>
-        <Select
-          value={eventKind}
-          label="Event kind"
-          onChange={(e) => onEventKindChange(e.target.value)}
-        >
-          <MenuItem value="">All</MenuItem>
-          {EVENT_KINDS.map((k) => (
-            <MenuItem key={k} value={k}>
-              {k}
-            </MenuItem>
-          ))}
-        </Select>
-      </FormControl>
-      <FormControl size="small" sx={{ minWidth: 100 }}>
-        <InputLabel>Action</InputLabel>
-        <Select
-          value={action}
-          label="Action"
-          onChange={(e) => onActionChange(e.target.value)}
-        >
-          <MenuItem value="">All</MenuItem>
-          {ACTIONS.map((a) => (
-            <MenuItem key={a} value={a}>
-              {a}
-            </MenuItem>
-          ))}
-        </Select>
-      </FormControl>
-      <TextField
-        label="Reason contains"
-        size="small"
-        value={reason}
-        onChange={(e) => onReasonChange(e.target.value)}
-        placeholder="Search in reason"
-        sx={{ minWidth: 160 }}
-      />
+  const values = { from, to, outcome, eventKind, action, reason }
+  const onChange = (key: string, value: string) => {
+    if (key === 'from') onFromChange(value)
+    else if (key === 'to') onToChange(value)
+    else if (key === 'outcome') onOutcomeChange(value)
+    else if (key === 'eventKind') onEventKindChange(value)
+    else if (key === 'action') onActionChange(value)
+    else if (key === 'reason') onReasonChange(value)
+  }
+  const extra = (
+    <>
       <Button variant="contained" onClick={onApply}>
         Apply
       </Button>
       <Button onClick={onReset}>Reset</Button>
-    </FiltersPanel>
+    </>
+  )
+  return (
+    <FilterPanelFromConfig
+      fields={FIELDS}
+      values={values}
+      onChange={onChange}
+      extra={extra}
+    />
   )
 }

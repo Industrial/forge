@@ -2,8 +2,9 @@
  * Live implementation of AuditLog service using HttpClient.
  */
 
-import { HttpClient, HttpClientRequest } from '@effect/platform'
+import { HttpClientRequest } from '@effect/platform'
 import { Effect, Layer } from 'effect'
+import { AuthenticatedHttpClient } from '@/services/AuthenticatedHttpClient'
 import { AuditLog } from './AuditLog'
 import { AuditLogEntry } from '../domain/AuditLogEntry'
 import type {
@@ -11,18 +12,12 @@ import type {
   AuditLogResult,
   AuditLogService,
 } from './AuditLog'
-
-function parseErr(body: unknown): string {
-  if (typeof body === 'object' && body !== null && 'error' in body) {
-    return String((body as { error: unknown }).error)
-  }
-  return 'Request failed.'
-}
+import { parseError } from '@/lib/parseError'
 
 const AuditLogLive = Layer.effect(
   AuditLog,
   Effect.gen(function* () {
-    const client = yield* HttpClient.HttpClient
+    const client = yield* AuthenticatedHttpClient
 
     const list: AuditLogService['list'] = (params: AuditLogListParams) =>
       Effect.gen(function* () {
@@ -48,7 +43,7 @@ const AuditLogLive = Layer.effect(
           )
         }
         if (response.status < 200 || response.status >= 300) {
-          return yield* Effect.fail(new Error(parseErr(body)))
+          return yield* Effect.fail(new Error(parseError(body)))
         }
         const data = body as {
           entries?: Array<{

@@ -2,17 +2,28 @@
  * BDD component tests for Navbar.tsx
  * Tests verify component rendering, props handling, and navigation integration
  */
-import { describe, test, expect, beforeAll } from 'bun:test'
+import { describe, test, expect, beforeAll, afterEach } from 'bun:test'
 import { render, waitFor } from '@testing-library/react'
 import { BrowserRouter } from 'react-router-dom'
 import { ThemeProvider, createTheme } from '@mui/material/styles'
 import { Window } from 'happy-dom'
 import React from 'react'
-import { Effect, Layer, Option } from 'effect'
+import { Effect, Layer, Option, Stream, Chunk } from 'effect'
 
 import Navbar from './Navbar'
 import { Providers } from '@/Providers'
-import { getApplicationLayer } from '@/lib/appLayer'
+import {
+  buildApplicationLayer,
+  setApplicationLayerOverrideForTesting,
+  clearApplicationLayerOverrideForTesting,
+} from '@/lib/appLayer'
+import { clearReactiveStoreCacheForTesting } from '@/lib/ReactiveStore'
+import type { ReactiveStore } from '@/lib/ReactiveStore'
+import type { AuthenticationState } from '@/features/authentication/stores/AuthenticationStateReactiveStore'
+import {
+  AuthStoreTag,
+  initialAuthenticationState,
+} from '@/features/authentication/stores/AuthenticationStateReactiveStore'
 import { Authentication } from '@/features/authentication/services/Authentication'
 import { createMockAuthentication } from '@/features/authentication/services/AuthenticationMock'
 import { AuthenticationUser } from '@/features/authentication/domain/AuthenticationUser'
@@ -51,20 +62,53 @@ beforeAll(() => {
   }
 })
 
+function createMockAuthStore(state: AuthenticationState) {
+  let current: AuthenticationState = state
+  const changeListeners = new Set<(a: AuthenticationState) => void>()
+  const notify = (a: AuthenticationState) => {
+    current = a
+    changeListeners.forEach((l) => l(a))
+  }
+  const changes = Stream.async<AuthenticationState, never, never>((emit) => {
+    emit(Effect.succeed(Chunk.of(current)))
+    const listener = (a: AuthenticationState) => {
+      emit(Effect.succeed(Chunk.of(a)))
+    }
+    changeListeners.add(listener)
+    return Effect.sync(() => changeListeners.delete(listener))
+  })
+  const store: ReactiveStore<AuthenticationState> = {
+    get: () => Effect.succeed(current),
+    update: (f: (a: AuthenticationState) => AuthenticationState) =>
+      Effect.sync(() => {
+        notify(f(current))
+      }),
+    changes,
+  }
+  return Layer.succeed(AuthStoreTag, store)
+}
+
 const createWrapper = (user: AuthenticationUser | null = null) => {
   const theme = createTheme({ palette: { mode: 'light' } })
   const mockAuth = createMockAuthentication()
   if (user) {
     mockAuth.setUser(user)
   }
-
-  const appLayer = getApplicationLayer(
+  const mockStoreLayer = createMockAuthStore({
+    ...initialAuthenticationState,
+    user: user ? Option.some(user) : Option.none(),
+    token: user ? Option.some('mock-token') : Option.none(),
+    currentScope: Option.none(),
+  })
+  const baseLayer = buildApplicationLayer()
+  clearReactiveStoreCacheForTesting(AuthStoreTag)
+  setApplicationLayerOverrideForTesting(
     Layer.mergeAll(
-      mockAuth.authentication,
+      mockStoreLayer,
+      baseLayer,
       Layer.succeed(Authentication, mockAuth.authentication),
     ),
   )
-
   return ({ children }: { children: React.ReactNode }) => (
     <BrowserRouter>
       <Providers theme={theme}>{children}</Providers>
@@ -73,6 +117,10 @@ const createWrapper = (user: AuthenticationUser | null = null) => {
 }
 
 describe('Navbar component', () => {
+  afterEach(() => {
+    clearApplicationLayerOverrideForTesting()
+  })
+
   describe('export behavior', () => {
     test('should export Navbar as default export', () => {
       expect(Navbar).toBeDefined()
@@ -108,14 +156,11 @@ describe('Navbar component', () => {
     })
 
     test('should render user avatar', async () => {
-      const user: AuthenticationUser = {
+      const user = new AuthenticationUser({
         id: 'user-1',
         email: 'test@example.com',
-        is_admin: false,
-        is_active: true,
-        current_org_id: null,
-        current_role: null,
-      }
+        token: 'token',
+      })
       const { container } = render(<Navbar />, { wrapper: createWrapper(user) })
       await waitFor(() => {})
       expect(container).toBeDefined()
@@ -191,35 +236,34 @@ describe('Navbar component', () => {
 
   describe('user menu behavior', () => {
     test('should show user menu when avatar clicked', async () => {
-      const user: AuthenticationUser = {
+      const user = new AuthenticationUser({
         id: 'user-1',
         email: 'test@example.com',
-        is_admin: false,
-        is_active: true,
-        current_org_id: null,
-        current_role: null,
-      }
+        token: 'token',
+      })
       const { container } = render(<Navbar />, { wrapper: createWrapper(user) })
       await waitFor(() => {})
       expect(container).toBeDefined()
     })
 
     test('should display user email initial in avatar', async () => {
-      const user: AuthenticationUser = {
+      const user = new AuthenticationUser({
         id: 'user-1',
         email: 'test@example.com',
-        is_admin: false,
-        is_active: true,
-        current_org_id: null,
-        current_role: null,
-      }
+        token: 'token',
+      })
       const { container } = render(<Navbar />, { wrapper: createWrapper(user) })
       await waitFor(() => {})
       expect(container).toBeDefined()
     })
 
     test('should handle user menu items', async () => {
-      const { container } = render(<Navbar />, { wrapper: createWrapper() })
+      const user = new AuthenticationUser({
+        id: 'user-1',
+        email: 'test@example.com',
+        token: 'token',
+      })
+      const { container } = render(<Navbar />, { wrapper: createWrapper(user) })
       await waitFor(() => {})
       expect(container).toBeDefined()
     })
@@ -233,14 +277,11 @@ describe('Navbar component', () => {
     })
 
     test('should display user information when authenticated', async () => {
-      const user: AuthenticationUser = {
+      const user = new AuthenticationUser({
         id: 'user-1',
         email: 'test@example.com',
-        is_admin: false,
-        is_active: true,
-        current_org_id: null,
-        current_role: null,
-      }
+        token: 'token',
+      })
       const { container } = render(<Navbar />, { wrapper: createWrapper(user) })
       await waitFor(() => {})
       expect(container).toBeDefined()

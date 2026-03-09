@@ -6,6 +6,7 @@ import { describe, test, expect } from 'bun:test'
 import { Effect, Layer } from 'effect'
 import { HttpClient, HttpClientRequest } from '@effect/platform'
 
+import { AuthenticatedHttpClient } from '@/services/AuthenticatedHttpClient'
 import { UsersLive } from './UsersLive'
 import { Users } from './Users'
 import { User, UserMembership } from '../domain/User'
@@ -145,7 +146,7 @@ describe('UsersLive', () => {
         })
       })
 
-      const httpLayer = Layer.succeed(HttpClient.HttpClient, mockHttpClient)
+      const httpLayer = Layer.succeed(AuthenticatedHttpClient, mockHttpClient)
       const testLayer = UsersLive.pipe(Layer.provide(httpLayer))
 
       // When: fetching users
@@ -200,7 +201,7 @@ describe('UsersLive', () => {
         })
       })
 
-      const httpLayer = Layer.succeed(HttpClient.HttpClient, mockHttpClient)
+      const httpLayer = Layer.succeed(AuthenticatedHttpClient, mockHttpClient)
       const testLayer = UsersLive.pipe(Layer.provide(httpLayer))
 
       // When: fetching users
@@ -238,7 +239,7 @@ describe('UsersLive', () => {
         })
       })
 
-      const httpLayer = Layer.succeed(HttpClient.HttpClient, mockHttpClient)
+      const httpLayer = Layer.succeed(AuthenticatedHttpClient, mockHttpClient)
       const testLayer = UsersLive.pipe(Layer.provide(httpLayer))
 
       // When: fetching users
@@ -276,7 +277,7 @@ describe('UsersLive', () => {
         })
       })
 
-      const httpLayer = Layer.succeed(HttpClient.HttpClient, mockHttpClient)
+      const httpLayer = Layer.succeed(AuthenticatedHttpClient, mockHttpClient)
       const testLayer = UsersLive.pipe(Layer.provide(httpLayer))
 
       // When: fetching users
@@ -314,7 +315,7 @@ describe('UsersLive', () => {
         })
       })
 
-      const httpLayer = Layer.succeed(HttpClient.HttpClient, mockHttpClient)
+      const httpLayer = Layer.succeed(AuthenticatedHttpClient, mockHttpClient)
       const testLayer = UsersLive.pipe(Layer.provide(httpLayer))
 
       // When: fetching users
@@ -350,7 +351,7 @@ describe('UsersLive', () => {
         })
       })
 
-      const httpLayer = Layer.succeed(HttpClient.HttpClient, mockHttpClient)
+      const httpLayer = Layer.succeed(AuthenticatedHttpClient, mockHttpClient)
       const testLayer = UsersLive.pipe(Layer.provide(httpLayer))
 
       // When: fetching users
@@ -386,7 +387,7 @@ describe('UsersLive', () => {
         })
       })
 
-      const httpLayer = Layer.succeed(HttpClient.HttpClient, mockHttpClient)
+      const httpLayer = Layer.succeed(AuthenticatedHttpClient, mockHttpClient)
       const testLayer = UsersLive.pipe(Layer.provide(httpLayer))
 
       // When: fetching users
@@ -431,7 +432,7 @@ describe('UsersLive', () => {
         })
       })
 
-      const httpLayer = Layer.succeed(HttpClient.HttpClient, mockHttpClient)
+      const httpLayer = Layer.succeed(AuthenticatedHttpClient, mockHttpClient)
       const testLayer = UsersLive.pipe(Layer.provide(httpLayer))
 
       // When: creating user
@@ -476,7 +477,7 @@ describe('UsersLive', () => {
         })
       })
 
-      const httpLayer = Layer.succeed(HttpClient.HttpClient, mockHttpClient)
+      const httpLayer = Layer.succeed(AuthenticatedHttpClient, mockHttpClient)
       const testLayer = UsersLive.pipe(Layer.provide(httpLayer))
 
       // When: creating user
@@ -521,7 +522,7 @@ describe('UsersLive', () => {
         })
       })
 
-      const httpLayer = Layer.succeed(HttpClient.HttpClient, mockHttpClient)
+      const httpLayer = Layer.succeed(AuthenticatedHttpClient, mockHttpClient)
       const testLayer = UsersLive.pipe(Layer.provide(httpLayer))
 
       // When: creating user
@@ -567,7 +568,7 @@ describe('UsersLive', () => {
         })
       })
 
-      const httpLayer = Layer.succeed(HttpClient.HttpClient, mockHttpClient)
+      const httpLayer = Layer.succeed(AuthenticatedHttpClient, mockHttpClient)
       const testLayer = UsersLive.pipe(Layer.provide(httpLayer))
 
       // When: updating user
@@ -610,7 +611,7 @@ describe('UsersLive', () => {
         })
       })
 
-      const httpLayer = Layer.succeed(HttpClient.HttpClient, mockHttpClient)
+      const httpLayer = Layer.succeed(AuthenticatedHttpClient, mockHttpClient)
       const testLayer = UsersLive.pipe(Layer.provide(httpLayer))
 
       // When: updating user
@@ -653,7 +654,7 @@ describe('UsersLive', () => {
         })
       })
 
-      const httpLayer = Layer.succeed(HttpClient.HttpClient, mockHttpClient)
+      const httpLayer = Layer.succeed(AuthenticatedHttpClient, mockHttpClient)
       const testLayer = UsersLive.pipe(Layer.provide(httpLayer))
 
       // When: updating user
@@ -696,7 +697,7 @@ describe('UsersLive', () => {
         })
       })
 
-      const httpLayer = Layer.succeed(HttpClient.HttpClient, mockHttpClient)
+      const httpLayer = Layer.succeed(AuthenticatedHttpClient, mockHttpClient)
       const testLayer = UsersLive.pipe(Layer.provide(httpLayer))
 
       // When: updating user
@@ -738,7 +739,7 @@ describe('UsersLive', () => {
         })
       })
 
-      const httpLayer = Layer.succeed(HttpClient.HttpClient, mockHttpClient)
+      const httpLayer = Layer.succeed(AuthenticatedHttpClient, mockHttpClient)
       const testLayer = UsersLive.pipe(Layer.provide(httpLayer))
 
       // When: deleting user
@@ -778,7 +779,7 @@ describe('UsersLive', () => {
         })
       })
 
-      const httpLayer = Layer.succeed(HttpClient.HttpClient, mockHttpClient)
+      const httpLayer = Layer.succeed(AuthenticatedHttpClient, mockHttpClient)
       const testLayer = UsersLive.pipe(Layer.provide(httpLayer))
 
       // When: deleting user
@@ -816,7 +817,7 @@ describe('UsersLive', () => {
         })
       })
 
-      const httpLayer = Layer.succeed(HttpClient.HttpClient, mockHttpClient)
+      const httpLayer = Layer.succeed(AuthenticatedHttpClient, mockHttpClient)
       const testLayer = UsersLive.pipe(Layer.provide(httpLayer))
 
       // When: deleting user

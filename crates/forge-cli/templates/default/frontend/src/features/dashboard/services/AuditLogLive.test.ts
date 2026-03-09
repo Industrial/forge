@@ -6,6 +6,7 @@ import { describe, test, expect } from 'bun:test'
 import { Effect, Layer } from 'effect'
 import { HttpClient, HttpClientRequest } from '@effect/platform'
 
+import { AuthenticatedHttpClient } from '@/services/AuthenticatedHttpClient'
 import { AuditLogLive } from './AuditLogLive'
 import { AuditLog } from './AuditLog'
 import { AuditLogEntry } from '../domain/AuditLogEntry'
@@ -147,7 +148,7 @@ describe('AuditLogLive', () => {
         })
       })
 
-      const httpLayer = Layer.succeed(HttpClient.HttpClient, mockHttpClient)
+      const httpLayer = Layer.succeed(AuthenticatedHttpClient, mockHttpClient)
       const testLayer = AuditLogLive.pipe(Layer.provide(httpLayer))
 
       const params: AuditLogListParams = {
@@ -214,7 +215,7 @@ describe('AuditLogLive', () => {
         })
       })
 
-      const httpLayer = Layer.succeed(HttpClient.HttpClient, mockHttpClient)
+      const httpLayer = Layer.succeed(AuthenticatedHttpClient, mockHttpClient)
       const testLayer = AuditLogLive.pipe(Layer.provide(httpLayer))
 
       // When: listing with all parameters
@@ -265,7 +266,7 @@ describe('AuditLogLive', () => {
         })
       })
 
-      const httpLayer = Layer.succeed(HttpClient.HttpClient, mockHttpClient)
+      const httpLayer = Layer.succeed(AuthenticatedHttpClient, mockHttpClient)
       const testLayer = AuditLogLive.pipe(Layer.provide(httpLayer))
 
       // When: listing with trimmed reason
@@ -310,7 +311,7 @@ describe('AuditLogLive', () => {
         })
       })
 
-      const httpLayer = Layer.succeed(HttpClient.HttpClient, mockHttpClient)
+      const httpLayer = Layer.succeed(AuthenticatedHttpClient, mockHttpClient)
       const testLayer = AuditLogLive.pipe(Layer.provide(httpLayer))
 
       // When: listing with whitespace-only reason
@@ -348,7 +349,7 @@ describe('AuditLogLive', () => {
         })
       })
 
-      const httpLayer = Layer.succeed(HttpClient.HttpClient, mockHttpClient)
+      const httpLayer = Layer.succeed(AuthenticatedHttpClient, mockHttpClient)
       const testLayer = AuditLogLive.pipe(Layer.provide(httpLayer))
 
       const params: AuditLogListParams = {
@@ -391,7 +392,7 @@ describe('AuditLogLive', () => {
         })
       })
 
-      const httpLayer = Layer.succeed(HttpClient.HttpClient, mockHttpClient)
+      const httpLayer = Layer.succeed(AuthenticatedHttpClient, mockHttpClient)
       const testLayer = AuditLogLive.pipe(Layer.provide(httpLayer))
 
       const params: AuditLogListParams = {
@@ -434,7 +435,7 @@ describe('AuditLogLive', () => {
         })
       })
 
-      const httpLayer = Layer.succeed(HttpClient.HttpClient, mockHttpClient)
+      const httpLayer = Layer.succeed(AuthenticatedHttpClient, mockHttpClient)
       const testLayer = AuditLogLive.pipe(Layer.provide(httpLayer))
 
       const params: AuditLogListParams = {
@@ -493,7 +494,7 @@ describe('AuditLogLive', () => {
         })
       })
 
-      const httpLayer = Layer.succeed(HttpClient.HttpClient, mockHttpClient)
+      const httpLayer = Layer.succeed(AuthenticatedHttpClient, mockHttpClient)
       const testLayer = AuditLogLive.pipe(Layer.provide(httpLayer))
 
       const params: AuditLogListParams = {
@@ -537,7 +538,7 @@ describe('AuditLogLive', () => {
         })
       })
 
-      const httpLayer = Layer.succeed(HttpClient.HttpClient, mockHttpClient)
+      const httpLayer = Layer.succeed(AuthenticatedHttpClient, mockHttpClient)
       const testLayer = AuditLogLive.pipe(Layer.provide(httpLayer))
 
       const params: AuditLogListParams = {
@@ -577,7 +578,7 @@ describe('AuditLogLive', () => {
         })
       })
 
-      const httpLayer = Layer.succeed(HttpClient.HttpClient, mockHttpClient)
+      const httpLayer = Layer.succeed(AuthenticatedHttpClient, mockHttpClient)
       const testLayer = AuditLogLive.pipe(Layer.provide(httpLayer))
 
       const params: AuditLogListParams = {
@@ -617,7 +618,7 @@ describe('AuditLogLive', () => {
         })
       })
 
-      const httpLayer = Layer.succeed(HttpClient.HttpClient, mockHttpClient)
+      const httpLayer = Layer.succeed(AuthenticatedHttpClient, mockHttpClient)
       const testLayer = AuditLogLive.pipe(Layer.provide(httpLayer))
 
       const params: AuditLogListParams = {
@@ -632,12 +633,12 @@ describe('AuditLogLive', () => {
         }).pipe(Effect.provide(testLayer)),
       )
 
-      // Then: should fail with default error message
+      // Then: should fail with message from body
       await expect(
         Effect.runPromise(
           auditLog.list(params).pipe(Effect.provide(testLayer)),
         ),
-      ).rejects.toThrow('Request failed.')
+      ).rejects.toThrow('Bad request')
     })
 
     test('should only include defined optional parameters in URL', async () => {
@@ -666,7 +667,7 @@ describe('AuditLogLive', () => {
         })
       })
 
-      const httpLayer = Layer.succeed(HttpClient.HttpClient, mockHttpClient)
+      const httpLayer = Layer.succeed(AuthenticatedHttpClient, mockHttpClient)
       const testLayer = AuditLogLive.pipe(Layer.provide(httpLayer))
 
       // When: listing with only required params

@@ -8,6 +8,7 @@
 import { HttpClientRequest } from '@effect/platform'
 import { AuthenticatedHttpClient } from '@/services/AuthenticatedHttpClient'
 import { Effect, Layer } from 'effect'
+import { parseError } from '@/lib/parseError'
 import type {
   EntityApiService,
   ListQueryParams,
@@ -27,26 +28,6 @@ function buildListQuery(params?: ListQueryParams): string {
   if (params.limit != null) search.set('limit', String(params.limit))
   const q = search.toString()
   return q ? `?${q}` : ''
-}
-
-function parseError(body: unknown): string {
-  if (
-    typeof body === 'object' &&
-    body !== null &&
-    'message' in body &&
-    typeof (body as { message: unknown }).message === 'string'
-  ) {
-    return (body as { message: string }).message
-  }
-  if (
-    typeof body === 'object' &&
-    body !== null &&
-    'error' in body &&
-    typeof (body as { error: unknown }).error === 'string'
-  ) {
-    return (body as { error: string }).error
-  }
-  return 'Request failed.'
 }
 
 function toError(e: unknown): Error {

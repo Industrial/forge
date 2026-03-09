@@ -2,23 +2,18 @@
  * Live implementation of Users service using HttpClient.
  */
 
-import { HttpClient, HttpClientRequest } from '@effect/platform'
+import { HttpClientRequest } from '@effect/platform'
 import { Effect, Layer } from 'effect'
+import { AuthenticatedHttpClient } from '@/services/AuthenticatedHttpClient'
 import { Users } from './Users'
 import type { UsersService } from './Users'
+import { parseError } from '@/lib/parseError'
 import { User, UserMembership } from '../domain/User'
-
-function parseError(body: unknown): string {
-  if (typeof body === 'object' && body !== null && 'error' in body) {
-    return String((body as { error: unknown }).error)
-  }
-  return 'Request failed.'
-}
 
 const UsersLive = Layer.effect(
   Users,
   Effect.gen(function* () {
-    const client = yield* HttpClient.HttpClient
+    const client = yield* AuthenticatedHttpClient
 
     const list: UsersService['list'] = () =>
       Effect.gen(function* () {

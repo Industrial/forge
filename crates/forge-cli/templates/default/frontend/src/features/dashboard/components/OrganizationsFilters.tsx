@@ -1,6 +1,7 @@
-import TextField from '@mui/material/TextField'
+import FilterPanelFromConfig from '@/components/FilterPanelFromConfig'
+import type { FilterField } from '@/components/FilterPanelFromConfig'
 
-import FiltersPanel from '@/components/FiltersPanel'
+export type OrgOption = { id: string; name: string }
 
 export type OrganizationsFiltersProps = {
   filterName: string
@@ -9,30 +10,39 @@ export type OrganizationsFiltersProps = {
   onFilterSlugChange: (value: string) => void
 }
 
+const FIELDS: readonly FilterField[] = [
+  {
+    type: 'text',
+    key: 'name',
+    label: 'Name',
+    placeholder: 'Search by name',
+    minWidth: 200,
+  },
+  {
+    type: 'text',
+    key: 'slug',
+    label: 'Slug',
+    placeholder: 'Search by slug',
+    minWidth: 160,
+  },
+] as const
+
 export default function OrganizationsFilters({
   filterName,
   filterSlug,
   onFilterNameChange,
   onFilterSlugChange,
 }: OrganizationsFiltersProps) {
+  const values = { name: filterName, slug: filterSlug }
+  const onChange = (key: string, value: string) => {
+    if (key === 'name') onFilterNameChange(value)
+    else if (key === 'slug') onFilterSlugChange(value)
+  }
   return (
-    <FiltersPanel>
-      <TextField
-        label="Name"
-        size="small"
-        value={filterName}
-        onChange={(e) => onFilterNameChange(e.target.value)}
-        placeholder="Search by name"
-        sx={{ minWidth: 200 }}
-      />
-      <TextField
-        label="Slug"
-        size="small"
-        value={filterSlug}
-        onChange={(e) => onFilterSlugChange(e.target.value)}
-        placeholder="Search by slug"
-        sx={{ minWidth: 160 }}
-      />
-    </FiltersPanel>
+    <FilterPanelFromConfig
+      fields={FIELDS}
+      values={values}
+      onChange={onChange}
+    />
   )
 }

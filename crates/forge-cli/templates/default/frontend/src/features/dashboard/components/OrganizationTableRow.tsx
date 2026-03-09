@@ -1,9 +1,4 @@
-import TableCell from '@mui/material/TableCell'
-import TableRow from '@mui/material/TableRow'
-import IconButton from '@mui/material/IconButton'
-import EditIcon from '@mui/icons-material/Edit'
-import DeleteIcon from '@mui/icons-material/Delete'
-
+import EntityTableRow from '@/components/EntityTableRow'
 import type { Organization } from '@/features/dashboard/domain/Organization'
 import { formatDate } from '@/features/dashboard/utils/formatDate'
 
@@ -23,34 +18,27 @@ export default function OrganizationTableRow({
   isDeleting,
 }: OrganizationTableRowProps) {
   return (
-    <TableRow>
-      <TableCell sx={{ fontWeight: 500 }}>{org.name}</TableCell>
-      <TableCell>{org.slug}</TableCell>
-      <TableCell sx={{ whiteSpace: 'nowrap' }}>
-        {formatDate(org.created_at)}
-      </TableCell>
-      <TableCell sx={{ whiteSpace: 'nowrap' }}>
-        {formatDate(org.updated_at)}
-      </TableCell>
-      {canWrite && (
-        <TableCell align="right">
-          <IconButton
-            size="small"
-            aria-label="Edit"
-            onClick={() => onEdit(org)}
-          >
-            <EditIcon />
-          </IconButton>
-          <IconButton
-            size="small"
-            aria-label="Delete"
-            onClick={() => onDelete(org.id)}
-            disabled={isDeleting}
-          >
-            <DeleteIcon />
-          </IconButton>
-        </TableCell>
-      )}
-    </TableRow>
+    <EntityTableRow<Organization>
+      item={org}
+      getRowId={(o) => o.id}
+      canEditDelete={canWrite}
+      onEdit={onEdit}
+      onDelete={(o) => onDelete(o.id)}
+      isDeleting={isDeleting}
+      columns={[
+        { key: 'name', render: (o) => o.name, cellSx: { fontWeight: 500 } },
+        { key: 'slug', render: (o) => o.slug },
+        {
+          key: 'created_at',
+          render: (o) => formatDate(o.created_at),
+          cellSx: { whiteSpace: 'nowrap' },
+        },
+        {
+          key: 'updated_at',
+          render: (o) => formatDate(o.updated_at),
+          cellSx: { whiteSpace: 'nowrap' },
+        },
+      ]}
+    />
   )
 }
