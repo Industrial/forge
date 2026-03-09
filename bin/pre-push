@@ -10,6 +10,6 @@ killall -9 cargo 2>/dev/null || true
 # Run moon tasks for pre-push validation
 # MOON_TOOLCHAIN_FORCE_GLOBALS is set in devenv.nix, but ensure it's set here too
 export MOON_TOOLCHAIN_FORCE_GLOBALS=rust
-devenv shell -- moon run :format :check :lint :build :test :test-frontend :audit :check-docs
+devenv shell -- moon run :format :check :lint :build :test :audit :check-docs
 
 echo "✅ Pre-push checks passed"

@@ -520,6 +520,24 @@ export const AuthenticationLive = Layer.effect(
             onNone: () => Effect.void,
             onSome: (token) =>
               Effect.gen(function* () {
+                const scopeOpt = yield* tokenStorage.getScope()
+                // When we have a stored scope, fetch /me only with scope so the initial
+                // state has permissions. Otherwise DashboardScopeGuard sees permissions.length === 0
+                // and shows spinner forever after full page load (e2e and reloads).
+                if (Option.isSome(scopeOpt)) {
+                  const stateWithPermissions = yield* fetchMeAndBuildState(
+                    baseUrl,
+                    token,
+                    scopeOpt.value,
+                  ).pipe(
+                    Effect.provide(
+                      Layer.succeed(HttpClient.HttpClient, client),
+                    ),
+                  )
+                  if (stateWithPermissions)
+                    yield* updateAuthState(store, stateWithPermissions)
+                  return
+                }
                 const state = yield* fetchMeAndBuildState(baseUrl, token).pipe(
                   Effect.provide(Layer.succeed(HttpClient.HttpClient, client)),
                 )

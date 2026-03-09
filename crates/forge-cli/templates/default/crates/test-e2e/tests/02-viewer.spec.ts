@@ -37,6 +37,7 @@ import { API_BASE_URL } from '@/playwright.config'
 import * as ExpectHelpers from '@/helpers/expect'
 import * as LocatorHelpers from '@/helpers/locator'
 import * as PageHelpers from '@/helpers/page'
+import { getAuthHeadersFromPage } from '@/helpers/auth'
 
 test.describe('Viewer Role', () => {
   test.describe('2.1 Authentication & Profile Selection', () => {
@@ -111,6 +112,9 @@ test.describe('Viewer Role', () => {
         program.pipe(Effect.provide(createPageLayers(page))),
       )
       await page.goto('/dashboard')
+      await page
+        .getByTestId('dashboard-page')
+        .waitFor({ state: 'visible', timeout: 20000 })
     })
 
     test('should display dashboard page', async ({ page }) => {
@@ -211,6 +215,9 @@ test.describe('Viewer Role', () => {
         loginProgram.pipe(Effect.provide(createPageLayers(page))),
       )
       await page.goto('/dashboard')
+      await page
+        .getByTestId('dashboard-page')
+        .waitFor({ state: 'visible', timeout: 20000 })
       const program = Effect.gen(function* () {
         const dashboardPageService = yield* DashboardPage
         yield* dashboardPageService.clickUsersLink()
@@ -306,6 +313,9 @@ test.describe('Viewer Role', () => {
         loginProgram.pipe(Effect.provide(createPageLayers(page))),
       )
       await page.goto('/dashboard')
+      await page
+        .getByTestId('dashboard-page')
+        .waitFor({ state: 'visible', timeout: 20000 })
       const program = Effect.gen(function* () {
         const dashboardPageService = yield* DashboardPage
         yield* dashboardPageService.clickRolesLink()
@@ -384,6 +394,9 @@ test.describe('Viewer Role', () => {
         loginProgram.pipe(Effect.provide(createPageLayers(page))),
       )
       await page.goto('/dashboard')
+      await page
+        .getByTestId('dashboard-page')
+        .waitFor({ state: 'visible', timeout: 20000 })
       const program = Effect.gen(function* () {
         const dashboardPageService = yield* DashboardPage
         yield* dashboardPageService.clickPermissionsLink()
@@ -440,6 +453,9 @@ test.describe('Viewer Role', () => {
         loginProgram.pipe(Effect.provide(createPageLayers(page))),
       )
       await page.goto('/dashboard')
+      await page
+        .getByTestId('dashboard-page')
+        .waitFor({ state: 'visible', timeout: 20000 })
       const program = Effect.gen(function* () {
         const dashboardPageService = yield* DashboardPage
         yield* dashboardPageService.clickAuditLogLink()
@@ -535,13 +551,13 @@ test.describe('Viewer Role', () => {
       )
       await page.goto('/dashboard/organizations')
 
-      // Should show 403 error or redirect
+      // Should show 403 error or redirect (allow time for route guard to render)
       const error403 = page.locator('[data-testid="error-403"]')
       await expect(
         error403
           .or(page.locator('text=403'))
           .or(page.locator('text=Forbidden')),
-      ).toBeVisible()
+      ).toBeVisible({ timeout: 15000 })
     })
   })
 
@@ -610,8 +626,17 @@ test.describe('Viewer Role', () => {
       await Effect.runPromise(
         loginProgram.pipe(Effect.provide(createPageLayers(page))),
       )
+      await page.getByTestId('dashboard-page').waitFor({
+        state: 'visible',
+        timeout: 15000,
+      })
+      const headers = await getAuthHeadersFromPage(page)
       const response = await page.request.post(
         `${API_BASE_URL}/api/auth/tokens`,
+        {
+          headers: { ...headers, 'Content-Type': 'application/json' },
+          data: {},
+        },
       )
       expect(response.status()).toBe(201)
 
@@ -631,13 +656,20 @@ test.describe('Viewer Role', () => {
       await Effect.runPromise(
         loginProgram.pipe(Effect.provide(createPageLayers(page))),
       )
-      // Create token
+      await page.getByTestId('dashboard-page').waitFor({
+        state: 'visible',
+        timeout: 15000,
+      })
+      const headers = await getAuthHeadersFromPage(page)
       const tokenResponse = await page.request.post(
         `${API_BASE_URL}/api/auth/tokens`,
+        {
+          headers: { ...headers, 'Content-Type': 'application/json' },
+          data: {},
+        },
       )
       const { token } = await tokenResponse.json()
 
-      // Use token
       const meResponse = await page.request.get(`${API_BASE_URL}/api/auth/me`, {
         headers: { Authorization: `Bearer ${token}` },
       })
@@ -658,32 +690,44 @@ test.describe('Viewer Role', () => {
       await Effect.runPromise(
         loginProgram.pipe(Effect.provide(createPageLayers(page))),
       )
+      await page.getByTestId('dashboard-page').waitFor({
+        state: 'visible',
+        timeout: 15000,
+      })
     })
 
     test('GET /api/entities/user returns 200 OK', async ({ page }) => {
+      const headers = await getAuthHeadersFromPage(page)
       const response = await page.request.get(
         `${API_BASE_URL}/api/entities/user`,
+        { headers },
       )
       expect(response.status()).toBe(200)
     })
 
     test('GET /api/entities/role returns 200 OK', async ({ page }) => {
+      const headers = await getAuthHeadersFromPage(page)
       const response = await page.request.get(
         `${API_BASE_URL}/api/entities/role`,
+        { headers },
       )
       expect(response.status()).toBe(200)
     })
 
     test('GET /api/entities/permission returns 200 OK', async ({ page }) => {
+      const headers = await getAuthHeadersFromPage(page)
       const response = await page.request.get(
         `${API_BASE_URL}/api/entities/permission`,
+        { headers },
       )
       expect(response.status()).toBe(200)
     })
 
     test('GET /api/entities/audit returns 200 OK', async ({ page }) => {
+      const headers = await getAuthHeadersFromPage(page)
       const response = await page.request.get(
         `${API_BASE_URL}/api/entities/audit`,
+        { headers },
       )
       expect(response.status()).toBe(200)
     })
@@ -691,8 +735,10 @@ test.describe('Viewer Role', () => {
     test('GET /api/entities/organization returns 403 Forbidden', async ({
       page,
     }) => {
+      const headers = await getAuthHeadersFromPage(page)
       const response = await page.request.get(
         `${API_BASE_URL}/api/entities/organization`,
+        { headers },
       )
       expect(response.status()).toBe(403)
     })
@@ -700,10 +746,12 @@ test.describe('Viewer Role', () => {
     test('POST /api/entities/organization returns 403 Forbidden', async ({
       page,
     }) => {
+      const headers = await getAuthHeadersFromPage(page)
       const response = await page.request.post(
         `${API_BASE_URL}/api/entities/organization`,
         {
           data: { name: 'Test Org' },
+          headers,
         },
       )
       expect(response.status()).toBe(403)
@@ -723,27 +771,36 @@ test.describe('Viewer Role', () => {
       await Effect.runPromise(
         loginProgram.pipe(Effect.provide(createPageLayers(page))),
       )
+      await page.getByTestId('dashboard-page').waitFor({
+        state: 'visible',
+        timeout: 15000,
+      })
     })
 
     test('POST /api/rpc entity.list returns 200 OK', async ({ page }) => {
+      const headers = await getAuthHeadersFromPage(page)
       const response = await page.request.post(`${API_BASE_URL}/api/rpc`, {
-        data: { method: 'entity.list', params: { entity: 'user' } },
+        headers: { ...headers, 'Content-Type': 'application/json' },
+        data: { method: 'entity.list', entity_id: 'user' },
       })
       expect(response.status()).toBe(200)
     })
 
     test('POST /api/rpc entity.get returns 200 OK', async ({ page }) => {
-      // First get a user ID
+      const headers = await getAuthHeadersFromPage(page)
       const listResponse = await page.request.post(`${API_BASE_URL}/api/rpc`, {
-        data: { method: 'entity.list', params: { entity: 'user' } },
+        headers: { ...headers, 'Content-Type': 'application/json' },
+        data: { method: 'entity.list', entity_id: 'user' },
       })
       const listData = await listResponse.json()
       if (listData.result && listData.result.length > 0) {
         const userId = listData.result[0].id
         const response = await page.request.post(`${API_BASE_URL}/api/rpc`, {
+          headers: { ...headers, 'Content-Type': 'application/json' },
           data: {
             method: 'entity.get',
-            params: { entity: 'user', id: userId },
+            entity_id: 'user',
+            params: { id: userId },
           },
         })
         expect(response.status()).toBe(200)
@@ -753,8 +810,14 @@ test.describe('Viewer Role', () => {
     test('POST /api/rpc entity.create returns 403 Forbidden', async ({
       page,
     }) => {
+      const headers = await getAuthHeadersFromPage(page)
       const response = await page.request.post(`${API_BASE_URL}/api/rpc`, {
-        data: { method: 'entity.create', params: { entity: 'user', data: {} } },
+        headers: { ...headers, 'Content-Type': 'application/json' },
+        data: {
+          method: 'entity.create',
+          entity_id: 'user',
+          params: { body: {} },
+        },
       })
       expect(response.status()).toBe(403)
     })
@@ -775,10 +838,15 @@ test.describe('Viewer Role', () => {
       await Effect.runPromise(
         loginProgram.pipe(Effect.provide(createPageLayers(page))),
       )
+      await page.getByTestId('dashboard-page').waitFor({
+        state: 'visible',
+        timeout: 15000,
+      })
+      const headers = await getAuthHeadersFromPage(page)
       const response = await page.request.get(
         `${API_BASE_URL}/api/subscriptions/stream`,
         {
-          headers: { Accept: 'text/event-stream' },
+          headers: { ...headers, Accept: 'text/event-stream' },
         },
       )
       expect(response.status()).toBe(200)
@@ -799,7 +867,17 @@ test.describe('Viewer Role', () => {
       await Effect.runPromise(
         loginProgram.pipe(Effect.provide(createPageLayers(page))),
       )
-      const response = await page.request.get(`${API_BASE_URL}/api/auth/admin`)
+      await page.getByTestId('dashboard-page').waitFor({
+        state: 'visible',
+        timeout: 15000,
+      })
+      const headers = await getAuthHeadersFromPage(page)
+      const response = await page.request.get(
+        `${API_BASE_URL}/api/auth/admin`,
+        {
+          headers,
+        },
+      )
       expect(response.status()).toBe(403)
     })
   })
@@ -818,6 +896,10 @@ test.describe('Viewer Role', () => {
         loginProgram.pipe(Effect.provide(createPageLayers(page))),
       )
       await page.goto('/dashboard')
+      await page.getByTestId('dashboard-page').waitFor({
+        state: 'visible',
+        timeout: 15000,
+      })
 
       const program = Effect.gen(function* () {
         const dashboardPageService = yield* DashboardPage
@@ -850,6 +932,10 @@ test.describe('Viewer Role', () => {
         loginProgram.pipe(Effect.provide(createPageLayers(page))),
       )
       await page.goto('/dashboard')
+      await page.getByTestId('dashboard-page').waitFor({
+        state: 'visible',
+        timeout: 15000,
+      })
 
       const program = Effect.gen(function* () {
         const dashboardPageService = yield* DashboardPage

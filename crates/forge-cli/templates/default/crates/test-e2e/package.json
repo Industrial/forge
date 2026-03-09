@@ -3,11 +3,11 @@
   "private": true,
   "type": "module",
   "scripts": {
-    "test": "playwright test",
-    "test:single": "playwright test",
-    "test:ui": "playwright test --ui",
-    "test:headed": "playwright test --headed",
-    "test:debug": "playwright test --debug"
+    "test": "E2E_BASE_URL=http://localhost:5173 E2E_API_URL=http://127.0.0.1:30999 playwright test",
+    "test:single": "E2E_BASE_URL=http://localhost:5173 E2E_API_URL=http://127.0.0.1:30999 playwright test",
+    "test:ui": "E2E_BASE_URL=http://localhost:5173 E2E_API_URL=http://127.0.0.1:30999 playwright test --ui",
+    "test:headed": "E2E_BASE_URL=http://localhost:5173 E2E_API_URL=http://127.0.0.1:30999 playwright test --headed",
+    "test:debug": "E2E_BASE_URL=http://localhost:5173 E2E_API_URL=http://127.0.0.1:30999 playwright test --debug"
   },
   "devDependencies": {
     "@playwright/test": "1.52.0",

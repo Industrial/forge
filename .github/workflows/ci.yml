@@ -6,28 +6,28 @@ on:
     branches: [main, develop]
 env:
   CARGO_TERM_COLOR: always
-  # Build optimization: sccache for compilation caching
   RUSTC_WRAPPER: sccache
 permissions:
   contents: read
 jobs:
-  pre-push:
-    name: Pre-push
+  ci:
+    name: CI (checks → integration → e2e)
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v6
+        with:
+          # Full history for moon --affected on PRs (base..head)
+          fetch-depth: ${{ github.event_name == 'pull_request' && 0 || 1 }}
       - uses: DeterminateSystems/nix-installer-action@main
       - uses: DeterminateSystems/magic-nix-cache-action@main
       - name: Install devenv
         run: nix profile install nixpkgs#devenv
-      # Setup sccache for compilation caching
       - name: Setup sccache
         uses: mozilla-actions/sccache-action@v0.0.4
         with:
           version: "latest"
         env:
           SCCACHE_DIR: ${{ runner.tool_cache }}/sccache
-      # Install mold linker for faster linking on Linux
       - name: Install mold linker
         run: |
           sudo apt-get update
@@ -35,30 +35,52 @@ jobs:
       - name: Install moon
         run: |
           curl -fsSL https://moonrepo.dev/install/moon.sh | bash
-          export PATH="$HOME/.moon/bin:$PATH"
+          echo "$HOME/.moon/bin" >> "$GITHUB_PATH"
+          echo "PATH=$HOME/.moon/bin:$PATH" >> "$GITHUB_ENV"
           moon --version
-      - name: Run moon tasks (format, check, lint, build, test, audit, check-docs)
+      - name: Cache moon
+        uses: actions/cache@v4
+        with:
+          path: .moon/cache
+          key: moon-${{ runner.os }}-${{ hashFiles('Cargo.lock', 'crates/forge-cli/templates/default/frontend/bun.lockb', 'crates/forge-cli/templates/default/frontend/package.json') }}
+          restore-keys: |
+            moon-${{ runner.os }}-
+      - name: Run checks (format, check, lint, build, test, audit, check-docs)
         env:
           MOON_TOOLCHAIN_FORCE_GLOBALS: rust
+          MOON_BASE: ${{ github.event_name == 'pull_request' && github.event.pull_request.base.sha || github.sha }}
+          MOON_HEAD: ${{ github.sha }}
         run: |
           set -euo pipefail
-          export PATH="$HOME/.moon/bin:$PATH"
-          devenv shell -- moon run :format :check :lint :build :test :audit :check-docs
+          if [ "${{ github.event_name }}" = "pull_request" ]; then
+            devenv shell -- moon run --affected :format :check :lint :build :test :audit :check-docs
+          else
+            devenv shell -- moon run :format :check :lint :build :test :audit :check-docs
+          fi
       - name: Run integration tests
         env:
           MOON_TOOLCHAIN_FORCE_GLOBALS: rust
+          MOON_BASE: ${{ github.event_name == 'pull_request' && github.event.pull_request.base.sha || github.sha }}
+          MOON_HEAD: ${{ github.sha }}
         run: |
           set -euo pipefail
-          export PATH="$HOME/.moon/bin:$PATH"
-          devenv shell -- moon run :test-integration
+          if [ "${{ github.event_name }}" = "pull_request" ]; then
+            devenv shell -- moon run --affected :test-integration
+          else
+            devenv shell -- moon run :test-integration
+          fi
       - name: Run e2e tests
         env:
           MOON_TOOLCHAIN_FORCE_GLOBALS: rust
+          MOON_BASE: ${{ github.event_name == 'pull_request' && github.event.pull_request.base.sha || github.sha }}
+          MOON_HEAD: ${{ github.sha }}
         run: |
           set -euo pipefail
-          export PATH="$HOME/.moon/bin:$PATH"
-          devenv shell -- moon run :test-e2e
-      # Show sccache statistics
+          if [ "${{ github.event_name }}" = "pull_request" ]; then
+            devenv shell -- moon run --affected :test-e2e
+          else
+            devenv shell -- moon run :test-e2e
+          fi
       - name: Show sccache statistics
         if: always()
         run: sccache --show-stats

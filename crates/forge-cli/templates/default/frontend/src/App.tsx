@@ -117,14 +117,7 @@ function App() {
               </ProtectedRoute>
             }
           >
-            <Route
-              index
-              element={
-                <PermissionGuard permissions={['dashboard']}>
-                  <DashboardPage />
-                </PermissionGuard>
-              }
-            />
+            <Route index element={<DashboardPage />} />
             <Route
               path="organizations"
               element={

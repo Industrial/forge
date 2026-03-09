@@ -30,14 +30,14 @@
  * ```
  */
 
-import { Effect, Option } from 'effect'
+import { Effect, Layer, Option } from 'effect'
 import { Authentication } from './Authentication'
 import { AuthenticationUser } from '../domain/AuthenticationUser'
 import { AuthenticationError } from '../errors/AuthenticationError'
 import { ScopeError } from '../errors'
 
 /** Internal state for the mock authentication service */
-interface MockAuthenticationState {
+export interface MockAuthenticationState {
   user: Option.Option<AuthenticationUser>
   scope: { organizationId: string; roleId: string } | null
   getCurrentUserError: Option.Option<AuthenticationError>
@@ -174,6 +174,7 @@ export function createMockAuthentication(): {
  * Default mock Authentication Layer for simple test cases.
  * For tests that need more control, use createMockAuthentication() and Layer.succeed().
  */
-export const MockAuthenticationLayer = Effect.sync(
-  () => createMockAuthentication().authentication,
-).pipe(Effect.map((auth) => ({ [Authentication.key]: auth })))
+export const AuthenticationMockLayer = Layer.succeed(
+  Authentication,
+  createMockAuthentication().authentication,
+)

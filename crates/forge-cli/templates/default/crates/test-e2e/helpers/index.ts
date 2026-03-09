@@ -4,3 +4,4 @@
 export * from './locator'
 export * from './page'
 export * from './expect'
+export * from './auth'

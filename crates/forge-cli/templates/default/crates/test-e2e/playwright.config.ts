@@ -6,10 +6,21 @@ const __dirname = path.dirname(fileURLToPath(import.meta.url))
 /** Project root (crates/test-e2e -> crates -> root). */
 const repoRoot = path.resolve(__dirname, '../..')
 
-/** Non-standard port (like integration tests) to avoid clashing with dev servers. Set by bin/test-e2e. */
-const baseURL = process.env.E2E_BASE_URL ?? 'http://127.0.0.1:35173'
-/** API server URL for /healthz, etc. (Vite proxies /api and /ws only). Non-standard port; set by bin/test-e2e. */
-export const API_BASE_URL = process.env.E2E_API_URL ?? 'http://127.0.0.1:30999'
+/** Frontend URL. Required; set by package.json scripts or caller (e.g. bin/test-e2e). */
+const baseURL = process.env.E2E_BASE_URL
+if (!baseURL) {
+  throw new Error(
+    'E2E_BASE_URL is required. Run via "bun run test" or set E2E_BASE_URL and E2E_API_URL.',
+  )
+}
+
+/** API server URL. Required; set by package.json scripts or caller. */
+export const API_BASE_URL = process.env.E2E_API_URL
+if (!API_BASE_URL) {
+  throw new Error(
+    'E2E_API_URL is required. Run via "bun run test" or set E2E_BASE_URL and E2E_API_URL.',
+  )
+}
 
 export default defineConfig({
   testDir: path.join(__dirname, 'tests'),

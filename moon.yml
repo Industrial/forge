@@ -55,7 +55,7 @@ tasks:
       - 'crates/**/*.rs'
       - 'crates/forge-cli/templates/**/*'
   # Frontend unit tests (template frontend)
-  test-frontend:
+  test:
     command: 'bash'
     args: ['-c', 'cd crates/forge-cli/templates/default/frontend && bun test']
     inputs:

@@ -207,8 +207,8 @@ describe('RolesPage component', () => {
         },
         { timeout: 3000 },
       )
-      // Verify Add role button exists (indicates CRUD capability)
-      expect(container.textContent).toContain('Add role')
+      // Verify empty state or Add role button (indicates CRUD capability)
+      expect(container.textContent).toMatch(/Add a? role/)
     })
 
     test('should handle creating roles', async () => {
@@ -217,12 +217,12 @@ describe('RolesPage component', () => {
       })
       await waitFor(
         () => {
-          expect(container.textContent).toContain('Add role')
+          expect(container.textContent).toMatch(/Add a? role/)
         },
         { timeout: 3000 },
       )
-      // Component renders Add role button, indicating create functionality
-      expect(container.textContent).toContain('Add role')
+      // Component renders empty state "Add a role" or button "Add role"
+      expect(container.textContent).toMatch(/Add a? role/)
     })
 
     test('should handle updating roles', async () => {

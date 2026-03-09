@@ -1,3 +1,38 @@
+# E2E Test Fixes
+
+## Root Cause Identified and Fixed
+
+**Issue:** All authenticated E2E tests were timing out waiting for the dashboard page to render after login.
+
+**Root Cause:** The DashboardPage route in `App.tsx` had a `PermissionGuard` checking for `'dashboard'` permission:
+
+```typescript
+<PermissionGuard permissions={['dashboard']}>
+  <DashboardPage />
+</PermissionGuard>
+```
+
+However, the viewer role (and other roles) don't have a `'dashboard'` permission. The PermissionGuard was showing a loading spinner forever when permissions were empty `[]`, preventing the dashboard from rendering.
+
+**Fix:** Removed the `PermissionGuard` from the DashboardPage route since it's just a welcome page that all authenticated users should access.
+
+## Test Results
+
+### ✅ Fixed Tests
+- `tests/02-viewer.spec.ts:43` - "single profile redirects to dashboard" - **NOW PASSING**
+
+### Status
+- **1 test verified as fixed**
+- **147 tests likely fixed** by the same root cause fix
+- Running full E2E suite to verify (in progress)
+
+## Changed Files
+- `frontend/src/App.tsx` - Removed PermissionGuard from DashboardPage route (line 120-127)
+
+---
+
+## Original Failing Tests List
+
 [chromium] › tests/02-viewer.spec.ts:43:5 › Viewer Role › 2.1 Authentication & Profile Selection › single profile redirects to dashboard 
 [chromium] › tests/02-viewer.spec.ts:65:5 › Viewer Role › 2.1 Authentication & Profile Selection › multi-profile redirects to scope selection then dashboard 
 [chromium] › tests/02-viewer.spec.ts:116:5 › Viewer Role › 2.2 Dashboard Access › should display dashboard page 

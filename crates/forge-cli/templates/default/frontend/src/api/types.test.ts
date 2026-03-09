@@ -489,7 +489,7 @@ describe('LoginResponse Behavior', () => {
       const validResponse = {
         ok: true,
         token: 'jwt-token-here',
-        needs_profile_select: false,
+        needs_scope_select: false,
       }
 
       // When: decoding the response
@@ -499,11 +499,11 @@ describe('LoginResponse Behavior', () => {
       // Then: should decode successfully
       expect(result.ok).toBe(true)
       expect(result.token).toBe('jwt-token-here')
-      expect(result.needs_profile_select).toBe(false)
+      expect(result.needs_scope_select).toBe(false)
     })
 
-    it('should accept login response without needs_profile_select', () => {
-      // Given: a login response without needs_profile_select
+    it('should accept login response without needs_scope_select', () => {
+      // Given: a login response without needs_scope_select
       const response = {
         ok: true,
         token: 'jwt-token-here',
@@ -515,7 +515,7 @@ describe('LoginResponse Behavior', () => {
       // Then: should decode successfully
       expect(result.ok).toBe(true)
       expect(result.token).toBe('jwt-token-here')
-      expect(result.needs_profile_select).toBeUndefined()
+      expect(result.needs_scope_select).toBeUndefined()
     })
 
     it('should reject login response without ok field', () => {

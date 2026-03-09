@@ -70,6 +70,8 @@ function createMockAuthStore(
     ...initialAuthenticationState,
     user: Option.fromNullable(user),
     needsScopeSelect: Option.fromNullable(needsScopeSelect ? true : null),
+    // When scope is selected (needsScopeSelect false), guard requires non-empty permissions to render children
+    permissions: user && !needsScopeSelect ? ['view:dashboard'] : [],
   }
   const changeListeners = new Set<(a: AuthenticationState) => void>()
 
