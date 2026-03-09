@@ -80,7 +80,7 @@ cleanup() {
 trap cleanup EXIT
 
 echo "> test-e2e-single > starting API server (port $FORGE_SERVER_PORT)"
-FORGE_SERVER_PORT="$FORGE_SERVER_PORT" FORGE_BACKEND_HOST="$FORGE_BACKEND_HOST" cargo run -p server --quiet &
+FORGE_ENVIRONMENT="${FORGE_ENVIRONMENT:-production}" FORGE_BACKEND_HOST="$FORGE_BACKEND_HOST" FORGE_SERVER_PORT="$FORGE_SERVER_PORT" FORGE_DATABASE_URL="$FORGE_DATABASE_URL" cargo run -p server --quiet &
 API_PID=$!
 
 echo "> test-e2e-single > waiting for API /healthz"
