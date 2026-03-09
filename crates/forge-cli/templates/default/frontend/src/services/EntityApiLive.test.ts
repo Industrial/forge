@@ -6,6 +6,7 @@ import { describe, test, expect } from 'bun:test'
 import { Effect, Layer } from 'effect'
 import { HttpClient, HttpClientRequest } from '@effect/platform'
 
+import { AuthenticatedHttpClient } from './AuthenticatedHttpClient'
 import { EntityApiLive } from './EntityApiLive'
 import { EntityApi } from './EntityApi'
 
@@ -125,7 +126,7 @@ describe('EntityApiLive', () => {
         })
       })
 
-      const httpLayer = Layer.succeed(HttpClient.HttpClient, mockHttpClient)
+      const httpLayer = Layer.succeed(AuthenticatedHttpClient, mockHttpClient)
       const testLayer = EntityApiLive.pipe(Layer.provide(httpLayer))
 
       // When: listing entities
@@ -165,7 +166,7 @@ describe('EntityApiLive', () => {
         })
       })
 
-      const httpLayer = Layer.succeed(HttpClient.HttpClient, mockHttpClient)
+      const httpLayer = Layer.succeed(AuthenticatedHttpClient, mockHttpClient)
       const testLayer = EntityApiLive.pipe(Layer.provide(httpLayer))
 
       // When: listing entities
@@ -203,7 +204,7 @@ describe('EntityApiLive', () => {
         })
       })
 
-      const httpLayer = Layer.succeed(HttpClient.HttpClient, mockHttpClient)
+      const httpLayer = Layer.succeed(AuthenticatedHttpClient, mockHttpClient)
       const testLayer = EntityApiLive.pipe(Layer.provide(httpLayer))
 
       // When: listing entities
@@ -243,7 +244,7 @@ describe('EntityApiLive', () => {
         })
       })
 
-      const httpLayer = Layer.succeed(HttpClient.HttpClient, mockHttpClient)
+      const httpLayer = Layer.succeed(AuthenticatedHttpClient, mockHttpClient)
       const testLayer = EntityApiLive.pipe(Layer.provide(httpLayer))
 
       // When: listing with query params
@@ -295,7 +296,7 @@ describe('EntityApiLive', () => {
         })
       })
 
-      const httpLayer = Layer.succeed(HttpClient.HttpClient, mockHttpClient)
+      const httpLayer = Layer.succeed(AuthenticatedHttpClient, mockHttpClient)
       const testLayer = EntityApiLive.pipe(Layer.provide(httpLayer))
 
       // When: listing with empty/null query params
@@ -344,7 +345,7 @@ describe('EntityApiLive', () => {
         })
       })
 
-      const httpLayer = Layer.succeed(HttpClient.HttpClient, mockHttpClient)
+      const httpLayer = Layer.succeed(AuthenticatedHttpClient, mockHttpClient)
       const testLayer = EntityApiLive.pipe(Layer.provide(httpLayer))
 
       // When: listing with special characters in entityId
@@ -382,7 +383,7 @@ describe('EntityApiLive', () => {
         })
       })
 
-      const httpLayer = Layer.succeed(HttpClient.HttpClient, mockHttpClient)
+      const httpLayer = Layer.succeed(AuthenticatedHttpClient, mockHttpClient)
       const testLayer = EntityApiLive.pipe(Layer.provide(httpLayer))
 
       // When: listing entities
@@ -420,7 +421,7 @@ describe('EntityApiLive', () => {
         })
       })
 
-      const httpLayer = Layer.succeed(HttpClient.HttpClient, mockHttpClient)
+      const httpLayer = Layer.succeed(AuthenticatedHttpClient, mockHttpClient)
       const testLayer = EntityApiLive.pipe(Layer.provide(httpLayer))
 
       // When: listing entities
@@ -458,7 +459,7 @@ describe('EntityApiLive', () => {
         })
       })
 
-      const httpLayer = Layer.succeed(HttpClient.HttpClient, mockHttpClient)
+      const httpLayer = Layer.succeed(AuthenticatedHttpClient, mockHttpClient)
       const testLayer = EntityApiLive.pipe(Layer.provide(httpLayer))
 
       // When: listing entities
@@ -500,7 +501,7 @@ describe('EntityApiLive', () => {
         })
       })
 
-      const httpLayer = Layer.succeed(HttpClient.HttpClient, mockHttpClient)
+      const httpLayer = Layer.succeed(AuthenticatedHttpClient, mockHttpClient)
       const testLayer = EntityApiLive.pipe(Layer.provide(httpLayer))
 
       // When: getting entity
@@ -537,7 +538,7 @@ describe('EntityApiLive', () => {
         })
       })
 
-      const httpLayer = Layer.succeed(HttpClient.HttpClient, mockHttpClient)
+      const httpLayer = Layer.succeed(AuthenticatedHttpClient, mockHttpClient)
       const testLayer = EntityApiLive.pipe(Layer.provide(httpLayer))
 
       // When: getting with special characters
@@ -575,7 +576,7 @@ describe('EntityApiLive', () => {
         })
       })
 
-      const httpLayer = Layer.succeed(HttpClient.HttpClient, mockHttpClient)
+      const httpLayer = Layer.succeed(AuthenticatedHttpClient, mockHttpClient)
       const testLayer = EntityApiLive.pipe(Layer.provide(httpLayer))
 
       // When: getting entity
@@ -618,7 +619,7 @@ describe('EntityApiLive', () => {
         })
       })
 
-      const httpLayer = Layer.succeed(HttpClient.HttpClient, mockHttpClient)
+      const httpLayer = Layer.succeed(AuthenticatedHttpClient, mockHttpClient)
       const testLayer = EntityApiLive.pipe(Layer.provide(httpLayer))
 
       // When: creating entity
@@ -659,7 +660,7 @@ describe('EntityApiLive', () => {
         })
       })
 
-      const httpLayer = Layer.succeed(HttpClient.HttpClient, mockHttpClient)
+      const httpLayer = Layer.succeed(AuthenticatedHttpClient, mockHttpClient)
       const testLayer = EntityApiLive.pipe(Layer.provide(httpLayer))
 
       // When: creating entity with body
@@ -698,7 +699,7 @@ describe('EntityApiLive', () => {
         })
       })
 
-      const httpLayer = Layer.succeed(HttpClient.HttpClient, mockHttpClient)
+      const httpLayer = Layer.succeed(AuthenticatedHttpClient, mockHttpClient)
       const testLayer = EntityApiLive.pipe(Layer.provide(httpLayer))
 
       // When: creating entity
@@ -737,7 +738,7 @@ describe('EntityApiLive', () => {
         })
       })
 
-      const httpLayer = Layer.succeed(HttpClient.HttpClient, mockHttpClient)
+      const httpLayer = Layer.succeed(AuthenticatedHttpClient, mockHttpClient)
       const testLayer = EntityApiLive.pipe(Layer.provide(httpLayer))
 
       // When: creating with special characters in entityId
@@ -782,7 +783,7 @@ describe('EntityApiLive', () => {
         })
       })
 
-      const httpLayer = Layer.succeed(HttpClient.HttpClient, mockHttpClient)
+      const httpLayer = Layer.succeed(AuthenticatedHttpClient, mockHttpClient)
       const testLayer = EntityApiLive.pipe(Layer.provide(httpLayer))
 
       // When: updating entity
@@ -824,7 +825,7 @@ describe('EntityApiLive', () => {
         })
       })
 
-      const httpLayer = Layer.succeed(HttpClient.HttpClient, mockHttpClient)
+      const httpLayer = Layer.succeed(AuthenticatedHttpClient, mockHttpClient)
       const testLayer = EntityApiLive.pipe(Layer.provide(httpLayer))
 
       // When: updating entity with body
@@ -863,7 +864,7 @@ describe('EntityApiLive', () => {
         })
       })
 
-      const httpLayer = Layer.succeed(HttpClient.HttpClient, mockHttpClient)
+      const httpLayer = Layer.succeed(AuthenticatedHttpClient, mockHttpClient)
       const testLayer = EntityApiLive.pipe(Layer.provide(httpLayer))
 
       // When: updating entity
@@ -902,7 +903,7 @@ describe('EntityApiLive', () => {
         })
       })
 
-      const httpLayer = Layer.succeed(HttpClient.HttpClient, mockHttpClient)
+      const httpLayer = Layer.succeed(AuthenticatedHttpClient, mockHttpClient)
       const testLayer = EntityApiLive.pipe(Layer.provide(httpLayer))
 
       // When: updating with special characters
@@ -944,7 +945,7 @@ describe('EntityApiLive', () => {
         })
       })
 
-      const httpLayer = Layer.succeed(HttpClient.HttpClient, mockHttpClient)
+      const httpLayer = Layer.succeed(AuthenticatedHttpClient, mockHttpClient)
       const testLayer = EntityApiLive.pipe(Layer.provide(httpLayer))
 
       // When: deleting entity
@@ -981,7 +982,7 @@ describe('EntityApiLive', () => {
         })
       })
 
-      const httpLayer = Layer.succeed(HttpClient.HttpClient, mockHttpClient)
+      const httpLayer = Layer.succeed(AuthenticatedHttpClient, mockHttpClient)
       const testLayer = EntityApiLive.pipe(Layer.provide(httpLayer))
 
       // When: deleting with special characters
@@ -1019,7 +1020,7 @@ describe('EntityApiLive', () => {
         })
       })
 
-      const httpLayer = Layer.succeed(HttpClient.HttpClient, mockHttpClient)
+      const httpLayer = Layer.succeed(AuthenticatedHttpClient, mockHttpClient)
       const testLayer = EntityApiLive.pipe(Layer.provide(httpLayer))
 
       // When: deleting entity

@@ -6,6 +6,7 @@ import { describe, test, expect } from 'bun:test'
 import { Effect, Layer } from 'effect'
 import { HttpClient, HttpClientRequest } from '@effect/platform'
 
+import { AuthenticatedHttpClient } from './AuthenticatedHttpClient'
 import { RpcApiLive } from './RpcApiLive'
 import { RpcApi } from './RpcApi'
 
@@ -124,7 +125,7 @@ describe('RpcApiLive', () => {
         })
       })
 
-      const httpLayer = Layer.succeed(HttpClient.HttpClient, mockHttpClient)
+      const httpLayer = Layer.succeed(AuthenticatedHttpClient, mockHttpClient)
       const testLayer = RpcApiLive.pipe(Layer.provide(httpLayer))
 
       // When: subscribing
@@ -163,7 +164,7 @@ describe('RpcApiLive', () => {
         })
       })
 
-      const httpLayer = Layer.succeed(HttpClient.HttpClient, mockHttpClient)
+      const httpLayer = Layer.succeed(AuthenticatedHttpClient, mockHttpClient)
       const testLayer = RpcApiLive.pipe(Layer.provide(httpLayer))
 
       // When: subscribing with params
@@ -208,7 +209,7 @@ describe('RpcApiLive', () => {
         })
       })
 
-      const httpLayer = Layer.succeed(HttpClient.HttpClient, mockHttpClient)
+      const httpLayer = Layer.succeed(AuthenticatedHttpClient, mockHttpClient)
       const testLayer = RpcApiLive.pipe(Layer.provide(httpLayer))
 
       // When: subscribing without params
@@ -245,7 +246,7 @@ describe('RpcApiLive', () => {
         })
       })
 
-      const httpLayer = Layer.succeed(HttpClient.HttpClient, mockHttpClient)
+      const httpLayer = Layer.succeed(AuthenticatedHttpClient, mockHttpClient)
       const testLayer = RpcApiLive.pipe(Layer.provide(httpLayer))
 
       // When: subscribing
@@ -282,7 +283,7 @@ describe('RpcApiLive', () => {
         })
       })
 
-      const httpLayer = Layer.succeed(HttpClient.HttpClient, mockHttpClient)
+      const httpLayer = Layer.succeed(AuthenticatedHttpClient, mockHttpClient)
       const testLayer = RpcApiLive.pipe(Layer.provide(httpLayer))
 
       // When: subscribing
@@ -317,7 +318,7 @@ describe('RpcApiLive', () => {
         })
       })
 
-      const httpLayer = Layer.succeed(HttpClient.HttpClient, mockHttpClient)
+      const httpLayer = Layer.succeed(AuthenticatedHttpClient, mockHttpClient)
       const testLayer = RpcApiLive.pipe(Layer.provide(httpLayer))
 
       // When: subscribing
@@ -354,7 +355,7 @@ describe('RpcApiLive', () => {
         })
       })
 
-      const httpLayer = Layer.succeed(HttpClient.HttpClient, mockHttpClient)
+      const httpLayer = Layer.succeed(AuthenticatedHttpClient, mockHttpClient)
       const testLayer = RpcApiLive.pipe(Layer.provide(httpLayer))
 
       // When: subscribing
@@ -391,7 +392,7 @@ describe('RpcApiLive', () => {
         })
       })
 
-      const httpLayer = Layer.succeed(HttpClient.HttpClient, mockHttpClient)
+      const httpLayer = Layer.succeed(AuthenticatedHttpClient, mockHttpClient)
       const testLayer = RpcApiLive.pipe(Layer.provide(httpLayer))
 
       // When: subscribing
@@ -431,7 +432,7 @@ describe('RpcApiLive', () => {
         })
       })
 
-      const httpLayer = Layer.succeed(HttpClient.HttpClient, mockHttpClient)
+      const httpLayer = Layer.succeed(AuthenticatedHttpClient, mockHttpClient)
       const testLayer = RpcApiLive.pipe(Layer.provide(httpLayer))
 
       // When: subscribing
@@ -470,7 +471,7 @@ describe('RpcApiLive', () => {
         })
       })
 
-      const httpLayer = Layer.succeed(HttpClient.HttpClient, mockHttpClient)
+      const httpLayer = Layer.succeed(AuthenticatedHttpClient, mockHttpClient)
       const testLayer = RpcApiLive.pipe(Layer.provide(httpLayer))
 
       // When: subscribing with empty params
