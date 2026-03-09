@@ -62,7 +62,7 @@ async function* readSSEEvents(
   }
 }
 
-export const SubscriptionStreamLive = (baseUrl: string) =>
+const SubscriptionStreamLiveFn = (baseUrl: string) =>
   Layer.effect(
     SubscriptionStream,
     Effect.gen(function* () {
@@ -116,3 +116,5 @@ export const SubscriptionStreamLive = (baseUrl: string) =>
       return { openStream }
     }),
   )
+
+export { SubscriptionStreamLiveFn as SubscriptionStreamLive }

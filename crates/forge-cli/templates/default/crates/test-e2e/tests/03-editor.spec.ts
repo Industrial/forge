@@ -633,9 +633,12 @@ test.describe('Editor Role', () => {
         state: 'visible',
       })
       const headers = await getAuthHeadersFromPage(page)
-      const response = await page.request.get(`${API_BASE_URL}/api/auth/admin`, {
-        headers,
-      })
+      const response = await page.request.get(
+        `${API_BASE_URL}/api/auth/admin`,
+        {
+          headers,
+        },
+      )
       expect(response.status()).toBe(403)
     })
   })

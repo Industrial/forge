@@ -5,7 +5,8 @@
  * Requires HttpClient (with auth/scope headers); provide via AppLayer.
  */
 
-import { HttpClient, HttpClientRequest } from '@effect/platform'
+import { HttpClientRequest } from '@effect/platform'
+import { AuthenticatedHttpClient } from '@/services/AuthenticatedHttpClient'
 import { Effect, Layer } from 'effect'
 import type {
   EntityApiService,
@@ -55,7 +56,7 @@ function toError(e: unknown): Error {
 export const EntityApiLive = Layer.effect(
   EntityApi,
   Effect.gen(function* () {
-    const client = yield* HttpClient.HttpClient
+    const client = yield* AuthenticatedHttpClient
 
     const list: EntityApiService['list'] = (entityId, params) =>
       Effect.gen(function* () {

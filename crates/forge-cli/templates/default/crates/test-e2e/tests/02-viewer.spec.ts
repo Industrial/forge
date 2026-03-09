@@ -112,9 +112,7 @@ test.describe('Viewer Role', () => {
         program.pipe(Effect.provide(createPageLayers(page))),
       )
       await page.goto('/dashboard')
-      await page
-        .getByTestId('dashboard-layout')
-        .waitFor({ state: 'visible' })
+      await page.getByTestId('dashboard-layout').waitFor({ state: 'visible' })
     })
 
     test('should display dashboard page', async ({ page }) => {
@@ -215,9 +213,7 @@ test.describe('Viewer Role', () => {
         loginProgram.pipe(Effect.provide(createPageLayers(page))),
       )
       await page.goto('/dashboard')
-      await page
-        .getByTestId('dashboard-layout')
-        .waitFor({ state: 'visible' })
+      await page.getByTestId('dashboard-layout').waitFor({ state: 'visible' })
       const program = Effect.gen(function* () {
         const dashboardPageService = yield* DashboardPage
         yield* dashboardPageService.clickUsersLink()
@@ -313,9 +309,7 @@ test.describe('Viewer Role', () => {
         loginProgram.pipe(Effect.provide(createPageLayers(page))),
       )
       await page.goto('/dashboard')
-      await page
-        .getByTestId('dashboard-layout')
-        .waitFor({ state: 'visible' })
+      await page.getByTestId('dashboard-layout').waitFor({ state: 'visible' })
       const program = Effect.gen(function* () {
         const dashboardPageService = yield* DashboardPage
         yield* dashboardPageService.clickRolesLink()
@@ -394,9 +388,7 @@ test.describe('Viewer Role', () => {
         loginProgram.pipe(Effect.provide(createPageLayers(page))),
       )
       await page.goto('/dashboard')
-      await page
-        .getByTestId('dashboard-layout')
-        .waitFor({ state: 'visible' })
+      await page.getByTestId('dashboard-layout').waitFor({ state: 'visible' })
       const program = Effect.gen(function* () {
         const dashboardPageService = yield* DashboardPage
         yield* dashboardPageService.clickPermissionsLink()
@@ -453,9 +445,7 @@ test.describe('Viewer Role', () => {
         loginProgram.pipe(Effect.provide(createPageLayers(page))),
       )
       await page.goto('/dashboard')
-      await page
-        .getByTestId('dashboard-layout')
-        .waitFor({ state: 'visible' })
+      await page.getByTestId('dashboard-layout').waitFor({ state: 'visible' })
       const program = Effect.gen(function* () {
         const dashboardPageService = yield* DashboardPage
         yield* dashboardPageService.clickAuditLogLink()

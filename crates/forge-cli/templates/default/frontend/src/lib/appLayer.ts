@@ -11,11 +11,12 @@
  * Use {@link buildApplicationLayer} in tests or when you need a fresh layer or
  * custom composition.
  */
-import { FetchHttpClient, type HttpClient } from '@effect/platform'
+import { FetchHttpClient, HttpClient } from '@effect/platform'
 import { useMemo } from 'react'
 import { Effect } from 'effect'
 import { Layer, Logger, LogLevel } from 'effect'
 
+import { AuthenticatedHttpClientLive } from '@/services/AuthenticatedHttpClientLive'
 import type { AuditLogService } from '@/features/dashboard/services/AuditLog'
 import type { Authentication as AuthenticationService } from '@/features/authentication/services/Authentication'
 import type { AuthenticationState } from '@/features/authentication/stores/AuthenticationStateReactiveStore'
@@ -74,8 +75,8 @@ const LoggerLayer: Layer.Layer<never, never, never> = Logger.minimumLogLevel(
 )
 
 /**
- * Plain HTTP client layer (no auth headers).
- * Used by {@link AuthenticationLive} and other services that need unauthenticated HTTP.
+ * Plain HTTP client (no auth). Used by AuthenticationLive and SubscriptionStreamLive.
+ * EntityApiLive and RpcApiLive use AuthenticatedHttpClient (provided only to dashboard).
  */
 const HttpClientLayer: Layer.Layer<HttpClient.HttpClient, never, never> =
   FetchHttpClient.layer
@@ -120,7 +121,10 @@ export function buildApplicationLayer() {
     RolesLive,
     UsersLive,
     DashboardLive,
-  ).pipe(Layer.provide(BaseLayer))
+  ).pipe(
+    Layer.provide(AuthenticatedHttpClientLive),
+    Layer.provide(BaseLayer),
+  )
 
   const result = Layer.mergeAll(BaseLayer, DashboardServicesLayer, LoggerLayer)
 

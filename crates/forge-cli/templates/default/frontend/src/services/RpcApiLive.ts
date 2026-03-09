@@ -4,7 +4,8 @@
  * RPC uses same object types as REST (forge-query); response decoded via Schema.
  */
 
-import { HttpClient, HttpClientRequest } from '@effect/platform'
+import { HttpClientRequest } from '@effect/platform'
+import { AuthenticatedHttpClient } from '@/services/AuthenticatedHttpClient'
 import { Effect, Layer, pipe } from 'effect'
 import { Schema } from 'effect'
 import {
@@ -25,7 +26,7 @@ const RpcSubscribeResponseSchema = RpcResponseSchema(RpcSubscribeResultSchema)
 const RpcApiLive = Layer.effect(
   RpcApi,
   Effect.gen(function* () {
-    const client = yield* HttpClient.HttpClient
+    const client = yield* AuthenticatedHttpClient
 
     const subscribe: RpcApiService['subscribe'] = (entityId, params) =>
       Effect.gen(function* () {
