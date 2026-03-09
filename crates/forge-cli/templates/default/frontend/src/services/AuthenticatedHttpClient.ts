@@ -5,6 +5,5 @@
 import type { HttpClient } from '@effect/platform'
 import { Context } from 'effect'
 
-export const AuthenticatedHttpClient = Context.GenericTag<
-  HttpClient.HttpClient
->('@forge/AuthenticatedHttpClient')
+export const AuthenticatedHttpClient =
+  Context.GenericTag<HttpClient.HttpClient>('@forge/AuthenticatedHttpClient')

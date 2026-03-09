@@ -15,7 +15,7 @@ import { BrowserRouter } from 'react-router-dom'
 import { ThemeProvider, createTheme } from '@mui/material/styles'
 import { Window } from 'happy-dom'
 import React from 'react'
-import { Effect, Layer, Runtime } from 'effect'
+import { Effect, Layer } from 'effect'
 import { EffectRuntimeProvider } from 'react-effect-hooks'
 
 import AuditLogPage from './AuditLogPage'
@@ -71,7 +71,7 @@ const createWrapper = () => {
   return ({ children }: { children: React.ReactNode }) => {
     // Get the layer at render time to pick up test overrides
     const appLayer = getApplicationLayer()
-    const runtime = Runtime.make(appLayer)
+    const runtime = Effect.runSync(Effect.scoped(Layer.toRuntime(appLayer)))
 
     return (
       <BrowserRouter>

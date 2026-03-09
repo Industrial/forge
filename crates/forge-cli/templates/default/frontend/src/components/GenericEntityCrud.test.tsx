@@ -8,7 +8,7 @@ import { BrowserRouter } from 'react-router-dom'
 import { createTheme } from '@mui/material/styles'
 import { Window } from 'happy-dom'
 import React from 'react'
-import { Layer, Runtime } from 'effect'
+import { Effect, Layer } from 'effect'
 import { EffectRuntimeProvider } from 'react-effect-hooks'
 
 import GenericEntityCrud from './GenericEntityCrud'
@@ -63,7 +63,7 @@ const createWrapper = () => {
     Layer.mergeAll(baseLayer, EntityApiMock, RpcApiMock),
   )
   const layer = getApplicationLayer()
-  const runtime = Runtime.make(layer)
+  const runtime = Effect.runSync(Effect.scoped(Layer.toRuntime(layer)))
 
   return ({ children }: { children: React.ReactNode }) => (
     <BrowserRouter>

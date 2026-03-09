@@ -121,10 +121,7 @@ export function buildApplicationLayer() {
     RolesLive,
     UsersLive,
     DashboardLive,
-  ).pipe(
-    Layer.provide(AuthenticatedHttpClientLive),
-    Layer.provide(BaseLayer),
-  )
+  ).pipe(Layer.provide(AuthenticatedHttpClientLive), Layer.provide(BaseLayer))
 
   const result = Layer.mergeAll(BaseLayer, DashboardServicesLayer, LoggerLayer)
 
