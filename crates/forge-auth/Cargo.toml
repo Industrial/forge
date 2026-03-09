@@ -26,7 +26,7 @@ sha2 = "0.10"
 subtle = "2.5"
 thiserror = "2.0"
 tower = { version = "0.5", features = ["util"] }
-uuid = { version = "1.0", features = ["v4", "serde"] }
+uuid = { version = "1.22", features = ["v4", "serde"] }
 workspace-hack = { version = "0.1", path = "../../workspace-hack" }
 
 [dev-dependencies]

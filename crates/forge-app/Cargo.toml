@@ -25,7 +25,7 @@ sea-orm = { version = "1.1", default-features = false, features = [
 ] }
 sea-orm-migration = "1.1"
 axum-login = "0.17"
-uuid = { version = "1.0", features = ["v4", "serde"] }
+uuid = { version = "1.22", features = ["v4", "serde"] }
 forge-auth = { path = "../forge-auth" }
 forge-cache = { path = "../forge-cache" }
 forge-config = { path = "../forge-config" }
