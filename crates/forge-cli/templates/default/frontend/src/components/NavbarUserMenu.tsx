@@ -19,6 +19,7 @@ import { Effect, Option } from 'effect'
 import { useAuthStore } from '@/features/authentication/stores'
 import { Authentication } from '@/features/authentication/services/Authentication'
 import type { Scope } from '@/features/authentication/domain/Scope'
+import { useComponentLogger } from '@/hooks'
 import { getApplicationLayer } from '@/lib/appLayer'
 
 export type NavbarUserMenuProps = {
@@ -27,6 +28,7 @@ export type NavbarUserMenuProps = {
 }
 
 export default function NavbarUserMenu({ onLogout }: NavbarUserMenuProps) {
+  useComponentLogger('NavbarUserMenu')
   const navigate = useNavigate()
   const authentication = useAuthStore()
   const [anchorEl, setAnchorEl] = useState<null | HTMLElement>(null)

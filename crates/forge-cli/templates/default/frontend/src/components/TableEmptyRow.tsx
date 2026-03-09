@@ -1,6 +1,7 @@
 import type { ReactNode } from 'react'
 import TableCell from '@mui/material/TableCell'
 import TableRow from '@mui/material/TableRow'
+import { useComponentLogger } from '@/hooks'
 
 export type TableEmptyRowProps = {
   colSpan: number
@@ -15,6 +16,7 @@ export default function TableEmptyRow({
   colSpan,
   children,
 }: TableEmptyRowProps) {
+  useComponentLogger('TableEmptyRow')
   return (
     <TableRow>
       <TableCell colSpan={colSpan} align="center">

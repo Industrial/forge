@@ -176,6 +176,9 @@ export function getApplicationLayer() {
     return applicationLayerOverride
   }
   if (applicationLayer === undefined) {
+    if (typeof window !== 'undefined' && window.document) {
+      console.debug('[AppLayer] building application layer (first use)')
+    }
     applicationLayer = buildApplicationLayer()
   }
   return applicationLayer

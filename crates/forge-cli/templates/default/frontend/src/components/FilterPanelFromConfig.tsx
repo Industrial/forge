@@ -4,6 +4,7 @@ import FormControl from '@mui/material/FormControl'
 import InputLabel from '@mui/material/InputLabel'
 import MenuItem from '@mui/material/MenuItem'
 import Select from '@mui/material/Select'
+import { useComponentLogger } from '@/hooks'
 import FiltersPanel from './FiltersPanel'
 
 export type FilterFieldText = {
@@ -51,6 +52,7 @@ export default function FilterPanelFromConfig({
   onChange,
   extra,
 }: FilterPanelFromConfigProps) {
+  useComponentLogger('FilterPanelFromConfig')
   return (
     <FiltersPanel title={title}>
       {fields.map((field) => {

@@ -1,4 +1,5 @@
 import React from 'react'
+import { useComponentLogger } from '@/hooks'
 import { RouteGuard } from './RouteGuard'
 
 export type ProtectedRouteProps = {
@@ -6,6 +7,7 @@ export type ProtectedRouteProps = {
 }
 
 export default function ProtectedRoute({ children }: ProtectedRouteProps) {
+  useComponentLogger('ProtectedRoute')
   return (
     <RouteGuard
       requireAuth

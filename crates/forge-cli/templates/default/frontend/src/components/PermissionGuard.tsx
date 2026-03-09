@@ -1,4 +1,5 @@
 import type { ReactNode } from 'react'
+import { useComponentLogger } from '@/hooks'
 import { RouteGuard } from './RouteGuard'
 
 export type PermissionGuardProps = {
@@ -15,6 +16,7 @@ export function PermissionGuard({
   redirectTo = '/dashboard',
   children,
 }: PermissionGuardProps) {
+  useComponentLogger('PermissionGuard')
   return (
     <RouteGuard requirePermissions={permissions} redirectTo={redirectTo}>
       {children}

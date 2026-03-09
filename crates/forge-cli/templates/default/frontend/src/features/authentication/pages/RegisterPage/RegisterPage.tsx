@@ -12,10 +12,11 @@ import { getApplicationLayer } from '@/lib/appLayer'
 import { Authentication } from '@/features/authentication/services/Authentication'
 import { navigateTo } from '@/lib/navigate'
 import { AuthenticationError } from '@/features/authentication/errors/AuthenticationError'
-import { useForm } from '@/hooks/useForm'
+import { useComponentLogger, useForm } from '@/hooks'
 import { RegisterFormSchema } from '@/features/authentication/schemas/RegisterFormSchema'
 
 export default function RegisterPage() {
+  useComponentLogger('RegisterPage')
   const navigate = useNavigate()
   const [submitting, setSubmitting] = useState(false)
   const [errorMessage, setErrorMessage] = useState<string | null>(null)

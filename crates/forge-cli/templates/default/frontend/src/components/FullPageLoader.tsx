@@ -1,3 +1,5 @@
+import { useComponentLogger } from '@/hooks'
+
 const containerStyle: React.CSSProperties = {
   display: 'flex',
   justifyContent: 'center',
@@ -15,11 +17,9 @@ const spinnerStyle: React.CSSProperties = {
   animation: 'fullPageLoaderSpin 0.8s linear infinite',
 }
 
-/**
- * Full-page loading indicator. Uses inline styles only (no MUI) so it can be
- * used before ThemeProvider is mounted (e.g. while the app runtime is building).
- */
+/** Full-page loading indicator. Inline styles only (no MUI) for use before ThemeProvider. */
 export default function FullPageLoader(): React.JSX.Element {
+  useComponentLogger('FullPageLoader')
   return (
     <div style={containerStyle} aria-busy aria-label="Loading">
       <div style={spinnerStyle} />

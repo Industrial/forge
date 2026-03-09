@@ -29,7 +29,7 @@ import EmptyState from '@/components/EmptyState'
 import PageHeader from '@/components/PageHeader'
 import ErrorAlert from '@/components/ErrorAlert'
 import { ShowWithPermissions } from '@/components/ShowWithPermissions'
-import { useEntitySubscription } from '@/hooks/useEntitySubscription'
+import { useComponentLogger, useEntitySubscription } from '@/hooks'
 import { useLiveRefreshTrigger } from '@/hooks/useLiveRefreshTrigger'
 import { usePermission } from '@/hooks/usePermission'
 import { useIsMobile } from '@/hooks/useIsMobile'
@@ -117,6 +117,7 @@ function OrganizationForm({
 }
 
 export default function OrganizationsPage() {
+  useComponentLogger('OrganizationsPage')
   const isMobile = useIsMobile()
   const canWrite = usePermission(ORG_WRITE)
   const { trigger: liveRefreshTrigger, connected: wsConnected } =

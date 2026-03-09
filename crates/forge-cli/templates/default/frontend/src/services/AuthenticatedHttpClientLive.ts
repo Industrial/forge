@@ -43,12 +43,24 @@ export const AuthenticatedHttpClientLive = Layer.effect(
 
     const execute = (request: HttpClientRequest.HttpClientRequest) =>
       Effect.gen(function* () {
+        yield* Effect.logTrace('AuthenticatedHttpClientLive.execute')
         const tokenOpt = yield* tokenStorage.getToken()
         const scopeOpt = yield* tokenStorage.getScope()
         const token = Option.getOrElse(tokenOpt, () => null)
         const scope = Option.getOrElse(scopeOpt, () => null)
+        const url =
+          typeof request === 'object' && request && 'url' in request
+            ? String((request as { url?: string }).url ?? '')
+            : ''
+        yield* Effect.logDebug(
+          `AuthenticatedHttpClientLive.execute: url=${url || '(unknown)'}, hasToken=${token != null && token !== ''}, hasScope=${scope != null}`,
+        )
         const req = withAuthHeaders(request, token, scope)
-        return yield* base.execute(req)
+        const response = yield* base.execute(req)
+        yield* Effect.logDebug(
+          `AuthenticatedHttpClientLive.execute: response status=${(response as { status?: number }).status ?? 'unknown'}`,
+        )
+        return response
       })
 
     return { ...base, execute }

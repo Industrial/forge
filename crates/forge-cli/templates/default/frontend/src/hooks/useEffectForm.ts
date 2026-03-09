@@ -47,7 +47,10 @@ export function useEffectForm<TSchema extends Schema.Schema<any, any, never>>(
             Effect.map((either) =>
               Either.match(either, {
                 onLeft: (errors) => ({ errors, isValid: false as const }),
-                onRight: () => ({ errors: [] as readonly FieldError[], isValid: true as const }),
+                onRight: () => ({
+                  errors: [] as readonly FieldError[],
+                  isValid: true as const,
+                }),
               }),
             ),
           ),

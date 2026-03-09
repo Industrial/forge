@@ -4,11 +4,13 @@ import Button from '@mui/material/Button'
 import Typography from '@mui/material/Typography'
 import { Effect, Option } from 'effect'
 import PageHeader from '@/components/PageHeader'
+import { useComponentLogger } from '@/hooks'
 import { getApplicationLayer } from '@/lib/appLayer'
 import { useAuthStore } from '@/features/authentication/stores'
 import { Authentication } from '@/features/authentication/services/Authentication'
 
 export default function ScopePage() {
+  useComponentLogger('ProfilePage')
   const authentication = useAuthStore()
   const user = Option.getOrElse(authentication.user, () => null)
   const [loggingOut, setLoggingOut] = useState(false)

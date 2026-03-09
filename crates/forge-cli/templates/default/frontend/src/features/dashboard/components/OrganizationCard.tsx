@@ -7,6 +7,7 @@ import DeleteIcon from '@mui/icons-material/Delete'
 
 import type { Organization } from '@/features/dashboard/domain/Organization'
 import { formatDate } from '@/features/dashboard/utils/formatDate'
+import { useComponentLogger } from '@/hooks'
 
 export type OrganizationCardProps = {
   org: Organization
@@ -23,6 +24,7 @@ export default function OrganizationCard({
   onDelete,
   isDeleting,
 }: OrganizationCardProps) {
+  useComponentLogger('OrganizationCard')
   return (
     <Paper sx={{ p: 2 }}>
       <Typography variant="subtitle1" fontWeight={600}>

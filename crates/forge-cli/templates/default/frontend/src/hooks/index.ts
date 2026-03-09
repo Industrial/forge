@@ -1,4 +1,5 @@
 export * from './useColorScheme'
+export * from './useComponentLogger'
 export * from './useEntitySubscription'
 export * from './useFilteredList'
 export * from './useForm'

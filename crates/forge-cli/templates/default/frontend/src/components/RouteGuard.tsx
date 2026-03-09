@@ -5,6 +5,7 @@ import {
   useAuthStore,
   useAuthStoreWithInit,
 } from '@/features/authentication/stores'
+import { useComponentLogger } from '@/hooks'
 import { hasPermission } from '@/lib/permissions'
 import CenteredLoader from './CenteredLoader'
 
@@ -39,6 +40,7 @@ export function RouteGuard({
   redirectTo,
   children,
 }: RouteGuardProps): ReactNode {
+  useComponentLogger('RouteGuard')
   const authWithInit = useAuthStoreWithInit()
   const auth = useAuthStore()
 

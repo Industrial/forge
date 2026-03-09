@@ -553,7 +553,15 @@ export function updateAuthState(
   store: ReactiveStore<AuthenticationState>,
   state: AuthenticationState,
 ): Effect.Effect<void, never, never> {
-  return store.update(() => state)
+  return Effect.gen(function* () {
+    yield* Effect.logTrace('AuthenticationLive.updateAuthState')
+    const hasUser = Option.isSome(state.user)
+    const needsScope = Option.getOrElse(state.needsScopeSelect, () => false)
+    yield* Effect.logDebug(
+      `AuthenticationLive.updateAuthState: hasUser=${hasUser}, needsScopeSelect=${needsScope}, permissionsCount=${state.permissions.length}`,
+    )
+    yield* store.update(() => state)
+  })
 }
 
 /**
@@ -809,6 +817,20 @@ export const AuthenticationLive = Layer.effect(
           yield* Effect.logTrace('AuthenticationLive.selectScope')
 
           yield* tokenStorage.setScope(organizationId, roleId)
+
+          // Optimistic update: set needsScopeSelect false and currentScope so the UI
+          // does not redirect back to select-scope if the refetch fails.
+          yield* Effect.logDebug(
+            'AuthenticationLive.selectScope: optimistic store update (needsScopeSelect=false)',
+          )
+          yield* store.update((state) => ({
+            ...state,
+            needsScopeSelect: Option.some(false),
+            currentScope: Option.some({
+              organizationId,
+              roleId,
+            }),
+          }))
 
           // Refetch user and permissions after scope selection
           const tokenOpt = yield* tokenStorage.getToken()

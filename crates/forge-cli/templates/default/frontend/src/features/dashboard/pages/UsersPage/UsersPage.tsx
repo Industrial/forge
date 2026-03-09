@@ -43,6 +43,7 @@ import UsersFilters from '@/features/dashboard/components/UsersFilters'
 import UserTableRow from '@/features/dashboard/components/UserTableRow'
 import ErrorAlert from '@/components/ErrorAlert'
 import LoadingSpinner from '@/components/LoadingSpinner'
+import { useComponentLogger } from '@/hooks'
 import { ShowWithPermissions } from '@/components/ShowWithPermissions'
 import { useLiveRefreshTrigger } from '@/hooks/useLiveRefreshTrigger'
 import { usePermission } from '@/hooks/usePermission'
@@ -67,6 +68,7 @@ const USERS_WRITE = 'user.create'
 const FILTER_ROLES = ['owner', 'admin', 'editor', 'viewer']
 
 export default function UsersPage() {
+  useComponentLogger('UsersPage')
   const canRead = usePermission(USERS_READ)
   const canWrite = usePermission(USERS_WRITE)
   const { trigger: liveRefreshTrigger, connected: wsConnected } =

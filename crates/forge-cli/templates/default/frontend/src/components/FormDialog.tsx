@@ -1,5 +1,6 @@
 import type { ReactNode } from 'react'
 import Button from '@mui/material/Button'
+import { useComponentLogger } from '@/hooks'
 import Dialog from '@mui/material/Dialog'
 import DialogActions from '@mui/material/DialogActions'
 import DialogContent from '@mui/material/DialogContent'
@@ -39,6 +40,7 @@ export default function FormDialog({
   'data-testid': testId,
   submitButtonTestId,
 }: FormDialogProps) {
+  useComponentLogger('FormDialog')
   const handleClose = () => {
     if (!submitting) onClose()
   }

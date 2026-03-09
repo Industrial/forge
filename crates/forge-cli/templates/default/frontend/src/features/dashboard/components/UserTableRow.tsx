@@ -1,6 +1,7 @@
 import EntityTableRow from '@/components/EntityTableRow'
 import { formatDate } from '@/features/dashboard/utils/formatDate'
 import { membershipsSummary } from '@/features/dashboard/utils/membershipsSummary'
+import { useComponentLogger } from '@/hooks'
 
 export type UserRow = {
   id: string
@@ -28,6 +29,7 @@ export default function UserTableRow({
   onView,
   isDeleting,
 }: UserTableRowProps) {
+  useComponentLogger('UserTableRow')
   const onRowClick = () => {
     if (onView) onView(user)
     else if (canWrite) onEdit(user)

@@ -1,6 +1,7 @@
 import Button from '@mui/material/Button'
 import FilterPanelFromConfig from '@/components/FilterPanelFromConfig'
 import type { FilterField } from '@/components/FilterPanelFromConfig'
+import { useComponentLogger } from '@/hooks'
 
 const OUTCOMES = ['success', 'failure', 'allowed', 'denied'] as const
 const EVENT_KINDS = ['auth', 'authz', 'mutation', 'custom'] as const
@@ -83,6 +84,7 @@ export default function AuditLogFilters({
   onApply,
   onReset,
 }: AuditLogFiltersProps) {
+  useComponentLogger('AuditLogFilters')
   const values = { from, to, outcome, eventKind, action, reason }
   const onChange = (key: string, value: string) => {
     if (key === 'from') onFromChange(value)

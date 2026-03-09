@@ -12,10 +12,11 @@ import { Authentication } from '@/features/authentication/services/Authenticatio
 import { navigateTo } from '@/lib/navigate'
 import { getApplicationLayer } from '@/lib/appLayer'
 import { AuthenticationError } from '@/features/authentication/errors/AuthenticationError'
-import { useForm } from '@/hooks/useForm'
+import { useComponentLogger, useForm } from '@/hooks'
 import { LoginFormSchema } from '@/features/authentication/schemas/LoginFormSchema'
 
 export default function LoginPage() {
+  useComponentLogger('LoginPage')
   const navigate = useNavigate()
   const [submitting, setSubmitting] = useState(false)
   const [errorMessage, setErrorMessage] = useState<string | null>(null)

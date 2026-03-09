@@ -112,12 +112,15 @@ const SubscriptionStreamLiveFn = (baseUrl: string) =>
             return yield* Effect.fail(new Error('Subscription stream: no body'))
           }
           const reader = body.getReader()
+          yield* Effect.logDebug(
+            'SubscriptionStreamLive.openStream: got reader, creating stream',
+          )
           const eventStream = Stream.fromAsyncIterable(
             readSSEEvents(reader),
             (e) => new Error(String(e)),
           )
           yield* Effect.logDebug(
-            'SubscriptionStreamLive.openStream: stream opened',
+            'SubscriptionStreamLive.openStream: returning event stream',
           )
           return eventStream
         })

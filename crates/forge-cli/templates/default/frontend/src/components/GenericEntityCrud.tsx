@@ -39,6 +39,7 @@ import {
   isFailure,
   isPending,
 } from 'react-effect-hooks'
+import { useComponentLogger } from '@/hooks'
 import { useRunWithAppLayer } from '@/lib/appLayer'
 import { Effect } from 'effect'
 import { EntityApi, type EntityApiService } from '../services/EntityApi'
@@ -130,6 +131,7 @@ export default function GenericEntityCrud({
   canUpdate = true,
   canDelete = true,
 }: GenericEntityCrudProps) {
+  useComponentLogger('GenericEntityCrud')
   const { run } = useRunWithAppLayer()
 
   const [listState, , setListStateAsEffect] = useEffectState<
