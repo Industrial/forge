@@ -8,7 +8,6 @@ import { Effect, Option, pipe, Schema } from 'effect'
 import { HttpClient, HttpClientRequest } from '@effect/platform'
 import { useCallback, useEffect, useState } from 'react'
 
-import { useComponentLogger } from '@/hooks'
 import { getApplicationLayer } from '@/lib/appLayer'
 import { useAuthStore } from '@/features/authentication/stores'
 import { Authentication } from '@/features/authentication/services/Authentication'
@@ -36,7 +35,6 @@ type Scope = {
 }
 
 export default function SelectScopePage() {
-  useComponentLogger('SelectScopePage')
   const navigate = useNavigate()
   const location = useLocation()
   const authentication = useAuthStore()

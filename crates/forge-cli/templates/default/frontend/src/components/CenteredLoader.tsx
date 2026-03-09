@@ -1,5 +1,4 @@
 import Box from '@mui/material/Box'
-import { useComponentLogger } from '@/hooks'
 import LoadingSpinner from './LoadingSpinner'
 
 /**
@@ -7,7 +6,6 @@ import LoadingSpinner from './LoadingSpinner'
  * Uses MUI Box + LoadingSpinner (use when ThemeProvider is mounted).
  */
 export default function CenteredLoader(): React.JSX.Element {
-  useComponentLogger('CenteredLoader')
   return (
     <Box
       sx={{

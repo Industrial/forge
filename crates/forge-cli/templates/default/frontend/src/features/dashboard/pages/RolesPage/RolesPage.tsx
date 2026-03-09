@@ -40,7 +40,6 @@ import PageHeader from '@/components/PageHeader'
 import ErrorAlert from '@/components/ErrorAlert'
 import LoadingSpinner from '@/components/LoadingSpinner'
 import { ShowWithPermissions } from '@/components/ShowWithPermissions'
-import { useComponentLogger } from '@/hooks'
 import { useLiveRefreshTrigger } from '@/hooks/useLiveRefreshTrigger'
 import { usePermission } from '@/hooks/usePermission'
 import type { Role } from '@/features/dashboard/domain/Role'
@@ -54,7 +53,6 @@ const ROLES_READ = 'role.read'
 const ROLES_WRITE = 'role.create'
 
 export default function RolesPage() {
-  useComponentLogger('RolesPage')
   const canRead = usePermission(ROLES_READ)
   const canWrite = usePermission(ROLES_WRITE)
   const { trigger: liveRefreshTrigger, connected: wsConnected } =

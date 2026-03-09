@@ -1,6 +1,5 @@
 import React from 'react'
 import { Outlet, Route, Routes } from 'react-router-dom'
-import { useComponentLogger } from '@/hooks'
 import { createTheme } from '@mui/material/styles'
 import Box from '@mui/material/Box'
 
@@ -27,7 +26,6 @@ import { Providers } from '@/Providers'
 import { SubscriptionStreamRunner } from '@/components/SubscriptionStreamRunner'
 
 function App() {
-  useComponentLogger('App')
   const [colorSchemeMode, setColorSchemeMode] = useColorSchemeMode()
 
   const theme = createTheme({

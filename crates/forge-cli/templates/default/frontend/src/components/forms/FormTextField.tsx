@@ -1,6 +1,5 @@
 import TextField from '@mui/material/TextField'
 import type { TextFieldProps } from '@mui/material/TextField'
-import { useComponentLogger } from '@/hooks'
 
 export type FormTextFieldProps = Omit<
   TextFieldProps,
@@ -21,7 +20,6 @@ export default function FormTextField({
   helperText,
   ...rest
 }: FormTextFieldProps) {
-  useComponentLogger('FormTextField')
   return (
     <TextField
       {...rest}

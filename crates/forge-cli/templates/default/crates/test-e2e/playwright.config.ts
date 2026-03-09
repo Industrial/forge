@@ -6,32 +6,22 @@ const __dirname = path.dirname(fileURLToPath(import.meta.url))
 /** Project root (crates/test-e2e -> crates -> root). */
 const repoRoot = path.resolve(__dirname, '../..')
 
-/** Frontend URL from FORGE_FRONTEND_HOST and FORGE_FRONTEND_PORT. Set by bin/test-e2e or caller. */
+/** Frontend URL from FORGE_FRONTEND_HOST and FORGE_FRONTEND_PORT. Set by bin/test-e2e; defaults for standalone runs. */
 const frontendHost = process.env.FORGE_FRONTEND_HOST || '127.0.0.1'
-const frontendPort = process.env.FORGE_FRONTEND_PORT
-if (!frontendPort) {
-  throw new Error(
-    'FORGE_FRONTEND_PORT is required. Run via "bun run test" or set FORGE_FRONTEND_PORT and FORGE_SERVER_PORT.',
-  )
-}
+const frontendPort = process.env.FORGE_FRONTEND_PORT || '5173'
 const baseURL = `http://${frontendHost}:${frontendPort}`
 
-/** API server URL from FORGE_BACKEND_HOST and FORGE_SERVER_PORT. Set by bin/test-e2e or caller. */
+/** API server URL from FORGE_BACKEND_HOST and FORGE_SERVER_PORT. Set by bin/test-e2e; defaults for standalone runs. */
 const backendHost = process.env.FORGE_BACKEND_HOST || '127.0.0.1'
-const backendPort = process.env.FORGE_SERVER_PORT || process.env.FORGE_BACKEND_PORT
-if (!backendPort) {
-  throw new Error(
-    'FORGE_SERVER_PORT or FORGE_BACKEND_PORT is required. Run via "bun run test" or set FORGE_* env vars.',
-  )
-}
+const backendPort = process.env.FORGE_SERVER_PORT || process.env.FORGE_BACKEND_PORT || '4000'
 export const API_BASE_URL = `http://${backendHost}:${backendPort}`
 
 export default defineConfig({
   testDir: path.join(__dirname, 'tests'),
-  fullyParallel: true,
+  fullyParallel: false,
   forbidOnly: !!process.env.CI,
   retries: process.env.CI ? 2 : 0,
-  workers: undefined, // use default (CPU cores) for parallel runs
+  workers: 1,
   reporter: [['list']],
   use: {
     baseURL,

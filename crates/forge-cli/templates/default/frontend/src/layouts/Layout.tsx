@@ -1,6 +1,5 @@
 import React from 'react'
 import Box from '@mui/material/Box'
-import { useComponentLogger } from '@/hooks'
 import Navbar from '../components/Navbar'
 
 export type LayoutProps = {
@@ -14,7 +13,6 @@ export default function Layout({
   colorScheme,
   onToggleTheme,
 }: LayoutProps) {
-  useComponentLogger('Layout')
   return (
     <Box
       sx={{

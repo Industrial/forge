@@ -1,6 +1,5 @@
 import Box from '@mui/material/Box'
 import React from 'react'
-import { useComponentLogger } from '@/hooks'
 
 export type AuthenticationLayoutProps = {
   children: React.ReactNode
@@ -9,7 +8,6 @@ export type AuthenticationLayoutProps = {
 export default function AuthenticationLayout({
   children,
 }: AuthenticationLayoutProps) {
-  useComponentLogger('AuthenticationLayout')
   return (
     <Box
       sx={{

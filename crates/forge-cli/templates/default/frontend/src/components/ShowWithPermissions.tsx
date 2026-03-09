@@ -1,6 +1,5 @@
 import type { ReactNode } from 'react'
 import { useAuthStore } from '@/features/authentication/stores'
-import { useComponentLogger } from '@/hooks'
 import { shouldShowWithPermissions } from '@/lib/permissions'
 
 /**
@@ -14,7 +13,6 @@ export function ShowWithPermissions({
   permissions: readonly string[]
   children: ReactNode
 }) {
-  useComponentLogger('ShowWithPermissions')
   const { permissions: userPermissions } = useAuthStore()
   const show = shouldShowWithPermissions(userPermissions, ...permissions)
   return show ? <>{children}</> : null

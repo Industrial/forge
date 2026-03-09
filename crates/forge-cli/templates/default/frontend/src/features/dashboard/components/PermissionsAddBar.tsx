@@ -4,7 +4,6 @@ import FormControl from '@mui/material/FormControl'
 import InputLabel from '@mui/material/InputLabel'
 import MenuItem from '@mui/material/MenuItem'
 import Select from '@mui/material/Select'
-import { useComponentLogger } from '@/hooks'
 
 export type PermissionsAddBarProps = {
   scope: string
@@ -31,7 +30,6 @@ export default function PermissionsAddBar({
   onAdd,
   adding,
 }: PermissionsAddBarProps) {
-  useComponentLogger('PermissionsAddBar')
   return (
     <Box
       sx={{

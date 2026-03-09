@@ -19,7 +19,7 @@ const UsersLive = Layer.effect(
       Effect.gen(function* () {
         yield* Effect.logTrace('UsersLive.list')
         const response = yield* client.execute(
-          HttpClientRequest.get('/api/dashboard/users'),
+          HttpClientRequest.get('/api/auth/users'),
         )
         if (response.status === 401) {
           return yield* Effect.fail(
@@ -82,7 +82,7 @@ const UsersLive = Layer.effect(
         yield* Effect.logDebug(
           `UsersLive.create: email=${body.email}, org_id=${body.org_id}`,
         )
-        const request = HttpClientRequest.post('/api/dashboard/users').pipe(
+        const request = HttpClientRequest.post('/api/auth/users').pipe(
           HttpClientRequest.bodyUnsafeJson({
             ...body,
             role_ids: [...body.role_ids],
@@ -106,8 +106,11 @@ const UsersLive = Layer.effect(
         yield* Effect.logTrace('UsersLive.update')
         yield* Effect.logDebug(`UsersLive.update: id=${body.id}`)
         const response = yield* client.execute(
-          HttpClientRequest.patch('/api/dashboard/users').pipe(
-            HttpClientRequest.bodyUnsafeJson(body),
+          HttpClientRequest.patch(`/api/auth/users/${body.id}`).pipe(
+            HttpClientRequest.bodyUnsafeJson({
+              ...(body.email !== undefined && { email: body.email }),
+              ...(body.is_active !== undefined && { is_active: body.is_active }),
+            }),
           ),
         )
         if (response.status === 403) {
@@ -127,9 +130,7 @@ const UsersLive = Layer.effect(
         yield* Effect.logTrace('UsersLive.delete')
         yield* Effect.logDebug(`UsersLive.delete: id=${id}`)
         const response = yield* client.execute(
-          HttpClientRequest.del('/api/dashboard/users').pipe(
-            HttpClientRequest.bodyUnsafeJson({ id }),
-          ),
+          HttpClientRequest.del(`/api/auth/users/${id}`),
         )
         if (response.status === 403) {
           return yield* Effect.fail(

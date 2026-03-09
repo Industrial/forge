@@ -1,5 +1,4 @@
 import EntityTableRow from '@/components/EntityTableRow'
-import { useComponentLogger } from '@/hooks'
 import { formatDate } from '../utils/formatDate'
 
 export type AuditLogEntryRow = {
@@ -18,7 +17,6 @@ export type AuditLogTableRowProps = {
 }
 
 export default function AuditLogTableRow({ entry }: AuditLogTableRowProps) {
-  useComponentLogger('AuditLogTableRow')
   return (
     <EntityTableRow<AuditLogEntryRow>
       item={entry}

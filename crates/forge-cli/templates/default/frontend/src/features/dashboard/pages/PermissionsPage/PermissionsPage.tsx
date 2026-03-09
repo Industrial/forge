@@ -27,7 +27,6 @@ import PermissionsAddBar from '@/features/dashboard/components/PermissionsAddBar
 import AssignmentTableRow from '@/features/dashboard/components/AssignmentTableRow'
 import ErrorAlert from '@/components/ErrorAlert'
 import LoadingSpinner from '@/components/LoadingSpinner'
-import { useComponentLogger } from '@/hooks'
 import { useLiveRefreshTrigger } from '@/hooks/useLiveRefreshTrigger'
 import { useTablePaginationDefaults } from '@/hooks/useTablePaginationDefaults'
 import type { Assignment } from '@/features/dashboard/domain/Assignment'
@@ -42,7 +41,6 @@ const GLOBAL_ROLES = ['platform_admin'] as const
 type ListState = AsyncState<PermissionsData, Error>
 
 export default function PermissionsPage() {
-  useComponentLogger('PermissionsPage')
   const { trigger: liveRefreshTrigger, connected: wsConnected } =
     useLiveRefreshTrigger('role_permissions')
 

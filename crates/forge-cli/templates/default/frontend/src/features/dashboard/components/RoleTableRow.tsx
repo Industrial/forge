@@ -1,5 +1,4 @@
 import EntityTableRow from '@/components/EntityTableRow'
-import { useComponentLogger } from '@/hooks'
 import type { Role } from '@/features/dashboard/domain/Role'
 
 export type RoleTableRowProps = {
@@ -21,7 +20,6 @@ export default function RoleTableRow({
   canWrite,
   isDeleting,
 }: RoleTableRowProps) {
-  useComponentLogger('RoleTableRow')
   const onRowClick = () => {
     if (onView) onView(role)
     else if (canWrite) onEdit(role)

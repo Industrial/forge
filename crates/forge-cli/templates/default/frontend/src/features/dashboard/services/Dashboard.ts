@@ -13,13 +13,13 @@ import type { Organization } from '../domain/Organization'
 import type { DashboardRole } from '../domain/DashboardRole'
 
 export interface DashboardService {
-  /** List organizations (e.g. for dropdowns). GET /api/dashboard/organizations. */
+  /** List organizations (e.g. for dropdowns). GET /api/auth/organizations. */
   readonly getOrganizations: () => Effect.Effect<
     readonly Organization[],
     Error,
     never
   >
-  /** List roles for an org (e.g. role dropdown). GET /api/dashboard/roles?org_id=... */
+  /** List roles for an org (e.g. role dropdown). GET /api/auth/roles?org_id=... */
   readonly getRolesByOrg: (
     orgId: string,
   ) => Effect.Effect<readonly DashboardRole[], Error, never>

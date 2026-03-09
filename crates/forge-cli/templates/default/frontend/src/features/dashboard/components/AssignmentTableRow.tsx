@@ -1,5 +1,4 @@
 import EntityTableRow from '@/components/EntityTableRow'
-import { useComponentLogger } from '@/hooks'
 import type { Assignment } from '../domain/Assignment'
 
 export type AssignmentTableRowProps = {
@@ -13,7 +12,6 @@ export default function AssignmentTableRow({
   onDelete,
   isDeleting,
 }: AssignmentTableRowProps) {
-  useComponentLogger('AssignmentTableRow')
   const getRowId = (a: Assignment) =>
     `${a.scope}-${a.role_name}-${a.permission_key}`
   return (

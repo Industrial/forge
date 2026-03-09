@@ -26,7 +26,6 @@ import AuditLogFilters from '@/features/dashboard/components/AuditLogFilters'
 import AuditLogTableRow from '@/features/dashboard/components/AuditLogTableRow'
 import ErrorAlert from '@/components/ErrorAlert'
 import LoadingSpinner from '@/components/LoadingSpinner'
-import { useComponentLogger } from '@/hooks'
 import { useLiveRefreshTrigger } from '@/hooks/useLiveRefreshTrigger'
 import { useTablePaginationDefaults } from '@/hooks/useTablePaginationDefaults'
 import type { AuditLogResult } from '@/features/dashboard/services/AuditLog'
@@ -35,7 +34,6 @@ import { AuditLog as AuditLogService } from '@/features/dashboard/services/Audit
 type ListState = AsyncState<AuditLogResult, Error>
 
 export default function AuditLogPage() {
-  useComponentLogger('AuditLogPage')
   const { trigger: liveRefreshTrigger, connected: wsConnected } =
     useLiveRefreshTrigger('audit-log')
 

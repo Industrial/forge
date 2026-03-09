@@ -1,6 +1,5 @@
 import type { ReactNode } from 'react'
 import { useAuthStore } from '@/features/authentication/stores'
-import { useComponentLogger } from '@/hooks'
 import { shouldHideWithPermissions } from '@/lib/permissions'
 
 /**
@@ -14,7 +13,6 @@ export function HideWithPermissions({
   permissions: readonly string[]
   children: ReactNode
 }) {
-  useComponentLogger('HideWithPermissions')
   const { permissions: userPermissions } = useAuthStore()
   const hide = shouldHideWithPermissions(userPermissions, ...permissions)
   return hide ? null : <>{children}</>

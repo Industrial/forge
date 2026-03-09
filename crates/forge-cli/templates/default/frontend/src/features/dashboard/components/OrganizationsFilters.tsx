@@ -1,6 +1,5 @@
 import FilterPanelFromConfig from '@/components/FilterPanelFromConfig'
 import type { FilterField } from '@/components/FilterPanelFromConfig'
-import { useComponentLogger } from '@/hooks'
 
 export type OrgOption = { id: string; name: string }
 
@@ -34,7 +33,6 @@ export default function OrganizationsFilters({
   onFilterNameChange,
   onFilterSlugChange,
 }: OrganizationsFiltersProps) {
-  useComponentLogger('OrganizationsFilters')
   const values = { name: filterName, slug: filterSlug }
   const onChange = (key: string, value: string) => {
     if (key === 'name') onFilterNameChange(value)

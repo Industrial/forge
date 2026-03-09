@@ -1,7 +1,6 @@
 import EntityTableRow from '@/components/EntityTableRow'
 import type { Organization } from '@/features/dashboard/domain/Organization'
 import { formatDate } from '@/features/dashboard/utils/formatDate'
-import { useComponentLogger } from '@/hooks'
 
 export type OrganizationTableRowProps = {
   org: Organization
@@ -18,7 +17,6 @@ export default function OrganizationTableRow({
   onDelete,
   isDeleting,
 }: OrganizationTableRowProps) {
-  useComponentLogger('OrganizationTableRow')
   return (
     <EntityTableRow<Organization>
       item={org}

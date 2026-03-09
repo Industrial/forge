@@ -2,7 +2,6 @@ import type { ReactNode } from 'react'
 import Box from '@mui/material/Box'
 import Chip from '@mui/material/Chip'
 import Typography from '@mui/material/Typography'
-import { useComponentLogger } from '@/hooks'
 
 export type PageHeaderProps = {
   title: string
@@ -19,7 +18,6 @@ export default function PageHeader({
   liveConnected = false,
   'data-testid': dataTestId,
 }: PageHeaderProps) {
-  useComponentLogger('PageHeader')
   return (
     <>
       <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 0 }}>

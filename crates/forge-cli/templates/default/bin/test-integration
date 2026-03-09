@@ -58,16 +58,17 @@ echo "> test-integration > starting API server (port $FORGE_SERVER_PORT)"
 FORGE_ENVIRONMENT=development FORGE_BACKEND_HOST="$FORGE_BACKEND_HOST" FORGE_SERVER_PORT="$FORGE_SERVER_PORT" FORGE_DATABASE_URL="$FORGE_DATABASE_URL" cargo run -p server --quiet &
 API_PID=$!
 
-echo "> test-integration > waiting for API /healthz"
-for i in {1..100}; do
-  if curl -sf --max-time 1 "$API_URL/healthz" >/dev/null 2>&1; then
+# Migrations + seeds can take 60s+ on CI; wait up to 90s for /healthz
+echo "> test-integration > waiting for API /healthz (up to 90s)"
+for i in {1..180}; do
+  if curl -sf --max-time 2 "$API_URL/healthz" >/dev/null 2>&1; then
     break
   fi
-  if [[ $i -eq 100 ]]; then
+  if [[ $i -eq 180 ]]; then
     echo "> test-integration > API did not become ready in time"
     exit 1
   fi
-  sleep 0.3
+  sleep 0.5
 done
 
 echo "> test-integration > running integration tests (cargo test -p test-integration)"

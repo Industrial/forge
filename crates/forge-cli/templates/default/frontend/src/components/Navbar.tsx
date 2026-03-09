@@ -10,7 +10,6 @@ import { Effect } from 'effect'
 
 import NavbarUserMenu from './NavbarUserMenu'
 import { Authentication } from '@/features/authentication/services/Authentication'
-import { useComponentLogger } from '@/hooks'
 import { getApplicationLayer } from '@/lib/appLayer'
 
 type NavbarProps = {
@@ -66,7 +65,6 @@ export default function Navbar({
   onToggleTheme,
   onOpenSidebar,
 }: NavbarProps) {
-  useComponentLogger('Navbar')
   const navigate = useNavigate()
   const canAccessDashboard = false
 

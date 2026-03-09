@@ -4,7 +4,6 @@ import TableRow from '@mui/material/TableRow'
 import IconButton from '@mui/material/IconButton'
 import EditIcon from '@mui/icons-material/Edit'
 import DeleteIcon from '@mui/icons-material/Delete'
-import { useComponentLogger } from '@/hooks'
 
 export type EntityTableRowColumn<T> = {
   key: string
@@ -44,7 +43,6 @@ export default function EntityTableRow<T>({
   isDeleting = false,
   deleteAriaLabel = 'Delete',
 }: EntityTableRowProps<T>): React.JSX.Element {
-  useComponentLogger('EntityTableRow')
   const rowId = getRowId(item)
   const hasClick = Boolean(onRowClick || (canEditDelete && onEdit))
   const handleRowClick = () => {

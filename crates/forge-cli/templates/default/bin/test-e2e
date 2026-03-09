@@ -71,16 +71,17 @@ echo "> test-e2e > starting API server (port $FORGE_SERVER_PORT)"
 FORGE_ENVIRONMENT="$FORGE_ENVIRONMENT" FORGE_BACKEND_HOST="$FORGE_BACKEND_HOST" FORGE_SERVER_PORT="$FORGE_SERVER_PORT" FORGE_DATABASE_URL="$FORGE_DATABASE_URL" cargo run -p server --quiet &
 API_PID=$!
 
-echo "> test-e2e > waiting for API /healthz"
-for i in {1..50}; do
-  if curl -sf --max-time 1 "$API_URL/healthz" >/dev/null 2>&1; then
+# Migrations + seeds run before the server binds; can take 60s+ on CI
+echo "> test-e2e > waiting for API /healthz (up to 90s)"
+for i in {1..180}; do
+  if curl -sf --max-time 2 "$API_URL/healthz" >/dev/null 2>&1; then
     break
   fi
-  if [[ $i -eq 50 ]]; then
+  if [[ $i -eq 180 ]]; then
     echo "> test-e2e > API did not become ready in time"
     exit 1
   fi
-  sleep 0.2
+  sleep 0.5
 done
 
 if [[ -f frontend/package.json ]]; then
@@ -109,7 +110,7 @@ export E2E_DB_PATH
 PLAYWRIGHT_EXIT=0
 if [[ -f crates/test-e2e/package.json ]]; then
   echo "> test-e2e > playwright test (crates/test-e2e)"
-  (cd crates/test-e2e && (bun install --frozen-lockfile 2>/dev/null || bun install) && bun run test) || PLAYWRIGHT_EXIT=$?
+  (cd crates/test-e2e && (bun install --frozen-lockfile 2>/dev/null || bun install) && bun run test "$@") || PLAYWRIGHT_EXIT=$?
 else
   echo "> test-e2e > no crates/test-e2e/package.json, skipping Playwright"
 fi

@@ -1,5 +1,4 @@
 import React from 'react'
-import { useComponentLogger } from '@/hooks'
 import { RouteGuard } from '@/components/RouteGuard'
 
 type SelectScopeOnlyGuardProps = { children: React.ReactNode }
@@ -11,7 +10,6 @@ type SelectScopeOnlyGuardProps = { children: React.ReactNode }
 export default function SelectScopeOnlyGuard({
   children,
 }: SelectScopeOnlyGuardProps) {
-  useComponentLogger('SelectScopeOnlyGuard')
   return (
     <RouteGuard requireScopeSelectOnly redirectTo="/dashboard">
       {children}

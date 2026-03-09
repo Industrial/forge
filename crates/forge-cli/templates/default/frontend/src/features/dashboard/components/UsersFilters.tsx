@@ -1,6 +1,5 @@
 import FilterPanelFromConfig from '@/components/FilterPanelFromConfig'
 import type { FilterField } from '@/components/FilterPanelFromConfig'
-import { useComponentLogger } from '@/hooks'
 
 export type OrgOption = { id: string; name: string }
 
@@ -39,7 +38,6 @@ export default function UsersFilters({
   onFilterActiveChange,
   onFilterAdminChange,
 }: UsersFiltersProps) {
-  useComponentLogger('UsersFilters')
   const values = {
     email: filterEmail,
     orgId: filterOrgId,

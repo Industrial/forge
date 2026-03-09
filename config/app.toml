@@ -1,5 +1,5 @@
 [app]
-name = "default"
+name = "forge"
 
 [server]
 host = "127.0.0.1"

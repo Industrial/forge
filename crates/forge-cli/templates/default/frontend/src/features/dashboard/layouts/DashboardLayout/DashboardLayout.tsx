@@ -7,7 +7,6 @@ import { useTheme } from '@mui/material/styles'
 
 import Sidebar from '@/features/dashboard/components/Sidebar/Sidebar'
 import Navbar from '@/components/Navbar'
-import { useComponentLogger } from '@/hooks'
 
 export type DashboardLayoutProps = {
   children: React.ReactNode
@@ -20,7 +19,6 @@ export default function DashboardLayout({
   colorScheme,
   onToggleTheme,
 }: DashboardLayoutProps) {
-  useComponentLogger('DashboardLayout')
   const theme = useTheme()
   const isDesktop = useMediaQuery(theme.breakpoints.up('md'))
   const location = useLocation()
