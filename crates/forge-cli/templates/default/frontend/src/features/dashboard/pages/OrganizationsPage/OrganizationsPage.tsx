@@ -42,7 +42,7 @@ import { EntityApi } from '@/services/EntityApi'
 import { Organization } from '@/features/dashboard/domain/Organization'
 
 const ENTITY_ID = 'organization'
-const ORG_WRITE = 'dashboard.organizations.write'
+const ORG_WRITE = 'organization.create'
 
 function toOrganization(r: Record<string, unknown>): Organization {
   return new Organization({
@@ -350,7 +350,7 @@ export default function OrganizationsPage() {
         description={
           <>
             View and manage organizations. Write actions require{' '}
-            <code>dashboard.organizations.write</code>.
+            <code>organization.create</code>.
           </>
         }
         liveConnected={wsConnected}

@@ -17,18 +17,18 @@ use serde::de::DeserializeOwned;
 
 use db::models::{org_role, organization, role_permission, user, user_global_role, user_org_role};
 
-use crate::permissions::{entity_action_key, permission_equivalents};
+use crate::permissions::entity_action_key;
 
-/// Permission key constants (entity or legacy dashboard).
-pub const PERMISSION_READ: &str = "dashboard.permissions.read";
-pub const PERMISSION_WRITE: &str = "dashboard.permissions.write";
-pub const PERMISSION_ORGS_READ: &str = "dashboard.organizations.read";
-pub const PERMISSION_ORGS_WRITE: &str = "dashboard.organizations.write";
-pub const PERMISSION_USERS_READ: &str = "dashboard.users.read";
-pub const PERMISSION_USERS_WRITE: &str = "dashboard.users.write";
-pub const PERMISSION_ROLES_READ: &str = "dashboard.roles.read";
-pub const PERMISSION_ROLES_WRITE: &str = "dashboard.roles.write";
-pub const PERMISSION_AUDIT_READ: &str = "dashboard.audit.read";
+/// Permission key constants (entity-based).
+pub const PERMISSION_READ: &str = "permission.read";
+pub const PERMISSION_WRITE: &str = "permission.create";
+pub const PERMISSION_ORGS_READ: &str = "organization.read";
+pub const PERMISSION_ORGS_WRITE: &str = "organization.create";
+pub const PERMISSION_USERS_READ: &str = "user.read";
+pub const PERMISSION_USERS_WRITE: &str = "user.create";
+pub const PERMISSION_ROLES_READ: &str = "role.read";
+pub const PERMISSION_ROLES_WRITE: &str = "role.create";
+pub const PERMISSION_AUDIT_READ: &str = "audit.read";
 
 /// Resolves the list of permission keys for the current user from org-scoped and global-scope role_permission.
 pub async fn resolve_permissions(
@@ -115,29 +115,21 @@ pub async fn has_global_scope(db: &DbConnection, user: &user::Model, permission_
   (is_read && keys.contains("all.read")) || (is_write && keys.contains("all.write"))
 }
 
-/// Entity-based permission check: exact or equivalent match, or all.read / all.write.
+/// Entity-based permission check: exact match or all.read / all.write wildcard.
 pub fn has_permission(permissions: &[String], key: &str) -> bool {
-  let equivs = permission_equivalents(key);
-  let exact = if equivs.is_empty() {
-    permissions.iter().any(|p| p == key)
-  } else {
-    permissions.iter().any(|p| equivs.contains(&p.as_str()))
-  };
-  if exact {
+  // Direct exact match
+  if permissions.iter().any(|p| p == key) {
     return true;
   }
-  if (key.ends_with(".read") || equivs.iter().any(|e| e.ends_with(".read")))
-    && permissions.iter().any(|p| p == "all.read")
-  {
+  // Wildcard: all.read grants any .read permission
+  if key.ends_with(".read") && permissions.iter().any(|p| p == "all.read") {
     return true;
   }
+  // Wildcard: all.write grants any .write/.create/.update/.delete permission
   if (key.ends_with(".write")
     || key.ends_with(".create")
     || key.ends_with(".update")
-    || key.ends_with(".delete")
-    || equivs
-      .iter()
-      .any(|e| e.ends_with(".write") || e.ends_with(".create")))
+    || key.ends_with(".delete"))
     && permissions.iter().any(|p| p == "all.write")
   {
     return true;
@@ -320,21 +312,21 @@ pub fn channels_from_permissions(
 ) -> Vec<forge_live::Channel> {
   let perms: std::collections::HashSet<_> = permissions.iter().map(String::as_str).collect();
   let mut out = Vec::new();
-  if perms.contains("dashboard.organizations.read") {
+  if perms.contains("organization.read") {
     out.push(forge_live::Channel::raw("organizations"));
   }
-  if perms.contains("dashboard.audit.read") {
+  if perms.contains("audit.read") {
     out.push(forge_live::Channel::raw("audit-log"));
   }
   out.push(forge_live::Channel::raw("tasks"));
   if let Some(org_id) = current_org_id {
-    if perms.contains("dashboard.users.read") {
+    if perms.contains("user.read") {
       out.push(forge_live::Channel::org_resource(org_id, "users"));
     }
-    if perms.contains("dashboard.roles.read") {
+    if perms.contains("role.read") {
       out.push(forge_live::Channel::org_resource(org_id, "roles"));
     }
-    if perms.contains("dashboard.permissions.read") {
+    if perms.contains("permission.read") {
       out.push(forge_live::Channel::org_resource(
         org_id,
         "role_permissions",
@@ -449,7 +441,7 @@ mod tests {
 
     #[test]
     fn should_create_organizations_channel_when_permission_present() {
-      let permissions = vec!["dashboard.organizations.read".to_string()];
+      let permissions = vec!["organization.read".to_string()];
       let org_id = Some(uuid::Uuid::new_v4());
       let channels = channels_from_permissions(&permissions, org_id);
       assert!(channels.iter().any(|c| c.as_str() == "organizations"));

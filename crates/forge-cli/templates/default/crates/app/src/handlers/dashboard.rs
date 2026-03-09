@@ -1,4 +1,4 @@
-//! Dashboard API: role–permission CRUD and audit log list. List/view require `dashboard.permissions.read`; add/delete require `dashboard.permissions.write`. Audit log is read-only, gated by `dashboard.audit.read`.
+//! Dashboard API: role–permission CRUD and audit log list. List/view require `permission.read`; add/delete require `permission.create`. Audit log is read-only, gated by `audit.read`.
 
 use crate::Error as ForgeError;
 use axum::{

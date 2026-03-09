@@ -71,18 +71,12 @@ async fn get_org_users_coolorg_returns_coolorg_users() {
     app::auth_with_profile(&client, "multi@email.com", app::SEED_PASSWORD)
       .await
       .expect("auth with profile");
-  let (_, profiles_body) = app::test_request(
-    &client,
-    "GET",
-    "/api/auth/profiles",
-    Some(&token),
-    None,
-    None,
-  )
-  .await
-  .unwrap();
+  let (_, profiles_body) =
+    app::test_request(&client, "GET", "/api/auth/scopes", Some(&token), None, None)
+      .await
+      .unwrap();
   let json: app::serde_json::Value = app::serde_json::from_slice(&profiles_body).unwrap();
-  let profiles = json["profiles"].as_array().unwrap();
+  let profiles = json["scopes"].as_array().unwrap();
   let coolorg_profile = profiles
     .iter()
     .find(|p| p["org_name"].as_str() == Some("CoolOrg"))

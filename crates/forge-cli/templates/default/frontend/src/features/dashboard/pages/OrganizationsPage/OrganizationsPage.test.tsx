@@ -148,7 +148,7 @@ describe('OrganizationsPage component', () => {
     const mockApi = createEntityApiMock()
     const baseLayer = buildApplicationLayer()
     const permissionsMockLayer = PermissionsMockLayer({
-      permissions: ['dashboard.organizations.write'],
+      permissions: ['organization.create'],
     })
     setApplicationLayerOverrideForTesting(
       Layer.mergeAll(
@@ -257,7 +257,7 @@ describe('OrganizationsPage component', () => {
       const mockApi = createEntityApiMock(testOrganizations)
       const baseLayer = buildApplicationLayer()
       const permissionsMockLayer = PermissionsMockLayer({
-        permissions: ['dashboard.organizations.write'],
+        permissions: ['organization.create'],
       })
       setApplicationLayerOverrideForTesting(
         Layer.mergeAll(
@@ -320,7 +320,7 @@ describe('OrganizationsPage component', () => {
       const mockApi = createEntityApiMock(testOrganizations)
       const baseLayer = buildApplicationLayer()
       const permissionsMockLayer = PermissionsMockLayer({
-        permissions: ['dashboard.organizations.write'],
+        permissions: ['organization.create'],
       })
       setApplicationLayerOverrideForTesting(
         Layer.mergeAll(
@@ -373,7 +373,7 @@ describe('OrganizationsPage component', () => {
       const mockApi = createEntityApiMock(testOrganizations)
       const baseLayer = buildApplicationLayer()
       const permissionsMockLayer = PermissionsMockLayer({
-        permissions: ['dashboard.organizations.write'],
+        permissions: ['organization.create'],
       })
       setApplicationLayerOverrideForTesting(
         Layer.mergeAll(
@@ -409,7 +409,7 @@ describe('OrganizationsPage component', () => {
       const mockApi = createEntityApiMock(testOrganizations)
       const baseLayer = buildApplicationLayer()
       const permissionsMockLayer = PermissionsMockLayer({
-        permissions: ['dashboard.organizations.write'],
+        permissions: ['organization.create'],
       })
       setApplicationLayerOverrideForTesting(
         Layer.mergeAll(

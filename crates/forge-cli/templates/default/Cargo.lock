@@ -3658,6 +3658,7 @@ dependencies = [
  "app",
  "axum",
  "tokio",
+ "uuid",
 ]
 
 [[package]]

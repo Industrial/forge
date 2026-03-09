@@ -3,6 +3,7 @@ target/
 
 # Devenv local cache (binary files; do not copy into scaffold)
 .devenv/
+.moon/
 
 # IDE files
 .vscode/

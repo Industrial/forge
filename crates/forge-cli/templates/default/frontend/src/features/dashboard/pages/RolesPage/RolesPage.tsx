@@ -49,8 +49,8 @@ import { Dashboard } from '@/features/dashboard/services/Dashboard'
 
 type ListState = AsyncState<readonly Role[], Error>
 
-const ROLES_READ = 'dashboard.roles.read'
-const ROLES_WRITE = 'dashboard.roles.write'
+const ROLES_READ = 'role.read'
+const ROLES_WRITE = 'role.create'
 
 export default function RolesPage() {
   const canRead = usePermission(ROLES_READ)

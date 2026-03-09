@@ -10,34 +10,46 @@ pub mod rest_model;
 
 /// Default permission keys per org role name. Used by [seed_role_permissions_for_org] and by migrations seeds.
 const ORG_OWNER_ADMIN: &[&str] = &[
-  "dashboard",
-  "dashboard.organizations.read",
-  "dashboard.organizations.write",
-  "dashboard.users.read",
-  "dashboard.users.write",
-  "dashboard.roles.read",
-  "dashboard.roles.write",
-  "dashboard.permissions.read",
-  "dashboard.permissions.write",
-  "dashboard.audit.read",
+  "organization.read",
+  "organization.create",
+  "organization.update",
+  "organization.delete",
+  "user.read",
+  "user.create",
+  "user.update",
+  "user.delete",
+  "role.read",
+  "role.create",
+  "role.update",
+  "role.delete",
+  "permission.read",
+  "permission.create",
+  "permission.update",
+  "permission.delete",
+  "audit.read",
   "all.read",
   "all.write",
 ];
 const ORG_EDITOR: &[&str] = &[
-  "dashboard",
-  "dashboard.users.read",
-  "dashboard.users.write",
-  "dashboard.permissions.read",
-  "dashboard.permissions.write",
-  "dashboard.roles.read",
-  "dashboard.roles.write",
+  "user.read",
+  "user.create",
+  "user.update",
+  "user.delete",
+  "permission.read",
+  "permission.create",
+  "permission.update",
+  "permission.delete",
+  "role.read",
+  "role.create",
+  "role.update",
+  "role.delete",
 ];
 const ORG_VIEWER: &[&str] = &[
-  "dashboard",
-  "dashboard.users.read",
-  "dashboard.audit.read",
-  "dashboard.permissions.read",
-  "dashboard.roles.read",
+  "user.read",
+  "audit.read",
+  "permission.read",
+  "role.read",
+  "organization.read",
 ];
 
 /// Inserts default role_permission rows for an org (owner, admin, editor, viewer).
@@ -157,7 +169,7 @@ mod tests {
         seed_role_permissions_for_org(&db, org_id)
           .await
           .expect("seed");
-        // Then: role_permission rows exist for that org (e.g. owner has "dashboard")
+        // Then: role_permission rows exist for that org (e.g. owner has "organization.read")
         let perms = crate::models::role_permission::Entity::find()
           .filter(crate::models::role_permission::Column::OrgId.eq(Some(org_id)))
           .filter(crate::models::role_permission::Column::RoleName.eq("owner"))
@@ -166,11 +178,11 @@ mod tests {
           .expect("find");
         let keys: std::collections::HashSet<_> =
           perms.iter().map(|p| p.permission_key.as_str()).collect();
-        assert!(keys.contains("dashboard"), "owner should have dashboard");
         assert!(
-          keys.contains("dashboard.organizations.read"),
-          "owner should have dashboard.organizations.read"
+          keys.contains("organization.read"),
+          "owner should have organization.read"
         );
+        assert!(keys.contains("user.read"), "owner should have user.read");
       }
 
       #[tokio::test]

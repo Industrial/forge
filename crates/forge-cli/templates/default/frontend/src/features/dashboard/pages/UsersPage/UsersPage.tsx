@@ -62,8 +62,8 @@ import type { DashboardRole } from '@/features/dashboard/domain/DashboardRole'
 import { Users } from '@/features/dashboard/services/Users'
 import { Dashboard } from '@/features/dashboard/services/Dashboard'
 
-const USERS_READ = 'dashboard.users.read'
-const USERS_WRITE = 'dashboard.users.write'
+const USERS_READ = 'user.read'
+const USERS_WRITE = 'user.create'
 const FILTER_ROLES = ['owner', 'admin', 'editor', 'viewer']
 
 export default function UsersPage() {
@@ -329,7 +329,7 @@ export default function UsersPage() {
         description={
           <>
             View and manage users. Write actions require{' '}
-            <code>dashboard.users.write</code>.
+            <code>user.create</code>.
           </>
         }
         liveConnected={wsConnected}

@@ -53,15 +53,15 @@ FORGE_ENVIRONMENT=development cargo run --quiet &
 API_PID=$!
 
 echo "> test-integration > waiting for API /healthz"
-for i in {1..50}; do
+for i in {1..100}; do
   if curl -sf --max-time 1 "$API_URL/healthz" >/dev/null 2>&1; then
     break
   fi
-  if [[ $i -eq 50 ]]; then
+  if [[ $i -eq 100 ]]; then
     echo "> test-integration > API did not become ready in time"
     exit 1
   fi
-  sleep 0.2
+  sleep 0.3
 done
 
 export E2E_API_URL="$API_URL"

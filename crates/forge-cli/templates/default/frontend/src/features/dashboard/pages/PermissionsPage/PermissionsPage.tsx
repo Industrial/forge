@@ -209,8 +209,8 @@ export default function PermissionsPage() {
         description={
           <>
             View and manage role–permission assignments. List/view requires{' '}
-            <code>dashboard.permissions.read</code>; add/delete requires{' '}
-            <code>dashboard.permissions.write</code>.
+            <code>permission.read</code>; add/delete requires{' '}
+            <code>permission.create</code>.
           </>
         }
         liveConnected={wsConnected}
