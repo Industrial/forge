@@ -40,8 +40,9 @@ type Scope = {
 function DashboardScopeGuard({ children }: DashboardScopeGuardProps) {
   const authentication = useAuthStore()
   const isUserAuthenticated = Option.isSome(authentication.user)
-  const needsScopeSelectValue = authentication.needsScopeSelect
-  const needsScopeSelect = Option.getOrElse(needsScopeSelectValue, () => false)
+  // Client-derived: need scope selection when authenticated but no scope selected (no scope in store/localStorage).
+  const needsScopeSelect =
+    isUserAuthenticated && Option.isNone(authentication.currentScope)
   const permissions = authentication.permissions
 
   const [scopes, setScopes] = useState<Scope[]>([])

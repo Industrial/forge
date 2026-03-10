@@ -5,8 +5,8 @@ use sea_orm::{ColumnTrait, EntityTrait, QueryFilter, Set};
 
 use db::models::{audit_log, organization, user};
 
-/// Enough for 2+ pages at default 10 rows per page (narrow viewport in e2e).
-const NUM_ENTRIES: u32 = 15;
+/// Enough for 2+ pages at any default (10, 25, or 50) so e2e "next" is enabled.
+const NUM_ENTRIES: u32 = 55;
 
 pub async fn seed(db: &DbConnection) -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
   let org = organization::Entity::find()

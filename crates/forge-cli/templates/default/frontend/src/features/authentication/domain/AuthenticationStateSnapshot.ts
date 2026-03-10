@@ -8,8 +8,8 @@ import type { Scope } from './Scope'
  *
  * @remarks
  * No setters; all mutations go through AuthenticationStore methods. Use
- * `getState()` to read the current snapshot. When `needs_scope_select` is
- * true, the app should redirect to scope selection before the dashboard.
+ * `getState()` to read the current snapshot. Scope selection need is
+ * derived on the client from currentOrgId/currentRoleId (none => need selection).
  */
 export class AuthenticationStateSnapshot extends Data.TaggedClass(
   'AuthenticationStateSnapshot',
@@ -22,6 +22,4 @@ export class AuthenticationStateSnapshot extends Data.TaggedClass(
   readonly currentOrgId: string | null
   readonly currentRoleId: string | null
   readonly currentRoleName: string | null
-  /** When true, redirect to scope selection before dashboard. */
-  readonly needs_scope_select: boolean
 }> {}

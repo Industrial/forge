@@ -1,133 +1,88 @@
-import { useEffect, useState } from 'react'
-import {
-  useEffectState,
-  streamWithPendingState,
-  runStreamInto,
-  type AsyncState,
-  idle,
-  isSuccess,
-  isFailure,
-  isPending,
-} from 'react-effect-hooks'
-import { Effect } from 'effect'
 import Box from '@mui/material/Box'
-import Table from '@mui/material/Table'
-import TableBody from '@mui/material/TableBody'
-import TableCell from '@mui/material/TableCell'
-import TableContainer from '@mui/material/TableContainer'
-import TableHead from '@mui/material/TableHead'
-import TableRow from '@mui/material/TableRow'
-import Paper from '@mui/material/Paper'
-import TablePagination from '@mui/material/TablePagination'
+import { Effect } from 'effect'
 
-import { getApplicationLayer, type AppServices } from '@/lib/appLayer'
 import PageHeader from '@/components/PageHeader'
-import TableEmptyRow from '@/components/TableEmptyRow'
+import FiltersBar from '@/components/FiltersBar'
+import DataTable from '@/components/DataTable'
+import type { DataTableColumn } from '@/components/DataTable'
 import AuditLogFilters from '@/features/dashboard/components/AuditLogFilters'
-import AuditLogTableRow from '@/features/dashboard/components/AuditLogTableRow'
 import ErrorAlert from '@/components/ErrorAlert'
-import LoadingSpinner from '@/components/LoadingSpinner'
+import { useServerList } from '@/hooks/useServerList'
 import { useLiveRefreshTrigger } from '@/hooks/useLiveRefreshTrigger'
-import { useTablePaginationDefaults } from '@/hooks/useTablePaginationDefaults'
-import type { AuditLogResult } from '@/features/dashboard/services/AuditLog'
+import { formatDate } from '@/features/dashboard/utils/formatDate'
+import type { AuditLogEntry } from '@/features/dashboard/domain/AuditLogEntry'
 import { AuditLog as AuditLogService } from '@/features/dashboard/services/AuditLog'
 
-type ListState = AsyncState<AuditLogResult, Error>
+type AuditLogFilterState = {
+  from: string
+  to: string
+  outcome: string
+  eventKind: string
+  action: string
+  reason: string
+}
+
+const initialFilters: AuditLogFilterState = {
+  from: '',
+  to: '',
+  outcome: '',
+  eventKind: '',
+  action: '',
+  reason: '',
+}
+
+const auditLogColumns: readonly DataTableColumn<AuditLogEntry>[] = [
+  {
+    id: 'occurred_at',
+    label: 'Time',
+    render: (e) => formatDate(e.occurred_at),
+  },
+  {
+    id: 'actor_id',
+    label: 'Actor ID',
+    render: (e) => `${e.actor_id.slice(0, 8)}…`,
+  },
+  { id: 'event_kind', label: 'Event', render: (e) => e.event_kind },
+  { id: 'action', label: 'Action', render: (e) => e.action },
+  { id: 'resource_type', label: 'Resource', render: (e) => e.resource_type },
+  { id: 'outcome', label: 'Outcome', render: (e) => e.outcome },
+  {
+    id: 'reason',
+    label: 'Reason',
+    render: (e) => e.reason ?? '—',
+  },
+]
 
 export default function AuditLogPage() {
   const { trigger: liveRefreshTrigger, connected: wsConnected } =
     useLiveRefreshTrigger('audit-log')
 
-  const [listState, , setListStateAsEffect] = useEffectState<
-    ListState,
-    never,
-    never
-  >(idle<AuditLogResult, Error>())
-
-  const entries = isSuccess(listState) ? listState.value.entries : []
-  const total = isSuccess(listState) ? listState.value.total : 0
-  const loading = isPending(listState)
-  const error: Error | null = isFailure(listState) ? listState.error : null
-  const errorMessage =
-    error instanceof Error
-      ? error.message
-      : error != null
-        ? String(error)
-        : null
-
-  const { defaultRowsPerPage, rowsPerPageOptions } =
-    useTablePaginationDefaults()
-  const [page, setPage] = useState(0)
-  const [rowsPerPage, setRowsPerPage] = useState(defaultRowsPerPage)
-  const [from, setFrom] = useState('')
-  const [to, setTo] = useState('')
-  const [outcome, setOutcome] = useState('')
-  const [eventKind, setEventKind] = useState('')
-  const [action, setAction] = useState('')
-  const [reason, setReason] = useState('')
-
-  const listEffect: Effect.Effect<AuditLogResult, Error, AppServices> =
-    Effect.gen(function* () {
-      const auditLog = yield* AuditLogService
-      return yield* auditLog.list({
-        limit: rowsPerPage,
-        offset: page * rowsPerPage,
-        from: from || undefined,
-        to: to || undefined,
-        outcome: outcome || undefined,
-        event_kind: eventKind || undefined,
-        action: action || undefined,
-        reason: reason.trim() || undefined,
-      })
-    })
-
-  const refreshStream = streamWithPendingState(listEffect)
-  const refreshEffect = Effect.gen(function* () {
-    yield* runStreamInto(refreshStream, setListStateAsEffect)
+  const list = useServerList<AuditLogEntry, AuditLogFilterState>({
+    fetch: (params) =>
+      Effect.gen(function* () {
+        const auditLog = yield* AuditLogService
+        const result = yield* auditLog.list({
+          limit: params.limit,
+          offset: params.offset,
+          from: params.filters.from || undefined,
+          to: params.filters.to || undefined,
+          outcome: params.filters.outcome || undefined,
+          event_kind: params.filters.eventKind || undefined,
+          action: params.filters.action || undefined,
+          reason: params.filters.reason.trim() || undefined,
+        })
+        return { items: result.entries, total: result.total }
+      }),
+    initialFilters,
+    deps: [liveRefreshTrigger],
   })
 
-  useEffect(() => {
-    Effect.runPromise(refreshEffect.pipe(Effect.provide(getApplicationLayer())))
-  }, [
-    liveRefreshTrigger,
-    page,
-    rowsPerPage,
-    from,
-    to,
-    outcome,
-    eventKind,
-    action,
-    reason,
-    setListStateAsEffect,
-  ])
-
-  // Sync rowsPerPage when breakpoint default changes (e.g. window resize)
-  useEffect(() => {
-    setRowsPerPage(defaultRowsPerPage)
-    setPage(0)
-  }, [defaultRowsPerPage])
-
   const handleApplyFilters = () => {
-    setPage(0)
+    list.setPage(0)
   }
 
   const handleResetFilters = () => {
-    setFrom('')
-    setTo('')
-    setOutcome('')
-    setEventKind('')
-    setAction('')
-    setReason('')
-    setPage(0)
-  }
-
-  const handleChangePage = (_: unknown, newPage: number) => {
-    setPage(newPage)
-  }
-
-  const handleChangeRowsPerPage = (e: React.ChangeEvent<HTMLInputElement>) => {
-    setRowsPerPage(parseInt(e.target.value, 10))
-    setPage(0)
+    list.setFilters(initialFilters)
   }
 
   return (
@@ -139,90 +94,63 @@ export default function AuditLogPage() {
         data-testid="audit-log-page-title"
       />
 
-      <AuditLogFilters
-        from={from}
-        to={to}
-        outcome={outcome}
-        eventKind={eventKind}
-        action={action}
-        reason={reason}
-        onFromChange={setFrom}
-        onToChange={setTo}
-        onOutcomeChange={setOutcome}
-        onEventKindChange={setEventKind}
-        onActionChange={setAction}
-        onReasonChange={setReason}
-        onApply={handleApplyFilters}
-        onReset={handleResetFilters}
-      />
+      <FiltersBar>
+        <AuditLogFilters
+          from={list.filters.from}
+          to={list.filters.to}
+          outcome={list.filters.outcome}
+          eventKind={list.filters.eventKind}
+          action={list.filters.action}
+          reason={list.filters.reason}
+          onFromChange={(v) =>
+            list.setFilters((prev) => ({ ...prev, from: v }))
+          }
+          onToChange={(v) =>
+            list.setFilters((prev) => ({ ...prev, to: v }))
+          }
+          onOutcomeChange={(v) =>
+            list.setFilters((prev) => ({ ...prev, outcome: v }))
+          }
+          onEventKindChange={(v) =>
+            list.setFilters((prev) => ({ ...prev, eventKind: v }))
+          }
+          onActionChange={(v) =>
+            list.setFilters((prev) => ({ ...prev, action: v }))
+          }
+          onReasonChange={(v) =>
+            list.setFilters((prev) => ({ ...prev, reason: v }))
+          }
+          onApply={handleApplyFilters}
+          onReset={handleResetFilters}
+        />
+      </FiltersBar>
 
-      {errorMessage != null && (
+      {list.errorMessage != null && (
         <ErrorAlert
-          message={errorMessage}
-          onClose={() => {
-            Effect.runPromise(
-              refreshEffect.pipe(Effect.provide(getApplicationLayer())),
-            )
-          }}
+          message={list.errorMessage}
+          onClose={() => list.refresh()}
         />
       )}
 
-      {loading ? (
-        <LoadingSpinner />
-      ) : (
-        <>
-          <TableContainer component={Paper} data-testid="audit-log-list">
-            <Table
-              size="small"
-              aria-label="Audit log"
-              data-testid="audit-log-table"
-            >
-              <TableHead>
-                <TableRow>
-                  <TableCell>Time</TableCell>
-                  <TableCell>Actor ID</TableCell>
-                  <TableCell>Event</TableCell>
-                  <TableCell>Action</TableCell>
-                  <TableCell>Resource</TableCell>
-                  <TableCell>Outcome</TableCell>
-                  <TableCell>Reason</TableCell>
-                </TableRow>
-              </TableHead>
-              <TableBody>
-                {entries.length === 0 ? (
-                  <TableEmptyRow colSpan={7}>No entries</TableEmptyRow>
-                ) : (
-                  entries.map((row) => (
-                    <AuditLogTableRow key={row.id} entry={row} />
-                  ))
-                )}
-              </TableBody>
-            </Table>
-          </TableContainer>
-          <Box component="div" data-testid="audit-log-pagination">
-            <TablePagination
-              component="div"
-              count={total}
-              page={page}
-              onPageChange={handleChangePage}
-              rowsPerPage={rowsPerPage}
-              onRowsPerPageChange={handleChangeRowsPerPage}
-              rowsPerPageOptions={rowsPerPageOptions}
-              labelRowsPerPage="Rows per page:"
-              slotProps={{
-                actions: {
-                  nextButton: {
-                    'data-testid': 'audit-log-pagination-next',
-                  } as object,
-                  previousButton: {
-                    'data-testid': 'audit-log-pagination-prev',
-                  } as object,
-                },
-              }}
-            />
-          </Box>
-        </>
-      )}
+      <DataTable<AuditLogEntry>
+        columns={auditLogColumns}
+        rows={list.items}
+        loading={list.loading}
+        getRowId={(e) => e.id}
+        emptyMessage="No entries"
+        ariaLabel="Audit log"
+        dataTestId="audit-log-list"
+        pagination={{
+          page: list.page,
+          rowsPerPage: list.rowsPerPage,
+          totalCount: list.total,
+          onPageChange: (_, newPage) => list.setPage(newPage),
+          onRowsPerPageChange: (e) => {
+            list.setRowsPerPage(parseInt(e.target.value, 10))
+          },
+          rowsPerPageOptions: list.rowsPerPageOptions,
+        }}
+      />
     </Box>
   )
 }

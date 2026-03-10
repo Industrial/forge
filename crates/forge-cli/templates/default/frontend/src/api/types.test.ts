@@ -431,7 +431,6 @@ describe('AuthMeBody Behavior', () => {
           email: 'user@example.com',
           permissions: ['read', 'write'],
         },
-        needs_scope_select: false,
         permissions: ['read', 'write'],
         profiles: [{ id: '1', name: 'Profile 1' }],
         flash: { message: 'Success' },
@@ -443,7 +442,6 @@ describe('AuthMeBody Behavior', () => {
       // Then: should decode successfully
       expect(result.user?.id).toBe('123')
       expect(result.user?.email).toBe('user@example.com')
-      expect(result.needs_scope_select).toBe(false)
       expect(result.permissions).toEqual(['read', 'write'])
     })
 
@@ -472,7 +470,6 @@ describe('AuthMeBody Behavior', () => {
 
       // Then: should decode successfully (all fields are optional)
       expect(result.user).toBeUndefined()
-      expect(result.needs_scope_select).toBeUndefined()
       expect(result.permissions).toBeUndefined()
     })
   })
@@ -489,7 +486,6 @@ describe('LoginResponse Behavior', () => {
       const validResponse = {
         ok: true,
         token: 'jwt-token-here',
-        needs_scope_select: false,
       }
 
       // When: decoding the response
@@ -499,23 +495,6 @@ describe('LoginResponse Behavior', () => {
       // Then: should decode successfully
       expect(result.ok).toBe(true)
       expect(result.token).toBe('jwt-token-here')
-      expect(result.needs_scope_select).toBe(false)
-    })
-
-    it('should accept login response without needs_scope_select', () => {
-      // Given: a login response without needs_scope_select
-      const response = {
-        ok: true,
-        token: 'jwt-token-here',
-      }
-
-      // When: decoding the response
-      const result = Schema.decodeUnknownSync(LoginResponseSchema)(response)
-
-      // Then: should decode successfully
-      expect(result.ok).toBe(true)
-      expect(result.token).toBe('jwt-token-here')
-      expect(result.needs_scope_select).toBeUndefined()
     })
 
     it('should reject login response without ok field', () => {

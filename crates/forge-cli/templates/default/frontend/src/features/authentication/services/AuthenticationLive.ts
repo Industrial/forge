@@ -65,13 +65,6 @@ export function parseMeResponse(
   )
 }
 
-/** Pure: read needs_scope_select from body. */
-export function getNeedsScopeSelect(body: AuthMeBody): Option.Option<boolean> {
-  return body.needs_scope_select !== undefined
-    ? Option.some(body.needs_scope_select)
-    : Option.none()
-}
-
 /** Pure: read permissions from body (top-level or user). */
 export function getPermissions(body: AuthMeBody): readonly string[] {
   const list = body.permissions ?? body.user?.permissions
@@ -103,7 +96,6 @@ export function buildAuthState(
   return {
     token: Option.some(token),
     user: parseMeResponse(body, token),
-    needsScopeSelect: getNeedsScopeSelect(body),
     permissions: getPermissions(body),
     currentScope: currentScope
       ? Option.some({
@@ -556,9 +548,8 @@ export function updateAuthState(
   return Effect.gen(function* () {
     yield* Effect.logTrace('AuthenticationLive.updateAuthState')
     const hasUser = Option.isSome(state.user)
-    const needsScope = Option.getOrElse(state.needsScopeSelect, () => false)
     yield* Effect.logDebug(
-      `AuthenticationLive.updateAuthState: hasUser=${hasUser}, needsScopeSelect=${needsScope}, permissionsCount=${state.permissions.length}`,
+      `AuthenticationLive.updateAuthState: hasUser=${hasUser}, permissionsCount=${state.permissions.length}`,
     )
     yield* store.update(() => state)
   })
@@ -608,8 +599,9 @@ export const AuthenticationLive = Layer.effect(
                 // When we have a stored scope, fetch /me only with scope so the initial
                 // state has permissions. Otherwise DashboardScopeGuard sees permissions.length === 0
                 // and shows spinner forever after full page load (e2e and reloads).
+                let state: AuthenticationState | null = null
                 if (Option.isSome(scopeOpt)) {
-                  const stateWithPermissions = yield* fetchMeAndBuildState(
+                  state = yield* fetchMeAndBuildState(
                     baseUrl,
                     token,
                     scopeOpt.value,
@@ -618,14 +610,20 @@ export const AuthenticationLive = Layer.effect(
                       Layer.succeed(HttpClient.HttpClient, client),
                     ),
                   )
-                  if (stateWithPermissions)
-                    yield* updateAuthState(store, stateWithPermissions)
-                  return
+                  if (state) yield* updateAuthState(store, state)
+                } else {
+                  state = yield* fetchMeAndBuildState(baseUrl, token).pipe(
+                    Effect.provide(Layer.succeed(HttpClient.HttpClient, client)),
+                  )
+                  if (state) yield* updateAuthState(store, state)
                 }
-                const state = yield* fetchMeAndBuildState(baseUrl, token).pipe(
-                  Effect.provide(Layer.succeed(HttpClient.HttpClient, client)),
-                )
-                if (state) yield* updateAuthState(store, state)
+                // Token was present but /me failed (e.g. 401): clear localStorage so we don't retry on next load.
+                if (!state) {
+                  yield* Effect.logDebug(
+                    'AuthenticationLive.restoreSession: /me failed (e.g. 401), clearing stored token and scope',
+                  )
+                  yield* clearAuthState(store, tokenStorage)
+                }
               }),
           })
         }).pipe(
@@ -735,38 +733,28 @@ export const AuthenticationLive = Layer.effect(
               `AuthenticationLive.login: userLoaded=${Option.isSome(state.user)}`,
             )
 
-            // 3. Auto-select scope if needed
-            const needsScopeSelect = Option.getOrElse(
-              state.needsScopeSelect,
-              () => true,
-            )
-            yield* Effect.logDebug(
-              `AuthenticationLive.login: needsScopeSelect=${needsScopeSelect}`,
+            // 3. Auto-select scope when user has exactly one scope
+            const selectedScope = yield* autoSelectScope(
+              baseUrl,
+              token,
+              tokenStorage,
+            ).pipe(
+              Effect.provide(Layer.succeed(HttpClient.HttpClient, client)),
             )
 
-            if (!needsScopeSelect) {
-              const selectedScope = yield* autoSelectScope(
+            // 4. Refetch with scope if auto-selected (single scope)
+            if (Option.isSome(selectedScope)) {
+              yield* Effect.logDebug(
+                `AuthenticationLive.login: auto-selected scope orgId=${selectedScope.value.organizationId}, roleId=${selectedScope.value.roleId}`,
+              )
+              const updatedState = yield* fetchMeAndBuildState(
                 baseUrl,
                 token,
-                tokenStorage,
+                selectedScope.value,
               ).pipe(
                 Effect.provide(Layer.succeed(HttpClient.HttpClient, client)),
               )
-
-              // 4. Refetch with scope if auto-selected
-              if (Option.isSome(selectedScope)) {
-                yield* Effect.logDebug(
-                  `AuthenticationLive.login: auto-selected scope orgId=${selectedScope.value.organizationId}, roleId=${selectedScope.value.roleId}`,
-                )
-                const updatedState = yield* fetchMeAndBuildState(
-                  baseUrl,
-                  token,
-                  selectedScope.value,
-                ).pipe(
-                  Effect.provide(Layer.succeed(HttpClient.HttpClient, client)),
-                )
-                if (updatedState) yield* updateAuthState(store, updatedState)
-              }
+              if (updatedState) yield* updateAuthState(store, updatedState)
             }
 
             return state.user.pipe(
@@ -818,14 +806,13 @@ export const AuthenticationLive = Layer.effect(
 
           yield* tokenStorage.setScope(organizationId, roleId)
 
-          // Optimistic update: set needsScopeSelect false and currentScope so the UI
-          // does not redirect back to select-scope if the refetch fails.
+          // Optimistic update: set currentScope so the UI does not redirect
+          // back to select-scope if the refetch fails.
           yield* Effect.logDebug(
-            'AuthenticationLive.selectScope: optimistic store update (needsScopeSelect=false)',
+            'AuthenticationLive.selectScope: optimistic store update (currentScope)',
           )
           yield* store.update((state) => ({
             ...state,
-            needsScopeSelect: Option.some(false),
             currentScope: Option.some({
               organizationId,
               roleId,
@@ -853,13 +840,8 @@ export const AuthenticationLive = Layer.effect(
                 yield* Effect.logDebug(
                   `AuthenticationLive.selectScope: permissions count=${state.permissions.length}`,
                 )
-                // After successful scope selection, force needsScopeSelect false and keep
-                // the selected scope. Otherwise a /me response that still has
-                // needs_scope_select: true (e.g. session not yet updated) would overwrite
-                // the optimistic update and send the user back to the select-scope page.
                 const stateForStore: AuthenticationState = {
                   ...state,
-                  needsScopeSelect: Option.some(false),
                   currentScope: Option.some({ organizationId, roleId }),
                 }
                 yield* updateAuthState(store, stateForStore)

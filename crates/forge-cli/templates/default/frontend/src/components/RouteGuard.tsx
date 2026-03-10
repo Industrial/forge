@@ -17,7 +17,7 @@ export type RouteGuardProps = {
   redirectIfAuthenticated?: string
   /** Require at least one of these permissions; show loader while permissions load, then redirect if missing. */
   requirePermissions?: readonly string[]
-  /** Allow only when user needs scope selection (needsScopeSelect); redirect otherwise. Use inside ProtectedRoute. */
+  /** Allow only when user is authenticated and has no scope selected (client-derived from currentScope). Use inside ProtectedRoute. */
   requireScopeSelectOnly?: boolean
   /** Redirect path when guard fails. Default: /authentication/login for requireAuth, /dashboard for permissions/scope. */
   redirectTo?: string
@@ -63,12 +63,10 @@ export function RouteGuard({
     return <Navigate to={redirectTo ?? DEFAULT_AUTH_REDIRECT} replace />
   }
 
-  // Scope selection only (e.g. select-scope page)
+  // Scope selection only (e.g. select-scope page): allow only when authenticated and no scope selected yet.
   if (requireScopeSelectOnly) {
-    const needsScopeSelect = Option.getOrElse(
-      effectiveAuth.needsScopeSelect,
-      () => false,
-    )
+    const needsScopeSelect =
+      isAuthenticated && Option.isNone(effectiveAuth.currentScope)
     if (!needsScopeSelect) {
       return <Navigate to={redirectTo ?? DEFAULT_DENIED_REDIRECT} replace />
     }

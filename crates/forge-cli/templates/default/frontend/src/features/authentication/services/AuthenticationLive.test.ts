@@ -12,7 +12,6 @@ import type { AuthMeBody } from '@/api/types'
 import {
   buildAuthState,
   extractApiErrorMessage,
-  getNeedsScopeSelect,
   getPermissions,
   parseMeResponse,
   selectSingleScope,
@@ -70,35 +69,6 @@ describe('Pure Helper Functions', () => {
       const user = Option.getOrThrow(result)
       expect(user.id).toBe('')
       expect(user.email).toBe('')
-    })
-  })
-
-  describe('getNeedsScopeSelect', () => {
-    it('should return Some(true) when needs_scope_select is true', () => {
-      const body: AuthMeBody = { needs_scope_select: true }
-      const result = getNeedsScopeSelect(body)
-      expect(Option.isSome(result)).toBe(true)
-      expect(Option.getOrThrow(result)).toBe(true)
-    })
-
-    it('should return Some(false) when needs_scope_select is false', () => {
-      const body: AuthMeBody = { needs_scope_select: false }
-      const result = getNeedsScopeSelect(body)
-      expect(Option.isSome(result)).toBe(true)
-      expect(Option.getOrThrow(result)).toBe(false)
-    })
-
-    it('should return None when needs_scope_select is missing', () => {
-      const body: AuthMeBody = {}
-      const result = getNeedsScopeSelect(body)
-      expect(Option.isNone(result)).toBe(true)
-    })
-
-    it('should return Some for non-boolean values (TypeScript allows this)', () => {
-      // In runtime, TypeScript's type system allows this
-      const body: AuthMeBody = { needs_scope_select: 'true' as any }
-      const result = getNeedsScopeSelect(body)
-      expect(Option.isSome(result)).toBe(true)
     })
   })
 
@@ -197,7 +167,6 @@ describe('Pure Helper Functions', () => {
           id: 'user-1',
           email: 'test@example.com',
         },
-        needs_scope_select: false,
         permissions: ['read', 'write'],
       }
 
@@ -209,31 +178,34 @@ describe('Pure Helper Functions', () => {
       const user = Option.getOrThrow(result.user)
       expect(user.id).toBe('user-1')
       expect(user.email).toBe('test@example.com')
-      expect(Option.isSome(result.needsScopeSelect)).toBe(true)
-      expect(Option.getOrThrow(result.needsScopeSelect)).toBe(false)
       expect(result.permissions).toEqual(['read', 'write'])
+      expect(Option.isNone(result.currentScope)).toBe(true)
     })
 
-    it('should set needsScopeSelect to true', () => {
+    it('should set currentScope when provided', () => {
       const token = 'test-token-123'
       const body: AuthMeBody = {
         user: {
           id: 'user-1',
           email: 'test@example.com',
         },
-        needs_scope_select: true,
       }
 
-      const result = buildAuthState(token, body)
+      const result = buildAuthState(token, body, {
+        organizationId: 'org-1',
+        roleId: 'role-1',
+      })
 
-      expect(Option.isSome(result.needsScopeSelect)).toBe(true)
-      expect(Option.getOrThrow(result.needsScopeSelect)).toBe(true)
+      expect(Option.isSome(result.currentScope)).toBe(true)
+      expect(Option.getOrThrow(result.currentScope)).toEqual({
+        organizationId: 'org-1',
+        roleId: 'role-1',
+      })
     })
 
     it('should handle missing user', () => {
       const token = 'test-token-123'
       const body: AuthMeBody = {
-        needs_scope_select: false,
         permissions: ['read'],
       }
 
@@ -241,8 +213,8 @@ describe('Pure Helper Functions', () => {
 
       expect(Option.isSome(result.token)).toBe(true)
       expect(Option.isNone(result.user)).toBe(true)
-      expect(Option.isSome(result.needsScopeSelect)).toBe(true)
       expect(result.permissions).toEqual(['read'])
+      expect(Option.isNone(result.currentScope)).toBe(true)
     })
   })
 

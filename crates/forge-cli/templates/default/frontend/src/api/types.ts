@@ -91,7 +91,6 @@ const AuthMeUserSchema = Schema.Struct({
 
 export const AuthMeBodySchema = Schema.Struct({
   user: Schema.optional(AuthMeUserSchema),
-  needs_scope_select: Schema.optional(Schema.Boolean),
   permissions: Schema.optional(Schema.Array(Schema.String)),
   scopes: Schema.optional(Schema.Array(Schema.Unknown)),
   flash: Schema.optional(Schema.Unknown),
@@ -102,7 +101,6 @@ export type AuthMeBody = Schema.Schema.Type<typeof AuthMeBodySchema>
 export const LoginResponseSchema = Schema.Struct({
   ok: Schema.Boolean,
   token: Schema.String,
-  needs_scope_select: Schema.optional(Schema.Boolean),
 })
 
 export type LoginResponse = Schema.Schema.Type<typeof LoginResponseSchema>

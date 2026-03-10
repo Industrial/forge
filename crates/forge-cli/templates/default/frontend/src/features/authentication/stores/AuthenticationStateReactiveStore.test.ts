@@ -26,7 +26,7 @@ describe('AuthenticationStateReactiveStore', () => {
       // Then all fields should be properly initialized
       expect(initialAuthenticationState).toHaveProperty('token')
       expect(initialAuthenticationState).toHaveProperty('user')
-      expect(initialAuthenticationState).toHaveProperty('needsScopeSelect')
+      expect(initialAuthenticationState).toHaveProperty('currentScope')
       expect(initialAuthenticationState).toHaveProperty('permissions')
     })
 
@@ -44,13 +44,11 @@ describe('AuthenticationStateReactiveStore', () => {
       expect(Option.isNone(initialAuthenticationState.user)).toBe(true)
     })
 
-    test('should have needsScopeSelect as Option.none()', () => {
+    test('should have currentScope as Option.none()', () => {
       // Given the initialAuthenticationState
-      // When I check the needsScopeSelect field
+      // When I check the currentScope field
       // Then it should be Option.none()
-      expect(Option.isNone(initialAuthenticationState.needsScopeSelect)).toBe(
-        true,
-      )
+      expect(Option.isNone(initialAuthenticationState.currentScope)).toBe(true)
     })
 
     test('should have empty permissions array', () => {
@@ -127,7 +125,7 @@ describe('AuthenticationStateReactiveStore', () => {
       expect(state).toEqual(initialAuthenticationState)
       expect(Option.isNone(state.token)).toBe(true)
       expect(Option.isNone(state.user)).toBe(true)
-      expect(Option.isNone(state.needsScopeSelect)).toBe(true)
+      expect(Option.isNone(state.currentScope)).toBe(true)
       expect(state.permissions).toEqual([])
     })
 
@@ -173,20 +171,25 @@ describe('AuthenticationStateReactiveStore', () => {
       expect(user?.email).toBe('test@example.com')
     })
 
-    test('should update needsScopeSelect', async () => {
+    test('should update currentScope', async () => {
       // Given a store instance
-      // When I update needsScopeSelect
+      // When I update currentScope
       // Then the state should reflect the change
       await Effect.runPromise(
         store.update((state) => ({
           ...state,
-          needsScopeSelect: Option.some(true),
+          currentScope: Option.some({
+            organizationId: 'org-1',
+            roleId: 'role-1',
+          }),
         })),
       )
 
       const state = await Effect.runPromise(store.get())
-      expect(Option.isSome(state.needsScopeSelect)).toBe(true)
-      expect(Option.getOrUndefined(state.needsScopeSelect)).toBe(true)
+      expect(Option.isSome(state.currentScope)).toBe(true)
+      expect(Option.getOrUndefined(state.currentScope)?.organizationId).toBe(
+        'org-1',
+      )
     })
 
     test('should update permissions', async () => {
@@ -221,7 +224,10 @@ describe('AuthenticationStateReactiveStore', () => {
           ...state,
           token: Option.some('new-token'),
           user: Option.some(testUser),
-          needsScopeSelect: Option.some(false),
+          currentScope: Option.some({
+            organizationId: 'org-1',
+            roleId: 'role-1',
+          }),
           permissions: ['read:users'],
         })),
       )
@@ -229,7 +235,9 @@ describe('AuthenticationStateReactiveStore', () => {
       const state = await Effect.runPromise(store.get())
       expect(Option.getOrUndefined(state.token)).toBe('new-token')
       expect(Option.getOrUndefined(state.user)?.id).toBe('user-2')
-      expect(Option.getOrUndefined(state.needsScopeSelect)).toBe(false)
+      expect(Option.getOrUndefined(state.currentScope)?.organizationId).toBe(
+        'org-1',
+      )
       expect(state.permissions).toEqual(['read:users'])
     })
   })
@@ -315,7 +323,7 @@ describe('AuthenticationStateReactiveStore', () => {
       // Verify we can access the store (state structure is correct)
       expect(state).toHaveProperty('token')
       expect(state).toHaveProperty('user')
-      expect(state).toHaveProperty('needsScopeSelect')
+      expect(state).toHaveProperty('currentScope')
       expect(state).toHaveProperty('permissions')
     })
 

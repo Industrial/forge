@@ -26,7 +26,6 @@ describe('AuthenticationStateSnapshot', () => {
       const currentOrgId = 'org-1'
       const currentRoleId = 'role-1'
       const currentRoleName = 'admin'
-      const needs_scope_select = false
 
       // When: creating a snapshot
       const snapshot = new AuthenticationStateSnapshot({
@@ -38,7 +37,6 @@ describe('AuthenticationStateSnapshot', () => {
         currentOrgId,
         currentRoleId,
         currentRoleName,
-        needs_scope_select,
       })
 
       // Then: snapshot should contain all provided values
@@ -50,7 +48,6 @@ describe('AuthenticationStateSnapshot', () => {
       expect(snapshot.currentOrgId).toBe(currentOrgId)
       expect(snapshot.currentRoleId).toBe(currentRoleId)
       expect(snapshot.currentRoleName).toBe(currentRoleName)
-      expect(snapshot.needs_scope_select).toBe(needs_scope_select)
     })
 
     test('should create snapshot with null user when not authenticated', () => {
@@ -65,8 +62,7 @@ describe('AuthenticationStateSnapshot', () => {
         currentOrgId: null,
         currentRoleId: null,
         currentRoleName: null,
-        needs_scope_select: false,
-      })
+        })
 
       // Then: user should be null
       expect(snapshot.user).toBeNull()
@@ -85,8 +81,7 @@ describe('AuthenticationStateSnapshot', () => {
         currentOrgId: null,
         currentRoleId: null,
         currentRoleName: null,
-        needs_scope_select: false,
-      })
+        })
 
       // Then: scopes and permissions should be empty arrays
       expect(snapshot.scopes).toEqual([])
@@ -108,8 +103,7 @@ describe('AuthenticationStateSnapshot', () => {
         currentOrgId: null,
         currentRoleId: null,
         currentRoleName: null,
-        needs_scope_select: false,
-      })
+        })
 
       // When: attempting to access properties
       // Then: all properties should be readable
@@ -121,14 +115,13 @@ describe('AuthenticationStateSnapshot', () => {
       expect(snapshot.currentOrgId).toBeDefined()
       expect(snapshot.currentRoleId).toBeDefined()
       expect(snapshot.currentRoleName).toBeDefined()
-      expect(snapshot.needs_scope_select).toBeDefined()
       // Note: TypeScript's readonly modifier prevents mutation at compile time
     })
   })
 
   describe('scope selection behavior', () => {
-    test('should indicate scope selection needed when needs_scope_select is true', () => {
-      // Given: a snapshot with needs_scope_select set to true
+    test('should indicate scope selection needed when currentOrgId is null', () => {
+      // Given: a snapshot with no current scope (currentOrgId/currentRoleId null)
       const snapshot = new AuthenticationStateSnapshot({
         user: new AuthenticationUser({
           id: 'user-1',
@@ -142,17 +135,16 @@ describe('AuthenticationStateSnapshot', () => {
         currentOrgId: null,
         currentRoleId: null,
         currentRoleName: null,
-        needs_scope_select: true,
       })
 
-      // When: checking if scope selection is needed
-      // Then: should indicate scope selection is required
-      expect(snapshot.needs_scope_select).toBe(true)
-      // App should redirect to scope selection before dashboard
+      // When: checking if scope selection is needed (client derives from currentOrgId/currentRoleId)
+      // Then: null current scope means user needs to select
+      expect(snapshot.currentOrgId).toBeNull()
+      expect(snapshot.currentRoleId).toBeNull()
     })
 
-    test('should not require scope selection when needs_scope_select is false', () => {
-      // Given: a snapshot with needs_scope_select set to false
+    test('should not require scope selection when current scope is set', () => {
+      // Given: a snapshot with current scope set
       const snapshot = new AuthenticationStateSnapshot({
         user: new AuthenticationUser({
           id: 'user-1',
@@ -173,12 +165,12 @@ describe('AuthenticationStateSnapshot', () => {
         currentOrgId: 'org-1',
         currentRoleId: 'role-1',
         currentRoleName: 'admin',
-        needs_scope_select: false,
       })
 
       // When: checking if scope selection is needed
-      // Then: should not require scope selection
-      expect(snapshot.needs_scope_select).toBe(false)
+      // Then: current scope set means user has selected
+      expect(snapshot.currentOrgId).toBe('org-1')
+      expect(snapshot.currentRoleId).toBe('role-1')
     })
 
     test('should have current scope when organization and role are set', () => {
@@ -196,8 +188,7 @@ describe('AuthenticationStateSnapshot', () => {
         currentOrgId: 'org-1',
         currentRoleId: 'role-1',
         currentRoleName: 'admin',
-        needs_scope_select: false,
-      })
+        })
 
       // When: accessing current scope information
       // Then: should have organization and role IDs and name
@@ -221,7 +212,6 @@ describe('AuthenticationStateSnapshot', () => {
         currentOrgId: null,
         currentRoleId: null,
         currentRoleName: null,
-        needs_scope_select: true,
       })
 
       // When: accessing current scope information
@@ -251,8 +241,7 @@ describe('AuthenticationStateSnapshot', () => {
         currentOrgId: null,
         currentRoleId: null,
         currentRoleName: null,
-        needs_scope_select: false,
-      })
+        })
 
       // Then: snapshot should contain the user
       expect(snapshot.user).toBe(user)
@@ -273,8 +262,7 @@ describe('AuthenticationStateSnapshot', () => {
         currentOrgId: null,
         currentRoleId: null,
         currentRoleName: null,
-        needs_scope_select: false,
-      })
+        })
 
       // Then: user should be null
       expect(snapshot.user).toBeNull()
@@ -296,8 +284,7 @@ describe('AuthenticationStateSnapshot', () => {
         currentOrgId: null,
         currentRoleId: null,
         currentRoleName: null,
-        needs_scope_select: false,
-      })
+        })
 
       // Then: snapshot should contain the permissions
       expect(snapshot.permissions).toEqual(permissions)
@@ -317,8 +304,7 @@ describe('AuthenticationStateSnapshot', () => {
         currentOrgId: null,
         currentRoleId: null,
         currentRoleName: null,
-        needs_scope_select: false,
-      })
+        })
 
       // Then: permissions should be empty array
       expect(snapshot.permissions).toEqual([])
@@ -336,8 +322,7 @@ describe('AuthenticationStateSnapshot', () => {
         currentOrgId: null,
         currentRoleId: null,
         currentRoleName: null,
-        needs_scope_select: false,
-      })
+        })
 
       // When: accessing permissions
       // Then: permissions should be readonly array
@@ -378,8 +363,7 @@ describe('AuthenticationStateSnapshot', () => {
         currentOrgId: null,
         currentRoleId: null,
         currentRoleName: null,
-        needs_scope_select: false,
-      })
+        })
 
       // Then: snapshot should contain the scopes
       expect(snapshot.scopes).toEqual(scopes)
@@ -399,8 +383,7 @@ describe('AuthenticationStateSnapshot', () => {
         currentOrgId: null,
         currentRoleId: null,
         currentRoleName: null,
-        needs_scope_select: false,
-      })
+        })
 
       // Then: scopes should be empty array
       expect(snapshot.scopes).toEqual([])
@@ -425,8 +408,7 @@ describe('AuthenticationStateSnapshot', () => {
         currentOrgId: null,
         currentRoleId: null,
         currentRoleName: null,
-        needs_scope_select: false,
-      })
+        })
 
       // When: accessing scopes
       // Then: scopes should be readonly array
@@ -450,8 +432,7 @@ describe('AuthenticationStateSnapshot', () => {
         currentOrgId: null,
         currentRoleId: null,
         currentRoleName: null,
-        needs_scope_select: false,
-      })
+        })
 
       // Then: snapshot should contain the flash message
       expect(snapshot.flash).toBe(flash)
@@ -472,8 +453,7 @@ describe('AuthenticationStateSnapshot', () => {
         currentOrgId: null,
         currentRoleId: null,
         currentRoleName: null,
-        needs_scope_select: false,
-      })
+        })
 
       // Then: snapshot should contain the flash error
       expect(snapshot.flash).toBe(flash)
@@ -492,8 +472,7 @@ describe('AuthenticationStateSnapshot', () => {
         currentOrgId: null,
         currentRoleId: null,
         currentRoleName: null,
-        needs_scope_select: false,
-      })
+        })
 
       // Then: flash should be null
       expect(snapshot.flash).toBeNull()
@@ -519,8 +498,7 @@ describe('AuthenticationStateSnapshot', () => {
         currentOrgId: null,
         currentRoleId: null,
         currentRoleName: null,
-        needs_scope_select: false,
-      })
+        })
 
       // Then: snapshot should contain the token
       expect(snapshot.token).toBe(token)
@@ -538,8 +516,7 @@ describe('AuthenticationStateSnapshot', () => {
         currentOrgId: null,
         currentRoleId: null,
         currentRoleName: null,
-        needs_scope_select: false,
-      })
+        })
 
       // Then: token should be null
       expect(snapshot.token).toBeNull()
@@ -558,8 +535,7 @@ describe('AuthenticationStateSnapshot', () => {
         currentOrgId: null,
         currentRoleId: null,
         currentRoleName: null,
-        needs_scope_select: false,
-      })
+        })
 
       // When: checking the class tag
       // Then: should be tagged as AuthenticationStateSnapshot

@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import {
   useEffectState,
   streamWithPendingState,
@@ -14,14 +14,10 @@ import { Effect } from 'effect'
 import Box from '@mui/material/Box'
 import Button from '@mui/material/Button'
 import TextField from '@mui/material/TextField'
-import Table from '@mui/material/Table'
-import TableBody from '@mui/material/TableBody'
-import TableCell from '@mui/material/TableCell'
-import TableContainer from '@mui/material/TableContainer'
-import TableHead from '@mui/material/TableHead'
-import TableRow from '@mui/material/TableRow'
-import Paper from '@mui/material/Paper'
 import AddIcon from '@mui/icons-material/Add'
+import IconButton from '@mui/material/IconButton'
+import EditIcon from '@mui/icons-material/Edit'
+import DeleteIcon from '@mui/icons-material/Delete'
 import FormControl from '@mui/material/FormControl'
 import InputLabel from '@mui/material/InputLabel'
 import Select from '@mui/material/Select'
@@ -34,14 +30,15 @@ import Typography from '@mui/material/Typography'
 
 import { getApplicationLayer } from '@/lib/appLayer'
 import FormDialog from '@/components/FormDialog'
-import TableEmptyRow from '@/components/TableEmptyRow'
-import RoleTableRow from '@/features/dashboard/components/RoleTableRow'
+import ActionBar from '@/components/ActionBar'
+import DataTable from '@/components/DataTable'
+import type { DataTableColumn } from '@/components/DataTable'
 import PageHeader from '@/components/PageHeader'
 import ErrorAlert from '@/components/ErrorAlert'
-import LoadingSpinner from '@/components/LoadingSpinner'
 import { ShowWithPermissions } from '@/components/ShowWithPermissions'
 import { useLiveRefreshTrigger } from '@/hooks/useLiveRefreshTrigger'
 import { usePermission } from '@/hooks/usePermission'
+import { useTablePaginationDefaults } from '@/hooks/useTablePaginationDefaults'
 import type { Role } from '@/features/dashboard/domain/Role'
 import type { Organization } from '@/features/dashboard/domain/Organization'
 import { Roles as RolesService } from '@/features/dashboard/services/Roles'
@@ -49,11 +46,9 @@ import { Dashboard } from '@/features/dashboard/services/Dashboard'
 
 type ListState = AsyncState<readonly Role[], Error>
 
-const ROLES_READ = 'role.read'
 const ROLES_WRITE = 'role.create'
 
 export default function RolesPage() {
-  const canRead = usePermission(ROLES_READ)
   const canWrite = usePermission(ROLES_WRITE)
   const { trigger: liveRefreshTrigger, connected: wsConnected } =
     useLiveRefreshTrigger('roles')
@@ -113,6 +108,42 @@ export default function RolesPage() {
   const [editName, setEditName] = useState('')
   const [editDisplayName, setEditDisplayName] = useState('')
   const [deletingId, setDeletingId] = useState<string | null>(null)
+
+  const { defaultRowsPerPage, rowsPerPageOptions } =
+    useTablePaginationDefaults()
+  const [page, setPage] = useState(0)
+  const [rowsPerPage, setRowsPerPage] = useState(defaultRowsPerPage)
+  useEffect(() => {
+    setRowsPerPage((prev) =>
+      rowsPerPageOptions.includes(prev) ? prev : defaultRowsPerPage,
+    )
+  }, [defaultRowsPerPage, rowsPerPageOptions])
+
+  const paginatedRoles = useMemo(
+    () => roles.slice(page * rowsPerPage, page * rowsPerPage + rowsPerPage),
+    [roles, page, rowsPerPage],
+  )
+
+  const getOrgName = (role: Role) =>
+    role.org_name ??
+    organizations.find((o) => o.id === role.org_id)?.name ??
+    role.org_id
+
+  const roleColumns: DataTableColumn<Role>[] = useMemo(
+    () => [
+      {
+        id: 'organization',
+        label: 'Organization',
+        render: (r) => getOrgName(r),
+      },
+      {
+        id: 'name',
+        label: 'Name',
+        render: (r) => r.display_name ?? r.name ?? '—',
+      },
+    ],
+    [organizations],
+  )
 
   const adding = isPending(addState)
   const saving = isPending(updateState)
@@ -267,7 +298,7 @@ export default function RolesPage() {
       )}
 
       <ShowWithPermissions permissions={[ROLES_WRITE]}>
-        <Box sx={{ mb: 2 }}>
+        <ActionBar>
           <Button
             variant="contained"
             startIcon={<AddIcon />}
@@ -279,49 +310,57 @@ export default function RolesPage() {
           >
             Add role
           </Button>
-        </Box>
+        </ActionBar>
       </ShowWithPermissions>
 
-      {loading ? (
-        <LoadingSpinner />
-      ) : (
-        <TableContainer component={Paper} data-testid="roles-list">
-          <Table size="small" aria-label="Roles" data-testid="roles-table">
-            <TableHead>
-              <TableRow>
-                <TableCell>Organization</TableCell>
-                <TableCell>Name</TableCell>
-                {canWrite && <TableCell align="right">Actions</TableCell>}
-              </TableRow>
-            </TableHead>
-            <TableBody>
-              {roles.length === 0 ? (
-                <TableEmptyRow colSpan={canWrite ? 3 : 2}>
-                  No roles. Add a role or ensure your organization has template
-                  roles.
-                </TableEmptyRow>
-              ) : (
-                roles.map((role) => (
-                  <RoleTableRow
-                    key={role.id}
-                    role={role}
-                    orgName={
-                      role.org_name ??
-                      organizations.find((o) => o.id === role.org_id)?.name ??
-                      role.org_id
-                    }
-                    onEdit={openEdit}
-                    onDelete={handleDelete}
-                    onView={(r) => setViewRole(r)}
-                    canWrite={canWrite}
-                    isDeleting={deleting && deletingId === role.id}
-                  />
-                ))
-              )}
-            </TableBody>
-          </Table>
-        </TableContainer>
-      )}
+      <DataTable<Role>
+        columns={roleColumns}
+        rows={paginatedRoles}
+        loading={loading}
+        getRowId={(r) => r.id}
+        emptyMessage="No roles. Add a role or ensure your organization has template roles."
+        pagination={{
+          page,
+          rowsPerPage,
+          totalCount: roles.length,
+          onPageChange: (_ev, newPage) => setPage(newPage),
+          onRowsPerPageChange: (ev) => {
+            setRowsPerPage(parseInt(ev.target.value, 10))
+            setPage(0)
+          },
+          rowsPerPageOptions,
+        }}
+        actionsColumn={
+          canWrite
+            ? {
+                canShow: true,
+                render: (role) => (
+                  <>
+                    <IconButton
+                      size="small"
+                      aria-label="Edit"
+                      onClick={() => openEdit(role)}
+                      data-testid={`role-row-edit-${role.id}`}
+                    >
+                      <EditIcon />
+                    </IconButton>
+                    <IconButton
+                      size="small"
+                      aria-label="Delete"
+                      onClick={() => handleDelete(role.id)}
+                      disabled={deleting && deletingId === role.id}
+                      data-testid={`role-row-delete-${role.id}`}
+                    >
+                      <DeleteIcon />
+                    </IconButton>
+                  </>
+                ),
+              }
+            : undefined
+        }
+        ariaLabel="Roles"
+        dataTestId="roles-list"
+      />
 
       <FormDialog
         open={addOpen}

@@ -15,7 +15,6 @@ export interface CurrentScope {
 export interface AuthenticationState {
   token: Option.Option<string>
   user: Option.Option<AuthenticationUser>
-  needsScopeSelect: Option.Option<boolean>
   /** Permission keys from /api/auth/me (e.g. for usePermission). */
   permissions: readonly string[]
   /** Current ReBAC scope (org + role) when set; none when not selected. */
@@ -25,7 +24,6 @@ export interface AuthenticationState {
 export const initialAuthenticationState: AuthenticationState = {
   token: Option.none(),
   user: Option.none(),
-  needsScopeSelect: Option.none(),
   permissions: [],
   currentScope: Option.none(),
 }

@@ -61,7 +61,6 @@ pub async fn login(
       .all(&db)
       .await
       .unwrap_or_default();
-    let needs_scope_select = uors.len() != 1;
 
     let secret = format!("forge_{}", Uuid::new_v4().to_string().replace('-', ""));
     let token_hash = hash_api_token(&secret);
@@ -103,7 +102,6 @@ pub async fn login(
         Json(serde_json::json!({
           "ok": true,
           "token": secret,
-          "needs_scope_select": needs_scope_select
         })),
       )
         .into_response(),

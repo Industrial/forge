@@ -99,7 +99,7 @@ describe('authentication stores index', () => {
       expect(initialAuthenticationState).toBe(initialAuthenticationStateSource)
       expect(initialAuthenticationState).toHaveProperty('token')
       expect(initialAuthenticationState).toHaveProperty('user')
-      expect(initialAuthenticationState).toHaveProperty('needsScopeSelect')
+      expect(initialAuthenticationState).toHaveProperty('currentScope')
       expect(initialAuthenticationState).toHaveProperty('permissions')
     })
 
@@ -206,14 +206,14 @@ describe('authentication stores index', () => {
       const state: AuthenticationState = {
         token: Option.none(),
         user: Option.none(),
-        needsScopeSelect: Option.none(),
         permissions: [],
+        currentScope: Option.none(),
       }
 
       expect(state).toBeDefined()
       expect(Option.isNone(state.token)).toBe(true)
       expect(Option.isNone(state.user)).toBe(true)
-      expect(Option.isNone(state.needsScopeSelect)).toBe(true)
+      expect(Option.isNone(state.currentScope)).toBe(true)
       expect(state.permissions).toEqual([])
     })
 
@@ -224,14 +224,19 @@ describe('authentication stores index', () => {
       const state: AuthenticationState = {
         token: Option.some('test-token'),
         user: Option.none(),
-        needsScopeSelect: Option.some(true),
         permissions: ['read:users'],
+        currentScope: Option.some({
+          organizationId: 'org-1',
+          roleId: 'role-1',
+        }),
       }
 
       expect(Option.isSome(state.token)).toBe(true)
       expect(Option.getOrUndefined(state.token)).toBe('test-token')
-      expect(Option.isSome(state.needsScopeSelect)).toBe(true)
-      expect(Option.getOrUndefined(state.needsScopeSelect)).toBe(true)
+      expect(Option.isSome(state.currentScope)).toBe(true)
+      expect(Option.getOrUndefined(state.currentScope)?.organizationId).toBe(
+        'org-1',
+      )
       expect(state.permissions).toEqual(['read:users'])
     })
   })

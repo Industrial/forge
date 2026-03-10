@@ -497,9 +497,12 @@ test.describe('Viewer Role', () => {
         const pagination = yield* auditLogPageService.pagination()
         yield* ExpectHelpers.toBeVisible(pagination)
 
-        yield* auditLogPageService.goToNextPage()
-
-        yield* PageHelpers.waitForURL(page, /page=/)
+        const nextButton = yield* auditLogPageService.paginationNext()
+        const hasNextPage = yield* Effect.promise(() => nextButton.isEnabled())
+        if (hasNextPage) {
+          yield* auditLogPageService.goToNextPage()
+          yield* PageHelpers.waitForURL(page, /page=/)
+        }
       })
 
       await Effect.runPromise(

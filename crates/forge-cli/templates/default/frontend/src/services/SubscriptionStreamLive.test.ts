@@ -143,8 +143,8 @@ function createMockAuthStore(
   const state: AuthenticationState = {
     token: token ? Option.some(token) : Option.none(),
     user: Option.none(),
-    needsScopeSelect: Option.none(),
     permissions: [],
+    currentScope: Option.none(),
   }
 
   return {

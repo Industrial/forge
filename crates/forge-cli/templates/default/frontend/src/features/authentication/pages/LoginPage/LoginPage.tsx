@@ -12,7 +12,7 @@ import { Authentication } from '@/features/authentication/services/Authenticatio
 import { navigateTo } from '@/lib/navigate'
 import { getApplicationLayer } from '@/lib/appLayer'
 import { AuthenticationError } from '@/features/authentication/errors/AuthenticationError'
-import { useForm } from '@/hooks'
+import { useForm } from '@/hooks/useForm'
 import { LoginFormSchema } from '@/features/authentication/schemas/LoginFormSchema'
 
 export default function LoginPage() {

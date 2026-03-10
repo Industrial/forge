@@ -1,15 +1,11 @@
 import Box from '@mui/material/Box'
 import Button from '@mui/material/Button'
 import TextField from '@mui/material/TextField'
-import Table from '@mui/material/Table'
-import TableBody from '@mui/material/TableBody'
-import TableCell from '@mui/material/TableCell'
-import TableContainer from '@mui/material/TableContainer'
-import TableHead from '@mui/material/TableHead'
-import TableRow from '@mui/material/TableRow'
-import Paper from '@mui/material/Paper'
 import AddIcon from '@mui/icons-material/Add'
-import { useEffect } from 'react'
+import IconButton from '@mui/material/IconButton'
+import EditIcon from '@mui/icons-material/Edit'
+import DeleteIcon from '@mui/icons-material/Delete'
+import { useEffect, useMemo, useState } from 'react'
 import {
   useEffectState,
   streamWithPendingState,
@@ -24,19 +20,24 @@ import {
 import { Effect } from 'effect'
 
 import FormDialog from '@/components/FormDialog'
+import FiltersBar from '@/components/FiltersBar'
+import ActionBar from '@/components/ActionBar'
+import DataTable from '@/components/DataTable'
+import type { DataTableColumn } from '@/components/DataTable'
 import LoadingSpinner from '@/components/LoadingSpinner'
 import EmptyState from '@/components/EmptyState'
 import PageHeader from '@/components/PageHeader'
 import ErrorAlert from '@/components/ErrorAlert'
 import { ShowWithPermissions } from '@/components/ShowWithPermissions'
-import { useEntitySubscription } from '@/hooks'
+import { useEntitySubscription } from '@/hooks/useEntitySubscription'
 import { useLiveRefreshTrigger } from '@/hooks/useLiveRefreshTrigger'
 import { usePermission } from '@/hooks/usePermission'
 import { useIsMobile } from '@/hooks/useIsMobile'
+import { useTablePaginationDefaults } from '@/hooks/useTablePaginationDefaults'
 import OrganizationsFilters from '@/features/dashboard/components/OrganizationsFilters'
 import OrganizationCard from '@/features/dashboard/components/OrganizationCard'
-import OrganizationTableRow from '@/features/dashboard/components/OrganizationTableRow'
 import { useOrganizationsFilter } from '@/features/dashboard/hooks/useOrganizationsFilter'
+import { formatDate } from '@/features/dashboard/utils/formatDate'
 import { getApplicationLayer, type AppServices } from '@/lib/appLayer'
 import { EntityApi } from '@/services/EntityApi'
 import { Organization } from '@/features/dashboard/domain/Organization'
@@ -164,6 +165,47 @@ export default function OrganizationsPage() {
 
   const [filters, setFilters, filteredOrganizations] =
     useOrganizationsFilter(organizations)
+
+  const { defaultRowsPerPage, rowsPerPageOptions } =
+    useTablePaginationDefaults()
+  const [page, setPage] = useState(0)
+  const [rowsPerPage, setRowsPerPage] = useState(defaultRowsPerPage)
+  useEffect(() => {
+    setRowsPerPage((prev) =>
+      rowsPerPageOptions.includes(prev) ? prev : defaultRowsPerPage,
+    )
+  }, [defaultRowsPerPage, rowsPerPageOptions])
+  useEffect(
+    () => setPage(0),
+    [filters.filterName, filters.filterSlug],
+  )
+
+  const paginatedOrganizations = useMemo(
+    () =>
+      filteredOrganizations.slice(
+        page * rowsPerPage,
+        page * rowsPerPage + rowsPerPage,
+      ),
+    [filteredOrganizations, page, rowsPerPage],
+  )
+
+  const orgColumns: DataTableColumn<Organization>[] = useMemo(
+    () => [
+      { id: 'name', label: 'Name', render: (o) => o.name },
+      { id: 'slug', label: 'Slug', render: (o) => o.slug },
+      {
+        id: 'created',
+        label: 'Created',
+        render: (o) => formatDate(o.created_at),
+      },
+      {
+        id: 'updated',
+        label: 'Updated',
+        render: (o) => formatDate(o.updated_at),
+      },
+    ],
+    [],
+  )
 
   const refreshStream = streamWithPendingState(listEffect)
   const refreshEffect = Effect.gen(function* () {
@@ -360,19 +402,21 @@ export default function OrganizationsPage() {
         <ErrorAlert message={errorMessage} onClose={handleClearError} />
       )}
 
-      <OrganizationsFilters
-        filterName={filters.filterName}
-        filterSlug={filters.filterSlug}
-        onFilterNameChange={(value) =>
-          setFilters((prev) => ({ ...prev, filterName: value }))
-        }
-        onFilterSlugChange={(value) =>
-          setFilters((prev) => ({ ...prev, filterSlug: value }))
-        }
-      />
+      <FiltersBar>
+        <OrganizationsFilters
+          filterName={filters.filterName}
+          filterSlug={filters.filterSlug}
+          onFilterNameChange={(value) =>
+            setFilters((prev) => ({ ...prev, filterName: value }))
+          }
+          onFilterSlugChange={(value) =>
+            setFilters((prev) => ({ ...prev, filterSlug: value }))
+          }
+        />
+      </FiltersBar>
 
       <ShowWithPermissions permissions={[ORG_WRITE]}>
-        <Box sx={{ mb: 2 }}>
+        <ActionBar>
           <Button
             variant="contained"
             startIcon={<AddIcon />}
@@ -380,7 +424,7 @@ export default function OrganizationsPage() {
           >
             Add organization
           </Button>
-        </Box>
+        </ActionBar>
       </ShowWithPermissions>
 
       {loading ? (
@@ -418,31 +462,57 @@ export default function OrganizationsPage() {
           ))}
         </Box>
       ) : (
-        <TableContainer component={Paper}>
-          <Table size="small" aria-label="Organizations">
-            <TableHead>
-              <TableRow>
-                <TableCell>Name</TableCell>
-                <TableCell>Slug</TableCell>
-                <TableCell>Created</TableCell>
-                <TableCell>Updated</TableCell>
-                {canWrite && <TableCell align="right">Actions</TableCell>}
-              </TableRow>
-            </TableHead>
-            <TableBody>
-              {filteredOrganizations.map((org) => (
-                <OrganizationTableRow
-                  key={org.id}
-                  org={org}
-                  canWrite={canWrite}
-                  onEdit={handleOpenEdit}
-                  onDelete={handleDelete}
-                  isDeleting={isDeleting(org.id)}
-                />
-              ))}
-            </TableBody>
-          </Table>
-        </TableContainer>
+        <DataTable<Organization>
+          columns={orgColumns}
+          rows={paginatedOrganizations}
+          loading={false}
+          getRowId={(o) => o.id}
+          emptyMessage={
+            organizations.length === 0
+              ? 'No organizations.'
+              : 'No organizations match the filters.'
+          }
+          pagination={{
+            page,
+            rowsPerPage,
+            totalCount: filteredOrganizations.length,
+            onPageChange: (_ev, newPage) => setPage(newPage),
+            onRowsPerPageChange: (ev) => {
+              setRowsPerPage(parseInt(ev.target.value, 10))
+              setPage(0)
+            },
+            rowsPerPageOptions,
+          }}
+          actionsColumn={
+            canWrite
+              ? {
+                  canShow: true,
+                  render: (org) => (
+                    <>
+                      <IconButton
+                        size="small"
+                        aria-label="Edit"
+                        onClick={() => handleOpenEdit(org)}
+                        data-testid={`row-edit-${org.id}`}
+                      >
+                        <EditIcon />
+                      </IconButton>
+                      <IconButton
+                        size="small"
+                        aria-label="Delete"
+                        onClick={() => handleDelete(org.id)}
+                        disabled={isDeleting(org.id)}
+                        data-testid={`row-delete-${org.id}`}
+                      >
+                        <DeleteIcon />
+                      </IconButton>
+                    </>
+                  ),
+                }
+              : undefined
+          }
+          ariaLabel="Organizations"
+        />
       )}
 
       <FormDialog

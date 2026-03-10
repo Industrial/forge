@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import {
   useEffectState,
   streamWithPendingState,
@@ -12,20 +12,15 @@ import {
 } from 'react-effect-hooks'
 import { Effect } from 'effect'
 import Box from '@mui/material/Box'
-import Table from '@mui/material/Table'
-import TableBody from '@mui/material/TableBody'
-import TableCell from '@mui/material/TableCell'
-import TableContainer from '@mui/material/TableContainer'
-import TableHead from '@mui/material/TableHead'
-import TableRow from '@mui/material/TableRow'
-import TablePagination from '@mui/material/TablePagination'
-import Paper from '@mui/material/Paper'
+import IconButton from '@mui/material/IconButton'
+import DeleteIcon from '@mui/icons-material/Delete'
 
 import { getApplicationLayer } from '@/lib/appLayer'
 import PageHeader from '@/components/PageHeader'
-import TableEmptyRow from '@/components/TableEmptyRow'
+import ActionBar from '@/components/ActionBar'
+import DataTable from '@/components/DataTable'
+import type { DataTableColumn } from '@/components/DataTable'
 import PermissionsAddBar from '@/features/dashboard/components/PermissionsAddBar'
-import AssignmentTableRow from '@/features/dashboard/components/AssignmentTableRow'
 import ErrorAlert from '@/components/ErrorAlert'
 import LoadingSpinner from '@/components/LoadingSpinner'
 import { useLiveRefreshTrigger } from '@/hooks/useLiveRefreshTrigger'
@@ -203,6 +198,22 @@ export default function PermissionsPage() {
     page * rowsPerPage + rowsPerPage,
   )
 
+  const assignmentColumns: DataTableColumn<Assignment>[] = useMemo(
+    () => [
+      { id: 'scope', label: 'Scope', render: (a) => a.scope },
+      { id: 'role_name', label: 'Role', render: (a) => a.role_name },
+      {
+        id: 'permission_key',
+        label: 'Permission',
+        render: (a) => a.permission_key,
+      },
+    ],
+    [],
+  )
+
+  const getAssignmentRowId = (a: Assignment) =>
+    [a.scope, a.role_name, a.permission_key, a.org_id ?? ''].join(':')
+
   return (
     <Box data-testid="permissions-page">
       <PageHeader
@@ -233,71 +244,57 @@ export default function PermissionsPage() {
         <LoadingSpinner />
       ) : (
         <>
-          <PermissionsAddBar
-            scope={addScope}
-            role={addRole}
-            permission={addPermission}
-            roles={addBarRoles}
-            permissions={permissions}
-            onScopeChange={(value) => {
-              setAddScope(value)
-              setAddRole(value === 'global' ? 'platform_admin' : 'owner')
-            }}
-            onRoleChange={setAddRole}
-            onPermissionChange={setAddPermission}
-            onAdd={handleAdd}
-            adding={adding}
-          />
+          <ActionBar>
+            <PermissionsAddBar
+              scope={addScope}
+              role={addRole}
+              permission={addPermission}
+              roles={addBarRoles}
+              permissions={permissions}
+              onScopeChange={(value) => {
+                setAddScope(value)
+                setAddRole(value === 'global' ? 'platform_admin' : 'owner')
+              }}
+              onRoleChange={setAddRole}
+              onPermissionChange={setAddPermission}
+              onAdd={handleAdd}
+              adding={adding}
+            />
+          </ActionBar>
 
-          <TableContainer component={Paper} data-testid="permissions-list">
-            <Table
-              size="small"
-              aria-label="Role–permission assignments"
-              data-testid="permissions-table"
-            >
-              <TableHead>
-                <TableRow>
-                  <TableCell>Scope</TableCell>
-                  <TableCell>Role</TableCell>
-                  <TableCell>Permission</TableCell>
-                  <TableCell align="right">Actions</TableCell>
-                </TableRow>
-              </TableHead>
-              <TableBody>
-                {paginatedAssignments.length === 0 ? (
-                  <TableEmptyRow colSpan={4}>
-                    No assignments yet. Add one above.
-                  </TableEmptyRow>
-                ) : (
-                  paginatedAssignments.map((a) => {
-                    const key = [
-                      a.scope,
-                      a.role_name,
-                      a.permission_key,
-                      a.org_id ?? '',
-                    ].join(':')
-                    return (
-                      <AssignmentTableRow
-                        key={key}
-                        assignment={a}
-                        onDelete={handleDelete}
-                        isDeleting={deleting && deletingKey === key}
-                      />
-                    )
-                  })
-                )}
-              </TableBody>
-            </Table>
-          </TableContainer>
-          <TablePagination
-            component="div"
-            count={assignments.length}
-            page={page}
-            onPageChange={handleChangePage}
-            rowsPerPage={rowsPerPage}
-            onRowsPerPageChange={handleChangeRowsPerPage}
-            rowsPerPageOptions={rowsPerPageOptions}
-            labelRowsPerPage="Rows per page:"
+          <DataTable<Assignment>
+            columns={assignmentColumns}
+            rows={paginatedAssignments}
+            loading={false}
+            getRowId={getAssignmentRowId}
+            emptyMessage="No assignments yet. Add one above."
+            pagination={{
+              page,
+              rowsPerPage,
+              totalCount: assignments.length,
+              onPageChange: handleChangePage,
+              onRowsPerPageChange: handleChangeRowsPerPage,
+              rowsPerPageOptions,
+            }}
+            actionsColumn={{
+              canShow: true,
+              render: (a) => {
+                const key = getAssignmentRowId(a)
+                return (
+                  <IconButton
+                    size="small"
+                    aria-label="Remove"
+                    onClick={() => handleDelete(a)}
+                    disabled={deleting && deletingKey === key}
+                    data-testid={`row-delete-${key}`}
+                  >
+                    <DeleteIcon />
+                  </IconButton>
+                )
+              },
+            }}
+            ariaLabel="Role–permission assignments"
+            dataTestId="permissions-list"
           />
         </>
       )}

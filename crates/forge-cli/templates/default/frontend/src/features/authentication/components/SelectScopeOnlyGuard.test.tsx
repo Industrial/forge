@@ -62,15 +62,18 @@ beforeAll(() => {
   }
 })
 
-// Helper to create a mock auth store with user and needsScopeSelect
+// Helper to create a mock auth store with user and whether scope selection is needed (no currentScope).
 function createMockAuthStore(
   user: AuthenticationUser | null = null,
   needsScopeSelect: boolean = false,
 ) {
+  const hasScope = !needsScopeSelect
   let current: AuthenticationState = {
     ...initialAuthenticationState,
     user: Option.fromNullable(user),
-    needsScopeSelect: Option.fromNullable(needsScopeSelect ? true : null),
+    currentScope: hasScope
+      ? Option.some({ organizationId: 'org-1', roleId: 'role-1' })
+      : Option.none(),
   }
   const changeListeners = new Set<(a: AuthenticationState) => void>()
 

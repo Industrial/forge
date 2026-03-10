@@ -9,18 +9,11 @@ import {
   isFailure,
   isPending,
 } from 'react-effect-hooks'
-import { useEffect, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import { useForm, Controller } from 'react-hook-form'
 import Box from '@mui/material/Box'
 import Button from '@mui/material/Button'
 import TextField from '@mui/material/TextField'
-import Table from '@mui/material/Table'
-import TableBody from '@mui/material/TableBody'
-import TableCell from '@mui/material/TableCell'
-import TableContainer from '@mui/material/TableContainer'
-import TableHead from '@mui/material/TableHead'
-import TableRow from '@mui/material/TableRow'
-import Paper from '@mui/material/Paper'
 import AddIcon from '@mui/icons-material/Add'
 import FormControl from '@mui/material/FormControl'
 import InputLabel from '@mui/material/InputLabel'
@@ -38,15 +31,22 @@ import { Effect, Option, Schema } from 'effect'
 
 import FormDialog from '@/components/FormDialog'
 import PageHeader from '@/components/PageHeader'
-import TableEmptyRow from '@/components/TableEmptyRow'
+import FiltersBar from '@/components/FiltersBar'
+import ActionBar from '@/components/ActionBar'
+import DataTable from '@/components/DataTable'
+import type { DataTableColumn } from '@/components/DataTable'
 import UsersFilters from '@/features/dashboard/components/UsersFilters'
-import UserTableRow from '@/features/dashboard/components/UserTableRow'
 import ErrorAlert from '@/components/ErrorAlert'
 import LoadingSpinner from '@/components/LoadingSpinner'
+import IconButton from '@mui/material/IconButton'
+import EditIcon from '@mui/icons-material/Edit'
+import DeleteIcon from '@mui/icons-material/Delete'
+import VisibilityIcon from '@mui/icons-material/Visibility'
 import { ShowWithPermissions } from '@/components/ShowWithPermissions'
 import { useAuthStore } from '@/features/authentication/stores'
 import { useLiveRefreshTrigger } from '@/hooks/useLiveRefreshTrigger'
 import { usePermission } from '@/hooks/usePermission'
+import { useTablePaginationDefaults } from '@/hooks/useTablePaginationDefaults'
 import { getApplicationLayer } from '@/lib/appLayer'
 import { effectSchemaResolver } from '@/lib/effectSchemaResolver'
 import { formatDate } from '@/features/dashboard/utils/formatDate'
@@ -106,6 +106,16 @@ export default function UsersPage() {
   const [editUser, setEditUser] = useState<User | null>(null)
   const [viewUser, setViewUser] = useState<User | null>(null)
   const [deletingId, setDeletingId] = useState<string | null>(null)
+
+  const { defaultRowsPerPage, rowsPerPageOptions } =
+    useTablePaginationDefaults()
+  const [page, setPage] = useState(0)
+  const [rowsPerPage, setRowsPerPage] = useState(defaultRowsPerPage)
+  useEffect(() => {
+    setRowsPerPage((prev) =>
+      rowsPerPageOptions.includes(prev) ? prev : defaultRowsPerPage,
+    )
+  }, [defaultRowsPerPage, rowsPerPageOptions])
 
   const users = listState._tag === 'success' ? [...listState.value] : []
   const organizations =
@@ -320,6 +330,48 @@ export default function UsersPage() {
     return emailMatch && orgMatch && roleMatch && activeMatch && adminMatch
   })
 
+  useEffect(() => setPage(0), [filterEmail, filterOrgId, filterRole, filterActive, filterAdmin])
+
+  const paginatedUsers = useMemo(
+    () =>
+      filteredUsers.slice(
+        page * rowsPerPage,
+        page * rowsPerPage + rowsPerPage,
+      ),
+    [filteredUsers, page, rowsPerPage],
+  )
+
+  const userColumns: DataTableColumn<User>[] = useMemo(
+    () => [
+      {
+        id: 'email',
+        label: 'Email',
+        render: (row) => row.email,
+      },
+      {
+        id: 'orgs-role',
+        label: 'Organizations / Role',
+        render: (row) => membershipsSummary(row.memberships, organizations),
+      },
+      {
+        id: 'active',
+        label: 'Active',
+        render: (row) => (row.is_active ? 'Yes' : 'No'),
+      },
+      {
+        id: 'admin',
+        label: 'Admin',
+        render: (row) => (row.is_admin ? 'Yes' : 'No'),
+      },
+      {
+        id: 'created',
+        label: 'Created',
+        render: (row) => formatDate(row.created_at),
+      },
+    ],
+    [organizations],
+  )
+
   if (!canRead) {
     return (
       <>
@@ -359,23 +411,25 @@ export default function UsersPage() {
         />
       )}
 
-      <UsersFilters
-        filterEmail={filterEmail}
-        filterOrgId={filterOrgId}
-        filterRole={filterRole}
-        filterActive={filterActive}
-        filterAdmin={filterAdmin}
-        organizations={organizations}
-        roleOptions={FILTER_ROLES}
-        onFilterEmailChange={setFilterEmail}
-        onFilterOrgIdChange={setFilterOrgId}
-        onFilterRoleChange={setFilterRole}
-        onFilterActiveChange={setFilterActive}
-        onFilterAdminChange={setFilterAdmin}
-      />
+      <FiltersBar>
+        <UsersFilters
+          filterEmail={filterEmail}
+          filterOrgId={filterOrgId}
+          filterRole={filterRole}
+          filterActive={filterActive}
+          filterAdmin={filterAdmin}
+          organizations={organizations}
+          roleOptions={FILTER_ROLES}
+          onFilterEmailChange={setFilterEmail}
+          onFilterOrgIdChange={setFilterOrgId}
+          onFilterRoleChange={setFilterRole}
+          onFilterActiveChange={setFilterActive}
+          onFilterAdminChange={setFilterAdmin}
+        />
+      </FiltersBar>
 
       <ShowWithPermissions permissions={[USERS_WRITE]}>
-        <Box sx={{ mb: 2 }}>
+        <ActionBar>
           <Button
             variant="contained"
             startIcon={<AddIcon />}
@@ -392,48 +446,67 @@ export default function UsersPage() {
           >
             Add user
           </Button>
-        </Box>
+        </ActionBar>
       </ShowWithPermissions>
 
-      {loading ? (
-        <LoadingSpinner />
-      ) : (
-        <TableContainer component={Paper} data-testid="users-list">
-          <Table size="small" aria-label="Users" data-testid="users-table">
-            <TableHead>
-              <TableRow>
-                <TableCell>Email</TableCell>
-                <TableCell>Organizations / Role</TableCell>
-                <TableCell>Active</TableCell>
-                <TableCell>Admin</TableCell>
-                <TableCell>Created</TableCell>
-                {canWrite && <TableCell align="right">Actions</TableCell>}
-              </TableRow>
-            </TableHead>
-            <TableBody>
-              {filteredUsers.length === 0 ? (
-                <TableEmptyRow colSpan={canWrite ? 6 : 5}>
-                  {users.length === 0
-                    ? 'No users.'
-                    : 'No users match the filters.'}
-                </TableEmptyRow>
-              ) : (
-                filteredUsers.map((user) => (
-                  <UserTableRow
-                    key={user.id}
-                    user={user}
-                    canWrite={canWrite}
-                    onEdit={(u) => openEdit(u as User)}
-                    onDelete={handleDelete}
-                    onView={(u) => setViewUser(u as User)}
-                    isDeleting={deleting && deletingId === user.id}
-                  />
-                ))
-              )}
-            </TableBody>
-          </Table>
-        </TableContainer>
-      )}
+      <DataTable<User>
+        columns={userColumns}
+        rows={paginatedUsers}
+        loading={loading}
+        getRowId={(u) => u.id}
+        emptyMessage={
+          users.length === 0 ? 'No users.' : 'No users match the filters.'
+        }
+        pagination={{
+          page,
+          rowsPerPage,
+          totalCount: filteredUsers.length,
+          onPageChange: (_ev, newPage) => setPage(newPage),
+          onRowsPerPageChange: (ev) => {
+            setRowsPerPage(parseInt(ev.target.value, 10))
+            setPage(0)
+          },
+          rowsPerPageOptions,
+        }}
+        actionsColumn={{
+          canShow: true,
+                render: (user) => (
+                  <>
+                    <IconButton
+                      size="small"
+                      aria-label="View"
+                      onClick={() => setViewUser(user)}
+                      data-testid={`row-view-${user.id}`}
+                    >
+                      <VisibilityIcon />
+                    </IconButton>
+                    {canWrite && (
+                      <>
+                        <IconButton
+                          size="small"
+                          aria-label="Edit"
+                          onClick={() => openEdit(user)}
+                          data-testid={`row-edit-${user.id}`}
+                        >
+                          <EditIcon />
+                        </IconButton>
+                        <IconButton
+                          size="small"
+                          aria-label="Delete"
+                          onClick={() => handleDelete(user.id)}
+                          disabled={deleting && deletingId === user.id}
+                          data-testid={`row-delete-${user.id}`}
+                        >
+                          <DeleteIcon />
+                        </IconButton>
+                      </>
+                    )}
+                  </>
+                ),
+        }}
+        ariaLabel="Users"
+        dataTestId="users-list"
+      />
 
       <FormDialog
         open={addDialogOpen}

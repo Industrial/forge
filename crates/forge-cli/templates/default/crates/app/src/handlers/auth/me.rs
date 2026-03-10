@@ -77,13 +77,11 @@ pub async fn get_me(
     let permissions = resolve_permissions(&db, user, effective_scope.as_ref()).await;
     (scopes, permissions)
   };
-  let needs_scope_select = scopes.len() != 1;
   Ok(Json(serde_json::json!({
     "user": { "id": user.id.to_string(), "email": user.email },
     "scopes": scopes,
     "permissions": permissions,
     "flash": serde_json::Value::Null,
-    "needs_scope_select": needs_scope_select,
   })))
 }
 

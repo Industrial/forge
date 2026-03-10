@@ -46,10 +46,10 @@ export default function SelectScopePage() {
       ?.pathname ?? '/dashboard'
 
   const user = Option.getOrElse(authentication.user, () => null)
-  const needs_scope_select = Option.getOrElse(
-    authentication.needsScopeSelect,
-    () => false,
-  )
+  // Client-derived: need scope selection when authenticated but no scope selected.
+  const needs_scope_select =
+    Option.isSome(authentication.user) &&
+    Option.isNone(authentication.currentScope)
   const isUserAuthenticated = Option.isSome(authentication.user)
 
   const [scopes, setScopes] = useState<Scope[]>([])
