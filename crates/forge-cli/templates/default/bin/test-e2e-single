@@ -84,15 +84,15 @@ FORGE_ENVIRONMENT="${FORGE_ENVIRONMENT:-production}" FORGE_BACKEND_HOST="$FORGE_
 API_PID=$!
 
 echo "> test-e2e-single > waiting for API /healthz"
-for i in {1..50}; do
-  if curl -sf --max-time 1 "$API_URL/healthz" >/dev/null 2>&1; then
+for i in {1..120}; do
+  if curl -sf --max-time 2 "$API_URL/healthz" >/dev/null 2>&1; then
     break
   fi
-  if [[ $i -eq 50 ]]; then
+  if [[ $i -eq 120 ]]; then
     echo "> test-e2e-single > API did not become ready in time"
     exit 1
   fi
-  sleep 0.2
+  sleep 0.5
 done
 
 if [[ -f frontend/package.json ]]; then

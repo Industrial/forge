@@ -49,7 +49,6 @@ const ORG_VIEWER: &[&str] = &[
   "audit.read",
   "permission.read",
   "role.read",
-  "organization.read",
 ];
 
 /// Inserts default role_permission rows for an org (owner, admin, editor, viewer).

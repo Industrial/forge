@@ -1,26 +1,20 @@
-[chromium] › tests/02-viewer.spec.ts:66:5 › Viewer Role › 2.1 Authentication & Profile Selection › multi-profile redirects to scope selection then dashboard 
-[chromium] › tests/02-viewer.spec.ts:120:5 › Viewer Role › 2.2 Dashboard Access › should display dashboard page 
-[chromium] › tests/02-viewer.spec.ts:142:5 › Viewer Role › 2.2 Dashboard Access › should show navigation links 
-[chromium] › tests/02-viewer.spec.ts:164:5 › Viewer Role › 2.2 Dashboard Access › should not show organizations link 
-[chromium] › tests/02-viewer.spec.ts:179:5 › Viewer Role › 2.2 Dashboard Access › theme toggle works 
-[chromium] › tests/02-viewer.spec.ts:231:5 › Viewer Role › 2.3 Users Page › should display users list 
-[chromium] › tests/02-viewer.spec.ts:249:5 › Viewer Role › 2.3 Users Page › should filter users 
-[chromium] › tests/02-viewer.spec.ts:264:5 › Viewer Role › 2.3 Users Page › should view user details (read-only) 
-[chromium] › tests/02-viewer.spec.ts:329:5 › Viewer Role › 2.4 Roles Page › should display roles list 
-[chromium] › tests/02-viewer.spec.ts:347:5 › Viewer Role › 2.4 Roles Page › should view role details (read-only) 
-[chromium] › tests/02-viewer.spec.ts:410:5 › Viewer Role › 2.5 Permissions Page › should display permissions list 
-[chromium] › tests/02-viewer.spec.ts:469:5 › Viewer Role › 2.6 Audit Log Page › should display audit log list 
-[chromium] › tests/02-viewer.spec.ts:487:5 › Viewer Role › 2.6 Audit Log Page › should filter audit log 
-[chromium] › tests/02-viewer.spec.ts:502:5 › Viewer Role › 2.6 Audit Log Page › should paginate audit log 
-[chromium] › tests/02-viewer.spec.ts:519:5 › Viewer Role › 2.6 Audit Log Page › should view audit entry details 
-[chromium] › tests/02-viewer.spec.ts:538:5 › Viewer Role › 2.7 Organizations Page (Blocked) › should show 403 when accessing organizations page 
-[chromium] › tests/02-viewer.spec.ts:580:5 › Viewer Role › 2.8 Profile Management › should display current profile 
-[chromium] › tests/02-viewer.spec.ts:617:5 › Viewer Role › 2.9 API Token Management › POST /api/auth/tokens returns 201 Created 
-[chromium] › tests/02-viewer.spec.ts:732:5 › Viewer Role › 2.10 Generic Entity API (Read-only) › GET /api/entities/organization returns 403 Forbidden 
-[chromium] › tests/02-viewer.spec.ts:823:5 › Viewer Role › 2.12 Subscription Stream › GET /api/subscriptions/stream establishes SSE connection 
-[chromium] › tests/02-viewer.spec.ts:880:5 › Viewer Role › 2.14 Logout › logout redirects to login 
-[chromium] › tests/02-viewer.spec.ts:913:5 › Viewer Role › 2.14 Logout › after logout protected routes redirect to login 
-[chromium] › tests/03-editor.spec.ts:137:5 › Editor Role › 3.3 Users Page (Create/Update) › should show create button 
+[chromium] › tests/02-viewer.spec.ts:162:5 › Viewer Role › 2.2 Dashboard Access › should not show organizations link 
+[chromium] › tests/02-viewer.spec.ts:245:5 › Viewer Role › 2.3 Users Page › should filter users 
+[chromium] › tests/02-viewer.spec.ts:341:5 › Viewer Role › 2.4 Roles Page › should view role details (read-only) 
+[chromium] › tests/02-viewer.spec.ts:402:5 › Viewer Role › 2.5 Permissions Page › should display permissions list 
+[chromium] › tests/02-viewer.spec.ts:459:5 › Viewer Role › 2.6 Audit Log Page › should display audit log list 
+[chromium] › tests/02-viewer.spec.ts:477:5 › Viewer Role › 2.6 Audit Log Page › should filter audit log 
+[chromium] › tests/02-viewer.spec.ts:492:5 › Viewer Role › 2.6 Audit Log Page › should paginate audit log 
+[chromium] › tests/02-viewer.spec.ts:509:5 › Viewer Role › 2.6 Audit Log Page › should view audit entry details 
+[chromium] › tests/02-viewer.spec.ts:528:5 › Viewer Role › 2.7 Organizations Page (Blocked) › should show 403 when accessing organizations page 
+[chromium] › tests/02-viewer.spec.ts:570:5 › Viewer Role › 2.8 Profile Management › should display current profile 
+[chromium] › tests/02-viewer.spec.ts:592:5 › Viewer Role › 2.8 Profile Management › should view profile details (read-only) 
+[chromium] › tests/02-viewer.spec.ts:607:5 › Viewer Role › 2.9 API Token Management › POST /api/auth/tokens returns 201 Created 
+[chromium] › tests/02-viewer.spec.ts:722:5 › Viewer Role › 2.10 Generic Entity API (Read-only) › GET /api/entities/organization returns 403 Forbidden 
+[chromium] › tests/02-viewer.spec.ts:813:5 › Viewer Role › 2.12 Subscription Stream › GET /api/subscriptions/stream establishes SSE connection 
+[chromium] › tests/02-viewer.spec.ts:843:5 › Viewer Role › 2.13 Admin Endpoint (Blocked) › GET /api/auth/admin returns 403 Forbidden 
+[chromium] › tests/02-viewer.spec.ts:870:5 › Viewer Role › 2.14 Logout › logout redirects to login 
+[chromium] › tests/02-viewer.spec.ts:903:5 › Viewer Role › 2.14 Logout › after logout protected routes redirect to login 
 [chromium] › tests/03-editor.spec.ts:150:5 › Editor Role › 3.3 Users Page (Create/Update) › should create user 
 [chromium] › tests/03-editor.spec.ts:167:5 › Editor Role › 3.3 Users Page (Create/Update) › should update user 
 [chromium] › tests/03-editor.spec.ts:189:5 › Editor Role › 3.3 Users Page (Create/Update) › should filter users 
@@ -38,7 +32,7 @@
 [chromium] › tests/03-editor.spec.ts:530:5 › Editor Role › 3.10 RPC API (Create/Update) › POST /api/rpc entity.create returns 200 OK 
 [chromium] › tests/03-editor.spec.ts:560:5 › Editor Role › 3.10 RPC API (Create/Update) › POST /api/rpc entity.delete returns 403 Forbidden 
 [chromium] › tests/03-editor.spec.ts:591:5 › Editor Role › 3.11 Subscription Stream › GET /api/subscriptions/stream establishes SSE connection 
-[chromium] › tests/03-editor.spec.ts:644:5 › Editor Role › 3.13 Logout › logout redirects to login 
+[chromium] › tests/03-editor.spec.ts:647:5 › Editor Role › 3.13 Logout › logout redirects to login 
 [chromium] › tests/04-org-owner.spec.ts:129:5 › Org Owner Role › 4.3 Organizations Page (Full CRUD) › should create organization 
 [chromium] › tests/04-org-owner.spec.ts:149:5 › Org Owner Role › 4.3 Organizations Page (Full CRUD) › should update organization 
 [chromium] › tests/04-org-owner.spec.ts:174:5 › Org Owner Role › 4.3 Organizations Page (Full CRUD) › should delete organization 
@@ -56,7 +50,6 @@
 [chromium] › tests/04-org-owner.spec.ts:574:5 › Org Owner Role › 4.11 Subscription Stream › GET /api/subscriptions/stream establishes SSE connection 
 [chromium] › tests/04-org-owner.spec.ts:628:5 › Org Owner Role › 4.13 Scope Switching › should switch profile and see updated data 
 [chromium] › tests/04-org-owner.spec.ts:666:5 › Org Owner Role › 4.14 Logout › logout redirects to login 
-[chromium] › tests/05-org-admin.spec.ts:58:5 › Org Admin Role › 5.2 Dashboard Access (Full) › should show all navigation links 
 [chromium] › tests/05-org-admin.spec.ts:97:5 › Org Admin Role › 5.3 Organizations Page (Full CRUD) › should create organization 
 [chromium] › tests/05-org-admin.spec.ts:132:5 › Org Admin Role › 5.4 Users Page (Full CRUD) › should create user 
 [chromium] › tests/05-org-admin.spec.ts:164:5 › Org Admin Role › 5.5 Roles Page (Full CRUD) › should create role 
@@ -68,7 +61,6 @@
 [chromium] › tests/05-org-admin.spec.ts:426:5 › Org Admin Role › 5.13 Scope Switching › should switch profile and see updated data 
 [chromium] › tests/05-org-admin.spec.ts:461:5 › Org Admin Role › 5.14 Logout › logout redirects to login 
 [chromium] › tests/06-app-admin.spec.ts:112:5 › App Admin Role › 6.2 Dashboard Access (Full - Global Scope) › can access all organizations (global-scope) 
-[chromium] › tests/06-app-admin.spec.ts:128:5 › App Admin Role › 6.2 Dashboard Access (Full - Global Scope) › can see users from all orgs (global-scope) 
 [chromium] › tests/06-app-admin.spec.ts:146:5 › App Admin Role › 6.3 Organizations Page (Full CRUD - Global Scope) › should create organization 
 [chromium] › tests/06-app-admin.spec.ts:181:5 › App Admin Role › 6.4 Users Page (Full CRUD - Global Scope) › should create user 
 [chromium] › tests/06-app-admin.spec.ts:213:5 › App Admin Role › 6.5 Roles Page (Full CRUD - Global Scope) › should create role 
@@ -77,12 +69,10 @@
 [chromium] › tests/06-app-admin.spec.ts:311:5 › App Admin Role › 6.8 Profile Management › should display current profile 
 [chromium] › tests/06-app-admin.spec.ts:342:5 › App Admin Role › 6.9 Admin Endpoint (Access Granted) › GET /api/auth/admin returns 200 OK 
 [chromium] › tests/06-app-admin.spec.ts:478:5 › App Admin Role › 6.12 Subscription Stream (Global Scope) › GET /api/subscriptions/stream establishes SSE connection 
-[chromium] › tests/06-app-admin.spec.ts:507:5 › App Admin Role › 6.13 Global Role Management › should manage global roles 
 [chromium] › tests/06-app-admin.spec.ts:536:5 › App Admin Role › 6.14 Scope Switching (Global Admin) › should switch profile and see updated data 
 [chromium] › tests/06-app-admin.spec.ts:571:5 › App Admin Role › 6.15 API Token Management › POST /api/auth/tokens returns 201 Created 
 [chromium] › tests/06-app-admin.spec.ts:635:5 › App Admin Role › 6.16 Logout › logout redirects to login 
 [chromium] › tests/07-security.spec.ts:24:5 › Cross-Role Scenarios › 7.1 Multi-Organization User Flow › should switch between organizations 
-[chromium] › tests/07-security.spec.ts:71:7 › Cross-Role Scenarios › 7.2 Permission Escalation Prevention › Viewer permissions › Viewer cannot access editor-only features 
 [chromium] › tests/07-security.spec.ts:100:7 › Cross-Role Scenarios › 7.2 Permission Escalation Prevention › Editor permissions › Editor cannot access org-admin-only features 
 [chromium] › tests/07-security.spec.ts:125:7 › Cross-Role Scenarios › 7.2 Permission Escalation Prevention › Org Admin permissions › Org Admin cannot access global-admin-only features 
 [chromium] › tests/07-security.spec.ts:147:7 › Cross-Role Scenarios › 7.2 Permission Escalation Prevention › App Admin permissions › App Admin can access global-admin features 
@@ -96,7 +86,6 @@
 [chromium] › tests/08-edge-cases.spec.ts:70:5 › Edge Cases & Boundary Conditions › 8.1 Empty States › users page shows empty state 
 [chromium] › tests/08-edge-cases.spec.ts:93:5 › Edge Cases & Boundary Conditions › 8.1 Empty States › roles page shows empty state 
 [chromium] › tests/08-edge-cases.spec.ts:116:5 › Edge Cases & Boundary Conditions › 8.1 Empty States › audit log page shows empty state 
-[chromium] › tests/08-edge-cases.spec.ts:141:5 › Edge Cases & Boundary Conditions › 8.2 Large Datasets › large user list pagination works correctly 
 [chromium] › tests/08-edge-cases.spec.ts:186:5 › Edge Cases & Boundary Conditions › 8.2 Large Datasets › large organization list pagination works correctly 
 [chromium] › tests/08-edge-cases.spec.ts:223:5 › Edge Cases & Boundary Conditions › 8.2 Large Datasets › large audit log pagination works correctly 
 [chromium] › tests/08-edge-cases.spec.ts:256:5 › Edge Cases & Boundary Conditions › 8.2 Large Datasets › cursor pagination works correctly 
@@ -105,7 +94,6 @@
 [chromium] › tests/08-edge-cases.spec.ts:377:5 › Edge Cases & Boundary Conditions › 8.3 Invalid Inputs › invalid UUID returns 400 Bad Request 
 [chromium] › tests/08-edge-cases.spec.ts:395:5 › Edge Cases & Boundary Conditions › 8.3 Invalid Inputs › invalid filter JSON returns 400 Bad Request 
 [chromium] › tests/08-edge-cases.spec.ts:413:5 › Edge Cases & Boundary Conditions › 8.3 Invalid Inputs › invalid sort field returns 400 Bad Request 
-[chromium] › tests/08-edge-cases.spec.ts:433:5 › Edge Cases & Boundary Conditions › 8.4 Network Conditions › slow network shows loading states 
 [chromium] › tests/08-edge-cases.spec.ts:481:5 › Edge Cases & Boundary Conditions › 8.4 Network Conditions › network error shows error message 
 [chromium] › tests/08-edge-cases.spec.ts:497:5 › Edge Cases & Boundary Conditions › 8.4 Network Conditions › timeout shows error message 
 [chromium] › tests/08-edge-cases.spec.ts:516:5 › Edge Cases & Boundary Conditions › 8.5 Browser Compatibility › mobile viewport responsive layout works 
@@ -117,6 +105,5 @@
 [chromium] › tests/09-security.spec.ts:110:7 › Security Scenarios › 9.2 Authorization Security › Viewer auth › Viewer cannot create entity 
 [chromium] › tests/09-security.spec.ts:170:7 › Security Scenarios › 9.2 Authorization Security › Org Admin auth › Org Admin cannot access other org data 
 [chromium] › tests/09-security.spec.ts:196:7 › Security Scenarios › 9.2 Authorization Security › App Admin auth › App Admin can access any org data 
-[chromium] › tests/09-security.spec.ts:221:5 › Security Scenarios › 9.3 CSRF Protection › form submission includes CSRF token 
 [chromium] › tests/09-security.spec.ts:260:5 › Security Scenarios › 9.3 CSRF Protection › missing CSRF token request is rejected 
-[chromium] › tests/09-security.spec.ts:321:5 › Security Scenarios › 9.5 Security Headers › security headers are present
+[chromium] › tests/09-security.spec.ts:321:5 › Security Scenarios › 9.5 Security Headers › security headers are present 
