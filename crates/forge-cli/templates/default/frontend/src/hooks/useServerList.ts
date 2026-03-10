@@ -122,9 +122,7 @@ export function useServerList<T, F>({
   }, [defaultRowsPerPage])
 
   const setPage = useCallback((value: number | ((prev: number) => number)) => {
-    setPageState((prev) =>
-      typeof value === 'function' ? value(prev) : value,
-    )
+    setPageState((prev) => (typeof value === 'function' ? value(prev) : value))
   }, [])
 
   const setRowsPerPage = useCallback((value: number) => {

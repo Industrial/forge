@@ -62,7 +62,7 @@ describe('AuthenticationStateSnapshot', () => {
         currentOrgId: null,
         currentRoleId: null,
         currentRoleName: null,
-        })
+      })
 
       // Then: user should be null
       expect(snapshot.user).toBeNull()
@@ -81,7 +81,7 @@ describe('AuthenticationStateSnapshot', () => {
         currentOrgId: null,
         currentRoleId: null,
         currentRoleName: null,
-        })
+      })
 
       // Then: scopes and permissions should be empty arrays
       expect(snapshot.scopes).toEqual([])
@@ -103,7 +103,7 @@ describe('AuthenticationStateSnapshot', () => {
         currentOrgId: null,
         currentRoleId: null,
         currentRoleName: null,
-        })
+      })
 
       // When: attempting to access properties
       // Then: all properties should be readable
@@ -188,7 +188,7 @@ describe('AuthenticationStateSnapshot', () => {
         currentOrgId: 'org-1',
         currentRoleId: 'role-1',
         currentRoleName: 'admin',
-        })
+      })
 
       // When: accessing current scope information
       // Then: should have organization and role IDs and name
@@ -241,7 +241,7 @@ describe('AuthenticationStateSnapshot', () => {
         currentOrgId: null,
         currentRoleId: null,
         currentRoleName: null,
-        })
+      })
 
       // Then: snapshot should contain the user
       expect(snapshot.user).toBe(user)
@@ -262,7 +262,7 @@ describe('AuthenticationStateSnapshot', () => {
         currentOrgId: null,
         currentRoleId: null,
         currentRoleName: null,
-        })
+      })
 
       // Then: user should be null
       expect(snapshot.user).toBeNull()
@@ -284,7 +284,7 @@ describe('AuthenticationStateSnapshot', () => {
         currentOrgId: null,
         currentRoleId: null,
         currentRoleName: null,
-        })
+      })
 
       // Then: snapshot should contain the permissions
       expect(snapshot.permissions).toEqual(permissions)
@@ -304,7 +304,7 @@ describe('AuthenticationStateSnapshot', () => {
         currentOrgId: null,
         currentRoleId: null,
         currentRoleName: null,
-        })
+      })
 
       // Then: permissions should be empty array
       expect(snapshot.permissions).toEqual([])
@@ -322,7 +322,7 @@ describe('AuthenticationStateSnapshot', () => {
         currentOrgId: null,
         currentRoleId: null,
         currentRoleName: null,
-        })
+      })
 
       // When: accessing permissions
       // Then: permissions should be readonly array
@@ -363,7 +363,7 @@ describe('AuthenticationStateSnapshot', () => {
         currentOrgId: null,
         currentRoleId: null,
         currentRoleName: null,
-        })
+      })
 
       // Then: snapshot should contain the scopes
       expect(snapshot.scopes).toEqual(scopes)
@@ -383,7 +383,7 @@ describe('AuthenticationStateSnapshot', () => {
         currentOrgId: null,
         currentRoleId: null,
         currentRoleName: null,
-        })
+      })
 
       // Then: scopes should be empty array
       expect(snapshot.scopes).toEqual([])
@@ -408,7 +408,7 @@ describe('AuthenticationStateSnapshot', () => {
         currentOrgId: null,
         currentRoleId: null,
         currentRoleName: null,
-        })
+      })
 
       // When: accessing scopes
       // Then: scopes should be readonly array
@@ -432,7 +432,7 @@ describe('AuthenticationStateSnapshot', () => {
         currentOrgId: null,
         currentRoleId: null,
         currentRoleName: null,
-        })
+      })
 
       // Then: snapshot should contain the flash message
       expect(snapshot.flash).toBe(flash)
@@ -453,7 +453,7 @@ describe('AuthenticationStateSnapshot', () => {
         currentOrgId: null,
         currentRoleId: null,
         currentRoleName: null,
-        })
+      })
 
       // Then: snapshot should contain the flash error
       expect(snapshot.flash).toBe(flash)
@@ -472,7 +472,7 @@ describe('AuthenticationStateSnapshot', () => {
         currentOrgId: null,
         currentRoleId: null,
         currentRoleName: null,
-        })
+      })
 
       // Then: flash should be null
       expect(snapshot.flash).toBeNull()
@@ -498,7 +498,7 @@ describe('AuthenticationStateSnapshot', () => {
         currentOrgId: null,
         currentRoleId: null,
         currentRoleName: null,
-        })
+      })
 
       // Then: snapshot should contain the token
       expect(snapshot.token).toBe(token)
@@ -516,7 +516,7 @@ describe('AuthenticationStateSnapshot', () => {
         currentOrgId: null,
         currentRoleId: null,
         currentRoleName: null,
-        })
+      })
 
       // Then: token should be null
       expect(snapshot.token).toBeNull()
@@ -535,7 +535,7 @@ describe('AuthenticationStateSnapshot', () => {
         currentOrgId: null,
         currentRoleId: null,
         currentRoleName: null,
-        })
+      })
 
       // When: checking the class tag
       // Then: should be tagged as AuthenticationStateSnapshot

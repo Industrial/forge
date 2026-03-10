@@ -121,7 +121,7 @@ describe('DashboardLive', () => {
       ]
 
       const mockHttpClient = createMockHttpClient((request) => {
-        if (request.url.includes('/api/dashboard/organizations')) {
+        if (request.url.includes('/api/auth/organizations')) {
           return Effect.succeed({
             status: 200,
             json: Effect.succeed({ organizations: mockOrganizations }),
@@ -165,7 +165,7 @@ describe('DashboardLive', () => {
     test('should handle empty organizations array', async () => {
       // Given: endpoint returns 200 with empty array
       const mockHttpClient = createMockHttpClient((request) => {
-        if (request.url.includes('/api/dashboard/organizations')) {
+        if (request.url.includes('/api/auth/organizations')) {
           return Effect.succeed({
             status: 200,
             json: Effect.succeed({ organizations: [] }),
@@ -200,7 +200,7 @@ describe('DashboardLive', () => {
     test('should handle missing organizations field', async () => {
       // Given: endpoint returns 200 but missing organizations field
       const mockHttpClient = createMockHttpClient((request) => {
-        if (request.url.includes('/api/dashboard/organizations')) {
+        if (request.url.includes('/api/auth/organizations')) {
           return Effect.succeed({
             status: 200,
             json: Effect.succeed({}), // Missing organizations field
@@ -235,7 +235,7 @@ describe('DashboardLive', () => {
     test('should fail when endpoint returns non-200 status', async () => {
       // Given: endpoint returns 500
       const mockHttpClient = createMockHttpClient((request) => {
-        if (request.url.includes('/api/dashboard/organizations')) {
+        if (request.url.includes('/api/auth/organizations')) {
           return Effect.succeed({
             status: 500,
             json: Effect.succeed({ error: 'Internal server error' }),
@@ -270,7 +270,7 @@ describe('DashboardLive', () => {
     test('should handle error response without error field', async () => {
       // Given: endpoint returns 400 without error field
       const mockHttpClient = createMockHttpClient((request) => {
-        if (request.url.includes('/api/dashboard/organizations')) {
+        if (request.url.includes('/api/auth/organizations')) {
           return Effect.succeed({
             status: 400,
             json: Effect.succeed({ message: 'Bad request' }), // No 'error' field

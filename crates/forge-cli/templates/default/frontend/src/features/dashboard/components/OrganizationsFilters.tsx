@@ -1,5 +1,5 @@
-import FilterPanelFromConfig from '@/components/FilterPanelFromConfig'
-import type { FilterField } from '@/components/FilterPanelFromConfig'
+import FiltersPanel from '@/components/FiltersPanel'
+import type { FilterField } from '@/components/FiltersPanel'
 
 export type OrgOption = { id: string; name: string }
 
@@ -38,11 +38,5 @@ export default function OrganizationsFilters({
     if (key === 'name') onFilterNameChange(value)
     else if (key === 'slug') onFilterSlugChange(value)
   }
-  return (
-    <FilterPanelFromConfig
-      fields={FIELDS}
-      values={values}
-      onChange={onChange}
-    />
-  )
+  return <FiltersPanel fields={FIELDS} values={values} onChange={onChange} />
 }

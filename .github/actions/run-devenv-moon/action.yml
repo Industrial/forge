@@ -1,4 +1,5 @@
 # Run moon targets inside devenv shell, with optional --affected for PRs.
+name: "Run devenv moon"
 description: "Run moon commands in devenv (optionally --affected on PRs)"
 inputs:
   targets:

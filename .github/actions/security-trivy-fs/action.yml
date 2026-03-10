@@ -1,4 +1,5 @@
 # Run Trivy filesystem scan and upload SARIF to Code Scanning.
+name: "Security Trivy FS"
 description: "Trivy filesystem scan (SARIF)"
 inputs:
   severity:

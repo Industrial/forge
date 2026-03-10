@@ -16,6 +16,7 @@ import Button from '@mui/material/Button'
 import TextField from '@mui/material/TextField'
 import AddIcon from '@mui/icons-material/Add'
 import IconButton from '@mui/material/IconButton'
+import VisibilityIcon from '@mui/icons-material/Visibility'
 import EditIcon from '@mui/icons-material/Edit'
 import DeleteIcon from '@mui/icons-material/Delete'
 import FormControl from '@mui/material/FormControl'
@@ -33,12 +34,19 @@ import FormDialog from '@/components/FormDialog'
 import ActionBar from '@/components/ActionBar'
 import DataTable from '@/components/DataTable'
 import type { DataTableColumn } from '@/components/DataTable'
+import DataListMobile from '@/components/DataListMobile'
+import EmptyState from '@/components/EmptyState'
+import LoadingSpinner from '@/components/LoadingSpinner'
 import PageHeader from '@/components/PageHeader'
+import RoleCard from '@/features/dashboard/components/RoleCard'
+import RolesFilters from '@/features/dashboard/components/RolesFilters'
 import ErrorAlert from '@/components/ErrorAlert'
 import { ShowWithPermissions } from '@/components/ShowWithPermissions'
+import { useIsMobile } from '@/hooks/useIsMobile'
 import { useLiveRefreshTrigger } from '@/hooks/useLiveRefreshTrigger'
 import { usePermission } from '@/hooks/usePermission'
 import { useTablePaginationDefaults } from '@/hooks/useTablePaginationDefaults'
+import { useRolesFilter } from '@/features/dashboard/hooks/useRolesFilter'
 import type { Role } from '@/features/dashboard/domain/Role'
 import type { Organization } from '@/features/dashboard/domain/Organization'
 import { Roles as RolesService } from '@/features/dashboard/services/Roles'
@@ -49,6 +57,7 @@ type ListState = AsyncState<readonly Role[], Error>
 const ROLES_WRITE = 'role.create'
 
 export default function RolesPage() {
+  const isMobile = useIsMobile()
   const canWrite = usePermission(ROLES_WRITE)
   const { trigger: liveRefreshTrigger, connected: wsConnected } =
     useLiveRefreshTrigger('roles')
@@ -109,6 +118,11 @@ export default function RolesPage() {
   const [editDisplayName, setEditDisplayName] = useState('')
   const [deletingId, setDeletingId] = useState<string | null>(null)
 
+  const [filters, setFilters, filteredRoles] = useRolesFilter(
+    roles,
+    organizations,
+  )
+
   const { defaultRowsPerPage, rowsPerPageOptions } =
     useTablePaginationDefaults()
   const [page, setPage] = useState(0)
@@ -118,10 +132,15 @@ export default function RolesPage() {
       rowsPerPageOptions.includes(prev) ? prev : defaultRowsPerPage,
     )
   }, [defaultRowsPerPage, rowsPerPageOptions])
+  useEffect(
+    () => setPage(0),
+    [filters.filterName, filters.filterDisplayName, filters.filterOrg],
+  )
 
   const paginatedRoles = useMemo(
-    () => roles.slice(page * rowsPerPage, page * rowsPerPage + rowsPerPage),
-    [roles, page, rowsPerPage],
+    () =>
+      filteredRoles.slice(page * rowsPerPage, page * rowsPerPage + rowsPerPage),
+    [filteredRoles, page, rowsPerPage],
   )
 
   const getOrgName = (role: Role) =>
@@ -297,6 +316,21 @@ export default function RolesPage() {
         />
       )}
 
+      <RolesFilters
+        filterName={filters.filterName}
+        filterDisplayName={filters.filterDisplayName}
+        filterOrg={filters.filterOrg}
+        onFilterNameChange={(value) =>
+          setFilters((prev) => ({ ...prev, filterName: value }))
+        }
+        onFilterDisplayNameChange={(value) =>
+          setFilters((prev) => ({ ...prev, filterDisplayName: value }))
+        }
+        onFilterOrgChange={(value) =>
+          setFilters((prev) => ({ ...prev, filterOrg: value }))
+        }
+      />
+
       <ShowWithPermissions permissions={[ROLES_WRITE]}>
         <ActionBar>
           <Button
@@ -313,31 +347,85 @@ export default function RolesPage() {
         </ActionBar>
       </ShowWithPermissions>
 
-      <DataTable<Role>
-        columns={roleColumns}
-        rows={paginatedRoles}
-        loading={loading}
-        getRowId={(r) => r.id}
-        emptyMessage="No roles. Add a role or ensure your organization has template roles."
-        pagination={{
-          page,
-          rowsPerPage,
-          totalCount: roles.length,
-          onPageChange: (_ev, newPage) => setPage(newPage),
-          onRowsPerPageChange: (ev) => {
-            setRowsPerPage(parseInt(ev.target.value, 10))
-            setPage(0)
-          },
-          rowsPerPageOptions,
-        }}
-        actionsColumn={
-          canWrite
-            ? {
-                canShow: true,
-                render: (role) => (
+      {loading ? (
+        <LoadingSpinner />
+      ) : filteredRoles.length === 0 ? (
+        <EmptyState
+          message={
+            roles.length === 0
+              ? 'No roles. Add a role or ensure your organization has template roles.'
+              : 'No roles match the filters.'
+          }
+        />
+      ) : isMobile ? (
+        <DataListMobile<Role>
+          items={paginatedRoles}
+          getKey={(r) => r.id}
+          renderItem={(role) => (
+            <RoleCard
+              role={role}
+              organizations={organizations}
+              canWrite={canWrite}
+              onView={setViewRole}
+              onEdit={openEdit}
+              onDelete={handleDelete}
+              isDeleting={deleting && deletingId === role.id}
+            />
+          )}
+          pagination={{
+            page,
+            rowsPerPage,
+            totalCount: filteredRoles.length,
+            onPageChange: (_ev, newPage) => setPage(newPage),
+            onRowsPerPageChange: (ev) => {
+              setRowsPerPage(parseInt(ev.target.value, 10))
+              setPage(0)
+            },
+            rowsPerPageOptions,
+          }}
+          ariaLabel="Roles"
+          dataTestId="roles-list-mobile"
+        />
+      ) : (
+        <DataTable<Role>
+          columns={roleColumns}
+          rows={paginatedRoles}
+          loading={false}
+          getRowId={(r) => r.id}
+          emptyMessage={
+            roles.length === 0
+              ? 'No roles. Add a role or ensure your organization has template roles.'
+              : 'No roles match the filters.'
+          }
+          pagination={{
+            page,
+            rowsPerPage,
+            totalCount: filteredRoles.length,
+            onPageChange: (_ev, newPage) => setPage(newPage),
+            onRowsPerPageChange: (ev) => {
+              setRowsPerPage(parseInt(ev.target.value, 10))
+              setPage(0)
+            },
+            rowsPerPageOptions,
+          }}
+          actionsColumn={{
+            canShow: true,
+            render: (role) => (
+              <>
+                <IconButton
+                  size="small"
+                  color="primary"
+                  aria-label="View"
+                  onClick={() => setViewRole(role)}
+                  data-testid={`role-row-view-${role.id}`}
+                >
+                  <VisibilityIcon />
+                </IconButton>
+                {canWrite && (
                   <>
                     <IconButton
                       size="small"
+                      color="primary"
                       aria-label="Edit"
                       onClick={() => openEdit(role)}
                       data-testid={`role-row-edit-${role.id}`}
@@ -346,6 +434,7 @@ export default function RolesPage() {
                     </IconButton>
                     <IconButton
                       size="small"
+                      color="error"
                       aria-label="Delete"
                       onClick={() => handleDelete(role.id)}
                       disabled={deleting && deletingId === role.id}
@@ -354,13 +443,14 @@ export default function RolesPage() {
                       <DeleteIcon />
                     </IconButton>
                   </>
-                ),
-              }
-            : undefined
-        }
-        ariaLabel="Roles"
-        dataTestId="roles-list"
-      />
+                )}
+              </>
+            ),
+          }}
+          ariaLabel="Roles"
+          dataTestId="roles-list"
+        />
+      )}
 
       <FormDialog
         open={addOpen}

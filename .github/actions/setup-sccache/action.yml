@@ -1,4 +1,5 @@
 # Setup sccache for Rust compilation caching.
+name: "Setup sccache"
 description: "Setup sccache for Rust build cache"
 inputs: {}
 outputs: {}

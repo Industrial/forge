@@ -1,8 +1,8 @@
 //! GET /api/auth/me — current user, scopes, permissions (from optional scope headers).
 
 use axum::{Json, extract::State, http::Request, response::IntoResponse};
-use forge_auth::token_auth::RequireAuth;
 use forge_auth::RequestScope;
+use forge_auth::token_auth::RequireAuth;
 use forge_db::DbConnection;
 use sea_orm::{ColumnTrait, EntityTrait, QueryFilter};
 

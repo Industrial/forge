@@ -1,4 +1,5 @@
 # Reusable checkout with configurable fetch-depth (e.g. full history for PRs).
+name: "Checkout"
 description: "Checkout repo with optional full history for PRs"
 inputs:
   fetch-depth:

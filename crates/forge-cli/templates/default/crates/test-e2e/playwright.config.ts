@@ -13,7 +13,8 @@ const baseURL = `http://${frontendHost}:${frontendPort}`
 
 /** API server URL from FORGE_BACKEND_HOST and FORGE_SERVER_PORT. Set by bin/test-e2e; defaults for standalone runs. */
 const backendHost = process.env.FORGE_BACKEND_HOST || '127.0.0.1'
-const backendPort = process.env.FORGE_SERVER_PORT || process.env.FORGE_BACKEND_PORT || '4000'
+const backendPort =
+  process.env.FORGE_SERVER_PORT || process.env.FORGE_BACKEND_PORT || '4000'
 export const API_BASE_URL = `http://${backendHost}:${backendPort}`
 
 export default defineConfig({

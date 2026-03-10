@@ -1,4 +1,5 @@
 # Run Semgrep SAST. Use config "p/default" (free) or "auto" with SEMGREP_APP_TOKEN.
+name: "Security Semgrep"
 description: "Run Semgrep SAST"
 inputs:
   config:

@@ -613,7 +613,9 @@ export const AuthenticationLive = Layer.effect(
                   if (state) yield* updateAuthState(store, state)
                 } else {
                   state = yield* fetchMeAndBuildState(baseUrl, token).pipe(
-                    Effect.provide(Layer.succeed(HttpClient.HttpClient, client)),
+                    Effect.provide(
+                      Layer.succeed(HttpClient.HttpClient, client),
+                    ),
                   )
                   if (state) yield* updateAuthState(store, state)
                 }
@@ -738,9 +740,7 @@ export const AuthenticationLive = Layer.effect(
               baseUrl,
               token,
               tokenStorage,
-            ).pipe(
-              Effect.provide(Layer.succeed(HttpClient.HttpClient, client)),
-            )
+            ).pipe(Effect.provide(Layer.succeed(HttpClient.HttpClient, client)))
 
             // 4. Refetch with scope if auto-selected (single scope)
             if (Option.isSome(selectedScope)) {

@@ -18,6 +18,7 @@ export default function FiltersBar({ children, extra }: FiltersBarProps) {
     <Box
       data-testid="filters-bar"
       sx={{
+        width: '100%',
         display: 'flex',
         flexWrap: 'wrap',
         gap: 2,

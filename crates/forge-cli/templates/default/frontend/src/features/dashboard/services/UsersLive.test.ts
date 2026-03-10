@@ -130,7 +130,7 @@ describe('UsersLive', () => {
 
       const mockHttpClient = createMockHttpClient((request) => {
         if (
-          request.url.includes('/api/dashboard/users') &&
+          request.url.includes('/api/auth/users') &&
           request.method === 'GET'
         ) {
           return Effect.succeed({
@@ -185,7 +185,7 @@ describe('UsersLive', () => {
       // Given: endpoint returns 200 with empty array
       const mockHttpClient = createMockHttpClient((request) => {
         if (
-          request.url.includes('/api/dashboard/users') &&
+          request.url.includes('/api/auth/users') &&
           request.method === 'GET'
         ) {
           return Effect.succeed({
@@ -223,7 +223,7 @@ describe('UsersLive', () => {
       // Given: endpoint returns 200 but missing users field
       const mockHttpClient = createMockHttpClient((request) => {
         if (
-          request.url.includes('/api/dashboard/users') &&
+          request.url.includes('/api/auth/users') &&
           request.method === 'GET'
         ) {
           return Effect.succeed({
@@ -261,7 +261,7 @@ describe('UsersLive', () => {
       // Given: endpoint returns 401
       const mockHttpClient = createMockHttpClient((request) => {
         if (
-          request.url.includes('/api/dashboard/users') &&
+          request.url.includes('/api/auth/users') &&
           request.method === 'GET'
         ) {
           return Effect.succeed({
@@ -299,7 +299,7 @@ describe('UsersLive', () => {
       // Given: endpoint returns 403
       const mockHttpClient = createMockHttpClient((request) => {
         if (
-          request.url.includes('/api/dashboard/users') &&
+          request.url.includes('/api/auth/users') &&
           request.method === 'GET'
         ) {
           return Effect.succeed({
@@ -335,7 +335,7 @@ describe('UsersLive', () => {
       // Given: endpoint returns 500 with error field
       const mockHttpClient = createMockHttpClient((request) => {
         if (
-          request.url.includes('/api/dashboard/users') &&
+          request.url.includes('/api/auth/users') &&
           request.method === 'GET'
         ) {
           return Effect.succeed({
@@ -371,7 +371,7 @@ describe('UsersLive', () => {
       // Given: endpoint returns 500 without error field
       const mockHttpClient = createMockHttpClient((request) => {
         if (
-          request.url.includes('/api/dashboard/users') &&
+          request.url.includes('/api/auth/users') &&
           request.method === 'GET'
         ) {
           return Effect.succeed({
@@ -416,7 +416,7 @@ describe('UsersLive', () => {
 
       const mockHttpClient = createMockHttpClient((request) => {
         if (
-          request.url.includes('/api/dashboard/users') &&
+          request.url.includes('/api/auth/users') &&
           request.method === 'POST'
         ) {
           return Effect.succeed({
@@ -461,7 +461,7 @@ describe('UsersLive', () => {
 
       const mockHttpClient = createMockHttpClient((request) => {
         if (
-          request.url.includes('/api/dashboard/users') &&
+          request.url.includes('/api/auth/users') &&
           request.method === 'POST'
         ) {
           return Effect.succeed({
@@ -506,7 +506,7 @@ describe('UsersLive', () => {
 
       const mockHttpClient = createMockHttpClient((request) => {
         if (
-          request.url.includes('/api/dashboard/users') &&
+          request.url.includes('/api/auth/users') &&
           request.method === 'POST'
         ) {
           return Effect.succeed({
@@ -552,7 +552,7 @@ describe('UsersLive', () => {
 
       const mockHttpClient = createMockHttpClient((request) => {
         if (
-          request.url.includes('/api/dashboard/users') &&
+          request.url.includes('/api/auth/users') &&
           request.method === 'PATCH'
         ) {
           return Effect.succeed({
@@ -595,7 +595,7 @@ describe('UsersLive', () => {
 
       const mockHttpClient = createMockHttpClient((request) => {
         if (
-          request.url.includes('/api/dashboard/users') &&
+          request.url.includes('/api/auth/users') &&
           request.method === 'PATCH'
         ) {
           return Effect.succeed({
@@ -638,7 +638,7 @@ describe('UsersLive', () => {
 
       const mockHttpClient = createMockHttpClient((request) => {
         if (
-          request.url.includes('/api/dashboard/users') &&
+          request.url.includes('/api/auth/users') &&
           request.method === 'PATCH'
         ) {
           return Effect.succeed({
@@ -681,7 +681,7 @@ describe('UsersLive', () => {
 
       const mockHttpClient = createMockHttpClient((request) => {
         if (
-          request.url.includes('/api/dashboard/users') &&
+          request.url.includes('/api/auth/users') &&
           request.method === 'PATCH'
         ) {
           return Effect.succeed({
@@ -723,7 +723,7 @@ describe('UsersLive', () => {
 
       const mockHttpClient = createMockHttpClient((request) => {
         if (
-          request.url.includes('/api/dashboard/users') &&
+          request.url.includes('/api/auth/users') &&
           request.method === 'DELETE'
         ) {
           return Effect.succeed({
@@ -763,7 +763,7 @@ describe('UsersLive', () => {
 
       const mockHttpClient = createMockHttpClient((request) => {
         if (
-          request.url.includes('/api/dashboard/users') &&
+          request.url.includes('/api/auth/users') &&
           request.method === 'DELETE'
         ) {
           return Effect.succeed({
@@ -801,7 +801,7 @@ describe('UsersLive', () => {
 
       const mockHttpClient = createMockHttpClient((request) => {
         if (
-          request.url.includes('/api/dashboard/users') &&
+          request.url.includes('/api/auth/users') &&
           request.method === 'DELETE'
         ) {
           return Effect.succeed({

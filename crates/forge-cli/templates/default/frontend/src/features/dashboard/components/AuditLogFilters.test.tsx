@@ -125,7 +125,7 @@ describe('AuditLogFilters component', () => {
       expect(container.textContent).toContain('To')
     })
 
-    test('should render Apply and Reset buttons', () => {
+    test('should render filter fields', () => {
       const { container } = render(
         <AuditLogFilters
           from=""
@@ -140,13 +140,11 @@ describe('AuditLogFilters component', () => {
           onEventKindChange={() => {}}
           onActionChange={() => {}}
           onReasonChange={() => {}}
-          onApply={() => {}}
-          onReset={() => {}}
         />,
         { wrapper: createWrapper() },
       )
-      expect(container.textContent).toContain('Apply')
-      expect(container.textContent).toContain('Reset')
+      expect(container.textContent).toContain('Outcome')
+      expect(container.textContent).toContain('Reason contains')
     })
   })
 

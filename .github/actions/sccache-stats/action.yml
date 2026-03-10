@@ -1,4 +1,5 @@
 # Show sccache statistics (run with if: always() to see stats even on failure).
+name: "Sccache stats"
 description: "Show sccache statistics"
 inputs: {}
 outputs: {}

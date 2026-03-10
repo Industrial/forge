@@ -110,7 +110,7 @@ describe('PermissionsPage component', () => {
       )
     })
 
-    test('should render PermissionsAddBar', async () => {
+    test('should render Add assignment button', async () => {
       const { container } = render(<PermissionsPage />, {
         wrapper: createWrapper(),
       })
@@ -120,8 +120,7 @@ describe('PermissionsPage component', () => {
         },
         { timeout: 3000 },
       )
-      // PermissionsAddBar renders when not loading
-      expect(container.textContent).toContain('Scope')
+      expect(container.textContent).toContain('Add assignment')
     })
 
     test('should render LoadingSpinner when loading', async () => {
@@ -229,8 +228,7 @@ describe('PermissionsPage component', () => {
         },
         { timeout: 3000 },
       )
-      // PermissionsAddBar renders, indicating add functionality exists
-      expect(container.textContent).toContain('Scope')
+      expect(container.textContent).toContain('Add assignment')
     })
 
     test('should handle deleting permissions', async () => {

@@ -1,4 +1,5 @@
 # Run cargo-audit and cargo-deny. Expects Rust toolchain and rust-cache already set up.
+name: "Security Rust audit"
 description: "Run cargo-audit and cargo-deny"
 inputs:
   audit-allow:

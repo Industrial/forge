@@ -1,6 +1,5 @@
-import Button from '@mui/material/Button'
-import FilterPanelFromConfig from '@/components/FilterPanelFromConfig'
-import type { FilterField } from '@/components/FilterPanelFromConfig'
+import FiltersPanel from '@/components/FiltersPanel'
+import type { FilterField } from '@/components/FiltersPanel'
 
 const OUTCOMES = ['success', 'failure', 'allowed', 'denied'] as const
 const EVENT_KINDS = ['auth', 'authz', 'mutation', 'custom'] as const
@@ -21,8 +20,6 @@ export type AuditLogFiltersProps = {
   onEventKindChange: (value: string) => void
   onActionChange: (value: string) => void
   onReasonChange: (value: string) => void
-  onApply: () => void
-  onReset: () => void
 }
 
 const FIELDS: readonly FilterField[] = [
@@ -81,8 +78,6 @@ export default function AuditLogFilters({
   onEventKindChange,
   onActionChange,
   onReasonChange,
-  onApply,
-  onReset,
 }: AuditLogFiltersProps) {
   const values = { from, to, outcome, eventKind, action, reason }
   const onChange = (key: string, value: string) => {
@@ -93,20 +88,5 @@ export default function AuditLogFilters({
     else if (key === 'action') onActionChange(value)
     else if (key === 'reason') onReasonChange(value)
   }
-  const extra = (
-    <>
-      <Button variant="contained" onClick={onApply}>
-        Apply
-      </Button>
-      <Button onClick={onReset}>Reset</Button>
-    </>
-  )
-  return (
-    <FilterPanelFromConfig
-      fields={FIELDS}
-      values={values}
-      onChange={onChange}
-      extra={extra}
-    />
-  )
+  return <FiltersPanel fields={FIELDS} values={values} onChange={onChange} />
 }

@@ -18,7 +18,9 @@ use db::models::{audit_log, user};
 use crate::Error as ForgeError;
 use crate::scoped_query::WithScope;
 
-use super::shared::{ScopeFromHeaders, has_global_scope, require_permission, PERMISSION_AUDIT_READ};
+use super::shared::{
+  PERMISSION_AUDIT_READ, ScopeFromHeaders, has_global_scope, require_permission,
+};
 
 fn default_limit() -> u64 {
   50

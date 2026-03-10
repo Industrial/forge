@@ -2,9 +2,15 @@ import Box from '@mui/material/Box'
 import Button from '@mui/material/Button'
 import TextField from '@mui/material/TextField'
 import AddIcon from '@mui/icons-material/Add'
+import Dialog from '@mui/material/Dialog'
+import DialogActions from '@mui/material/DialogActions'
+import DialogContent from '@mui/material/DialogContent'
+import DialogTitle from '@mui/material/DialogTitle'
 import IconButton from '@mui/material/IconButton'
+import VisibilityIcon from '@mui/icons-material/Visibility'
 import EditIcon from '@mui/icons-material/Edit'
 import DeleteIcon from '@mui/icons-material/Delete'
+import Typography from '@mui/material/Typography'
 import { useEffect, useMemo, useState } from 'react'
 import {
   useEffectState,
@@ -20,10 +26,10 @@ import {
 import { Effect } from 'effect'
 
 import FormDialog from '@/components/FormDialog'
-import FiltersBar from '@/components/FiltersBar'
 import ActionBar from '@/components/ActionBar'
 import DataTable from '@/components/DataTable'
 import type { DataTableColumn } from '@/components/DataTable'
+import DataListMobile from '@/components/DataListMobile'
 import LoadingSpinner from '@/components/LoadingSpinner'
 import EmptyState from '@/components/EmptyState'
 import PageHeader from '@/components/PageHeader'
@@ -175,10 +181,7 @@ export default function OrganizationsPage() {
       rowsPerPageOptions.includes(prev) ? prev : defaultRowsPerPage,
     )
   }, [defaultRowsPerPage, rowsPerPageOptions])
-  useEffect(
-    () => setPage(0),
-    [filters.filterName, filters.filterSlug],
-  )
+  useEffect(() => setPage(0), [filters.filterName, filters.filterSlug])
 
   const paginatedOrganizations = useMemo(
     () =>
@@ -192,16 +195,10 @@ export default function OrganizationsPage() {
   const orgColumns: DataTableColumn<Organization>[] = useMemo(
     () => [
       { id: 'name', label: 'Name', render: (o) => o.name },
-      { id: 'slug', label: 'Slug', render: (o) => o.slug },
       {
         id: 'created',
         label: 'Created',
         render: (o) => formatDate(o.created_at),
-      },
-      {
-        id: 'updated',
-        label: 'Updated',
-        render: (o) => formatDate(o.updated_at),
       },
     ],
     [],
@@ -220,6 +217,7 @@ export default function OrganizationsPage() {
     useEffectState(false)
   const [addName, setAddName, setAddNameAsEffect] = useEffectState('')
   const [addSlug, setAddSlug, setAddSlugAsEffect] = useEffectState('')
+  const [viewOrg, setViewOrg] = useState<Organization | null>(null)
   const [editOrg, setEditOrg, setEditOrgAsEffect] =
     useEffectState<Organization | null>(null)
   const [editName, setEditName] = useEffectState('')
@@ -386,7 +384,7 @@ export default function OrganizationsPage() {
   ])
 
   return (
-    <>
+    <Box data-testid="organizations-page">
       <PageHeader
         title="Organizations"
         description={
@@ -402,18 +400,16 @@ export default function OrganizationsPage() {
         <ErrorAlert message={errorMessage} onClose={handleClearError} />
       )}
 
-      <FiltersBar>
-        <OrganizationsFilters
-          filterName={filters.filterName}
-          filterSlug={filters.filterSlug}
-          onFilterNameChange={(value) =>
-            setFilters((prev) => ({ ...prev, filterName: value }))
-          }
-          onFilterSlugChange={(value) =>
-            setFilters((prev) => ({ ...prev, filterSlug: value }))
-          }
-        />
-      </FiltersBar>
+      <OrganizationsFilters
+        filterName={filters.filterName}
+        filterSlug={filters.filterSlug}
+        onFilterNameChange={(value) =>
+          setFilters((prev) => ({ ...prev, filterName: value }))
+        }
+        onFilterSlugChange={(value) =>
+          setFilters((prev) => ({ ...prev, filterSlug: value }))
+        }
+      />
 
       <ShowWithPermissions permissions={[ORG_WRITE]}>
         <ActionBar>
@@ -438,29 +434,22 @@ export default function OrganizationsPage() {
           }
         />
       ) : isMobile ? (
-        <Box
-          component="ul"
-          sx={{
-            listStyle: 'none',
-            m: 0,
-            p: 0,
-            display: 'flex',
-            flexDirection: 'column',
-            gap: 1.5,
-          }}
-        >
-          {filteredOrganizations.map((org) => (
-            <Box key={org.id} component="li">
-              <OrganizationCard
-                org={org}
-                canWrite={canWrite}
-                onEdit={handleOpenEdit}
-                onDelete={handleDelete}
-                isDeleting={isDeleting(org.id)}
-              />
-            </Box>
-          ))}
-        </Box>
+        <DataListMobile<Organization>
+          items={filteredOrganizations}
+          getKey={(o) => o.id}
+          renderItem={(org) => (
+            <OrganizationCard
+              org={org}
+              canWrite={canWrite}
+              onView={setViewOrg}
+              onEdit={handleOpenEdit}
+              onDelete={handleDelete}
+              isDeleting={isDeleting(org.id)}
+            />
+          )}
+          ariaLabel="Organizations"
+          dataTestId="organizations-list-mobile"
+        />
       ) : (
         <DataTable<Organization>
           columns={orgColumns}
@@ -483,34 +472,45 @@ export default function OrganizationsPage() {
             },
             rowsPerPageOptions,
           }}
-          actionsColumn={
-            canWrite
-              ? {
-                  canShow: true,
-                  render: (org) => (
-                    <>
-                      <IconButton
-                        size="small"
-                        aria-label="Edit"
-                        onClick={() => handleOpenEdit(org)}
-                        data-testid={`row-edit-${org.id}`}
-                      >
-                        <EditIcon />
-                      </IconButton>
-                      <IconButton
-                        size="small"
-                        aria-label="Delete"
-                        onClick={() => handleDelete(org.id)}
-                        disabled={isDeleting(org.id)}
-                        data-testid={`row-delete-${org.id}`}
-                      >
-                        <DeleteIcon />
-                      </IconButton>
-                    </>
-                  ),
-                }
-              : undefined
-          }
+          actionsColumn={{
+            canShow: true,
+            render: (org) => (
+              <>
+                <IconButton
+                  size="small"
+                  color="primary"
+                  aria-label="View"
+                  onClick={() => setViewOrg(org)}
+                  data-testid={`row-view-${org.id}`}
+                >
+                  <VisibilityIcon />
+                </IconButton>
+                {canWrite && (
+                  <>
+                    <IconButton
+                      size="small"
+                      color="primary"
+                      aria-label="Edit"
+                      onClick={() => handleOpenEdit(org)}
+                      data-testid={`row-edit-${org.id}`}
+                    >
+                      <EditIcon />
+                    </IconButton>
+                    <IconButton
+                      size="small"
+                      color="error"
+                      aria-label="Delete"
+                      onClick={() => handleDelete(org.id)}
+                      disabled={isDeleting(org.id)}
+                      data-testid={`row-delete-${org.id}`}
+                    >
+                      <DeleteIcon />
+                    </IconButton>
+                  </>
+                )}
+              </>
+            ),
+          }}
           ariaLabel="Organizations"
         />
       )}
@@ -556,6 +556,55 @@ export default function OrganizationsPage() {
           disabled={isSaving}
         />
       </FormDialog>
-    </>
+
+      <Dialog
+        open={Boolean(viewOrg)}
+        onClose={() => setViewOrg(null)}
+        maxWidth="sm"
+        fullWidth
+        data-testid="organization-details-dialog"
+      >
+        <DialogTitle>Organization Details</DialogTitle>
+        <DialogContent>
+          {viewOrg && (
+            <Box
+              sx={{ display: 'flex', flexDirection: 'column', gap: 2, pt: 1 }}
+            >
+              <Box>
+                <Typography variant="subtitle2" color="text.secondary">
+                  Name
+                </Typography>
+                <Typography variant="body1">{viewOrg.name}</Typography>
+              </Box>
+              <Box>
+                <Typography variant="subtitle2" color="text.secondary">
+                  Slug
+                </Typography>
+                <Typography variant="body1">{viewOrg.slug}</Typography>
+              </Box>
+              <Box>
+                <Typography variant="subtitle2" color="text.secondary">
+                  Created
+                </Typography>
+                <Typography variant="body1">
+                  {formatDate(viewOrg.created_at)}
+                </Typography>
+              </Box>
+              <Box>
+                <Typography variant="subtitle2" color="text.secondary">
+                  Updated
+                </Typography>
+                <Typography variant="body1">
+                  {formatDate(viewOrg.updated_at)}
+                </Typography>
+              </Box>
+            </Box>
+          )}
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={() => setViewOrg(null)}>Close</Button>
+        </DialogActions>
+      </Dialog>
+    </Box>
   )
 }

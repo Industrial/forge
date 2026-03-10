@@ -1,4 +1,5 @@
 # Install moon and optionally restore/cache .moon/cache.
+name: "Setup moon"
 description: "Install moon and optionally cache"
 inputs:
   cache:

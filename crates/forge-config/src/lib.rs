@@ -86,19 +86,34 @@ pub fn effective_environment_from_config(config: &ForgeConfig) -> String {
 /// via env without editing .toml files. If an env var is set and non-empty, it overrides the
 /// value from the config files.
 fn apply_env_overrides(config: &mut ForgeConfig) {
-  if let Some(v) = std::env::var("FORGE_APP_NAME").ok().filter(|s| !s.is_empty()) {
+  if let Some(v) = std::env::var("FORGE_APP_NAME")
+    .ok()
+    .filter(|s| !s.is_empty())
+  {
     config.app.name = v;
   }
-  if let Some(v) = std::env::var("FORGE_ENVIRONMENT").ok().filter(|s| !s.is_empty()) {
+  if let Some(v) = std::env::var("FORGE_ENVIRONMENT")
+    .ok()
+    .filter(|s| !s.is_empty())
+  {
     config.app.environment = Some(v);
   }
-  if let Some(v) = std::env::var("FORGE_SERVER_HOST").ok().filter(|s| !s.is_empty()) {
+  if let Some(v) = std::env::var("FORGE_SERVER_HOST")
+    .ok()
+    .filter(|s| !s.is_empty())
+  {
     config.server.host = v;
   }
-  if let Some(v) = std::env::var("FORGE_BACKEND_HOST").ok().filter(|s| !s.is_empty()) {
+  if let Some(v) = std::env::var("FORGE_BACKEND_HOST")
+    .ok()
+    .filter(|s| !s.is_empty())
+  {
     config.server.host = v;
   }
-  if let Some(v) = std::env::var("FORGE_FRONTEND_HOST").ok().filter(|s| !s.is_empty()) {
+  if let Some(v) = std::env::var("FORGE_FRONTEND_HOST")
+    .ok()
+    .filter(|s| !s.is_empty())
+  {
     config.frontend.host = v;
   }
   // FORGE_BACKEND_PORT is an alias for server port (same as FORGE_SERVER_PORT); FORGE_SERVER_PORT wins if both set
@@ -117,7 +132,10 @@ fn apply_env_overrides(config: &mut ForgeConfig) {
       config.frontend.port = p;
     }
   }
-  if let Some(v) = std::env::var("FORGE_DATABASE_URL").ok().filter(|s| !s.is_empty()) {
+  if let Some(v) = std::env::var("FORGE_DATABASE_URL")
+    .ok()
+    .filter(|s| !s.is_empty())
+  {
     config.database.url = v;
   }
   if let Ok(v) = std::env::var("FORGE_DATABASE_MAX_CONNECTIONS") {

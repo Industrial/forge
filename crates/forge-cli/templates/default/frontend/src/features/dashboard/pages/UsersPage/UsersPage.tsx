@@ -31,13 +31,15 @@ import { Effect, Option, Schema } from 'effect'
 
 import FormDialog from '@/components/FormDialog'
 import PageHeader from '@/components/PageHeader'
-import FiltersBar from '@/components/FiltersBar'
 import ActionBar from '@/components/ActionBar'
 import DataTable from '@/components/DataTable'
 import type { DataTableColumn } from '@/components/DataTable'
-import UsersFilters from '@/features/dashboard/components/UsersFilters'
-import ErrorAlert from '@/components/ErrorAlert'
+import DataListMobile from '@/components/DataListMobile'
+import EmptyState from '@/components/EmptyState'
 import LoadingSpinner from '@/components/LoadingSpinner'
+import UsersFilters from '@/features/dashboard/components/UsersFilters'
+import UserCard from '@/features/dashboard/components/UserCard'
+import ErrorAlert from '@/components/ErrorAlert'
 import IconButton from '@mui/material/IconButton'
 import EditIcon from '@mui/icons-material/Edit'
 import DeleteIcon from '@mui/icons-material/Delete'
@@ -45,6 +47,7 @@ import VisibilityIcon from '@mui/icons-material/Visibility'
 import { ShowWithPermissions } from '@/components/ShowWithPermissions'
 import { useAuthStore } from '@/features/authentication/stores'
 import { useLiveRefreshTrigger } from '@/hooks/useLiveRefreshTrigger'
+import { useIsMobile } from '@/hooks/useIsMobile'
 import { usePermission } from '@/hooks/usePermission'
 import { useTablePaginationDefaults } from '@/hooks/useTablePaginationDefaults'
 import { getApplicationLayer } from '@/lib/appLayer'
@@ -68,6 +71,7 @@ const USERS_WRITE = 'user.create'
 const FILTER_ROLES = ['owner', 'admin', 'editor', 'viewer']
 
 export default function UsersPage() {
+  const isMobile = useIsMobile()
   const authentication = useAuthStore()
   const canRead = usePermission(USERS_READ)
   const canWrite = usePermission(USERS_WRITE)
@@ -330,14 +334,14 @@ export default function UsersPage() {
     return emailMatch && orgMatch && roleMatch && activeMatch && adminMatch
   })
 
-  useEffect(() => setPage(0), [filterEmail, filterOrgId, filterRole, filterActive, filterAdmin])
+  useEffect(
+    () => setPage(0),
+    [filterEmail, filterOrgId, filterRole, filterActive, filterAdmin],
+  )
 
   const paginatedUsers = useMemo(
     () =>
-      filteredUsers.slice(
-        page * rowsPerPage,
-        page * rowsPerPage + rowsPerPage,
-      ),
+      filteredUsers.slice(page * rowsPerPage, page * rowsPerPage + rowsPerPage),
     [filteredUsers, page, rowsPerPage],
   )
 
@@ -349,9 +353,22 @@ export default function UsersPage() {
         render: (row) => row.email,
       },
       {
-        id: 'orgs-role',
-        label: 'Organizations / Role',
-        render: (row) => membershipsSummary(row.memberships, organizations),
+        id: 'organizations',
+        label: 'Organizations',
+        render: (row) =>
+          row.memberships.length
+            ? row.memberships.map((m) => m.org_name).join(', ')
+            : '—',
+      },
+      {
+        id: 'role',
+        label: 'Role',
+        render: (row) => {
+          const roles = [
+            ...new Set(row.memberships.flatMap((m) => m.roles ?? [])),
+          ]
+          return roles.length ? roles.join(', ') : '—'
+        },
       },
       {
         id: 'active',
@@ -359,17 +376,12 @@ export default function UsersPage() {
         render: (row) => (row.is_active ? 'Yes' : 'No'),
       },
       {
-        id: 'admin',
-        label: 'Admin',
-        render: (row) => (row.is_admin ? 'Yes' : 'No'),
-      },
-      {
         id: 'created',
         label: 'Created',
         render: (row) => formatDate(row.created_at),
       },
     ],
-    [organizations],
+    [],
   )
 
   if (!canRead) {
@@ -411,22 +423,20 @@ export default function UsersPage() {
         />
       )}
 
-      <FiltersBar>
-        <UsersFilters
-          filterEmail={filterEmail}
-          filterOrgId={filterOrgId}
-          filterRole={filterRole}
-          filterActive={filterActive}
-          filterAdmin={filterAdmin}
-          organizations={organizations}
-          roleOptions={FILTER_ROLES}
-          onFilterEmailChange={setFilterEmail}
-          onFilterOrgIdChange={setFilterOrgId}
-          onFilterRoleChange={setFilterRole}
-          onFilterActiveChange={setFilterActive}
-          onFilterAdminChange={setFilterAdmin}
-        />
-      </FiltersBar>
+      <UsersFilters
+        filterEmail={filterEmail}
+        filterOrgId={filterOrgId}
+        filterRole={filterRole}
+        filterActive={filterActive}
+        filterAdmin={filterAdmin}
+        organizations={organizations}
+        roleOptions={FILTER_ROLES}
+        onFilterEmailChange={setFilterEmail}
+        onFilterOrgIdChange={setFilterOrgId}
+        onFilterRoleChange={setFilterRole}
+        onFilterActiveChange={setFilterActive}
+        onFilterAdminChange={setFilterAdmin}
+      />
 
       <ShowWithPermissions permissions={[USERS_WRITE]}>
         <ActionBar>
@@ -449,64 +459,105 @@ export default function UsersPage() {
         </ActionBar>
       </ShowWithPermissions>
 
-      <DataTable<User>
-        columns={userColumns}
-        rows={paginatedUsers}
-        loading={loading}
-        getRowId={(u) => u.id}
-        emptyMessage={
-          users.length === 0 ? 'No users.' : 'No users match the filters.'
-        }
-        pagination={{
-          page,
-          rowsPerPage,
-          totalCount: filteredUsers.length,
-          onPageChange: (_ev, newPage) => setPage(newPage),
-          onRowsPerPageChange: (ev) => {
-            setRowsPerPage(parseInt(ev.target.value, 10))
-            setPage(0)
-          },
-          rowsPerPageOptions,
-        }}
-        actionsColumn={{
-          canShow: true,
-                render: (user) => (
+      {loading ? (
+        <LoadingSpinner />
+      ) : filteredUsers.length === 0 ? (
+        <EmptyState
+          message={
+            users.length === 0 ? 'No users.' : 'No users match the filters.'
+          }
+        />
+      ) : isMobile ? (
+        <DataListMobile<User>
+          items={paginatedUsers}
+          getKey={(u) => u.id}
+          renderItem={(user) => (
+            <UserCard
+              user={user}
+              canWrite={canWrite}
+              onView={setViewUser}
+              onEdit={openEdit}
+              onDelete={handleDelete}
+              isDeleting={deleting && deletingId === user.id}
+            />
+          )}
+          pagination={{
+            page,
+            rowsPerPage,
+            totalCount: filteredUsers.length,
+            onPageChange: (_ev, newPage) => setPage(newPage),
+            onRowsPerPageChange: (ev) => {
+              setRowsPerPage(parseInt(ev.target.value, 10))
+              setPage(0)
+            },
+            rowsPerPageOptions,
+          }}
+          ariaLabel="Users"
+          dataTestId="users-list-mobile"
+        />
+      ) : (
+        <DataTable<User>
+          columns={userColumns}
+          rows={paginatedUsers}
+          loading={false}
+          getRowId={(u) => u.id}
+          emptyMessage={
+            users.length === 0 ? 'No users.' : 'No users match the filters.'
+          }
+          pagination={{
+            page,
+            rowsPerPage,
+            totalCount: filteredUsers.length,
+            onPageChange: (_ev, newPage) => setPage(newPage),
+            onRowsPerPageChange: (ev) => {
+              setRowsPerPage(parseInt(ev.target.value, 10))
+              setPage(0)
+            },
+            rowsPerPageOptions,
+          }}
+          actionsColumn={{
+            canShow: true,
+            render: (user) => (
+              <>
+                <IconButton
+                  size="small"
+                  color="primary"
+                  aria-label="View"
+                  onClick={() => setViewUser(user)}
+                  data-testid={`row-view-${user.id}`}
+                >
+                  <VisibilityIcon />
+                </IconButton>
+                {canWrite && (
                   <>
                     <IconButton
                       size="small"
-                      aria-label="View"
-                      onClick={() => setViewUser(user)}
-                      data-testid={`row-view-${user.id}`}
+                      color="primary"
+                      aria-label="Edit"
+                      onClick={() => openEdit(user)}
+                      data-testid={`row-edit-${user.id}`}
                     >
-                      <VisibilityIcon />
+                      <EditIcon />
                     </IconButton>
-                    {canWrite && (
-                      <>
-                        <IconButton
-                          size="small"
-                          aria-label="Edit"
-                          onClick={() => openEdit(user)}
-                          data-testid={`row-edit-${user.id}`}
-                        >
-                          <EditIcon />
-                        </IconButton>
-                        <IconButton
-                          size="small"
-                          aria-label="Delete"
-                          onClick={() => handleDelete(user.id)}
-                          disabled={deleting && deletingId === user.id}
-                          data-testid={`row-delete-${user.id}`}
-                        >
-                          <DeleteIcon />
-                        </IconButton>
-                      </>
-                    )}
+                    <IconButton
+                      size="small"
+                      color="error"
+                      aria-label="Delete"
+                      onClick={() => handleDelete(user.id)}
+                      disabled={deleting && deletingId === user.id}
+                      data-testid={`row-delete-${user.id}`}
+                    >
+                      <DeleteIcon />
+                    </IconButton>
                   </>
-                ),
-        }}
-        ariaLabel="Users"
-        dataTestId="users-list"
-      />
+                )}
+              </>
+            ),
+          }}
+          ariaLabel="Users"
+          dataTestId="users-list"
+        />
+      )}
 
       <FormDialog
         open={addDialogOpen}

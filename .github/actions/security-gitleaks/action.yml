@@ -1,4 +1,5 @@
 # Run Gitleaks secret detection. Requires fetch-depth: 0 for full history.
+name: "Security Gitleaks"
 description: "Run Gitleaks for secret detection"
 inputs: {}
 outputs: {}

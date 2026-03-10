@@ -1,4 +1,5 @@
 # Run Trivy config/dependency scan (table output).
+name: "Security Trivy deps"
 description: "Trivy config and dependency scan"
 inputs:
   severity:

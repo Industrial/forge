@@ -317,8 +317,7 @@ describe('RolesLive', () => {
 
       const mockHttpClient = createMockHttpClient((request) => {
         if (
-          request.url ===
-          `/api/auth/roles?org_id=${encodeURIComponent(orgId)}`
+          request.url === `/api/auth/roles?org_id=${encodeURIComponent(orgId)}`
         ) {
           return Effect.succeed({
             status: 200,
@@ -390,8 +389,7 @@ describe('RolesLive', () => {
       const orgId = 'org-123'
       const mockHttpClient = createMockHttpClient((request) => {
         if (
-          request.url ===
-          `/api/auth/roles?org_id=${encodeURIComponent(orgId)}`
+          request.url === `/api/auth/roles?org_id=${encodeURIComponent(orgId)}`
         ) {
           return Effect.succeed({
             status: 500,
@@ -429,8 +427,7 @@ describe('RolesLive', () => {
       const orgId = 'org-123'
       const mockHttpClient = createMockHttpClient((request) => {
         if (
-          request.url ===
-          `/api/auth/roles?org_id=${encodeURIComponent(orgId)}`
+          request.url === `/api/auth/roles?org_id=${encodeURIComponent(orgId)}`
         ) {
           return Effect.succeed({
             status: 200,
@@ -474,10 +471,7 @@ describe('RolesLive', () => {
       }
 
       const mockHttpClient = createMockHttpClient((request) => {
-        if (
-          request.url === '/api/auth/roles' &&
-          request.method === 'POST'
-        ) {
+        if (request.url === '/api/auth/roles' && request.method === 'POST') {
           return Effect.succeed({
             status: 200,
             json: Effect.succeed({}),
@@ -517,10 +511,7 @@ describe('RolesLive', () => {
       }
 
       const mockHttpClient = createMockHttpClient((request) => {
-        if (
-          request.url === '/api/auth/roles' &&
-          request.method === 'POST'
-        ) {
+        if (request.url === '/api/auth/roles' && request.method === 'POST') {
           return Effect.succeed({
             status: 403,
             json: Effect.succeed({}),
@@ -560,10 +551,7 @@ describe('RolesLive', () => {
       }
 
       const mockHttpClient = createMockHttpClient((request) => {
-        if (
-          request.url === '/api/auth/roles' &&
-          request.method === 'POST'
-        ) {
+        if (request.url === '/api/auth/roles' && request.method === 'POST') {
           return Effect.succeed({
             status: 400,
             json: Effect.succeed({ error: 'Invalid role name' }),

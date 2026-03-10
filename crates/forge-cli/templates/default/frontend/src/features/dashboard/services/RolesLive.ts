@@ -118,7 +118,9 @@ const RolesLive = Layer.effect(
         yield* Effect.logTrace('RolesLive.update')
         yield* Effect.logDebug(`RolesLive.update: id=${body.id}`)
         const response = yield* client.execute(
-          HttpClientRequest.patch(`/api/auth/roles/${encodeURIComponent(body.id)}`).pipe(
+          HttpClientRequest.patch(
+            `/api/auth/roles/${encodeURIComponent(body.id)}`,
+          ).pipe(
             HttpClientRequest.bodyUnsafeJson({
               name: body.name,
               display_name: body.display_name,

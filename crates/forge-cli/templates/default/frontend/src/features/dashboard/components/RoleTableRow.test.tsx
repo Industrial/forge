@@ -126,7 +126,6 @@ describe('RoleTableRow component', () => {
       expect(container.textContent).toContain('admin')
     })
 
-
     test('should render Edit and Delete buttons', () => {
       const role: Role = {
         id: 'role-1',

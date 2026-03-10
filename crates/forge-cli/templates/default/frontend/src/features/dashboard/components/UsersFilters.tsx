@@ -1,5 +1,5 @@
-import FilterPanelFromConfig from '@/components/FilterPanelFromConfig'
-import type { FilterField } from '@/components/FilterPanelFromConfig'
+import FiltersPanel from '@/components/FiltersPanel'
+import type { FilterField } from '@/components/FiltersPanel'
 
 export type OrgOption = { id: string; name: string }
 
@@ -97,11 +97,5 @@ export default function UsersFilters({
       options: [...YES_NO_OPTIONS],
     },
   ]
-  return (
-    <FilterPanelFromConfig
-      fields={fields}
-      values={values}
-      onChange={onChange}
-    />
-  )
+  return <FiltersPanel fields={fields} values={values} onChange={onChange} />
 }

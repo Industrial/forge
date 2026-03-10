@@ -109,7 +109,9 @@ const UsersLive = Layer.effect(
           HttpClientRequest.patch(`/api/auth/users/${body.id}`).pipe(
             HttpClientRequest.bodyUnsafeJson({
               ...(body.email !== undefined && { email: body.email }),
-              ...(body.is_active !== undefined && { is_active: body.is_active }),
+              ...(body.is_active !== undefined && {
+                is_active: body.is_active,
+              }),
             }),
           ),
         )

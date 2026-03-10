@@ -6,33 +6,34 @@ import VisibilityIcon from '@mui/icons-material/Visibility'
 import EditIcon from '@mui/icons-material/Edit'
 import DeleteIcon from '@mui/icons-material/Delete'
 
-import type { Organization } from '@/features/dashboard/domain/Organization'
+import type { User } from '@/features/dashboard/domain/User'
 import { formatDate } from '@/features/dashboard/utils/formatDate'
+import { membershipsSummary } from '@/features/dashboard/utils/membershipsSummary'
 
-export type OrganizationCardProps = {
-  org: Organization
+export type UserCardProps = {
+  user: User
   canWrite: boolean
-  onView: (org: Organization) => void
-  onEdit: (org: Organization) => void
+  onView: (user: User) => void
+  onEdit: (user: User) => void
   onDelete: (id: string) => void
   isDeleting: boolean
 }
 
-export default function OrganizationCard({
-  org,
+export default function UserCard({
+  user,
   canWrite,
   onView,
   onEdit,
   onDelete,
   isDeleting,
-}: OrganizationCardProps) {
+}: UserCardProps) {
   return (
     <Paper sx={{ p: 2 }}>
       <Typography variant="subtitle1" fontWeight={600}>
-        {org.name}
+        {user.email}
       </Typography>
       <Typography variant="body2" color="text.secondary">
-        {org.slug}
+        {membershipsSummary(user.memberships)}
       </Typography>
       <Typography
         variant="caption"
@@ -40,8 +41,8 @@ export default function OrganizationCard({
         display="block"
         sx={{ mt: 0.5 }}
       >
-        Created {formatDate(org.created_at)} · Updated{' '}
-        {formatDate(org.updated_at)}
+        Active: {user.is_active ? 'Yes' : 'No'} · Admin:{' '}
+        {user.is_admin ? 'Yes' : 'No'} · Created {formatDate(user.created_at)}
       </Typography>
       <Box
         sx={{
@@ -54,7 +55,7 @@ export default function OrganizationCard({
         <Button
           size="medium"
           startIcon={<VisibilityIcon />}
-          onClick={() => onView(org)}
+          onClick={() => onView(user)}
         >
           View
         </Button>
@@ -63,7 +64,7 @@ export default function OrganizationCard({
             <Button
               size="medium"
               startIcon={<EditIcon />}
-              onClick={() => onEdit(org)}
+              onClick={() => onEdit(user)}
             >
               Edit
             </Button>
@@ -71,7 +72,7 @@ export default function OrganizationCard({
               size="medium"
               color="error"
               startIcon={<DeleteIcon />}
-              onClick={() => onDelete(org.id)}
+              onClick={() => onDelete(user.id)}
               disabled={isDeleting}
             >
               Delete

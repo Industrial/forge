@@ -81,7 +81,11 @@ export default function DataTable<T>({
 
   return (
     <>
-      <TableContainer component={Paper} data-testid={dataTestId ?? 'data-table'}>
+      <TableContainer
+        component={Paper}
+        data-testid={dataTestId ?? 'data-table'}
+        sx={{ width: '100%', maxWidth: '100%', overflowX: 'auto' }}
+      >
         <Table size="small" aria-label={ariaLabel}>
           <TableHead>
             <TableRow>
@@ -95,9 +99,7 @@ export default function DataTable<T>({
           </TableHead>
           <TableBody>
             {rows.length === 0 ? (
-              <TableEmptyRow colSpan={colSpan}>
-                {emptyMessage}
-              </TableEmptyRow>
+              <TableEmptyRow colSpan={colSpan}>{emptyMessage}</TableEmptyRow>
             ) : (
               rows.map((row) => {
                 const id = getRowId(row)

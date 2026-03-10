@@ -218,7 +218,9 @@ pub enum TestClient {
 /// Build API base URL from FORGE_BACKEND_HOST and FORGE_SERVER_PORT or FORGE_BACKEND_PORT. Returns None if not set.
 #[cfg(any(test, feature = "test-utils"))]
 fn api_base_url_from_env() -> Option<String> {
-  let host = std::env::var("FORGE_BACKEND_HOST").ok().filter(|s| !s.is_empty())?;
+  let host = std::env::var("FORGE_BACKEND_HOST")
+    .ok()
+    .filter(|s| !s.is_empty())?;
   let port = std::env::var("FORGE_SERVER_PORT")
     .ok()
     .and_then(|s| s.parse::<u16>().ok())
@@ -844,7 +846,10 @@ mod tests {
         // When: calling test_client
         // Then: should use Http variant when FORGE_BACKEND_HOST + port set
         // test_client checks api_base_url_from_env() first
-        assert!(true, "test_client should use Http when FORGE_BACKEND_HOST + port set");
+        assert!(
+          true,
+          "test_client should use Http when FORGE_BACKEND_HOST + port set"
+        );
       }
     }
   }
