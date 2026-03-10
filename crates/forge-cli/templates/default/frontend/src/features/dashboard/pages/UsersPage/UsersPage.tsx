@@ -183,7 +183,13 @@ export default function UsersPage() {
         )
       : Effect.sync(() => setOrgListState(idle()))
     Effect.runPromise(effect.pipe(Effect.provide(getApplicationLayer())))
-  }, [setOrgListStateAsEffect, canRead, listOrgsEffect, setOrgListState, scopeKey])
+  }, [
+    setOrgListStateAsEffect,
+    canRead,
+    listOrgsEffect,
+    setOrgListState,
+    scopeKey,
+  ])
 
   useEffect(() => {
     const effect = addFormOrgId

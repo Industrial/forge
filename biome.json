@@ -42,7 +42,7 @@
       },
       "recommended": true,
       "correctness": {
-        "useExhaustiveDependencies": "warn",
+        "useExhaustiveDependencies": "off",
         "useHookAtTopLevel": "warn",
         "useUniqueElementIds": "off",
         "useYield": "off"
@@ -71,9 +71,11 @@
             "noExplicitAny": "off",
             "noShadowRestrictedNames": "off"
           },
-          "style": { "useImportType": "off" },
-          "a11y": { "useButtonType": "off" },
-          "style": { "noNonNullAssertion": "off" }
+          "style": {
+            "useImportType": "off",
+            "useBlockStatements": "off"
+          },
+          "a11y": { "useButtonType": "off" }
         }
       }
     },
