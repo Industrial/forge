@@ -2,6 +2,7 @@
 
 use axum::{Json, extract::State, http::Request, response::IntoResponse};
 use forge_auth::token_auth::RequireAuth;
+use forge_auth::RequestScope;
 use forge_db::DbConnection;
 use sea_orm::{ColumnTrait, EntityTrait, QueryFilter};
 
@@ -19,13 +20,12 @@ pub async fn get_me(
 ) -> Result<impl IntoResponse, ForgeError> {
   let user = &auth.0;
   let scope = get_scope_from_headers_map(req.headers(), user, &db).await;
-  let permissions = resolve_permissions(&db, user, scope.as_ref()).await;
   let uors = user_org_role::Entity::find()
     .filter(user_org_role::Column::UserId.eq(user.id))
     .all(&db)
     .await?;
-  let scopes: Vec<serde_json::Value> = if uors.is_empty() {
-    vec![]
+  let (scopes, permissions) = if uors.is_empty() {
+    (vec![], resolve_permissions(&db, user, scope.as_ref()).await)
   } else {
     let role_ids: Vec<uuid::Uuid> = uors.iter().map(|u| u.role_id).collect();
     let roles = org_role::Entity::find()
@@ -46,8 +46,8 @@ pub async fn get_me(
       orgs.into_iter().map(|o| (o.id, o)).collect();
     let role_map: std::collections::HashMap<uuid::Uuid, org_role::Model> =
       roles.into_iter().map(|r| (r.id, r)).collect();
-    uors
-      .into_iter()
+    let scopes: Vec<serde_json::Value> = uors
+      .iter()
       .filter_map(|u| {
         let r = role_map.get(&u.role_id)?;
         let o = org_map.get(&u.org_id)?;
@@ -58,7 +58,24 @@ pub async fn get_me(
           "role": r.name,
         }))
       })
-      .collect()
+      .collect();
+    // When no scope headers but user has exactly one scope, use it for permissions so
+    // the first /me response includes permissions and the UI can show the sidebar without a refetch.
+    let effective_scope: Option<RequestScope> = if scope.is_some() {
+      scope
+    } else if scopes.len() == 1 {
+      let uor = &uors[0];
+      let r = role_map.get(&uor.role_id);
+      r.map(|role| RequestScope {
+        organization_id: uor.org_id,
+        role_id: uor.role_id,
+        role_name: role.name.clone(),
+      })
+    } else {
+      None
+    };
+    let permissions = resolve_permissions(&db, user, effective_scope.as_ref()).await;
+    (scopes, permissions)
   };
   let needs_scope_select = scopes.len() != 1;
   Ok(Json(serde_json::json!({

@@ -34,7 +34,7 @@ const AuditLogLive = Layer.effect(
         if (params.event_kind) search.set('event_kind', params.event_kind)
         if (params.action) search.set('action', params.action)
         if (params.reason?.trim()) search.set('reason', params.reason.trim())
-        const url = `/api/dashboard/audit-log?${search.toString()}`
+        const url = `/api/auth/audit-log?${search.toString()}`
         const response = yield* client.execute(HttpClientRequest.get(url))
         const body = yield* response.json
         if (response.status === 403) {

@@ -64,6 +64,7 @@ const FIELDS: readonly FilterField[] = [
     label: 'Reason contains',
     placeholder: 'Search in reason',
     minWidth: 160,
+    dataTestId: 'audit-log-filter-input',
   },
 ]
 

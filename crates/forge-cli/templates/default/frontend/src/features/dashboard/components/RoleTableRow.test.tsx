@@ -86,27 +86,7 @@ describe('RoleTableRow component', () => {
       expect(container.textContent).toContain('Test Org')
     })
 
-    test('should render role name', () => {
-      const role: Role = {
-        id: 'role-1',
-        name: 'admin',
-        display_name: 'Administrator',
-        org_id: 'org-1',
-      }
-      const { container } = render(
-        <RoleTableRow
-          role={role}
-          orgName="Test Org"
-          onEdit={() => {}}
-          onDelete={() => {}}
-          isDeleting={false}
-        />,
-        { wrapper: createWrapper() },
-      )
-      expect(container.textContent).toContain('admin')
-    })
-
-    test('should render display name when provided', () => {
+    test('should render display name in name column when provided', () => {
       const role: Role = {
         id: 'role-1',
         name: 'admin',
@@ -126,7 +106,7 @@ describe('RoleTableRow component', () => {
       expect(container.textContent).toContain('Administrator')
     })
 
-    test('should render dash when display name is null', () => {
+    test('should render name in name column when display name is null', () => {
       const role: Role = {
         id: 'role-1',
         name: 'admin',
@@ -143,8 +123,9 @@ describe('RoleTableRow component', () => {
         />,
         { wrapper: createWrapper() },
       )
-      expect(container.textContent).toContain('—')
+      expect(container.textContent).toContain('admin')
     })
+
 
     test('should render Edit and Delete buttons', () => {
       const role: Role = {

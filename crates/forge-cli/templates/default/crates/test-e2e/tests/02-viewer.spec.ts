@@ -214,6 +214,7 @@ test.describe('Viewer Role', () => {
       )
       await page.goto('/dashboard')
       await page.getByTestId('dashboard-layout').waitFor({ state: 'visible' })
+      await page.getByTestId('sidebar-users-link').waitFor({ state: 'visible' })
       const program = Effect.gen(function* () {
         const dashboardPageService = yield* DashboardPage
         yield* dashboardPageService.clickUsersLink()

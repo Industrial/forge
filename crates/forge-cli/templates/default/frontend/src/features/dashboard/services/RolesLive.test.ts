@@ -123,7 +123,7 @@ describe('RolesLive', () => {
       ]
 
       const mockHttpClient = createMockHttpClient((request) => {
-        if (request.url === '/api/dashboard/roles') {
+        if (request.url === '/api/auth/roles') {
           return Effect.succeed({
             status: 200,
             json: Effect.succeed({ roles: mockRoles }),
@@ -164,7 +164,7 @@ describe('RolesLive', () => {
     test('should handle empty roles array', async () => {
       // Given: endpoint returns 200 with empty roles array
       const mockHttpClient = createMockHttpClient((request) => {
-        if (request.url === '/api/dashboard/roles') {
+        if (request.url === '/api/auth/roles') {
           return Effect.succeed({
             status: 200,
             json: Effect.succeed({ roles: [] }),
@@ -199,7 +199,7 @@ describe('RolesLive', () => {
     test('should handle missing roles field', async () => {
       // Given: endpoint returns 200 but missing roles field
       const mockHttpClient = createMockHttpClient((request) => {
-        if (request.url === '/api/dashboard/roles') {
+        if (request.url === '/api/auth/roles') {
           return Effect.succeed({
             status: 200,
             json: Effect.succeed({}), // Missing roles field
@@ -234,7 +234,7 @@ describe('RolesLive', () => {
     test('should fail when endpoint returns 403', async () => {
       // Given: endpoint returns 403
       const mockHttpClient = createMockHttpClient((request) => {
-        if (request.url === '/api/dashboard/roles') {
+        if (request.url === '/api/auth/roles') {
           return Effect.succeed({
             status: 403,
             json: Effect.succeed({}),
@@ -267,7 +267,7 @@ describe('RolesLive', () => {
     test('should fail when endpoint returns non-200 status', async () => {
       // Given: endpoint returns 500
       const mockHttpClient = createMockHttpClient((request) => {
-        if (request.url === '/api/dashboard/roles') {
+        if (request.url === '/api/auth/roles') {
           return Effect.succeed({
             status: 500,
             json: Effect.succeed({ error: 'Internal server error' }),
@@ -318,7 +318,7 @@ describe('RolesLive', () => {
       const mockHttpClient = createMockHttpClient((request) => {
         if (
           request.url ===
-          `/api/dashboard/roles?org_id=${encodeURIComponent(orgId)}`
+          `/api/auth/roles?org_id=${encodeURIComponent(orgId)}`
         ) {
           return Effect.succeed({
             status: 200,
@@ -391,7 +391,7 @@ describe('RolesLive', () => {
       const mockHttpClient = createMockHttpClient((request) => {
         if (
           request.url ===
-          `/api/dashboard/roles?org_id=${encodeURIComponent(orgId)}`
+          `/api/auth/roles?org_id=${encodeURIComponent(orgId)}`
         ) {
           return Effect.succeed({
             status: 500,
@@ -430,7 +430,7 @@ describe('RolesLive', () => {
       const mockHttpClient = createMockHttpClient((request) => {
         if (
           request.url ===
-          `/api/dashboard/roles?org_id=${encodeURIComponent(orgId)}`
+          `/api/auth/roles?org_id=${encodeURIComponent(orgId)}`
         ) {
           return Effect.succeed({
             status: 200,
@@ -475,7 +475,7 @@ describe('RolesLive', () => {
 
       const mockHttpClient = createMockHttpClient((request) => {
         if (
-          request.url === '/api/dashboard/roles' &&
+          request.url === '/api/auth/roles' &&
           request.method === 'POST'
         ) {
           return Effect.succeed({
@@ -518,7 +518,7 @@ describe('RolesLive', () => {
 
       const mockHttpClient = createMockHttpClient((request) => {
         if (
-          request.url === '/api/dashboard/roles' &&
+          request.url === '/api/auth/roles' &&
           request.method === 'POST'
         ) {
           return Effect.succeed({
@@ -561,7 +561,7 @@ describe('RolesLive', () => {
 
       const mockHttpClient = createMockHttpClient((request) => {
         if (
-          request.url === '/api/dashboard/roles' &&
+          request.url === '/api/auth/roles' &&
           request.method === 'POST'
         ) {
           return Effect.succeed({
@@ -607,7 +607,7 @@ describe('RolesLive', () => {
 
       const mockHttpClient = createMockHttpClient((request) => {
         if (
-          request.url === '/api/dashboard/roles' &&
+          request.url === '/api/auth/roles/role-1' &&
           request.method === 'PATCH'
         ) {
           return Effect.succeed({
@@ -650,7 +650,7 @@ describe('RolesLive', () => {
 
       const mockHttpClient = createMockHttpClient((request) => {
         if (
-          request.url === '/api/dashboard/roles' &&
+          request.url === '/api/auth/roles/role-1' &&
           request.method === 'PATCH'
         ) {
           return Effect.succeed({
@@ -693,7 +693,7 @@ describe('RolesLive', () => {
 
       const mockHttpClient = createMockHttpClient((request) => {
         if (
-          request.url === '/api/dashboard/roles' &&
+          request.url === '/api/auth/roles/role-1' &&
           request.method === 'PATCH'
         ) {
           return Effect.succeed({
@@ -735,7 +735,7 @@ describe('RolesLive', () => {
 
       const mockHttpClient = createMockHttpClient((request) => {
         if (
-          request.url === '/api/dashboard/roles' &&
+          request.url === '/api/auth/roles/role-1' &&
           request.method === 'DELETE'
         ) {
           return Effect.succeed({
@@ -773,7 +773,7 @@ describe('RolesLive', () => {
 
       const mockHttpClient = createMockHttpClient((request) => {
         if (
-          request.url === '/api/dashboard/roles' &&
+          request.url === '/api/auth/roles/role-1' &&
           request.method === 'DELETE'
         ) {
           return Effect.succeed({
@@ -811,7 +811,7 @@ describe('RolesLive', () => {
 
       const mockHttpClient = createMockHttpClient((request) => {
         if (
-          request.url === '/api/dashboard/roles' &&
+          request.url === '/api/auth/roles/role-1' &&
           request.method === 'DELETE'
         ) {
           return Effect.succeed({

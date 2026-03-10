@@ -60,6 +60,7 @@ export default function UsersFilters({
       placeholder: 'Search by email',
       minWidth: 220,
       inputType: 'search',
+      dataTestId: 'users-filter-input',
     },
     {
       type: 'select',

@@ -16,17 +16,26 @@ pub use crate::models::organization::Organization;
 pub use crate::models::role_permission::Permission;
 pub use crate::models::user::User;
 
+/// Normalize entity_id: "audit_log" (frontend/RPC) maps to "audit" (RestModel model_id).
+fn normalize_entity_id(model_id: &str) -> &str {
+  if model_id == "audit_log" {
+    "audit"
+  } else {
+    model_id
+  }
+}
+
 /// Returns true if model_id is served by the generic handler (has a RestModel impl and dispatch arm).
 pub fn is_known_model(model_id: &str) -> bool {
   matches!(
     model_id,
-    "organization" | "user" | "role" | "permission" | "audit"
+    "organization" | "user" | "role" | "permission" | "audit" | "audit_log"
   )
 }
 
 /// Allowed filter fields for list query. Empty if unknown model.
 pub fn effective_filter_fields(model_id: &str) -> &'static [&'static str] {
-  match model_id {
+  match normalize_entity_id(model_id) {
     "organization" => Organization::filter_fields(),
     "user" => User::filter_fields(),
     "role" => Role::filter_fields(),
@@ -38,7 +47,7 @@ pub fn effective_filter_fields(model_id: &str) -> &'static [&'static str] {
 
 /// Allowed sort fields for list query. Empty if unknown model.
 pub fn effective_sort_fields(model_id: &str) -> &'static [&'static str] {
-  match model_id {
+  match normalize_entity_id(model_id) {
     "organization" => Organization::sort_fields(),
     "user" => User::sort_fields(),
     "role" => Role::sort_fields(),
@@ -50,7 +59,7 @@ pub fn effective_sort_fields(model_id: &str) -> &'static [&'static str] {
 
 /// Response column names for list/get. Empty if unknown model.
 pub fn effective_response_columns(model_id: &str) -> Vec<&'static str> {
-  match model_id {
+  match normalize_entity_id(model_id) {
     "organization" => Organization::response_columns().to_vec(),
     "user" => User::response_columns().to_vec(),
     "role" => Role::response_columns().to_vec(),
@@ -94,7 +103,7 @@ pub async fn list_models(
   db: &DbConnection,
   spec: &ListQuerySpec,
 ) -> Result<serde_json::Value, ModelError> {
-  match model_id {
+  match normalize_entity_id(model_id) {
     "organization" => Organization::list(db, spec).await,
     "user" => User::list(db, spec).await,
     "role" => Role::list(db, spec).await,
@@ -110,7 +119,7 @@ pub async fn get_model(
   db: &DbConnection,
   id: Uuid,
 ) -> Result<Option<serde_json::Value>, ModelError> {
-  match model_id {
+  match normalize_entity_id(model_id) {
     "organization" => Organization::get(db, id).await,
     "user" => User::get(db, id).await,
     "role" => Role::get(db, id).await,
@@ -126,7 +135,7 @@ pub async fn create_model(
   db: &DbConnection,
   body: serde_json::Value,
 ) -> Result<Uuid, ModelError> {
-  match model_id {
+  match normalize_entity_id(model_id) {
     "organization" => Organization::create(db, body).await,
     "user" => User::create(db, body).await,
     "role" => Role::create(db, body).await,
@@ -143,7 +152,7 @@ pub async fn update_model(
   id: Uuid,
   body: serde_json::Value,
 ) -> Result<serde_json::Value, ModelError> {
-  match model_id {
+  match normalize_entity_id(model_id) {
     "organization" => Organization::update(db, id, body).await,
     "user" => User::update(db, id, body).await,
     "role" => Role::update(db, id, body).await,
@@ -155,7 +164,7 @@ pub async fn update_model(
 
 /// Delete model by id. Ok(false) if not found; Err(UnknownModel) if model_id not registered.
 pub async fn delete_model(model_id: &str, db: &DbConnection, id: Uuid) -> Result<bool, ModelError> {
-  match model_id {
+  match normalize_entity_id(model_id) {
     "organization" => Organization::delete(db, id).await,
     "user" => User::delete(db, id).await,
     "role" => Role::delete(db, id).await,
@@ -195,6 +204,7 @@ mod bdd_tests {
       assert!(is_known_model("role"));
       assert!(is_known_model("permission"));
       assert!(is_known_model("audit"));
+      assert!(is_known_model("audit_log"));
     }
 
     #[test]

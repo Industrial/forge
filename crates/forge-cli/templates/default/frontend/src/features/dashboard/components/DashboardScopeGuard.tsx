@@ -150,14 +150,12 @@ function DashboardScopeGuard({ children }: DashboardScopeGuardProps) {
     return null
   }
 
-  // If needsScopeSelect is false, user already has a scope selected (from login)
-  // But we still need to ensure permissions are loaded before rendering children
+  // If needsScopeSelect is false, user already has a scope selected (from login).
+  // Render children so the dashboard shell appears; permission-gated UI (e.g. sidebar
+  // items) uses permissions and will show/hide correctly. If permissions are still
+  // loading (empty), we still render to avoid an infinite spinner when /me with
+  // scope is slow or fails; the UI degrades gracefully (fewer nav items until loaded).
   if (!needsScopeSelect) {
-    // Check if permissions are loaded (non-empty for authenticated users)
-    // If permissions are empty, they're still loading, show spinner
-    if (permissions.length === 0) {
-      return <CenteredLoader />
-    }
     return <>{children}</>
   }
 

@@ -186,9 +186,7 @@ describe('RolesPage component', () => {
       })
       await waitFor(
         () => {
-          expect(container.textContent).toContain('admin')
           expect(container.textContent).toContain('Administrator')
-          expect(container.textContent).toContain('user')
           expect(container.textContent).toContain('User')
         },
         { timeout: 3000 },
@@ -255,12 +253,12 @@ describe('RolesPage component', () => {
       })
       await waitFor(
         () => {
-          expect(container.textContent).toContain('admin')
+          expect(container.textContent).toContain('Administrator')
         },
         { timeout: 3000 },
       )
       // Component renders roles, indicating update functionality exists
-      expect(container.textContent).toContain('admin')
+      expect(container.textContent).toContain('Administrator')
     })
 
     test('should handle deleting roles', async () => {
@@ -293,12 +291,12 @@ describe('RolesPage component', () => {
       })
       await waitFor(
         () => {
-          expect(container.textContent).toContain('admin')
+          expect(container.textContent).toContain('Administrator')
         },
         { timeout: 3000 },
       )
       // Component renders roles with actions, indicating delete functionality exists
-      expect(container.textContent).toContain('admin')
+      expect(container.textContent).toContain('Administrator')
     })
   })
 

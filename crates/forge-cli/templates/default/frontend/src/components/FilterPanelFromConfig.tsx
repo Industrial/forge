@@ -13,6 +13,8 @@ export type FilterFieldText = {
   placeholder?: string
   minWidth?: number
   inputType?: 'text' | 'search'
+  /** For e2e: data-testid on the input (e.g. "users-filter-input"). */
+  dataTestId?: string
 }
 
 export type FilterFieldSelect = {
@@ -65,6 +67,11 @@ export default function FilterPanelFromConfig({
               onChange={(e) => onChange(field.key, e.target.value)}
               placeholder={field.placeholder}
               sx={{ minWidth: field.minWidth ?? 160 }}
+              inputProps={
+                field.dataTestId
+                  ? { 'data-testid': field.dataTestId }
+                  : undefined
+              }
             />
           )
         }

@@ -131,7 +131,7 @@ describe('AuditLogLive', () => {
       ]
 
       const mockHttpClient = createMockHttpClient((request) => {
-        if (request.url.includes('/api/dashboard/audit-log')) {
+        if (request.url.includes('/api/auth/audit-log')) {
           return Effect.succeed({
             status: 200,
             json: Effect.succeed({
@@ -200,7 +200,7 @@ describe('AuditLogLive', () => {
       let capturedUrl = ''
 
       const mockHttpClient = createMockHttpClient((request) => {
-        if (request.url.includes('/api/dashboard/audit-log')) {
+        if (request.url.includes('/api/auth/audit-log')) {
           capturedUrl = request.url
           return Effect.succeed({
             status: 200,
@@ -251,7 +251,7 @@ describe('AuditLogLive', () => {
       let capturedUrl = ''
 
       const mockHttpClient = createMockHttpClient((request) => {
-        if (request.url.includes('/api/dashboard/audit-log')) {
+        if (request.url.includes('/api/auth/audit-log')) {
           capturedUrl = request.url
           return Effect.succeed({
             status: 200,
@@ -296,7 +296,7 @@ describe('AuditLogLive', () => {
       let capturedUrl = ''
 
       const mockHttpClient = createMockHttpClient((request) => {
-        if (request.url.includes('/api/dashboard/audit-log')) {
+        if (request.url.includes('/api/auth/audit-log')) {
           capturedUrl = request.url
           return Effect.succeed({
             status: 200,
@@ -332,7 +332,7 @@ describe('AuditLogLive', () => {
     test('should handle empty entries array', async () => {
       // Given: endpoint returns 200 with empty entries
       const mockHttpClient = createMockHttpClient((request) => {
-        if (request.url.includes('/api/dashboard/audit-log')) {
+        if (request.url.includes('/api/auth/audit-log')) {
           return Effect.succeed({
             status: 200,
             json: Effect.succeed({
@@ -376,7 +376,7 @@ describe('AuditLogLive', () => {
     test('should handle missing entries field', async () => {
       // Given: endpoint returns 200 but missing entries field
       const mockHttpClient = createMockHttpClient((request) => {
-        if (request.url.includes('/api/dashboard/audit-log')) {
+        if (request.url.includes('/api/auth/audit-log')) {
           return Effect.succeed({
             status: 200,
             json: Effect.succeed({
@@ -419,7 +419,7 @@ describe('AuditLogLive', () => {
     test('should handle missing total field', async () => {
       // Given: endpoint returns 200 but missing total field
       const mockHttpClient = createMockHttpClient((request) => {
-        if (request.url.includes('/api/dashboard/audit-log')) {
+        if (request.url.includes('/api/auth/audit-log')) {
           return Effect.succeed({
             status: 200,
             json: Effect.succeed({
@@ -477,7 +477,7 @@ describe('AuditLogLive', () => {
       ]
 
       const mockHttpClient = createMockHttpClient((request) => {
-        if (request.url.includes('/api/dashboard/audit-log')) {
+        if (request.url.includes('/api/auth/audit-log')) {
           return Effect.succeed({
             status: 200,
             json: Effect.succeed({
@@ -524,7 +524,7 @@ describe('AuditLogLive', () => {
     test('should fail when endpoint returns 403', async () => {
       // Given: endpoint returns 403
       const mockHttpClient = createMockHttpClient((request) => {
-        if (request.url.includes('/api/dashboard/audit-log')) {
+        if (request.url.includes('/api/auth/audit-log')) {
           return Effect.succeed({
             status: 403,
             json: Effect.succeed({}),
@@ -564,7 +564,7 @@ describe('AuditLogLive', () => {
     test('should fail when endpoint returns non-200 status', async () => {
       // Given: endpoint returns 500
       const mockHttpClient = createMockHttpClient((request) => {
-        if (request.url.includes('/api/dashboard/audit-log')) {
+        if (request.url.includes('/api/auth/audit-log')) {
           return Effect.succeed({
             status: 500,
             json: Effect.succeed({ error: 'Internal server error' }),
@@ -604,7 +604,7 @@ describe('AuditLogLive', () => {
     test('should handle error response without error field', async () => {
       // Given: endpoint returns 400 without error field
       const mockHttpClient = createMockHttpClient((request) => {
-        if (request.url.includes('/api/dashboard/audit-log')) {
+        if (request.url.includes('/api/auth/audit-log')) {
           return Effect.succeed({
             status: 400,
             json: Effect.succeed({ message: 'Bad request' }), // No 'error' field
@@ -652,7 +652,7 @@ describe('AuditLogLive', () => {
       let capturedUrl = ''
 
       const mockHttpClient = createMockHttpClient((request) => {
-        if (request.url.includes('/api/dashboard/audit-log')) {
+        if (request.url.includes('/api/auth/audit-log')) {
           capturedUrl = request.url
           return Effect.succeed({
             status: 200,

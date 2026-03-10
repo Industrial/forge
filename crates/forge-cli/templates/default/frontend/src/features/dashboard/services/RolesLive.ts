@@ -20,7 +20,7 @@ const RolesLive = Layer.effect(
       Effect.gen(function* () {
         yield* Effect.logTrace('RolesLive.list')
         const response = yield* client.execute(
-          HttpClientRequest.get('/api/dashboard/roles'),
+          HttpClientRequest.get('/api/auth/roles'),
         )
         const body = yield* response.json
         if (response.status === 403) {
@@ -35,6 +35,7 @@ const RolesLive = Layer.effect(
           roles?: Array<{
             id: string
             org_id: string
+            org_name?: string
             name: string
             display_name: string | null
             created_at?: string
@@ -47,6 +48,7 @@ const RolesLive = Layer.effect(
             new Role({
               id: r.id,
               org_id: r.org_id,
+              org_name: r.org_name,
               name: r.name,
               display_name: r.display_name,
               created_at: r.created_at,
@@ -62,7 +64,7 @@ const RolesLive = Layer.effect(
         yield* Effect.logTrace('RolesLive.listByOrg')
         yield* Effect.logDebug(`RolesLive.listByOrg: orgId=${orgId}`)
         if (!orgId) return [] as readonly DashboardRole[]
-        const url = `/api/dashboard/roles?org_id=${encodeURIComponent(orgId)}`
+        const url = `/api/auth/roles?org_id=${encodeURIComponent(orgId)}`
         const response = yield* client.execute(HttpClientRequest.get(url))
         const body = yield* response.json
         if (response.status < 200 || response.status >= 300) {
@@ -95,7 +97,7 @@ const RolesLive = Layer.effect(
           `RolesLive.create: org_id=${body.org_id}, name=${body.name}`,
         )
         const response = yield* client.execute(
-          HttpClientRequest.post('/api/dashboard/roles').pipe(
+          HttpClientRequest.post('/api/auth/roles').pipe(
             HttpClientRequest.bodyUnsafeJson(body),
           ),
         )
@@ -116,8 +118,11 @@ const RolesLive = Layer.effect(
         yield* Effect.logTrace('RolesLive.update')
         yield* Effect.logDebug(`RolesLive.update: id=${body.id}`)
         const response = yield* client.execute(
-          HttpClientRequest.patch('/api/dashboard/roles').pipe(
-            HttpClientRequest.bodyUnsafeJson(body),
+          HttpClientRequest.patch(`/api/auth/roles/${encodeURIComponent(body.id)}`).pipe(
+            HttpClientRequest.bodyUnsafeJson({
+              name: body.name,
+              display_name: body.display_name,
+            }),
           ),
         )
         const resBody = yield* response.json
@@ -137,9 +142,7 @@ const RolesLive = Layer.effect(
         yield* Effect.logTrace('RolesLive.delete')
         yield* Effect.logDebug(`RolesLive.delete: id=${id}`)
         const response = yield* client.execute(
-          HttpClientRequest.del('/api/dashboard/roles').pipe(
-            HttpClientRequest.bodyUnsafeJson({ id }),
-          ),
+          HttpClientRequest.del(`/api/auth/roles/${encodeURIComponent(id)}`),
         )
         const resBody = yield* response.json
         if (response.status === 403) {

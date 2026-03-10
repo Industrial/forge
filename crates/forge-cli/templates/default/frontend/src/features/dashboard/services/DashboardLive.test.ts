@@ -322,7 +322,7 @@ describe('DashboardLive', () => {
 
       const mockHttpClient = createMockHttpClient((request) => {
         if (
-          request.url.includes('/api/dashboard/roles') &&
+          request.url.includes('/api/auth/roles') &&
           request.url.includes(`org_id=${encodeURIComponent(orgId)}`)
         ) {
           return Effect.succeed({
@@ -399,7 +399,7 @@ describe('DashboardLive', () => {
 
       const mockHttpClient = createMockHttpClient((request) => {
         if (
-          request.url.includes('/api/dashboard/roles') &&
+          request.url.includes('/api/auth/roles') &&
           request.url.includes(`org_id=${encodeURIComponent(orgId)}`)
         ) {
           return Effect.succeed({
@@ -439,7 +439,7 @@ describe('DashboardLive', () => {
 
       const mockHttpClient = createMockHttpClient((request) => {
         if (
-          request.url.includes('/api/dashboard/roles') &&
+          request.url.includes('/api/auth/roles') &&
           request.url.includes(`org_id=${encodeURIComponent(orgId)}`)
         ) {
           return Effect.succeed({
@@ -479,7 +479,7 @@ describe('DashboardLive', () => {
 
       const mockHttpClient = createMockHttpClient((request) => {
         if (
-          request.url.includes('/api/dashboard/roles') &&
+          request.url.includes('/api/auth/roles') &&
           request.url.includes(`org_id=${encodeURIComponent(orgId)}`)
         ) {
           return Effect.succeed({
@@ -520,7 +520,7 @@ describe('DashboardLive', () => {
       const mockHttpClient = createMockHttpClient((request) => {
         // Verify URL encoding
         if (
-          request.url.includes('/api/dashboard/roles') &&
+          request.url.includes('/api/auth/roles') &&
           request.url.includes(`org_id=${encodeURIComponent(orgId)}`)
         ) {
           return Effect.succeed({

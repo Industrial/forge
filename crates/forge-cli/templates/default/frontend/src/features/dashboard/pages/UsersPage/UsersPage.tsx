@@ -34,7 +34,7 @@ import DialogActions from '@mui/material/DialogActions'
 import DialogContent from '@mui/material/DialogContent'
 import DialogTitle from '@mui/material/DialogTitle'
 import Typography from '@mui/material/Typography'
-import { Effect, Schema } from 'effect'
+import { Effect, Option, Schema } from 'effect'
 
 import FormDialog from '@/components/FormDialog'
 import PageHeader from '@/components/PageHeader'
@@ -44,6 +44,7 @@ import UserTableRow from '@/features/dashboard/components/UserTableRow'
 import ErrorAlert from '@/components/ErrorAlert'
 import LoadingSpinner from '@/components/LoadingSpinner'
 import { ShowWithPermissions } from '@/components/ShowWithPermissions'
+import { useAuthStore } from '@/features/authentication/stores'
 import { useLiveRefreshTrigger } from '@/hooks/useLiveRefreshTrigger'
 import { usePermission } from '@/hooks/usePermission'
 import { getApplicationLayer } from '@/lib/appLayer'
@@ -67,10 +68,16 @@ const USERS_WRITE = 'user.create'
 const FILTER_ROLES = ['owner', 'admin', 'editor', 'viewer']
 
 export default function UsersPage() {
+  const authentication = useAuthStore()
   const canRead = usePermission(USERS_READ)
   const canWrite = usePermission(USERS_WRITE)
   const { trigger: liveRefreshTrigger, connected: wsConnected } =
     useLiveRefreshTrigger('users')
+  // Refetch when scope changes so list reflects current org/role.
+  const scopeKey = Option.match(authentication.currentScope, {
+    onNone: () => '',
+    onSome: (s) => `${s.organizationId}-${s.roleId}`,
+  })
 
   const [listState, setListState, setListStateAsEffect] = useEffectState<
     AsyncState<readonly User[], Error>
@@ -148,7 +155,7 @@ export default function UsersPage() {
       ? runStreamInto(refreshEffect, setListStateAsEffect)
       : Effect.sync(() => setListState(idle()))
     Effect.runPromise(effect.pipe(Effect.provide(getApplicationLayer())))
-  }, [liveRefreshTrigger, setListStateAsEffect, canRead])
+  }, [liveRefreshTrigger, setListStateAsEffect, canRead, scopeKey])
 
   const listOrgsEffect = Effect.gen(function* () {
     const dashboard = yield* Dashboard
@@ -162,7 +169,7 @@ export default function UsersPage() {
         )
       : Effect.sync(() => setOrgListState(idle()))
     Effect.runPromise(effect.pipe(Effect.provide(getApplicationLayer())))
-  }, [setOrgListStateAsEffect, canRead])
+  }, [setOrgListStateAsEffect, canRead, scopeKey])
 
   useEffect(() => {
     const effect = addFormOrgId

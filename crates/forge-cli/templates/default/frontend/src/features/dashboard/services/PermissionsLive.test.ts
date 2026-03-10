@@ -128,14 +128,14 @@ describe('PermissionsLive', () => {
       ]
 
       const mockHttpClient = createMockHttpClient((request) => {
-        if (request.url.includes('/api/dashboard/role-permissions')) {
+        if (request.url.includes('/api/auth/role-permissions')) {
           return Effect.succeed({
             status: 200,
             json: Effect.succeed({ assignments: mockAssignments }),
             headers: new Headers(),
           })
         }
-        if (request.url.includes('/api/dashboard/permissions')) {
+        if (request.url.includes('/api/auth/permissions')) {
           return Effect.succeed({
             status: 200,
             json: Effect.succeed({ permissions: mockPermissions }),
@@ -176,14 +176,14 @@ describe('PermissionsLive', () => {
     test('should handle empty arrays', async () => {
       // Given: both endpoints return 200 with empty arrays
       const mockHttpClient = createMockHttpClient((request) => {
-        if (request.url.includes('/api/dashboard/role-permissions')) {
+        if (request.url.includes('/api/auth/role-permissions')) {
           return Effect.succeed({
             status: 200,
             json: Effect.succeed({ assignments: [] }),
             headers: new Headers(),
           })
         }
-        if (request.url.includes('/api/dashboard/permissions')) {
+        if (request.url.includes('/api/auth/permissions')) {
           return Effect.succeed({
             status: 200,
             json: Effect.succeed({ permissions: [] }),
@@ -219,14 +219,14 @@ describe('PermissionsLive', () => {
     test('should handle missing assignments or permissions fields', async () => {
       // Given: endpoints return 200 but missing fields
       const mockHttpClient = createMockHttpClient((request) => {
-        if (request.url.includes('/api/dashboard/role-permissions')) {
+        if (request.url.includes('/api/auth/role-permissions')) {
           return Effect.succeed({
             status: 200,
             json: Effect.succeed({}), // Missing assignments field
             headers: new Headers(),
           })
         }
-        if (request.url.includes('/api/dashboard/permissions')) {
+        if (request.url.includes('/api/auth/permissions')) {
           return Effect.succeed({
             status: 200,
             json: Effect.succeed({}), // Missing permissions field
@@ -262,14 +262,14 @@ describe('PermissionsLive', () => {
     test('should fail when assignments endpoint returns 403', async () => {
       // Given: assignments endpoint returns 403
       const mockHttpClient = createMockHttpClient((request) => {
-        if (request.url.includes('/api/dashboard/role-permissions')) {
+        if (request.url.includes('/api/auth/role-permissions')) {
           return Effect.succeed({
             status: 403,
             json: Effect.succeed({}),
             headers: new Headers(),
           })
         }
-        if (request.url.includes('/api/dashboard/permissions')) {
+        if (request.url.includes('/api/auth/permissions')) {
           return Effect.succeed({
             status: 200,
             json: Effect.succeed({ permissions: [] }),
@@ -304,14 +304,14 @@ describe('PermissionsLive', () => {
     test('should fail when permissions endpoint returns 403', async () => {
       // Given: permissions endpoint returns 403
       const mockHttpClient = createMockHttpClient((request) => {
-        if (request.url.includes('/api/dashboard/role-permissions')) {
+        if (request.url.includes('/api/auth/role-permissions')) {
           return Effect.succeed({
             status: 200,
             json: Effect.succeed({ assignments: [] }),
             headers: new Headers(),
           })
         }
-        if (request.url.includes('/api/dashboard/permissions')) {
+        if (request.url.includes('/api/auth/permissions')) {
           return Effect.succeed({
             status: 403,
             json: Effect.succeed({}),
@@ -346,14 +346,14 @@ describe('PermissionsLive', () => {
     test('should fail when assignments endpoint returns non-200 status', async () => {
       // Given: assignments endpoint returns 500
       const mockHttpClient = createMockHttpClient((request) => {
-        if (request.url.includes('/api/dashboard/role-permissions')) {
+        if (request.url.includes('/api/auth/role-permissions')) {
           return Effect.succeed({
             status: 500,
             json: Effect.succeed({ error: 'Internal server error' }),
             headers: new Headers(),
           })
         }
-        if (request.url.includes('/api/dashboard/permissions')) {
+        if (request.url.includes('/api/auth/permissions')) {
           return Effect.succeed({
             status: 200,
             json: Effect.succeed({ permissions: [] }),
@@ -388,14 +388,14 @@ describe('PermissionsLive', () => {
     test('should fail when permissions endpoint returns non-200 status', async () => {
       // Given: permissions endpoint returns 500
       const mockHttpClient = createMockHttpClient((request) => {
-        if (request.url.includes('/api/dashboard/role-permissions')) {
+        if (request.url.includes('/api/auth/role-permissions')) {
           return Effect.succeed({
             status: 200,
             json: Effect.succeed({ assignments: [] }),
             headers: new Headers(),
           })
         }
-        if (request.url.includes('/api/dashboard/permissions')) {
+        if (request.url.includes('/api/auth/permissions')) {
           return Effect.succeed({
             status: 500,
             json: Effect.succeed({ error: 'Internal server error' }),
@@ -439,7 +439,7 @@ describe('PermissionsLive', () => {
 
       const mockHttpClient = createMockHttpClient((request) => {
         if (
-          request.url.includes('/api/dashboard/role-permissions') &&
+          request.url.includes('/api/auth/role-permissions') &&
           request.method === 'POST'
         ) {
           return Effect.succeed({
@@ -483,7 +483,7 @@ describe('PermissionsLive', () => {
 
       const mockHttpClient = createMockHttpClient((request) => {
         if (
-          request.url.includes('/api/dashboard/role-permissions') &&
+          request.url.includes('/api/auth/role-permissions') &&
           request.method === 'POST'
         ) {
           return Effect.succeed({
@@ -527,7 +527,7 @@ describe('PermissionsLive', () => {
 
       const mockHttpClient = createMockHttpClient((request) => {
         if (
-          request.url.includes('/api/dashboard/role-permissions') &&
+          request.url.includes('/api/auth/role-permissions') &&
           request.method === 'POST'
         ) {
           return Effect.succeed({
@@ -571,7 +571,7 @@ describe('PermissionsLive', () => {
 
       const mockHttpClient = createMockHttpClient((request) => {
         if (
-          request.url.includes('/api/dashboard/role-permissions') &&
+          request.url.includes('/api/auth/role-permissions') &&
           request.method === 'POST'
         ) {
           return Effect.succeed({
@@ -618,7 +618,7 @@ describe('PermissionsLive', () => {
 
       const mockHttpClient = createMockHttpClient((request) => {
         if (
-          request.url.includes('/api/dashboard/role-permissions') &&
+          request.url.includes('/api/auth/role-permissions') &&
           request.method === 'DELETE'
         ) {
           return Effect.succeed({
@@ -663,7 +663,7 @@ describe('PermissionsLive', () => {
 
       const mockHttpClient = createMockHttpClient((request) => {
         if (
-          request.url.includes('/api/dashboard/role-permissions') &&
+          request.url.includes('/api/auth/role-permissions') &&
           request.method === 'DELETE'
         ) {
           return Effect.succeed({
@@ -708,7 +708,7 @@ describe('PermissionsLive', () => {
 
       const mockHttpClient = createMockHttpClient((request) => {
         if (
-          request.url.includes('/api/dashboard/role-permissions') &&
+          request.url.includes('/api/auth/role-permissions') &&
           request.method === 'DELETE'
         ) {
           return Effect.succeed({
@@ -753,7 +753,7 @@ describe('PermissionsLive', () => {
 
       const mockHttpClient = createMockHttpClient((request) => {
         if (
-          request.url.includes('/api/dashboard/role-permissions') &&
+          request.url.includes('/api/auth/role-permissions') &&
           request.method === 'DELETE'
         ) {
           return Effect.succeed({
@@ -798,7 +798,7 @@ describe('PermissionsLive', () => {
 
       const mockHttpClient = createMockHttpClient((request) => {
         if (
-          request.url.includes('/api/dashboard/role-permissions') &&
+          request.url.includes('/api/auth/role-permissions') &&
           request.method === 'DELETE'
         ) {
           return Effect.succeed({

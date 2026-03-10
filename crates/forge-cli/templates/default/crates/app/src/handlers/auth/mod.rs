@@ -1,6 +1,7 @@
 //! Auth handlers under /api/auth (authc + authz, flat REST).
 
 mod admin;
+mod audit_log;
 mod global_role_assignments;
 mod login;
 mod logout;
@@ -16,6 +17,7 @@ mod tokens;
 mod users;
 
 pub use admin::admin_only;
+pub use audit_log::list_audit_log as list_audit_log_auth;
 pub use login::{LoginRequest, login};
 pub use logout::logout;
 pub use me::get_me;

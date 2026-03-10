@@ -33,6 +33,7 @@ pub async fn run_seeds(db: DbConnection) -> Result<(), Box<dyn std::error::Error
   seeds::s20220101_000002_seed_default_users::seed(&db).await?;
   seeds::s20220101_000003_seed_coolorg_users::seed(&db).await?;
   seeds::s20220101_000004_seed_multi_org_user::seed(&db).await?;
+  seeds::s20220101_000005_seed_audit_log::seed(&db).await?;
   Ok(())
 }
 

@@ -17,7 +17,7 @@ use std::sync::Arc;
 use uuid::Uuid;
 
 use db::auth::Backend;
-use db::models::{org_role, user, user_org_role};
+use db::models::{organization, org_role, user, user_org_role};
 
 use crate::Error as ForgeError;
 
@@ -66,12 +66,27 @@ pub async fn list_roles(
       .await
   };
   let rows = rows.map_err(|e| ForgeError::Generic(e.to_string()))?;
+  let org_ids: Vec<Uuid> = rows.iter().map(|r| r.org_id).collect::<std::collections::HashSet<_>>().into_iter().collect();
+  let org_names: std::collections::HashMap<Uuid, String> = if org_ids.is_empty() {
+    std::collections::HashMap::new()
+  } else {
+    organization::Entity::find()
+      .filter(organization::Column::Id.is_in(org_ids))
+      .all(&db)
+      .await
+      .map_err(|e| ForgeError::Generic(e.to_string()))?
+      .into_iter()
+      .map(|o| (o.id, o.name))
+      .collect()
+  };
   let list: Vec<serde_json::Value> = rows
     .into_iter()
     .map(|r| {
+      let org_name = org_names.get(&r.org_id).cloned().unwrap_or_else(|| r.org_id.to_string());
       serde_json::json!({
         "id": r.id.to_string(),
         "org_id": r.org_id.to_string(),
+        "org_name": org_name,
         "name": r.name,
         "display_name": r.display_name,
         "created_at": r.created_at.format("%Y-%m-%dT%H:%M:%S%.fZ").to_string(),

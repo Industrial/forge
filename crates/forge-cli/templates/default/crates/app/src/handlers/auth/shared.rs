@@ -193,6 +193,7 @@ pub const HEADER_ORGANIZATION_ID: &str = "x-organization-id";
 pub const HEADER_ROLE_ID: &str = "x-role-id";
 
 /// Builds [RequestScope] from headers. Validates org, role, and user membership.
+/// When scope headers are missing, if the user has exactly one org/role assignment, that scope is used (same as /api/auth/me).
 pub async fn try_scope_from_headers(
   headers: &axum::http::HeaderMap,
   db: &DbConnection,
@@ -200,29 +201,42 @@ pub async fn try_scope_from_headers(
 ) -> Result<RequestScope, ForgeError> {
   let org_id_str = headers
     .get(HEADER_ORGANIZATION_ID)
-    .and_then(|v| v.to_str().ok())
-    .ok_or_else(|| {
-      ForgeError::Auth(
-        StatusCode::BAD_REQUEST,
-        "Missing or invalid X-Organization-Id header".to_string(),
-      )
-    })?;
-  let org_id = uuid::Uuid::parse_str(org_id_str).map_err(|_| {
+    .and_then(|v| v.to_str().ok());
+  let role_id_str = headers.get(HEADER_ROLE_ID).and_then(|v| v.to_str().ok());
+
+  // When headers are missing, infer scope from user's single org/role so dashboard APIs work without scope headers.
+  if org_id_str.is_none() || role_id_str.is_none() {
+    let uors = user_org_role::Entity::find()
+      .filter(user_org_role::Column::UserId.eq(user_id))
+      .all(db)
+      .await
+      .map_err(|e| ForgeError::Generic(e.to_string()))?;
+    if uors.len() == 1 {
+      let uor = &uors[0];
+      let role_row = org_role::Entity::find_by_id(uor.role_id)
+        .one(db)
+        .await
+        .map_err(|e| ForgeError::Generic(e.to_string()))?
+        .ok_or_else(|| ForgeError::Auth(StatusCode::NOT_FOUND, "Role not found".to_string()))?;
+      return Ok(RequestScope {
+        organization_id: uor.org_id,
+        role_id: uor.role_id,
+        role_name: role_row.name.clone(),
+      });
+    }
+    return Err(ForgeError::Auth(
+      StatusCode::BAD_REQUEST,
+      "Missing or invalid X-Organization-Id header".to_string(),
+    ));
+  }
+
+  let org_id = uuid::Uuid::parse_str(org_id_str.unwrap()).map_err(|_| {
     ForgeError::Auth(
       StatusCode::BAD_REQUEST,
       "Invalid X-Organization-Id".to_string(),
     )
   })?;
-  let role_id_str = headers
-    .get(HEADER_ROLE_ID)
-    .and_then(|v| v.to_str().ok())
-    .ok_or_else(|| {
-      ForgeError::Auth(
-        StatusCode::BAD_REQUEST,
-        "Missing or invalid X-Role-Id header".to_string(),
-      )
-    })?;
-  let role_id = uuid::Uuid::parse_str(role_id_str)
+  let role_id = uuid::Uuid::parse_str(role_id_str.unwrap())
     .map_err(|_| ForgeError::Auth(StatusCode::BAD_REQUEST, "Invalid X-Role-Id".to_string()))?;
 
   organization::Entity::find_by_id(org_id)

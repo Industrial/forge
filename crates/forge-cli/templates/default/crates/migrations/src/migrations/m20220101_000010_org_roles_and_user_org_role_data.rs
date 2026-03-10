@@ -3,7 +3,12 @@ use sea_orm_migration::prelude::*;
 
 use db::models::{org_role, organization, user_org_role};
 
-const TEMPLATE_ROLES: &[&str] = &["owner", "admin", "editor", "viewer"];
+const TEMPLATE_ROLES: &[(&str, &str)] = &[
+  ("owner", "Owner"),
+  ("admin", "Admin"),
+  ("editor", "Editor"),
+  ("viewer", "Viewer"),
+];
 
 #[derive(Iden)]
 enum Membership {
@@ -29,13 +34,13 @@ impl MigrationTrait for Migration {
     // 1. For each organization, create the four template org_roles.
     let orgs = organization::Entity::find().all(db).await?;
     for org in orgs {
-      for &name in TEMPLATE_ROLES {
+      for &(name, display_name) in TEMPLATE_ROLES {
         let id = uuid::Uuid::new_v4();
         let model = org_role::ActiveModel {
           id: Set(id),
           org_id: Set(org.id),
           name: Set(name.to_string()),
-          display_name: Set(None),
+          display_name: Set(Some(display_name.to_string())),
           created_at: Set(now),
           updated_at: Set(now),
         };

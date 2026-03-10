@@ -291,13 +291,12 @@ export default function RolesPage() {
               <TableRow>
                 <TableCell>Organization</TableCell>
                 <TableCell>Name</TableCell>
-                <TableCell>Display name</TableCell>
                 {canWrite && <TableCell align="right">Actions</TableCell>}
               </TableRow>
             </TableHead>
             <TableBody>
               {roles.length === 0 ? (
-                <TableEmptyRow colSpan={4}>
+                <TableEmptyRow colSpan={canWrite ? 3 : 2}>
                   No roles. Add a role or ensure your organization has template
                   roles.
                 </TableEmptyRow>
@@ -307,6 +306,7 @@ export default function RolesPage() {
                     key={role.id}
                     role={role}
                     orgName={
+                      role.org_name ??
                       organizations.find((o) => o.id === role.org_id)?.name ??
                       role.org_id
                     }
@@ -445,7 +445,8 @@ export default function RolesPage() {
                   Organization
                 </Typography>
                 <Typography variant="body1">
-                  {organizations.find((o) => o.id === viewRole.org_id)?.name ??
+                  {viewRole.org_name ??
+                    organizations.find((o) => o.id === viewRole.org_id)?.name ??
                     viewRole.org_id}
                 </Typography>
               </Box>
@@ -460,7 +461,7 @@ export default function RolesPage() {
                   Display Name
                 </Typography>
                 <Typography variant="body1">
-                  {viewRole.display_name ?? '—'}
+                  {viewRole.display_name ?? viewRole.name ?? '—'}
                 </Typography>
               </Box>
             </Box>

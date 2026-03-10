@@ -11,6 +11,7 @@ import {
   isPending,
 } from 'react-effect-hooks'
 import { Effect } from 'effect'
+import Box from '@mui/material/Box'
 import Table from '@mui/material/Table'
 import TableBody from '@mui/material/TableBody'
 import TableCell from '@mui/material/TableCell'
@@ -203,7 +204,7 @@ export default function PermissionsPage() {
   )
 
   return (
-    <>
+    <Box data-testid="permissions-page">
       <PageHeader
         title="Permissions"
         description={
@@ -214,6 +215,7 @@ export default function PermissionsPage() {
           </>
         }
         liveConnected={wsConnected}
+        data-testid="permissions-page-title"
       />
 
       {errorMessage != null && (
@@ -247,8 +249,12 @@ export default function PermissionsPage() {
             adding={adding}
           />
 
-          <TableContainer component={Paper}>
-            <Table size="small" aria-label="Role–permission assignments">
+          <TableContainer component={Paper} data-testid="permissions-list">
+            <Table
+              size="small"
+              aria-label="Role–permission assignments"
+              data-testid="permissions-table"
+            >
               <TableHead>
                 <TableRow>
                   <TableCell>Scope</TableCell>
@@ -295,6 +301,6 @@ export default function PermissionsPage() {
           />
         </>
       )}
-    </>
+    </Box>
   )
 }

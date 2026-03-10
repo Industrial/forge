@@ -22,12 +22,13 @@ pub async fn seed(db: &DbConnection) -> Result<(), Box<dyn std::error::Error + S
   .map_err(|e| e.to_string())?;
 
   for name in ["owner", "admin", "editor", "viewer"] {
+    let display_name = format!("{}{}", name[..1].to_uppercase(), &name[1..]);
     ensure_org_role_impl(
       db,
       org_id,
       &CreateOrgRoleBody {
         name: name.to_string(),
-        display_name: None,
+        display_name: Some(display_name),
       },
     )
     .await

@@ -31,6 +31,7 @@ const ORG_OWNER_ADMIN: &[&str] = &[
   "all.write",
 ];
 const ORG_EDITOR: &[&str] = &[
+  "organization.read",
   "user.read",
   "user.create",
   "user.update",

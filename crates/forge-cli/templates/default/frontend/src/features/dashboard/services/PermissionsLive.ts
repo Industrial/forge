@@ -20,9 +20,9 @@ const PermissionsLive = Layer.effect(
         yield* Effect.logTrace('PermissionsLive.getData')
         const [assignRes, permRes] = yield* Effect.all([
           client.execute(
-            HttpClientRequest.get('/api/dashboard/role-permissions'),
+            HttpClientRequest.get('/api/auth/role-permissions'),
           ),
-          client.execute(HttpClientRequest.get('/api/dashboard/permissions')),
+          client.execute(HttpClientRequest.get('/api/auth/permissions')),
         ])
         const assignBody = yield* assignRes.json
         const permBody = yield* permRes.json
@@ -67,7 +67,7 @@ const PermissionsLive = Layer.effect(
           `PermissionsLive.add: scope=${body.scope}, role_name=${body.role_name}, permission_key=${body.permission_key}`,
         )
         const req = HttpClientRequest.post(
-          '/api/dashboard/role-permissions',
+          '/api/auth/role-permissions',
         ).pipe(HttpClientRequest.bodyUnsafeJson(body))
         const response = yield* client.execute(req)
         const resBody = yield* response.json
@@ -89,7 +89,7 @@ const PermissionsLive = Layer.effect(
           `PermissionsLive.delete: scope=${body.scope}, role_name=${body.role_name}, permission_key=${body.permission_key}`,
         )
         const req = HttpClientRequest.del(
-          '/api/dashboard/role-permissions',
+          '/api/auth/role-permissions',
         ).pipe(HttpClientRequest.bodyUnsafeJson(body))
         const response = yield* client.execute(req)
         const resBody = yield* response.json

@@ -1,0 +1,11 @@
+# Install Nix, enable magic cache, and install devenv for dev shell.
+description: "Setup Nix and devenv"
+inputs: {}
+outputs: {}
+runs:
+  using: "composite"
+  steps:
+    - uses: DeterminateSystems/nix-installer-action@main
+    - uses: DeterminateSystems/magic-nix-cache-action@main
+    - name: Install devenv
+      run: nix profile install nixpkgs#devenv

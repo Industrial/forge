@@ -14,73 +14,26 @@ jobs:
     name: CI (checks → integration → e2e)
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v6
+      - uses: ./.github/actions/checkout
         with:
-          # Full history for moon --affected on PRs (base..head)
           fetch-depth: ${{ github.event_name == 'pull_request' && 0 || 1 }}
-      - uses: DeterminateSystems/nix-installer-action@main
-      - uses: DeterminateSystems/magic-nix-cache-action@main
-      - name: Install devenv
-        run: nix profile install nixpkgs#devenv
-      - name: Setup sccache
-        uses: mozilla-actions/sccache-action@v0.0.4
-        with:
-          version: "latest"
-        env:
-          SCCACHE_DIR: ${{ runner.tool_cache }}/sccache
-      - name: Install mold linker
-        run: |
-          sudo apt-get update
-          sudo apt-get install -y mold
-      - name: Install moon
-        run: |
-          curl -fsSL https://moonrepo.dev/install/moon.sh | bash
-          echo "$HOME/.moon/bin" >> "$GITHUB_PATH"
-          echo "PATH=$HOME/.moon/bin:$PATH" >> "$GITHUB_ENV"
-          moon --version
-      - name: Cache moon
-        uses: actions/cache@v4
-        with:
-          path: .moon/cache
-          key: moon-${{ runner.os }}-${{ hashFiles('Cargo.lock', 'crates/forge-cli/templates/default/frontend/bun.lockb', 'crates/forge-cli/templates/default/frontend/package.json') }}
-          restore-keys: |
-            moon-${{ runner.os }}-
+      - uses: ./.github/actions/setup-nix-devenv
+      - uses: ./.github/actions/setup-sccache
+      - uses: ./.github/actions/setup-mold
+      - uses: ./.github/actions/setup-moon
       - name: Run checks (format, check, lint, build, test, audit, check-docs)
-        env:
-          MOON_TOOLCHAIN_FORCE_GLOBALS: rust
-          MOON_BASE: ${{ github.event_name == 'pull_request' && github.event.pull_request.base.sha || github.sha }}
-          MOON_HEAD: ${{ github.sha }}
-        run: |
-          set -euo pipefail
-          if [ "${{ github.event_name }}" = "pull_request" ]; then
-            devenv shell -- moon run --affected :format :check :lint :build :test :audit :check-docs
-          else
-            devenv shell -- moon run :format :check :lint :build :test :audit :check-docs
-          fi
+        uses: ./.github/actions/run-devenv-moon
+        with:
+          targets: ":format :check :lint :build :test :audit :check-docs"
+          use-affected: "true"
       - name: Run integration tests
-        env:
-          MOON_TOOLCHAIN_FORCE_GLOBALS: rust
-          MOON_BASE: ${{ github.event_name == 'pull_request' && github.event.pull_request.base.sha || github.sha }}
-          MOON_HEAD: ${{ github.sha }}
-        run: |
-          set -euo pipefail
-          if [ "${{ github.event_name }}" = "pull_request" ]; then
-            devenv shell -- moon run --affected :test-integration
-          else
-            devenv shell -- moon run :test-integration
-          fi
+        uses: ./.github/actions/run-devenv-moon
+        with:
+          targets: ":test-integration"
+          use-affected: "true"
       - name: Run e2e tests
-        env:
-          MOON_TOOLCHAIN_FORCE_GLOBALS: rust
-          MOON_BASE: ${{ github.event_name == 'pull_request' && github.event.pull_request.base.sha || github.sha }}
-          MOON_HEAD: ${{ github.sha }}
-        run: |
-          set -euo pipefail
-          if [ "${{ github.event_name }}" = "pull_request" ]; then
-            devenv shell -- moon run --affected :test-e2e
-          else
-            devenv shell -- moon run :test-e2e
-          fi
-      - name: Show sccache statistics
-        if: always()
-        run: sccache --show-stats
+        uses: ./.github/actions/run-devenv-moon
+        with:
+          targets: ":test-e2e"
+          use-affected: "true"
+      - uses: ./.github/actions/sccache-stats

@@ -95,6 +95,10 @@ pub fn make_app(live_backend: Arc<forge_live::InMemoryLiveBackend>) -> App {
         .post(handlers::auth::add_global_role_assignment)
         .delete(handlers::auth::delete_global_role_assignment),
     )
+    .route(
+      "/api/auth/audit-log",
+      axum::routing::get(handlers::auth::list_audit_log_auth),
+    )
     // Dashboard: users (legacy; same behavior via dashboard handlers)
     .route_methods(
       "/api/dashboard/users",
@@ -102,6 +106,14 @@ pub fn make_app(live_backend: Arc<forge_live::InMemoryLiveBackend>) -> App {
         .post(handlers::dashboard::create_user)
         .patch(handlers::dashboard::update_user)
         .delete(handlers::dashboard::delete_user),
+    )
+    // Dashboard: roles (list/create at path; update/delete via method + body id)
+    .route_methods(
+      "/api/dashboard/roles",
+      axum::routing::get(handlers::dashboard::list_roles)
+        .post(handlers::dashboard::create_role)
+        .patch(handlers::dashboard::update_role)
+        .delete(handlers::dashboard::delete_role),
     )
     // Generic entity handler (Epic 5): list, get, create, update, delete
     .route_methods(

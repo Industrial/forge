@@ -1,9 +1,3 @@
-[chromium] › tests/02-viewer.spec.ts:162:5 › Viewer Role › 2.2 Dashboard Access › should not show organizations link 
-[chromium] › tests/02-viewer.spec.ts:245:5 › Viewer Role › 2.3 Users Page › should filter users 
-[chromium] › tests/02-viewer.spec.ts:341:5 › Viewer Role › 2.4 Roles Page › should view role details (read-only) 
-[chromium] › tests/02-viewer.spec.ts:402:5 › Viewer Role › 2.5 Permissions Page › should display permissions list 
-[chromium] › tests/02-viewer.spec.ts:459:5 › Viewer Role › 2.6 Audit Log Page › should display audit log list 
-[chromium] › tests/02-viewer.spec.ts:477:5 › Viewer Role › 2.6 Audit Log Page › should filter audit log 
 [chromium] › tests/02-viewer.spec.ts:492:5 › Viewer Role › 2.6 Audit Log Page › should paginate audit log 
 [chromium] › tests/02-viewer.spec.ts:509:5 › Viewer Role › 2.6 Audit Log Page › should view audit entry details 
 [chromium] › tests/02-viewer.spec.ts:528:5 › Viewer Role › 2.7 Organizations Page (Blocked) › should show 403 when accessing organizations page 

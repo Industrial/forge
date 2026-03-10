@@ -10,6 +10,7 @@ import {
   isPending,
 } from 'react-effect-hooks'
 import { Effect } from 'effect'
+import Box from '@mui/material/Box'
 import Table from '@mui/material/Table'
 import TableBody from '@mui/material/TableBody'
 import TableCell from '@mui/material/TableCell'
@@ -130,11 +131,12 @@ export default function AuditLogPage() {
   }
 
   return (
-    <>
+    <Box data-testid="audit-log-page">
       <PageHeader
         title="Audit log"
         description="Read-only list of audit events. Use filters to narrow results."
         liveConnected={wsConnected}
+        data-testid="audit-log-page-title"
       />
 
       <AuditLogFilters
@@ -169,8 +171,12 @@ export default function AuditLogPage() {
         <LoadingSpinner />
       ) : (
         <>
-          <TableContainer component={Paper}>
-            <Table size="small" aria-label="Audit log">
+          <TableContainer component={Paper} data-testid="audit-log-list">
+            <Table
+              size="small"
+              aria-label="Audit log"
+              data-testid="audit-log-table"
+            >
               <TableHead>
                 <TableRow>
                   <TableCell>Time</TableCell>
@@ -193,18 +199,30 @@ export default function AuditLogPage() {
               </TableBody>
             </Table>
           </TableContainer>
-          <TablePagination
-            component="div"
-            count={total}
-            page={page}
-            onPageChange={handleChangePage}
-            rowsPerPage={rowsPerPage}
-            onRowsPerPageChange={handleChangeRowsPerPage}
-            rowsPerPageOptions={rowsPerPageOptions}
-            labelRowsPerPage="Rows per page:"
-          />
+          <Box component="div" data-testid="audit-log-pagination">
+            <TablePagination
+              component="div"
+              count={total}
+              page={page}
+              onPageChange={handleChangePage}
+              rowsPerPage={rowsPerPage}
+              onRowsPerPageChange={handleChangeRowsPerPage}
+              rowsPerPageOptions={rowsPerPageOptions}
+              labelRowsPerPage="Rows per page:"
+              slotProps={{
+                actions: {
+                  nextButton: {
+                    'data-testid': 'audit-log-pagination-next',
+                  } as object,
+                  previousButton: {
+                    'data-testid': 'audit-log-pagination-prev',
+                  } as object,
+                },
+              }}
+            />
+          </Box>
         </>
       )}
-    </>
+    </Box>
   )
 }

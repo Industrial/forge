@@ -36,8 +36,11 @@ export default function RoleTableRow({
       isDeleting={isDeleting}
       columns={[
         { key: 'orgName', render: () => orgName },
-        { key: 'name', render: (r) => r.name, cellSx: { fontWeight: 500 } },
-        { key: 'display_name', render: (r) => r.display_name ?? '—' },
+        {
+          key: 'name',
+          render: (r) => r.display_name ?? r.name ?? '—',
+          cellSx: { fontWeight: 500 },
+        },
       ]}
     />
   )
