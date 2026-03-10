@@ -13,7 +13,7 @@ import {
   Chunk,
   Context,
   Effect,
-  Fiber,
+  type Fiber,
   Layer,
   Option,
   pipe,

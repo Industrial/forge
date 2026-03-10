@@ -9,7 +9,7 @@
  * @see docs/frontend-implementation-and-choices.md (Epic 5)
  */
 
-import { Context, Effect } from 'effect'
+import { Context, type Effect } from 'effect'
 import type { ListQueryParams, ListResponse } from '@/api/types'
 
 export type { ListQueryParams, ListResponse }

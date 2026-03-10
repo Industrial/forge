@@ -117,20 +117,20 @@ fn apply_env_overrides(config: &mut ForgeConfig) {
     config.frontend.host = v;
   }
   // FORGE_BACKEND_PORT is an alias for server port (same as FORGE_SERVER_PORT); FORGE_SERVER_PORT wins if both set
-  if let Ok(v) = std::env::var("FORGE_BACKEND_PORT") {
-    if let Ok(p) = v.parse::<u16>() {
-      config.server.port = p;
-    }
+  if let Ok(v) = std::env::var("FORGE_BACKEND_PORT")
+    && let Ok(p) = v.parse::<u16>()
+  {
+    config.server.port = p;
   }
-  if let Ok(v) = std::env::var("FORGE_SERVER_PORT") {
-    if let Ok(p) = v.parse::<u16>() {
-      config.server.port = p;
-    }
+  if let Ok(v) = std::env::var("FORGE_SERVER_PORT")
+    && let Ok(p) = v.parse::<u16>()
+  {
+    config.server.port = p;
   }
-  if let Ok(v) = std::env::var("FORGE_FRONTEND_PORT") {
-    if let Ok(p) = v.parse::<u16>() {
-      config.frontend.port = p;
-    }
+  if let Ok(v) = std::env::var("FORGE_FRONTEND_PORT")
+    && let Ok(p) = v.parse::<u16>()
+  {
+    config.frontend.port = p;
   }
   if let Some(v) = std::env::var("FORGE_DATABASE_URL")
     .ok()
@@ -138,25 +138,25 @@ fn apply_env_overrides(config: &mut ForgeConfig) {
   {
     config.database.url = v;
   }
-  if let Ok(v) = std::env::var("FORGE_DATABASE_MAX_CONNECTIONS") {
-    if let Ok(n) = v.parse::<u32>() {
-      config.database.max_connections = Some(n);
-    }
+  if let Ok(v) = std::env::var("FORGE_DATABASE_MAX_CONNECTIONS")
+    && let Ok(n) = v.parse::<u32>()
+  {
+    config.database.max_connections = Some(n);
   }
-  if let Ok(v) = std::env::var("FORGE_DATABASE_MIN_CONNECTIONS") {
-    if let Ok(n) = v.parse::<u32>() {
-      config.database.min_connections = Some(n);
-    }
+  if let Ok(v) = std::env::var("FORGE_DATABASE_MIN_CONNECTIONS")
+    && let Ok(n) = v.parse::<u32>()
+  {
+    config.database.min_connections = Some(n);
   }
-  if let Ok(v) = std::env::var("FORGE_DATABASE_CONNECT_TIMEOUT") {
-    if let Ok(n) = v.parse::<u64>() {
-      config.database.connect_timeout = Some(n);
-    }
+  if let Ok(v) = std::env::var("FORGE_DATABASE_CONNECT_TIMEOUT")
+    && let Ok(n) = v.parse::<u64>()
+  {
+    config.database.connect_timeout = Some(n);
   }
-  if let Ok(v) = std::env::var("FORGE_DATABASE_IDLE_TIMEOUT") {
-    if let Ok(n) = v.parse::<u64>() {
-      config.database.idle_timeout = Some(n);
-    }
+  if let Ok(v) = std::env::var("FORGE_DATABASE_IDLE_TIMEOUT")
+    && let Ok(n) = v.parse::<u64>()
+  {
+    config.database.idle_timeout = Some(n);
   }
   if let Ok(v) = std::env::var("FORGE_DATABASE_AUTO_MIGRATE") {
     config.database.auto_migrate = v.eq_ignore_ascii_case("true") || v == "1";

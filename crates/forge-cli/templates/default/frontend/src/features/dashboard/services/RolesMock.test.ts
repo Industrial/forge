@@ -125,7 +125,7 @@ describe('RolesMock', () => {
 
   describe('list behavior', () => {
     let mock: RolesService
-    let layer: Layer.Layer<Roles>
+    let layer: Layer.Layer<RolesService>
 
     beforeEach(() => {
       mock = createRolesMock()
@@ -214,7 +214,7 @@ describe('RolesMock', () => {
 
   describe('listByOrg behavior', () => {
     let mock: RolesService
-    let layer: Layer.Layer<Roles>
+    let layer: Layer.Layer<RolesService>
 
     beforeEach(() => {
       mock = createRolesMock([
@@ -310,7 +310,7 @@ describe('RolesMock', () => {
 
   describe('create behavior', () => {
     let mock: RolesService
-    let layer: Layer.Layer<Roles>
+    let layer: Layer.Layer<RolesService>
 
     beforeEach(() => {
       mock = createRolesMock()
@@ -425,7 +425,7 @@ describe('RolesMock', () => {
 
   describe('update behavior', () => {
     let mock: RolesService
-    let layer: Layer.Layer<Roles>
+    let layer: Layer.Layer<RolesService>
 
     beforeEach(() => {
       mock = createRolesMock([
@@ -562,7 +562,7 @@ describe('RolesMock', () => {
 
   describe('delete behavior', () => {
     let mock: RolesService
-    let layer: Layer.Layer<Roles>
+    let layer: Layer.Layer<RolesService>
 
     beforeEach(() => {
       mock = createRolesMock([

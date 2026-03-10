@@ -3,10 +3,10 @@
  * Tests use Effect's Layer system for dependency injection (no vi.mock()).
  */
 import { describe, test, expect } from 'bun:test'
-import { Effect, Layer } from 'effect'
+import { Effect } from 'effect'
 
 import { AuditLog } from './AuditLog'
-import { createAuditLogMock, AuditLogMockLayer } from './AuditLogMock'
+import { AuditLogMockLayer } from './AuditLogMock'
 import { AuditLogEntry } from '../domain/AuditLogEntry'
 import type {
   AuditLogListParams,

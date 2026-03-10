@@ -27,7 +27,6 @@ describe('getBaseUrl', () => {
   describe('server-side behavior', () => {
     test('should return default URL when window is undefined', () => {
       // Given: window is undefined (server-side)
-      // @ts-expect-error - Intentionally removing window for server-side test
       delete (globalThis as any).window
 
       // When: getting base URL
@@ -237,7 +236,6 @@ describe('getBaseUrl', () => {
     test('should use typeof check for window', () => {
       // Given: window exists but typeof check would fail
       // This tests the actual implementation logic
-      // @ts-expect-error - Testing typeof check behavior
       delete (globalThis as any).window
 
       // When: getting base URL
@@ -255,7 +253,6 @@ describe('getBaseUrl', () => {
       // Actually, if window is null, typeof window would be 'object', not 'undefined'
       // So this would go to the else branch and try to access window.location.origin
       // But for this test, let's ensure window is truly undefined
-      // @ts-expect-error - Testing null vs undefined
       ;(globalThis as any).window = null
 
       // When: getting base URL

@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react'
+import { useCallback, useEffect, useMemo, useState } from 'react'
 import {
   useEffectState,
   streamWithPendingState,
@@ -59,7 +59,7 @@ const ROLES_WRITE = 'role.create'
 export default function RolesPage() {
   const isMobile = useIsMobile()
   const canWrite = usePermission(ROLES_WRITE)
-  const { trigger: liveRefreshTrigger, connected: wsConnected } =
+  const { trigger: _liveRefreshTrigger, connected: wsConnected } =
     useLiveRefreshTrigger('roles')
 
   const [listState, , setListStateAsEffect] = useEffectState<
@@ -132,10 +132,7 @@ export default function RolesPage() {
       rowsPerPageOptions.includes(prev) ? prev : defaultRowsPerPage,
     )
   }, [defaultRowsPerPage, rowsPerPageOptions])
-  useEffect(
-    () => setPage(0),
-    [filters.filterName, filters.filterDisplayName, filters.filterOrg],
-  )
+  useEffect(() => setPage(0), [])
 
   const paginatedRoles = useMemo(
     () =>
@@ -143,10 +140,13 @@ export default function RolesPage() {
     [filteredRoles, page, rowsPerPage],
   )
 
-  const getOrgName = (role: Role) =>
-    role.org_name ??
-    organizations.find((o) => o.id === role.org_id)?.name ??
-    role.org_id
+  const getOrgName = useCallback(
+    (role: Role) =>
+      role.org_name ??
+      organizations.find((o) => o.id === role.org_id)?.name ??
+      role.org_id,
+    [organizations],
+  )
 
   const roleColumns: DataTableColumn<Role>[] = useMemo(
     () => [
@@ -161,7 +161,7 @@ export default function RolesPage() {
         render: (r) => r.display_name ?? r.name ?? '—',
       },
     ],
-    [organizations],
+    [getOrgName],
   )
 
   const adding = isPending(addState)
@@ -179,7 +179,7 @@ export default function RolesPage() {
 
   useEffect(() => {
     Effect.runPromise(refreshEffect.pipe(Effect.provide(getApplicationLayer())))
-  }, [liveRefreshTrigger, setListStateAsEffect])
+  }, [refreshEffect.pipe])
 
   const listOrgsEffect = Effect.gen(function* () {
     const dashboard = yield* Dashboard
@@ -192,11 +192,13 @@ export default function RolesPage() {
 
   useEffect(() => {
     Effect.runPromise(orgsEffect.pipe(Effect.provide(getApplicationLayer())))
-  }, [setOrgListStateAsEffect])
+  }, [orgsEffect.pipe])
 
   // On add success: copy to listState, close add dialog, reset form, reset add state
   useEffect(() => {
-    if (!isSuccess(addState)) return
+    if (!isSuccess(addState)) {
+      return
+    }
     Effect.runPromise(
       Effect.gen(function* () {
         yield* setListStateAsEffect(asyncSuccess(addState.value))
@@ -213,7 +215,9 @@ export default function RolesPage() {
 
   // On update success: copy to listState, close edit dialog, reset update state
   useEffect(() => {
-    if (!isSuccess(updateState)) return
+    if (!isSuccess(updateState)) {
+      return
+    }
     Effect.runPromise(
       Effect.gen(function* () {
         yield* setListStateAsEffect(asyncSuccess(updateState.value))
@@ -225,7 +229,9 @@ export default function RolesPage() {
 
   // On delete success: copy to listState, clear deletingId, reset delete state
   useEffect(() => {
-    if (!isSuccess(deleteState)) return
+    if (!isSuccess(deleteState)) {
+      return
+    }
     Effect.runPromise(
       Effect.gen(function* () {
         yield* setListStateAsEffect(asyncSuccess(deleteState.value))
@@ -237,7 +243,9 @@ export default function RolesPage() {
 
   const handleAdd = () => {
     const name = addName.trim()
-    if (!name) return
+    if (!name) {
+      return
+    }
     const orgId = addOrgId || (organizations[0]?.id ?? '')
     const addThenList = Effect.gen(function* () {
       const roles = yield* RolesService
@@ -263,7 +271,9 @@ export default function RolesPage() {
   }
 
   const handleSaveEdit = () => {
-    if (!editRole) return
+    if (!editRole) {
+      return
+    }
     const updateThenList = Effect.gen(function* () {
       const roles = yield* RolesService
       yield* roles.update({

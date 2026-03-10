@@ -27,6 +27,34 @@ use crate::registry;
 use db::models::user;
 use forge_live::{ChangeEvent, SubscriptionStore};
 
+/// For subscription invalidation: organization entity is platform-level (list shows all orgs),
+/// so we publish with organization_id: None so all "organization" subscriptions get invalidated.
+fn change_event_organization_id(entity_id: &str, scope_organization_id: &Uuid) -> Option<Uuid> {
+  if entity_id == "organization" {
+    None
+  } else {
+    Some(*scope_organization_id)
+  }
+}
+
+/// Filter list payload "data" to only the item with id == scope.organization_id.
+/// Used for organization entity so org-scoped users only see their org.
+pub fn apply_organization_list_scope(
+  value: &mut serde_json::Value,
+  scope: &forge_auth::RequestScope,
+) {
+  let id_str = scope.organization_id.to_string();
+  if let Some(data) = value.get_mut("data").and_then(|d| d.as_array_mut()) {
+    data.retain(|item| {
+      item
+        .get("id")
+        .and_then(|v| v.as_str())
+        .map(|s| s == id_str)
+        .unwrap_or(false)
+    });
+  }
+}
+
 /// Query params for list: expand/include (rejected), plus filter/sort/pagination (Epic 4).
 /// Pagination: either offset+limit or cursor+limit (not both).
 #[derive(Debug, Deserialize, Default)]
@@ -239,6 +267,9 @@ pub async fn list_entities(
     .map_err(crate::Error::from)
   {
     Ok(mut v) => {
+      if entity_id == "organization" {
+        apply_organization_list_scope(&mut v, &scope);
+      }
       if let Some(ref cl) = cursor_limit {
         let data = v.get_mut("data").and_then(|d| d.as_array_mut());
         if let Some(arr) = data {
@@ -273,10 +304,12 @@ pub async fn list_entities(
 
 /// List entity by id with query spec (filter, sort, pagination). Validates spec against entity allowed fields.
 /// Returns the list result payload (e.g. `{ "data": [...] }`) for use by REST or RPC.
+/// When scope is provided and entity_id is "organization", filters the list to scope.organization_id.
 pub async fn list_entity_with_spec(
   db: &DbConnection,
   entity_id: &str,
   spec: &ListQuerySpec,
+  scope: Option<&forge_auth::RequestScope>,
 ) -> Result<serde_json::Value, ForgeError> {
   let allowed_filter = registry::effective_filter_fields(entity_id);
   let allowed_sort = registry::effective_sort_fields(entity_id);
@@ -288,9 +321,15 @@ pub async fn list_entity_with_spec(
     validate_sort_field(&sort.field, allowed_sort)
       .map_err(|msg| ForgeError::Auth(StatusCode::BAD_REQUEST, msg))?;
   }
-  registry::list_models(entity_id, db, spec)
+  let mut v = registry::list_models(entity_id, db, spec)
     .await
-    .map_err(crate::Error::from)
+    .map_err(crate::Error::from)?;
+  if entity_id == "organization"
+    && let Some(s) = scope
+  {
+    apply_organization_list_scope(&mut v, s);
+  }
+  Ok(v)
 }
 
 /// GET /api/entities/:entity_id/:id — get one entity by id. 404 unknown entity or not found. Rejects expand/include (400).
@@ -344,7 +383,27 @@ pub async fn get_entity_by_id(
     .await
     .map_err(crate::Error::from)
   {
-    Ok(Some(v)) => Ok(Json(v).into_response()),
+    Ok(Some(v)) => {
+      if entity_id == "organization" {
+        let res_id = v
+          .get("id")
+          .and_then(|x| x.as_str())
+          .and_then(|s| Uuid::parse_str(s).ok());
+        if res_id != Some(scope.organization_id) {
+          return Ok(
+            (
+              StatusCode::NOT_FOUND,
+              Json(serde_json::json!({
+                "error": "Not Found",
+                "message": "Resource not found"
+              })),
+            )
+              .into_response(),
+          );
+        }
+      }
+      Ok(Json(v).into_response())
+    }
     Ok(None) => Ok(
       (
         StatusCode::NOT_FOUND,
@@ -427,11 +486,12 @@ pub async fn create_entity(
     .map_err(crate::Error::from)
   {
     Ok(id) => {
+      let change_org_id = change_event_organization_id(&entity_id, &scope.organization_id);
       subscriptions.publish_change(ChangeEvent {
         model_id: entity_id.clone(),
         resource_id: id,
         action: "create".to_string(),
-        organization_id: Some(scope.organization_id),
+        organization_id: change_org_id,
       });
       let body = registry::get_model(entity_id.as_str(), &db, id)
         .await
@@ -513,11 +573,12 @@ pub async fn update_entity(
     .map_err(crate::Error::from)
   {
     Ok(updated) => {
+      let change_org_id = change_event_organization_id(&entity_id, &scope.organization_id);
       subscriptions.publish_change(ChangeEvent {
         model_id: entity_id.clone(),
         resource_id: id,
         action: "update".to_string(),
-        organization_id: Some(scope.organization_id),
+        organization_id: change_org_id,
       });
       Ok(Json(updated).into_response())
     }
@@ -591,11 +652,12 @@ pub async fn delete_entity(
     .map_err(crate::Error::from)
   {
     Ok(true) => {
+      let change_org_id = change_event_organization_id(&entity_id, &scope.organization_id);
       subscriptions.publish_change(ChangeEvent {
         model_id: entity_id.clone(),
         resource_id: id,
         action: "delete".to_string(),
-        organization_id: Some(scope.organization_id),
+        organization_id: change_org_id,
       });
       Ok(Json(serde_json::json!({ "ok": true })).into_response())
     }
@@ -623,9 +685,48 @@ pub async fn delete_entity(
 #[cfg(test)]
 mod bdd_tests {
   use super::*;
+  use forge_auth::RequestScope;
 
   /// BDD-style tests focusing on behavior rather than implementation.
   /// Tests verify generic entity handler behaviors for CRUD operations.
+
+  mod apply_organization_list_scope_behavior {
+    use super::*;
+
+    #[test]
+    fn should_filter_data_to_scope_org_when_scope_has_organization_id() {
+      let org_a = Uuid::new_v4();
+      let org_b = Uuid::new_v4();
+      let mut value = serde_json::json!({
+        "data": [
+          { "id": org_a.to_string(), "name": "Org A" },
+          { "id": org_b.to_string(), "name": "Org B" },
+        ]
+      });
+      let scope = RequestScope {
+        organization_id: org_a,
+        role_id: Uuid::new_v4(),
+        role_name: String::new(),
+      };
+      apply_organization_list_scope(&mut value, &scope);
+      let data = value["data"].as_array().unwrap();
+      assert_eq!(data.len(), 1);
+      assert_eq!(data[0]["id"].as_str().unwrap(), org_a.to_string());
+    }
+
+    #[test]
+    fn should_leave_empty_data_unchanged() {
+      let org_a = Uuid::new_v4();
+      let mut value = serde_json::json!({ "data": [] });
+      let scope = RequestScope {
+        organization_id: org_a,
+        role_id: Uuid::new_v4(),
+        role_name: String::new(),
+      };
+      apply_organization_list_scope(&mut value, &scope);
+      assert!(value["data"].as_array().unwrap().is_empty());
+    }
+  }
 
   mod query_parsing_behavior {
     use super::*;

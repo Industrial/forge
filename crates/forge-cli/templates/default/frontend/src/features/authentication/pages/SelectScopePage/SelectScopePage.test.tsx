@@ -3,11 +3,11 @@
  * Tests verify component rendering, scope selection, and navigation behavior
  */
 import { describe, test, expect, beforeAll, afterEach } from 'bun:test'
-import { render, waitFor, within } from '@testing-library/react'
+import { render, waitFor } from '@testing-library/react'
 import { MemoryRouter, Routes, Route } from 'react-router-dom'
-import { ThemeProvider, createTheme } from '@mui/material/styles'
+import { createTheme } from '@mui/material/styles'
 import { Window } from 'happy-dom'
-import React from 'react'
+import type React from 'react'
 import { Effect, Layer, Option, Stream, Chunk } from 'effect'
 
 import SelectScopePage from './SelectScopePage'
@@ -26,7 +26,7 @@ import {
 } from '@/features/authentication/stores/AuthenticationStateReactiveStore'
 import { Authentication } from '@/features/authentication/services/Authentication'
 import { createMockAuthentication } from '@/features/authentication/services/AuthenticationMock'
-import { AuthenticationUser } from '@/features/authentication/domain/AuthenticationUser'
+import type { AuthenticationUser } from '@/features/authentication/domain/AuthenticationUser'
 import { RpcApiMock } from '@/services/RpcApiMock'
 
 beforeAll(() => {

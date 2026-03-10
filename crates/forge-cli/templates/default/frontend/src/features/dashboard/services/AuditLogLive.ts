@@ -28,12 +28,24 @@ const AuditLogLive = Layer.effect(
         const search = new URLSearchParams()
         search.set('limit', String(params.limit))
         search.set('offset', String(params.offset))
-        if (params.from) search.set('from', params.from)
-        if (params.to) search.set('to', params.to)
-        if (params.outcome) search.set('outcome', params.outcome)
-        if (params.event_kind) search.set('event_kind', params.event_kind)
-        if (params.action) search.set('action', params.action)
-        if (params.reason?.trim()) search.set('reason', params.reason.trim())
+        if (params.from) {
+          search.set('from', params.from)
+        }
+        if (params.to) {
+          search.set('to', params.to)
+        }
+        if (params.outcome) {
+          search.set('outcome', params.outcome)
+        }
+        if (params.event_kind) {
+          search.set('event_kind', params.event_kind)
+        }
+        if (params.action) {
+          search.set('action', params.action)
+        }
+        if (params.reason?.trim()) {
+          search.set('reason', params.reason.trim())
+        }
         const url = `/api/auth/audit-log?${search.toString()}`
         const response = yield* client.execute(HttpClientRequest.get(url))
         const body = yield* response.json

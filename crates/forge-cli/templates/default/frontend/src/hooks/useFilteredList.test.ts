@@ -301,7 +301,7 @@ describe('useFilteredList', () => {
       act(() => {
         result.current[1]((prev) => ({
           ...prev,
-          filterName: prev.filterName + '-updated',
+          filterName: `${prev.filterName}-updated`,
         }))
       })
 

@@ -420,7 +420,10 @@ mod tests {
           auto_seed: false,
         },
         cache: None,
-        frontend: FrontendConfig { port: 5173 },
+        frontend: FrontendConfig {
+          host: "127.0.0.1".to_string(),
+          port: 5173,
+        },
       }
     }
 

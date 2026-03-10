@@ -40,7 +40,9 @@ export default function FormDialog({
   submitButtonTestId,
 }: FormDialogProps) {
   const handleClose = () => {
-    if (!submitting) onClose()
+    if (!submitting) {
+      onClose()
+    }
   }
   const buttonLabel =
     submitting && submittingLabel ? submittingLabel : submitLabel

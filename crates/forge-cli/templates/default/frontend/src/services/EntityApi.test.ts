@@ -7,11 +7,7 @@ import { Effect } from 'effect'
 
 import { EntityApi } from './EntityApi'
 import { EntityApiMock } from './EntityApiMock'
-import type {
-  EntityApiService,
-  ListQueryParams,
-  ListResponse,
-} from './EntityApi'
+import type { EntityApiService, ListQueryParams } from './EntityApi'
 
 describe('EntityApi service', () => {
   describe('list behavior', () => {

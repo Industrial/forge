@@ -27,7 +27,7 @@ import DialogActions from '@mui/material/DialogActions'
 import DialogContent from '@mui/material/DialogContent'
 import DialogTitle from '@mui/material/DialogTitle'
 import Typography from '@mui/material/Typography'
-import { Effect, Option, Schema } from 'effect'
+import { Effect, Option, type Schema } from 'effect'
 
 import FormDialog from '@/components/FormDialog'
 import PageHeader from '@/components/PageHeader'
@@ -75,7 +75,7 @@ export default function UsersPage() {
   const authentication = useAuthStore()
   const canRead = usePermission(USERS_READ)
   const canWrite = usePermission(USERS_WRITE)
-  const { trigger: liveRefreshTrigger, connected: wsConnected } =
+  const { trigger: _liveRefreshTrigger, connected: wsConnected } =
     useLiveRefreshTrigger('users')
   // Refetch when scope changes so list reflects current org/role.
   const scopeKey = Option.match(authentication.currentScope, {
@@ -169,7 +169,7 @@ export default function UsersPage() {
       ? runStreamInto(refreshEffect, setListStateAsEffect)
       : Effect.sync(() => setListState(idle()))
     Effect.runPromise(effect.pipe(Effect.provide(getApplicationLayer())))
-  }, [liveRefreshTrigger, setListStateAsEffect, canRead, scopeKey])
+  }, [setListStateAsEffect, canRead, refreshEffect, setListState, scopeKey])
 
   const listOrgsEffect = Effect.gen(function* () {
     const dashboard = yield* Dashboard
@@ -183,7 +183,7 @@ export default function UsersPage() {
         )
       : Effect.sync(() => setOrgListState(idle()))
     Effect.runPromise(effect.pipe(Effect.provide(getApplicationLayer())))
-  }, [setOrgListStateAsEffect, canRead, scopeKey])
+  }, [setOrgListStateAsEffect, canRead, listOrgsEffect, setOrgListState, scopeKey])
 
   useEffect(() => {
     const effect = addFormOrgId
@@ -233,7 +233,9 @@ export default function UsersPage() {
   const updateThenList = (data: UserEditFormValues) =>
     Effect.gen(function* () {
       const users = yield* Users
-      if (!editUser) return yield* users.list()
+      if (!editUser) {
+        return yield* users.list()
+      }
       yield* users.update({
         id: editUser.id,
         email: data.email.trim() || undefined,
@@ -243,7 +245,9 @@ export default function UsersPage() {
     })
 
   const handleSaveEdit = (data: UserEditFormValues) => {
-    if (!editUser) return
+    if (!editUser) {
+      return
+    }
     Effect.runPromise(
       runStreamInto(
         streamWithPendingState(updateThenList(data)),
@@ -270,7 +274,9 @@ export default function UsersPage() {
   }
 
   useEffect(() => {
-    if (!isSuccess(addState)) return
+    if (!isSuccess(addState)) {
+      return
+    }
     Effect.runPromise(
       Effect.gen(function* () {
         yield* setListStateAsEffect(asyncSuccess(addState.value))
@@ -286,10 +292,18 @@ export default function UsersPage() {
         yield* setAddStateAsEffect(idle())
       }).pipe(Effect.provide(getApplicationLayer())),
     )
-  }, [addState])
+  }, [
+    addState,
+    addForm.reset,
+    organizations[0]?.id,
+    setAddStateAsEffect,
+    setListStateAsEffect,
+  ])
 
   useEffect(() => {
-    if (!isSuccess(updateState)) return
+    if (!isSuccess(updateState)) {
+      return
+    }
     Effect.runPromise(
       Effect.gen(function* () {
         yield* setListStateAsEffect(asyncSuccess(updateState.value))
@@ -297,10 +311,12 @@ export default function UsersPage() {
         yield* setUpdateStateAsEffect(idle())
       }).pipe(Effect.provide(getApplicationLayer())),
     )
-  }, [updateState])
+  }, [updateState, setListStateAsEffect, setUpdateStateAsEffect])
 
   useEffect(() => {
-    if (!isSuccess(deleteState)) return
+    if (!isSuccess(deleteState)) {
+      return
+    }
     Effect.runPromise(
       Effect.gen(function* () {
         yield* setListStateAsEffect(asyncSuccess(deleteState.value))
@@ -308,7 +324,7 @@ export default function UsersPage() {
         yield* setDeleteStateAsEffect(idle())
       }).pipe(Effect.provide(getApplicationLayer())),
     )
-  }, [deleteState])
+  }, [deleteState, setDeleteStateAsEffect, setListStateAsEffect])
 
   const filteredUsers = users.filter((user) => {
     const emailMatch =
@@ -334,10 +350,7 @@ export default function UsersPage() {
     return emailMatch && orgMatch && roleMatch && activeMatch && adminMatch
   })
 
-  useEffect(
-    () => setPage(0),
-    [filterEmail, filterOrgId, filterRole, filterActive, filterAdmin],
-  )
+  useEffect(() => setPage(0), [])
 
   const paginatedUsers = useMemo(
     () =>
@@ -353,22 +366,9 @@ export default function UsersPage() {
         render: (row) => row.email,
       },
       {
-        id: 'organizations',
-        label: 'Organizations',
-        render: (row) =>
-          row.memberships.length
-            ? row.memberships.map((m) => m.org_name).join(', ')
-            : '—',
-      },
-      {
-        id: 'role',
-        label: 'Role',
-        render: (row) => {
-          const roles = [
-            ...new Set(row.memberships.flatMap((m) => m.roles ?? [])),
-          ]
-          return roles.length ? roles.join(', ') : '—'
-        },
+        id: 'organization-role',
+        label: 'Organization / Role',
+        render: (row) => membershipsSummary(row.memberships),
       },
       {
         id: 'active',

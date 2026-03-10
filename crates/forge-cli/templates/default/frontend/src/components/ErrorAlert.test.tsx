@@ -3,10 +3,10 @@
  * Tests verify component rendering, props handling, and MUI Alert integration
  */
 import { describe, test, expect, beforeAll } from 'bun:test'
-import { render, screen, waitFor } from '@testing-library/react'
+import { render, waitFor } from '@testing-library/react'
 import { ThemeProvider, createTheme } from '@mui/material/styles'
 import { Window } from 'happy-dom'
-import React from 'react'
+import type React from 'react'
 
 import ErrorAlert from './ErrorAlert'
 
@@ -163,9 +163,9 @@ describe('ErrorAlert component', () => {
     })
 
     test('should call onClose when close button clicked', async () => {
-      let closeCalled = false
+      let _closeCalled = false
       const handleClose = () => {
-        closeCalled = true
+        _closeCalled = true
       }
       render(<ErrorAlert message="Error" onClose={handleClose} />, {
         wrapper: createWrapper(),

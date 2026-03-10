@@ -4,7 +4,7 @@
  */
 import { describe, test, expect } from 'bun:test'
 import { Effect, Layer, Option, Stream } from 'effect'
-import { HttpClient, HttpClientRequest } from '@effect/platform'
+import { HttpClient, type HttpClientRequest } from '@effect/platform'
 
 import { SubscriptionStreamLive } from './SubscriptionStreamLive'
 import { SubscriptionStream } from './SubscriptionStream'
@@ -133,7 +133,7 @@ function createMockHttpClient(
         body: null,
         headers: new Headers(),
       }),
-  } as HttpClient.HttpClient
+  } as unknown as HttpClient.HttpClient
 }
 
 // Helper to create a mock auth store
@@ -157,8 +157,10 @@ function createMockAuthStore(
 describe('SubscriptionStreamLive', () => {
   describe('openStream behavior', () => {
     test('should open stream successfully with ready event', async () => {
-      // Given: endpoint returns SSE stream with ready event
-      const mockStream = createMockSSEStream(['{"type":"ready"}'])
+      // Given: endpoint returns SSE stream with ready event (connection_id required by parser)
+      const mockStream = createMockSSEStream([
+        '{"type":"ready","connection_id":"test-conn"}',
+      ])
 
       const mockHttpClient = createMockHttpClient((request) => {
         if (
@@ -221,13 +223,16 @@ describe('SubscriptionStreamLive', () => {
 
       // Should have received ready event
       expect(events.length).toBeGreaterThan(0)
-      expect(events[0]).toEqual({ type: 'ready' })
+      expect(events[0]).toEqual({
+        type: 'ready',
+        connection_id: 'test-conn',
+      })
     })
 
     test('should parse subscription_id invalidation events', async () => {
-      // Given: endpoint returns SSE stream with invalidation events
+      // Given: endpoint returns SSE stream with invalidation events (ready must include connection_id)
       const mockStream = createMockSSEStream([
-        '{"type":"ready"}',
+        '{"type":"ready","connection_id":"test-conn"}',
         '{"subscription_id":"sub-123"}',
         '{"subscription_id":"sub-456"}',
       ])
@@ -290,7 +295,10 @@ describe('SubscriptionStreamLive', () => {
 
       // Then: should have received ready and invalidation events
       expect(events.length).toBeGreaterThanOrEqual(1)
-      expect(events[0]).toEqual({ type: 'ready' })
+      expect(events[0]).toEqual({
+        type: 'ready',
+        connection_id: 'test-conn',
+      })
       // May receive invalidation events
       const invalidations = events.filter(
         (e) => e && typeof e === 'object' && 'subscription_id' in e,
@@ -430,8 +438,10 @@ describe('SubscriptionStreamLive', () => {
 
     test('should include Authorization header with token', async () => {
       // Given: endpoint that checks Authorization header
-      let capturedHeaders: Headers | null = null
-      const mockStream = createMockSSEStream(['{"type":"ready"}'])
+      let capturedHeaders: unknown = null
+      const mockStream = createMockSSEStream([
+        '{"type":"ready","connection_id":"test-conn"}',
+      ])
 
       const mockHttpClient = createMockHttpClient((request) => {
         if (
@@ -563,9 +573,9 @@ describe('SubscriptionStreamLive', () => {
     })
 
     test('should handle malformed SSE events gracefully', async () => {
-      // Given: endpoint returns malformed SSE events
+      // Given: endpoint returns malformed SSE events (ready must include connection_id)
       const mockStream = createMockSSEStream([
-        '{"type":"ready"}',
+        '{"type":"ready","connection_id":"conn-1"}',
         'invalid json',
         '{"subscription_id":"valid"}',
       ])
@@ -628,7 +638,7 @@ describe('SubscriptionStreamLive', () => {
 
       // Then: should parse valid events and skip malformed ones
       expect(events.length).toBeGreaterThan(0)
-      expect(events[0]).toEqual({ type: 'ready' })
+      expect(events[0]).toEqual({ type: 'ready', connection_id: 'conn-1' })
     })
   })
 })

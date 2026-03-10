@@ -3,7 +3,7 @@
  * Tests verify store definition, initial state, and reactive store behavior
  */
 import { describe, test, expect, beforeEach } from 'bun:test'
-import { Effect, Fiber, Layer, Option, Stream, Chunk } from 'effect'
+import { Effect, Option } from 'effect'
 
 import {
   AuthStore,
@@ -374,7 +374,7 @@ describe('AuthenticationStateReactiveStore', () => {
       // Given the module exports
       // When I check AuthenticationStateReactiveStore type
       // Then it should be compatible with ReactiveStore<AuthenticationState>
-      const program = Effect.gen(function* () {
+      const _program = Effect.gen(function* () {
         const store = yield* AuthStoreTag
         const typedStore: AuthenticationStateReactiveStore = store
         return typedStore
@@ -409,7 +409,7 @@ describe('AuthenticationStateReactiveStore', () => {
       })
 
       // Both use the same layer, so they share state (Layer.sync behavior)
-      const state1 = await Effect.runPromise(
+      const _state1 = await Effect.runPromise(
         program1.pipe(Effect.provide(authStoreLayer)),
       )
       const state2 = await Effect.runPromise(

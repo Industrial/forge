@@ -1,4 +1,5 @@
-import React, { useEffect, useState } from 'react'
+import type React from 'react'
+import { useEffect, useState } from 'react'
 import { Navigate } from 'react-router-dom'
 import { Effect, Option, pipe, Schema } from 'effect'
 import { HttpClient, HttpClientRequest } from '@effect/platform'
@@ -43,8 +44,6 @@ function DashboardScopeGuard({ children }: DashboardScopeGuardProps) {
   // Client-derived: need scope selection when authenticated but no scope selected (no scope in store/localStorage).
   const needsScopeSelect =
     isUserAuthenticated && Option.isNone(authentication.currentScope)
-  const permissions = authentication.permissions
-
   const [scopes, setScopes] = useState<Scope[]>([])
   const [loading, setLoading] = useState(false)
   const [autoSelecting, setAutoSelecting] = useState(false)

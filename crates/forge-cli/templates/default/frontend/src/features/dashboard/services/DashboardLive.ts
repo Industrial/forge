@@ -56,7 +56,9 @@ const DashboardLive = Layer.effect(
       Effect.gen(function* () {
         yield* Effect.logTrace('DashboardLive.getRolesByOrg')
         yield* Effect.logDebug(`DashboardLive.getRolesByOrg: orgId=${orgId}`)
-        if (!orgId) return [] as readonly DashboardRole[]
+        if (!orgId) {
+          return [] as readonly DashboardRole[]
+        }
         const url = `/api/auth/roles?org_id=${encodeURIComponent(orgId)}`
         const response = yield* client.execute(HttpClientRequest.get(url))
         const body = yield* response.json

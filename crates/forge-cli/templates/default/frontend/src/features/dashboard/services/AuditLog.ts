@@ -5,7 +5,7 @@
  * `Effect<A, Error, never>`; Live implementation uses HttpClient.
  */
 
-import { Context, Effect } from 'effect'
+import { Context, type Effect } from 'effect'
 import type { AuditLogEntry } from '../domain/AuditLogEntry'
 
 export interface AuditLogListParams {

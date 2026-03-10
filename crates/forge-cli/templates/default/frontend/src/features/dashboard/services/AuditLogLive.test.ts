@@ -4,7 +4,7 @@
  */
 import { describe, test, expect } from 'bun:test'
 import { Effect, Layer } from 'effect'
-import { HttpClient, HttpClientRequest } from '@effect/platform'
+import type { HttpClient, HttpClientRequest } from '@effect/platform'
 
 import { AuthenticatedHttpClient } from '@/services/AuthenticatedHttpClient'
 import { AuditLogLive } from './AuditLogLive'
@@ -98,7 +98,7 @@ function createMockHttpClient(
         json: Effect.succeed({}),
         headers: new Headers(),
       }),
-  } as HttpClient.HttpClient
+  } as unknown as HttpClient.HttpClient
 }
 
 describe('AuditLogLive', () => {

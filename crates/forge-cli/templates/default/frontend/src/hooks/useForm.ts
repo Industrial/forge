@@ -1,5 +1,5 @@
 import { Schema, Effect, Either, ParseResult } from 'effect'
-import { useState, useCallback } from 'react'
+import { useState, useCallback, useMemo } from 'react'
 
 export interface FieldError {
   readonly field: string
@@ -53,12 +53,15 @@ export function useForm<TSchema extends Schema.Schema<any, any, never>>(
   config: UseFormConfig<TSchema>,
 ) {
   type TValues = Schema.Schema.Type<TSchema>
-  const initialFormState: FormState<TValues> = {
-    values: config.initialValues,
-    errors: [],
-    isValid: false,
-    touched: {},
-  }
+  const initialFormState = useMemo<FormState<TValues>>(
+    () => ({
+      values: config.initialValues,
+      errors: [],
+      isValid: false,
+      touched: {},
+    }),
+    [config.initialValues],
+  )
 
   const [formState, setFormState] =
     useState<FormState<TValues>>(initialFormState)
@@ -67,15 +70,16 @@ export function useForm<TSchema extends Schema.Schema<any, any, never>>(
    * Extracts all field errors from a Schema.ParseError using Effect.ts's ArrayFormatter.
    * The formatter handles nested/composite errors automatically.
    */
-  const extractFieldErrors = (
-    parseError: ParseResult.ParseError,
-  ): FieldError[] => {
-    const issues = ParseResult.ArrayFormatter.formatErrorSync(parseError)
-    return issues.map((issue) => ({
-      field: issue.path.length > 0 ? String(issue.path[0]) : 'root',
-      message: issue.message,
-    }))
-  }
+  const extractFieldErrors = useCallback(
+    (parseError: ParseResult.ParseError): FieldError[] => {
+      const issues = ParseResult.ArrayFormatter.formatErrorSync(parseError)
+      return issues.map((issue) => ({
+        field: issue.path.length > 0 ? String(issue.path[0]) : 'root',
+        message: issue.message,
+      }))
+    },
+    [],
+  )
 
   /**
    * Validates form values using Effect.ts Schema.
@@ -94,7 +98,7 @@ export function useForm<TSchema extends Schema.Schema<any, any, never>>(
 
       return Effect.succeed(result.right)
     },
-    [config.schema],
+    [config.schema, extractFieldErrors],
   )
 
   /**
@@ -163,7 +167,7 @@ export function useForm<TSchema extends Schema.Schema<any, any, never>>(
    */
   const resetForm = useCallback(() => {
     setFormState(initialFormState)
-  }, [])
+  }, [initialFormState])
 
   return {
     formState,

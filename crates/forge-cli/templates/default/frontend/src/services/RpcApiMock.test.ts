@@ -3,7 +3,7 @@
  * Tests verify the behavior of the mock RpcApi implementation.
  */
 import { describe, test, expect } from 'bun:test'
-import { Effect, Layer } from 'effect'
+import { Effect } from 'effect'
 import { RpcApiMock } from './RpcApiMock'
 import { RpcApi } from './RpcApi'
 
@@ -48,9 +48,9 @@ describe('RpcApiMock', () => {
       expect(result.sub2.subscription_id).not.toBe(result.sub3.subscription_id)
 
       // Extract counter values and verify they increment
-      const counter1 = parseInt(result.sub1.subscription_id.split('-')[2])
-      const counter2 = parseInt(result.sub2.subscription_id.split('-')[2])
-      const counter3 = parseInt(result.sub3.subscription_id.split('-')[2])
+      const counter1 = parseInt(result.sub1.subscription_id.split('-')[2], 10)
+      const counter2 = parseInt(result.sub2.subscription_id.split('-')[2], 10)
+      const counter3 = parseInt(result.sub3.subscription_id.split('-')[2], 10)
       expect(counter2).toBe(counter1 + 1)
       expect(counter3).toBe(counter2 + 1)
     })
@@ -74,7 +74,7 @@ describe('RpcApiMock', () => {
 
       // Then: counter should increment sequentially
       expect(result).toHaveLength(5)
-      const counters = result.map((id) => parseInt(id.split('-')[2]))
+      const counters = result.map((id) => parseInt(id.split('-')[2], 10))
       expect(counters[1]).toBe(counters[0] + 1)
       expect(counters[2]).toBe(counters[1] + 1)
       expect(counters[3]).toBe(counters[2] + 1)
@@ -224,8 +224,8 @@ describe('RpcApiMock', () => {
       // Then: counter should continue incrementing (shared instance)
       expect(result1.subscription_id).toMatch(/^mock-sub-\d+$/)
       expect(result2.subscription_id).toMatch(/^mock-sub-\d+$/)
-      const counter1 = parseInt(result1.subscription_id.split('-')[2])
-      const counter2 = parseInt(result2.subscription_id.split('-')[2])
+      const counter1 = parseInt(result1.subscription_id.split('-')[2], 10)
+      const counter2 = parseInt(result2.subscription_id.split('-')[2], 10)
       expect(counter2).toBeGreaterThan(counter1)
     })
   })
@@ -245,7 +245,7 @@ describe('RpcApiMock', () => {
 
       // Then: should match mock-sub-{number} format
       expect(result.subscription_id).toMatch(/^mock-sub-\d+$/)
-      const counter = parseInt(result.subscription_id.split('-')[2])
+      const counter = parseInt(result.subscription_id.split('-')[2], 10)
       expect(counter).toBeGreaterThan(0)
     })
 
@@ -268,7 +268,7 @@ describe('RpcApiMock', () => {
 
       // Then: counter should increment sequentially
       expect(result).toHaveLength(10)
-      const counters = result.map((id) => parseInt(id.split('-')[2]))
+      const counters = result.map((id) => parseInt(id.split('-')[2], 10))
       for (let i = 1; i < counters.length; i++) {
         expect(counters[i]).toBe(counters[i - 1] + 1)
       }

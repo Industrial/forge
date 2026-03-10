@@ -6,9 +6,6 @@
 import { describe, it, expect } from 'bun:test'
 import { Effect, Option, Layer } from 'effect'
 import { Authentication, type AuthenticationService } from './Authentication'
-import type { AuthenticationUser } from '@/features/authentication/domain/AuthenticationUser'
-import type { AuthenticationError } from '@/features/authentication/errors/AuthenticationError'
-import type { ScopeError } from '@/features/authentication/errors'
 
 describe('Authentication service interface', () => {
   describe('export behavior', () => {

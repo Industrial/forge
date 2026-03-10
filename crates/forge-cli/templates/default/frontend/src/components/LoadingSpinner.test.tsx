@@ -3,10 +3,10 @@
  * Tests verify component rendering, props handling, and MUI integration
  */
 import { describe, test, expect, beforeAll } from 'bun:test'
-import { render, screen } from '@testing-library/react'
+import { render } from '@testing-library/react'
 import { ThemeProvider, createTheme } from '@mui/material/styles'
 import { Window } from 'happy-dom'
-import React from 'react'
+import type React from 'react'
 
 import LoadingSpinner from './LoadingSpinner'
 

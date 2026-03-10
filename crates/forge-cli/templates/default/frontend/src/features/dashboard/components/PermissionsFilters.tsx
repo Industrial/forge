@@ -64,9 +64,13 @@ export default function PermissionsFilters({
     permission: filterPermission,
   }
   const onChange = (key: string, value: string) => {
-    if (key === 'scope') onFilterScopeChange(value)
-    else if (key === 'role') onFilterRoleChange(value)
-    else if (key === 'permission') onFilterPermissionChange(value)
+    if (key === 'scope') {
+      onFilterScopeChange(value)
+    } else if (key === 'role') {
+      onFilterRoleChange(value)
+    } else if (key === 'permission') {
+      onFilterPermissionChange(value)
+    }
   }
   return <FiltersPanel fields={FIELDS} values={values} onChange={onChange} />
 }

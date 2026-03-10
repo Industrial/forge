@@ -10,10 +10,10 @@
  * @see docs/frontend-implementation-and-choices.md (Epic 8)
  */
 
-import { Context, Effect, Stream } from 'effect'
+import { Context, type Effect, type Stream } from 'effect'
 
 export type SubscriptionStreamEvent =
-  | { type: 'ready' }
+  | { type: 'ready'; connection_id: string }
   | { subscription_id: string }
 
 /**

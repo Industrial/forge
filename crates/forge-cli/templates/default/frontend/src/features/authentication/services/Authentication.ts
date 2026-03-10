@@ -5,7 +5,7 @@
  *
  * One service (Tag) per file; Live impl in AuthenticationLive.ts, test impl in AuthenticationMock.ts.
  */
-import { Context, Effect, Option } from 'effect'
+import { Context, type Effect, type Option } from 'effect'
 
 import type { AuthenticationUser } from '@/features/authentication/domain/AuthenticationUser'
 import type { Scope } from '@/features/authentication/domain/Scope'

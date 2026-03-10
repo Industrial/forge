@@ -15,5 +15,5 @@ export function ShowWithoutPermissions({
 }) {
   const { permissions: userPermissions } = useAuthStore()
   const show = shouldShowWithoutPermissions(userPermissions, ...permissions)
-  return show ? <>{children}</> : null
+  return show ? children : null
 }

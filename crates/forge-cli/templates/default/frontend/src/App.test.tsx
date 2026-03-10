@@ -7,7 +7,7 @@ import { render } from '@testing-library/react'
 import { BrowserRouter } from 'react-router-dom'
 import { createTheme } from '@mui/material/styles'
 import { Window } from 'happy-dom'
-import React from 'react'
+import type React from 'react'
 import { Layer } from 'effect'
 
 import App from './App'

@@ -15,5 +15,5 @@ export function HideWithoutPermissions({
 }) {
   const { permissions: userPermissions } = useAuthStore()
   const hide = shouldHideWithoutPermissions(userPermissions, ...permissions)
-  return hide ? null : <>{children}</>
+  return hide ? null : children
 }

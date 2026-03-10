@@ -130,7 +130,7 @@ describe('UsersMock', () => {
 
   describe('list behavior', () => {
     let mock: UsersService
-    let layer: Layer.Layer<Users>
+    let layer: Layer.Layer<UsersService>
 
     beforeEach(() => {
       mock = createUsersMock()
@@ -224,7 +224,7 @@ describe('UsersMock', () => {
 
   describe('create behavior', () => {
     let mock: UsersService
-    let layer: Layer.Layer<Users>
+    let layer: Layer.Layer<UsersService>
 
     beforeEach(() => {
       mock = createUsersMock()
@@ -375,7 +375,7 @@ describe('UsersMock', () => {
 
   describe('update behavior', () => {
     let mock: UsersService
-    let layer: Layer.Layer<Users>
+    let layer: Layer.Layer<UsersService>
 
     beforeEach(() => {
       const initialUsers = [
@@ -586,7 +586,7 @@ describe('UsersMock', () => {
 
   describe('delete behavior', () => {
     let mock: UsersService
-    let layer: Layer.Layer<Users>
+    let layer: Layer.Layer<UsersService>
 
     beforeEach(() => {
       const initialUsers = [

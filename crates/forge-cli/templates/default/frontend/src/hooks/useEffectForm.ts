@@ -1,4 +1,4 @@
-import { Effect, Either, Schema } from 'effect'
+import { Effect, Either, type Schema } from 'effect'
 import { useCallback, useState } from 'react'
 import type { FieldError } from './useForm'
 import { useForm } from './useForm'
@@ -56,14 +56,18 @@ export function useEffectForm<TSchema extends Schema.Schema<any, any, never>>(
           ),
         )
         form.setValidationErrors(validationResult.errors)
-        if (!validationResult.isValid) return
+        if (!validationResult.isValid) {
+          return
+        }
 
         setSubmitting(true)
         setSubmitError(null)
         Effect.runPromise(buildEffect(currentValues))
           .then((result) => {
             setSubmitting(false)
-            if (result.type === 'success') return
+            if (result.type === 'success') {
+              return
+            }
             if (result.type === 'validation') {
               form.setValidationErrors(result.errors)
             } else {

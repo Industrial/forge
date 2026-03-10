@@ -29,8 +29,6 @@ import {
   AuthenticationStateReactiveStoreTag as AuthenticationStateReactiveStoreTagSource,
   getAuthenticationStateStoreLayer as getAuthenticationStateStoreLayerSource,
   initialAuthenticationState as initialAuthenticationStateSource,
-  type AuthenticationState as AuthenticationStateSource,
-  type AuthenticationStateReactiveStore as AuthenticationStateReactiveStoreSource,
 } from './AuthenticationStateReactiveStore'
 
 import {
@@ -117,7 +115,7 @@ describe('authentication stores index', () => {
       // Given the index module
       // When I use AuthenticationStateReactiveStore type
       // Then it should be compatible with the source type
-      const program = Effect.gen(function* () {
+      const _program = Effect.gen(function* () {
         const store = yield* AuthStoreTag
         const typedStore: AuthenticationStateReactiveStore = store
         return typedStore

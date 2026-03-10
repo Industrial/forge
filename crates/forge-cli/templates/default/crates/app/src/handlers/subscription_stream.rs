@@ -1,4 +1,5 @@
 //! Long-lived stream for subscription invalidation events (Epic 8 §2). Client opens stream; server pushes invalidation hints.
+//! Each stream has a connection_id sent in the ready message; when the stream is dropped, all subscriptions for that connection are removed.
 
 use axum::body::Body;
 use axum::extract::Extension;
@@ -6,18 +7,46 @@ use axum::http::header;
 use axum::response::{IntoResponse, Response};
 use db::auth::Backend;
 use forge_auth::token_auth::RequireAuth;
-use futures_util::stream::{self, StreamExt};
+use futures_util::stream::{self, Stream, StreamExt};
 use std::convert::Infallible;
+use std::pin::Pin;
+use std::task::{Context, Poll};
+use uuid::Uuid;
 
 use forge_live::SubscriptionStore;
 
-/// GET /api/subscriptions/stream — long-lived HTTP/2 stream (SSE format). Requires auth. Server sends "ready" then invalidation events (Epic 9).
+/// Stream wrapper that calls store.remove_connection(connection_id) when dropped.
+struct StreamWithCleanup {
+  inner: Pin<Box<dyn Stream<Item = Result<axum::body::Bytes, Infallible>> + Send>>,
+  store: SubscriptionStore,
+  connection_id: Uuid,
+}
+
+impl Stream for StreamWithCleanup {
+  type Item = Result<axum::body::Bytes, Infallible>;
+
+  fn poll_next(mut self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<Option<Self::Item>> {
+    self.inner.as_mut().poll_next(cx)
+  }
+}
+
+impl Drop for StreamWithCleanup {
+  fn drop(&mut self) {
+    self.store.remove_connection(self.connection_id);
+  }
+}
+
+/// GET /api/subscriptions/stream — long-lived HTTP/2 stream (SSE format). Requires auth. Server sends "ready" with connection_id then invalidation events (Epic 9). When the stream ends, all subscriptions for this connection are removed.
 pub async fn subscription_stream_handler(
   _auth: RequireAuth<Backend, db::models::user::Model>,
   Extension(store): Extension<SubscriptionStore>,
 ) -> Response {
+  let connection_id = Uuid::new_v4();
   let invalidation_rx = store.subscribe_invalidations();
-  let ready_msg = "data: {\"type\":\"ready\"}\n\n";
+  let ready_msg = format!(
+    "data: {{\"type\":\"ready\",\"connection_id\":\"{}\"}}\n\n",
+    connection_id
+  );
   let inv_stream = stream::try_unfold(invalidation_rx, |mut rx| async move {
     loop {
       match rx.recv().await {
@@ -30,10 +59,15 @@ pub async fn subscription_stream_handler(
       }
     }
   });
-  let stream = stream::iter([Ok(ready_msg.to_string())])
+  let stream = stream::iter([Ok(ready_msg)])
     .chain(inv_stream)
     .map(|r: Result<String, Infallible>| r.map(axum::body::Bytes::from));
-  let body = Body::from_stream(stream);
+  let stream_with_cleanup = StreamWithCleanup {
+    inner: Box::pin(stream),
+    store,
+    connection_id,
+  };
+  let body = Body::from_stream(stream_with_cleanup);
   (
     [(header::CONTENT_TYPE, "text/event-stream; charset=utf-8")],
     body,
@@ -47,16 +81,21 @@ mod tests {
 
   mod bdd_tests {
     use super::*;
+    use uuid::Uuid;
 
     /// BDD-style tests focusing on behavior rather than implementation.
     /// Tests verify SSE format, response headers, and stream structure.
 
     mod sse_format_behavior {
+      use super::*;
+
       #[test]
       fn should_format_ready_message_with_sse_prefix() {
-        // Given: a ready message
-        // When: formatting as SSE message
-        let ready_msg = "data: {\"type\":\"ready\"}\n\n";
+        // Given: a ready message (with connection_id)
+        let ready_msg = format!(
+          "data: {{\"type\":\"ready\",\"connection_id\":\"{}\"}}\n\n",
+          Uuid::new_v4()
+        );
 
         // Then: message should start with "data: " prefix
         assert!(
@@ -66,6 +105,10 @@ mod tests {
         assert!(
           ready_msg.ends_with("\n\n"),
           "SSE message should end with double newline"
+        );
+        assert!(
+          ready_msg.contains("connection_id"),
+          "Ready message should include connection_id"
         );
       }
 
@@ -147,8 +190,11 @@ mod tests {
 
       #[test]
       fn should_start_stream_with_ready_message() {
-        // Given: subscription stream handler
-        let ready_msg = "data: {\"type\":\"ready\"}\n\n";
+        // Given: subscription stream handler sends ready with connection_id
+        let ready_msg = format!(
+          "data: {{\"type\":\"ready\",\"connection_id\":\"{}\"}}\n\n",
+          Uuid::new_v4()
+        );
 
         // When: stream starts
         // Then: first message should be ready message
@@ -165,16 +211,19 @@ mod tests {
       #[test]
       fn should_chain_ready_message_before_invalidation_stream() {
         // Given: ready message and invalidation stream
-        let ready_msg = "data: {\"type\":\"ready\"}\n\n";
-        let ready_ok: Result<String, Infallible> = Ok(ready_msg.to_string());
-
-        // When: creating stream chain
-        // Then: ready message should be first
-        assert!(ready_ok.is_ok(), "Ready message should be valid");
+        let ready_msg = format!(
+          "data: {{\"type\":\"ready\",\"connection_id\":\"{}\"}}\n\n",
+          Uuid::new_v4()
+        );
         assert!(
           ready_msg.contains("ready"),
           "Ready message should indicate readiness"
         );
+        let ready_ok: Result<String, Infallible> = Ok(ready_msg);
+
+        // When: creating stream chain
+        // Then: ready message should be first
+        assert!(ready_ok.is_ok(), "Ready message should be valid");
       }
 
       #[test]

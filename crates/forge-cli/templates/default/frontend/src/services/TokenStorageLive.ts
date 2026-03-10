@@ -11,7 +11,9 @@ const ORG_ID_KEY = 'currentOrgId'
 const ROLE_ID_KEY = 'currentRoleId'
 
 function getStorage(): Storage | null {
-  if (typeof window === 'undefined') return null
+  if (typeof window === 'undefined') {
+    return null
+  }
   return window.localStorage
 }
 

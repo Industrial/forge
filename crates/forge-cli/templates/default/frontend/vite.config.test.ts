@@ -2,7 +2,7 @@
  * BDD tests for vite.config.ts
  * Tests verify Vite configuration structure and behavior
  */
-import { describe, test, expect, beforeEach, afterEach } from 'bun:test'
+import { describe, test, expect } from 'bun:test'
 import { readFileSync } from 'node:fs'
 import { join } from 'node:path'
 

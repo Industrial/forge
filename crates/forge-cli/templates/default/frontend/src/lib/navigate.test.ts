@@ -34,6 +34,7 @@ describe('navigate', () => {
       // Note: TypeScript enforces this at compile time
       const navigate: NavigateFunction = () => {}
       expect(typeof navigateTo).toBe('function')
+      expect(navigate).toBeDefined()
     })
 
     it('should accept to string as second parameter', () => {
@@ -41,9 +42,10 @@ describe('navigate', () => {
       // When: I check its signature
       // Then: it should accept string as second parameter
       // Note: TypeScript enforces this at compile time
-      const navigate: NavigateFunction = () => {}
+      const _navigate: NavigateFunction = () => {}
       const to: string = '/test'
       expect(typeof navigateTo).toBe('function')
+      expect(to).toBe('/test')
     })
 
     it('should accept optional options as third parameter', () => {
@@ -51,9 +53,10 @@ describe('navigate', () => {
       // When: I check its signature
       // Then: it should accept optional options as third parameter
       // Note: TypeScript enforces this at compile time
-      const navigate: NavigateFunction = () => {}
+      const _navigate: NavigateFunction = () => {}
       const options: { replace?: boolean } = { replace: true }
       expect(typeof navigateTo).toBe('function')
+      expect(options.replace).toBe(true)
     })
 
     it('should return Effect<void, Error, never>', () => {
@@ -73,8 +76,9 @@ describe('navigate', () => {
       // When: I check its signature
       // Then: it should accept to: string
       // Note: TypeScript enforces this at compile time
-      const navigate: NavigateFunction = (to: string) => {}
+      const navigate: NavigateFunction = (_to: string) => {}
       expect(typeof navigate).toBe('function')
+      expect(navigate).toBeDefined()
     })
 
     it('should accept optional options parameter', () => {
@@ -83,10 +87,11 @@ describe('navigate', () => {
       // Then: it should accept options?: { replace?: boolean }
       // Note: TypeScript enforces this at compile time
       const navigate: NavigateFunction = (
-        to: string,
-        options?: { replace?: boolean },
+        _to: string,
+        _options?: { replace?: boolean },
       ) => {}
       expect(typeof navigate).toBe('function')
+      expect(navigate).toBeDefined()
     })
 
     it('should return void | Promise<void>', () => {
@@ -134,7 +139,7 @@ describe('navigate', () => {
       // Given: a navigate function that tracks options
       let calledOptions: { replace?: boolean } | undefined
       const navigate: NavigateFunction = (
-        to: string,
+        _to: string,
         options?: { replace?: boolean },
       ) => {
         calledOptions = options
@@ -152,7 +157,7 @@ describe('navigate', () => {
       // Given: a navigate function that tracks options
       let calledOptions: { replace?: boolean } | undefined
       const navigate: NavigateFunction = (
-        to: string,
+        _to: string,
         options?: { replace?: boolean },
       ) => {
         calledOptions = options
@@ -170,7 +175,7 @@ describe('navigate', () => {
       // Given: a navigate function
       let replaceValue: boolean | undefined
       const navigate: NavigateFunction = (
-        to: string,
+        _to: string,
         options?: { replace?: boolean },
       ) => {
         replaceValue = options?.replace
@@ -188,7 +193,7 @@ describe('navigate', () => {
       // Given: a navigate function
       let replaceValue: boolean | undefined
       const navigate: NavigateFunction = (
-        to: string,
+        _to: string,
         options?: { replace?: boolean },
       ) => {
         replaceValue = options?.replace
@@ -241,7 +246,7 @@ describe('navigate', () => {
       // Given: an async navigate function
       let calledOptions: { replace?: boolean } | undefined
       const navigate: NavigateFunction = (
-        to: string,
+        _to: string,
         options?: { replace?: boolean },
       ) => {
         calledOptions = options
@@ -600,7 +605,7 @@ describe('navigate', () => {
       // Given: a navigate function
       let replaceValue: boolean | undefined
       const navigate: NavigateFunction = (
-        to: string,
+        _to: string,
         options?: { replace?: boolean },
       ) => {
         replaceValue = options?.replace

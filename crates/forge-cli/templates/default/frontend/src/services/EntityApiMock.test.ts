@@ -3,7 +3,7 @@
  * Tests verify the behavior of the mock EntityApi implementation for testing
  */
 import { describe, test, expect } from 'bun:test'
-import { Effect, Layer } from 'effect'
+import { Effect } from 'effect'
 import { EntityApiMock } from './EntityApiMock'
 import { EntityApi } from './EntityApi'
 

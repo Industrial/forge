@@ -7,7 +7,7 @@ import { Effect } from 'effect'
 
 import { Users, type UsersService } from './Users'
 import { User, UserMembership } from '../domain/User'
-import { createUsersMock, UsersMockLayer } from './UsersMock'
+import { UsersMockLayer } from './UsersMock'
 
 describe('Users service', () => {
   describe('service tag', () => {

@@ -97,7 +97,7 @@ describe('TokenMissingError', () => {
     })
 
     test('should handle long error messages', () => {
-      const longMessage = 'Token missing: ' + 'A'.repeat(500)
+      const longMessage = `Token missing: ${'A'.repeat(500)}`
       const error = new TokenMissingError({ message: longMessage })
 
       expect(error.message).toBe(longMessage)

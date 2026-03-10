@@ -11,7 +11,7 @@ function makeFakeStorage(): Storage {
   const data: Record<string, string> = {}
   return {
     getItem(key: string) {
-      return key in data ? data[key]! : null
+      return key in data ? (data[key] as string) : null
     },
     setItem(key: string, value: string) {
       data[key] = value
@@ -26,7 +26,9 @@ function makeFakeStorage(): Storage {
       return null
     },
     clear() {
-      for (const k of Object.keys(data)) delete data[k]
+      for (const k of Object.keys(data)) {
+        delete data[k]
+      }
     },
   }
 }
@@ -126,7 +128,7 @@ describe('TokenStorageLive', () => {
         window?: { localStorage: Storage }
       }
       const origWindow = g.window
-      g.window = { localStorage: fakeStorage }
+      g.window = { localStorage: fakeStorage } as typeof g.window
 
       try {
         // When: setToken then getToken
@@ -155,7 +157,7 @@ describe('TokenStorageLive', () => {
         window?: { localStorage: Storage }
       }
       const origWindow = g.window
-      g.window = { localStorage: fakeStorage }
+      g.window = { localStorage: fakeStorage } as typeof g.window
 
       try {
         const program = Effect.gen(function* () {
@@ -180,7 +182,7 @@ describe('TokenStorageLive', () => {
         window?: { localStorage: Storage }
       }
       const origWindow = g.window
-      g.window = { localStorage: fakeStorage }
+      g.window = { localStorage: fakeStorage } as typeof g.window
 
       try {
         const program = Effect.gen(function* () {
@@ -210,7 +212,7 @@ describe('TokenStorageLive', () => {
         window?: { localStorage: Storage }
       }
       const origWindow = g.window
-      g.window = { localStorage: fakeStorage }
+      g.window = { localStorage: fakeStorage } as typeof g.window
 
       try {
         const program = Effect.gen(function* () {
@@ -236,7 +238,7 @@ describe('TokenStorageLive', () => {
         window?: { localStorage: Storage }
       }
       const origWindow = g.window
-      g.window = { localStorage: fakeStorage }
+      g.window = { localStorage: fakeStorage } as typeof g.window
 
       try {
         const program = Effect.gen(function* () {

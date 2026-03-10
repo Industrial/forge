@@ -21,8 +21,11 @@ export default function RoleTableRow({
   isDeleting,
 }: RoleTableRowProps) {
   const onRowClick = () => {
-    if (onView) onView(role)
-    else if (canWrite) onEdit(role)
+    if (onView) {
+      onView(role)
+    } else if (canWrite) {
+      onEdit(role)
+    }
   }
   return (
     <EntityTableRow<Role>

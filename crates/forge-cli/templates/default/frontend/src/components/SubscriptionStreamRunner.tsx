@@ -20,7 +20,9 @@ export function SubscriptionStreamRunner() {
   const hasToken = Option.isSome(authentication.token)
 
   useEffect(() => {
-    if (!hasToken) return
+    if (!hasToken) {
+      return
+    }
 
     const layer = getApplicationLayer()
 
@@ -41,7 +43,10 @@ export function SubscriptionStreamRunner() {
               yield* Effect.logDebug(
                 'SubscriptionStreamRunner: received ready, set connected=true',
               )
-              yield* statusStore.update(() => ({ connected: true }))
+              yield* statusStore.update(() => ({
+                connected: true,
+                connectionId: e.connection_id,
+              }))
             }
             if ('subscription_id' in e) {
               yield* Effect.logDebug(
@@ -56,7 +61,10 @@ export function SubscriptionStreamRunner() {
               yield* Effect.logDebug(
                 'SubscriptionStreamRunner: stream ended, set connected=false',
               )
-              yield* statusStore.update(() => ({ connected: false }))
+              yield* statusStore.update(() => ({
+                connected: false,
+                connectionId: null,
+              }))
             }),
           ),
         ),

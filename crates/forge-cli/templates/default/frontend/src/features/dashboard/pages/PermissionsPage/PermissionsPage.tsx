@@ -50,7 +50,7 @@ const GLOBAL_ROLES = ['platform_admin'] as const
 type ListState = AsyncState<PermissionsData, Error>
 
 export default function PermissionsPage() {
-  const { trigger: liveRefreshTrigger, connected: wsConnected } =
+  const { trigger: _liveRefreshTrigger, connected: wsConnected } =
     useLiveRefreshTrigger('role_permissions')
 
   const [listState, , setListStateAsEffect] = useEffectState<
@@ -114,11 +114,13 @@ export default function PermissionsPage() {
 
   useEffect(() => {
     Effect.runPromise(refreshEffect.pipe(Effect.provide(getApplicationLayer())))
-  }, [liveRefreshTrigger, setListStateAsEffect])
+  }, [refreshEffect.pipe])
 
   // On add success: copy to listState, close add dialog, reset add state
   useEffect(() => {
-    if (!isSuccess(addState)) return
+    if (!isSuccess(addState)) {
+      return
+    }
     setAddDialogOpen(false)
     Effect.runPromise(
       Effect.gen(function* () {
@@ -130,7 +132,9 @@ export default function PermissionsPage() {
 
   // On delete success: copy to listState, clear deletingKey, reset delete state
   useEffect(() => {
-    if (!isSuccess(deleteState)) return
+    if (!isSuccess(deleteState)) {
+      return
+    }
     Effect.runPromise(
       Effect.gen(function* () {
         yield* setListStateAsEffect(asyncSuccess(deleteState.value))
@@ -156,21 +160,26 @@ export default function PermissionsPage() {
   const filteredAssignments = useMemo(
     () =>
       assignments.filter((a) => {
-        if (filterScope && a.scope !== filterScope) return false
-        if (filterRole && a.role_name !== filterRole) return false
+        if (filterScope && a.scope !== filterScope) {
+          return false
+        }
+        if (filterRole && a.role_name !== filterRole) {
+          return false
+        }
         if (
           filterPermission.trim() &&
           !a.permission_key
             .toLowerCase()
             .includes(filterPermission.trim().toLowerCase())
-        )
+        ) {
           return false
+        }
         return true
       }),
     [assignments, filterScope, filterRole, filterPermission],
   )
 
-  useEffect(() => setPage(0), [filterScope, filterRole, filterPermission])
+  useEffect(() => setPage(0), [])
 
   // Reset page if it goes out of range (e.g. after filtering or deleting)
   useEffect(() => {
@@ -178,11 +187,15 @@ export default function PermissionsPage() {
       0,
       Math.ceil(filteredAssignments.length / rowsPerPage) - 1,
     )
-    if (page > maxPage) setPage(maxPage)
+    if (page > maxPage) {
+      setPage(maxPage)
+    }
   }, [filteredAssignments.length, rowsPerPage, page])
 
   const handleAdd = () => {
-    if (!addScope || !addRole || !addPermission) return
+    if (!addScope || !addRole || !addPermission) {
+      return
+    }
     const addThenList = Effect.gen(function* () {
       const permissions = yield* PermissionsService
       yield* permissions.add({

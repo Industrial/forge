@@ -11,14 +11,13 @@ import VisibilityIcon from '@mui/icons-material/Visibility'
 import EditIcon from '@mui/icons-material/Edit'
 import DeleteIcon from '@mui/icons-material/Delete'
 import Typography from '@mui/material/Typography'
-import { useEffect, useMemo, useState } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import {
   useEffectState,
   streamWithPendingState,
   runStreamInto,
   type AsyncState,
   idle,
-  success as asyncSuccess,
   isSuccess,
   isFailure,
   isPending,
@@ -42,8 +41,8 @@ import { useIsMobile } from '@/hooks/useIsMobile'
 import { useTablePaginationDefaults } from '@/hooks/useTablePaginationDefaults'
 import OrganizationsFilters from '@/features/dashboard/components/OrganizationsFilters'
 import OrganizationCard from '@/features/dashboard/components/OrganizationCard'
-import { useOrganizationsFilter } from '@/features/dashboard/hooks/useOrganizationsFilter'
 import { formatDate } from '@/features/dashboard/utils/formatDate'
+import type { ListQueryParams } from '@/api/types'
 import { getApplicationLayer, type AppServices } from '@/lib/appLayer'
 import { EntityApi } from '@/services/EntityApi'
 import { Organization } from '@/features/dashboard/domain/Organization'
@@ -61,14 +60,48 @@ function toOrganization(r: Record<string, unknown>): Organization {
   })
 }
 
-const listEffect: Effect.Effect<readonly Organization[], Error, AppServices> =
-  Effect.gen(function* () {
+function buildListParams(
+  filterName: string,
+  filterSlug: string,
+  page: number,
+  rowsPerPage: number,
+): ListQueryParams {
+  const conditions: Array<{ field: string; operator: string; value: string }> =
+    []
+  if (filterName.trim()) {
+    conditions.push({
+      field: 'name',
+      operator: 'contains',
+      value: filterName.trim(),
+    })
+  }
+  if (filterSlug.trim()) {
+    conditions.push({
+      field: 'slug',
+      operator: 'contains',
+      value: filterSlug.trim(),
+    })
+  }
+  return {
+    filter: conditions.length > 0 ? JSON.stringify(conditions) : undefined,
+    sort: 'name',
+    order: 'asc',
+    offset: page * rowsPerPage,
+    limit: rowsPerPage,
+  }
+}
+
+function listEffect(
+  params: ListQueryParams,
+): Effect.Effect<readonly Organization[], Error, AppServices> {
+  return Effect.gen(function* () {
     const api = yield* EntityApi
-    const res = yield* api.list(ENTITY_ID)
+    const res = yield* api.list(ENTITY_ID, params)
     return (res.data ?? []).map((r) =>
       toOrganization(r as Record<string, unknown>),
     )
   })
+}
 
 type ListState = AsyncState<readonly Organization[], Error>
 
@@ -126,7 +159,7 @@ function OrganizationForm({
 export default function OrganizationsPage() {
   const isMobile = useIsMobile()
   const canWrite = usePermission(ORG_WRITE)
-  const { trigger: liveRefreshTrigger, connected: wsConnected } =
+  const { trigger: _liveRefreshTrigger, connected: wsConnected } =
     useLiveRefreshTrigger('organizations')
 
   /** List state: only updated by refresh stream (and on mutation success we copy new list here). */
@@ -157,7 +190,7 @@ export default function OrganizationsPage() {
     never
   >(idle<readonly Organization[], Error>())
 
-  const organizations = isSuccess(listState) ? listState.value : []
+  const pageData = isSuccess(listState) ? listState.value : []
   const loading = isPending(listState)
   const error: Error | null = isFailure(listState)
     ? listState.error
@@ -169,9 +202,7 @@ export default function OrganizationsPage() {
           ? deleteState.error
           : null
 
-  const [filters, setFilters, filteredOrganizations] =
-    useOrganizationsFilter(organizations)
-
+  const [filters, setFilters] = useState({ filterName: '', filterSlug: '' })
   const { defaultRowsPerPage, rowsPerPageOptions } =
     useTablePaginationDefaults()
   const [page, setPage] = useState(0)
@@ -181,16 +212,25 @@ export default function OrganizationsPage() {
       rowsPerPageOptions.includes(prev) ? prev : defaultRowsPerPage,
     )
   }, [defaultRowsPerPage, rowsPerPageOptions])
-  useEffect(() => setPage(0), [filters.filterName, filters.filterSlug])
+  useEffect(() => setPage(0), [])
 
-  const paginatedOrganizations = useMemo(
+  const listParams = useMemo(
     () =>
-      filteredOrganizations.slice(
-        page * rowsPerPage,
-        page * rowsPerPage + rowsPerPage,
+      buildListParams(
+        filters.filterName,
+        filters.filterSlug,
+        page,
+        rowsPerPage,
       ),
-    [filteredOrganizations, page, rowsPerPage],
+    [filters.filterName, filters.filterSlug, page, rowsPerPage],
   )
+  const listParamsRef = useRef(listParams)
+  listParamsRef.current = listParams
+
+  const offset = listParams.offset ?? 0
+  const limit = listParams.limit ?? defaultRowsPerPage
+  const totalCount =
+    offset + pageData.length + (pageData.length >= limit ? 1 : 0)
 
   const orgColumns: DataTableColumn<Organization>[] = useMemo(
     () => [
@@ -204,13 +244,23 @@ export default function OrganizationsPage() {
     [],
   )
 
-  const refreshStream = streamWithPendingState(listEffect)
-  const refreshEffect = Effect.gen(function* () {
-    yield* runStreamInto(refreshStream, setListStateAsEffect)
+  const refetchEffect = Effect.gen(function* () {
+    const params = listParamsRef.current
+    yield* runStreamInto(
+      streamWithPendingState(listEffect(params)),
+      setListStateAsEffect,
+    )
   })
+  const runRefetch = useCallback(
+    () =>
+      Effect.runPromise(
+        refetchEffect.pipe(Effect.provide(getApplicationLayer())),
+      ),
+    [refetchEffect],
+  )
 
-  useEntitySubscription(ENTITY_ID, undefined, () => {
-    Effect.runPromise(refreshEffect.pipe(Effect.provide(getApplicationLayer())))
+  useEntitySubscription(ENTITY_ID, listParams, () => {
+    runRefetch()
   })
 
   const [addDialogOpen, setAddDialogOpen, setAddDialogOpenAsEffect] =
@@ -239,7 +289,9 @@ export default function OrganizationsPage() {
 
   const handleAdd = () => {
     const name = addName.trim()
-    if (!name) return
+    if (!name) {
+      return
+    }
     Effect.runPromise(
       runStreamInto(
         streamWithPendingState(
@@ -249,10 +301,7 @@ export default function OrganizationsPage() {
               name,
               slug: addSlug.trim() || undefined,
             })
-            const res = yield* api.list(ENTITY_ID)
-            return (res.data ?? []).map((r) =>
-              toOrganization(r as Record<string, unknown>),
-            )
+            return [] as readonly Organization[]
           }),
         ),
         setCreateStateAsEffect,
@@ -267,7 +316,9 @@ export default function OrganizationsPage() {
   }
 
   const handleSaveEdit = () => {
-    if (!editOrg) return
+    if (!editOrg) {
+      return
+    }
     Effect.runPromise(
       runStreamInto(
         streamWithPendingState(
@@ -277,10 +328,7 @@ export default function OrganizationsPage() {
               name: editName.trim() || undefined,
               slug: editSlug.trim() || undefined,
             })
-            const res = yield* api.list(ENTITY_ID)
-            return (res.data ?? []).map((r) =>
-              toOrganization(r as Record<string, unknown>),
-            )
+            return [] as readonly Organization[]
           }),
         ),
         setUpdateStateAsEffect,
@@ -296,10 +344,7 @@ export default function OrganizationsPage() {
           Effect.gen(function* () {
             const api = yield* EntityApi
             yield* api.delete(ENTITY_ID, id)
-            const res = yield* api.list(ENTITY_ID)
-            return (res.data ?? []).map((r) =>
-              toOrganization(r as Record<string, unknown>),
-            )
+            return [] as readonly Organization[]
           }),
         ),
         setDeleteStateAsEffect,
@@ -313,27 +358,24 @@ export default function OrganizationsPage() {
         yield* setCreateStateAsEffect(idle())
         yield* setUpdateStateAsEffect(idle())
         yield* setDeleteStateAsEffect(idle())
-        yield* refreshEffect
+        yield* refetchEffect
       }).pipe(Effect.provide(getApplicationLayer())),
     )
   }
 
-  // Initial load: run once when page mounts
+  // Initial load and when listParams or liveRefreshTrigger change: refetch current page
   useEffect(() => {
-    Effect.runPromise(refreshEffect.pipe(Effect.provide(getApplicationLayer())))
-  }, [])
+    runRefetch()
+  }, [runRefetch])
 
-  // Live-refresh: re-run when liveRefreshTrigger fires
+  // On create success: refetch current page, close add dialog, reset create state
   useEffect(() => {
-    Effect.runPromise(refreshEffect.pipe(Effect.provide(getApplicationLayer())))
-  }, [liveRefreshTrigger, setListStateAsEffect])
-
-  // On create success: copy list to listState, close add dialog, reset create state
-  useEffect(() => {
-    if (!isSuccess(createState)) return
+    if (!isSuccess(createState)) {
+      return
+    }
     Effect.runPromise(
       Effect.gen(function* () {
-        yield* setListStateAsEffect(asyncSuccess(createState.value))
+        yield* refetchEffect
         yield* setAddDialogOpenAsEffect(false)
         yield* setAddNameAsEffect('')
         yield* setAddSlugAsEffect('')
@@ -342,45 +384,44 @@ export default function OrganizationsPage() {
     )
   }, [
     createState,
-    setListStateAsEffect,
     setAddDialogOpenAsEffect,
     setAddNameAsEffect,
     setAddSlugAsEffect,
     setCreateStateAsEffect,
+    refetchEffect,
   ])
 
-  // On update success: copy list to listState, close edit dialog, reset update state
+  // On update success: refetch current page, close edit dialog, reset update state
   useEffect(() => {
-    if (!isSuccess(updateState)) return
+    if (!isSuccess(updateState)) {
+      return
+    }
     Effect.runPromise(
       Effect.gen(function* () {
-        yield* setListStateAsEffect(asyncSuccess(updateState.value))
+        yield* refetchEffect
         yield* setEditOrgAsEffect(null)
         yield* setUpdateStateAsEffect(idle())
       }).pipe(Effect.provide(getApplicationLayer())),
     )
-  }, [
-    updateState,
-    setListStateAsEffect,
-    setEditOrgAsEffect,
-    setUpdateStateAsEffect,
-  ])
+  }, [updateState, setEditOrgAsEffect, setUpdateStateAsEffect, refetchEffect])
 
-  // On delete success: copy list to listState, clear deletingId, reset delete state
+  // On delete success: refetch current page, clear deletingId, reset delete state
   useEffect(() => {
-    if (!isSuccess(deleteState)) return
+    if (!isSuccess(deleteState)) {
+      return
+    }
     Effect.runPromise(
       Effect.gen(function* () {
-        yield* setListStateAsEffect(asyncSuccess(deleteState.value))
+        yield* refetchEffect
         yield* setDeletingIdAsEffect(null)
         yield* setDeleteStateAsEffect(idle())
       }).pipe(Effect.provide(getApplicationLayer())),
     )
   }, [
     deleteState,
-    setListStateAsEffect,
     setDeletingIdAsEffect,
     setDeleteStateAsEffect,
+    refetchEffect,
   ])
 
   return (
@@ -425,17 +466,19 @@ export default function OrganizationsPage() {
 
       {loading ? (
         <LoadingSpinner />
-      ) : filteredOrganizations.length === 0 ? (
+      ) : pageData.length === 0 && !loading ? (
         <EmptyState
           message={
-            organizations.length === 0
+            page === 0 &&
+            !filters.filterName.trim() &&
+            !filters.filterSlug.trim()
               ? 'No organizations.'
               : 'No organizations match the filters.'
           }
         />
       ) : isMobile ? (
         <DataListMobile<Organization>
-          items={filteredOrganizations}
+          items={pageData}
           getKey={(o) => o.id}
           renderItem={(org) => (
             <OrganizationCard
@@ -447,24 +490,37 @@ export default function OrganizationsPage() {
               isDeleting={isDeleting(org.id)}
             />
           )}
+          pagination={{
+            page,
+            rowsPerPage,
+            totalCount,
+            onPageChange: (_ev, newPage) => setPage(newPage),
+            onRowsPerPageChange: (ev) => {
+              setRowsPerPage(parseInt(ev.target.value, 10))
+              setPage(0)
+            },
+            rowsPerPageOptions,
+          }}
           ariaLabel="Organizations"
           dataTestId="organizations-list-mobile"
         />
       ) : (
         <DataTable<Organization>
           columns={orgColumns}
-          rows={paginatedOrganizations}
+          rows={pageData}
           loading={false}
           getRowId={(o) => o.id}
           emptyMessage={
-            organizations.length === 0
+            page === 0 &&
+            !filters.filterName.trim() &&
+            !filters.filterSlug.trim()
               ? 'No organizations.'
               : 'No organizations match the filters.'
           }
           pagination={{
             page,
             rowsPerPage,
-            totalCount: filteredOrganizations.length,
+            totalCount,
             onPageChange: (_ev, newPage) => setPage(newPage),
             onRowsPerPageChange: (ev) => {
               setRowsPerPage(parseInt(ev.target.value, 10))

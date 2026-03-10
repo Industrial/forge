@@ -5,7 +5,7 @@
  * All methods return Effect<A, Error, never>; Live uses HttpClient.
  */
 
-import { Context, Effect } from 'effect'
+import { Context, type Effect } from 'effect'
 import type { Role } from '../domain/Role'
 import type { DashboardRole } from '../domain/DashboardRole'
 

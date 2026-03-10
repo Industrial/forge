@@ -35,11 +35,16 @@ export function useLiveRefreshTrigger(channel: ForgeWebsocketKey): {
     runFork,
   )
   const connected = status.connected
+  const connectionId = status.connectionId
 
   useEffect(() => {
+    if (!connectionId) {
+      return
+    }
+
     const subscribeEffect = Effect.gen(function* () {
       const rpc = yield* RpcApi
-      return yield* rpc.subscribe(entityId, undefined)
+      return yield* rpc.subscribe(entityId, { connection_id: connectionId })
     })
 
     run(subscribeEffect)
@@ -60,7 +65,7 @@ export function useLiveRefreshTrigger(channel: ForgeWebsocketKey): {
         subscriptionIdRef.current = null
       }
     }
-  }, [entityId, run])
+  }, [entityId, connectionId, run])
 
   return { trigger, connected }
 }

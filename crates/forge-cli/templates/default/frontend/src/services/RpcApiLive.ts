@@ -44,6 +44,7 @@ const RpcApiLive = Layer.effect(
                 order: params.order,
                 offset: params.offset,
                 limit: params.limit,
+                connection_id: params.connection_id,
               }
             : undefined,
         }

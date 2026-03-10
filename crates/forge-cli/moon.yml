@@ -11,7 +11,7 @@ tasks:
       runFromWorkspaceRoot: true
     inputs:
       - Cargo.toml
-      - Cargo.lock
+      - /Cargo.lock
       - '**/*.rs'
     deps:
       - forge-cli:lint
@@ -26,7 +26,7 @@ tasks:
       runFromWorkspaceRoot: true
     inputs:
       - Cargo.toml
-      - Cargo.lock
+      - /Cargo.lock
       - '**/*.rs'
   test:
     command: cargo
@@ -42,7 +42,7 @@ tasks:
       - forge-cli:build
     inputs:
       - Cargo.toml
-      - Cargo.lock
+      - /Cargo.lock
       - '**/*.rs'
       - '**/*.toml'
   lint:
@@ -63,5 +63,5 @@ tasks:
       - forge-cli:check
     inputs:
       - Cargo.toml
-      - Cargo.lock
+      - /Cargo.lock
       - '**/*.rs'

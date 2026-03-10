@@ -44,7 +44,7 @@ describe('SubscriptionStream service', () => {
       // Then: should emit ready event
       const events = Chunk.toReadonlyArray(chunk)
       expect(events).toHaveLength(1)
-      expect(events[0]).toEqual({ type: 'ready' })
+      expect(events[0]).toEqual({ type: 'ready', connection_id: 'mock-conn' })
     })
 
     test('should return stream that emits SubscriptionStreamEvent', async () => {
@@ -65,7 +65,7 @@ describe('SubscriptionStream service', () => {
       expect(events).toHaveLength(1)
       const event = events[0] as SubscriptionStreamEvent
       expect(event).toHaveProperty('type')
-      expect(event.type).toBe('ready')
+      expect('type' in event && event.type).toBe('ready')
     })
 
     test('should always succeed when opening stream', async () => {
@@ -110,8 +110,14 @@ describe('SubscriptionStream service', () => {
       // Then: both consumptions should work
       expect(result.events1).toHaveLength(1)
       expect(result.events2).toHaveLength(1)
-      expect(result.events1[0]).toEqual({ type: 'ready' })
-      expect(result.events2[0]).toEqual({ type: 'ready' })
+      expect(result.events1[0]).toEqual({
+        type: 'ready',
+        connection_id: 'mock-conn',
+      })
+      expect(result.events2[0]).toEqual({
+        type: 'ready',
+        connection_id: 'mock-conn',
+      })
     })
   })
 
@@ -132,7 +138,7 @@ describe('SubscriptionStream service', () => {
       // Then: first event should be ready
       const events = Chunk.toReadonlyArray(chunk)
       expect(events).toHaveLength(1)
-      expect(events[0]).toEqual({ type: 'ready' })
+      expect(events[0]).toEqual({ type: 'ready', connection_id: 'mock-conn' })
     })
 
     test('should emit ready event with correct structure', async () => {
@@ -150,7 +156,7 @@ describe('SubscriptionStream service', () => {
 
       // Then: ready event should have correct structure
       const events = Chunk.toReadonlyArray(chunk)
-      expect(events[0]).toEqual({ type: 'ready' })
+      expect(events[0]).toEqual({ type: 'ready', connection_id: 'mock-conn' })
       expect((events[0] as { type: string }).type).toBe('ready')
     })
   })
@@ -190,7 +196,7 @@ describe('SubscriptionStream service', () => {
 
       const events = Chunk.toReadonlyArray(chunk)
       expect(events).toHaveLength(1)
-      expect(events[0]).toEqual({ type: 'ready' })
+      expect(events[0]).toEqual({ type: 'ready', connection_id: 'mock-conn' })
     })
 
     test('should create new stream instance for each openStream call', async () => {
@@ -214,8 +220,14 @@ describe('SubscriptionStream service', () => {
       // Then: each stream should work independently
       expect(result.events1).toHaveLength(1)
       expect(result.events2).toHaveLength(1)
-      expect(result.events1[0]).toEqual({ type: 'ready' })
-      expect(result.events2[0]).toEqual({ type: 'ready' })
+      expect(result.events1[0]).toEqual({
+        type: 'ready',
+        connection_id: 'mock-conn',
+      })
+      expect(result.events2[0]).toEqual({
+        type: 'ready',
+        connection_id: 'mock-conn',
+      })
     })
   })
 
@@ -236,7 +248,7 @@ describe('SubscriptionStream service', () => {
       // Then: should collect all events
       const events = Chunk.toReadonlyArray(chunk)
       expect(events).toHaveLength(1)
-      expect(events[0]).toEqual({ type: 'ready' })
+      expect(events[0]).toEqual({ type: 'ready', connection_id: 'mock-conn' })
     })
 
     test('should allow consuming stream with take', async () => {
@@ -255,7 +267,7 @@ describe('SubscriptionStream service', () => {
       // Then: should take first event
       const events = Chunk.toReadonlyArray(chunk)
       expect(events).toHaveLength(1)
-      expect(events[0]).toEqual({ type: 'ready' })
+      expect(events[0]).toEqual({ type: 'ready', connection_id: 'mock-conn' })
     })
 
     test('should allow consuming stream with runForEach', async () => {
@@ -278,7 +290,10 @@ describe('SubscriptionStream service', () => {
 
       // Then: should collect events via runForEach
       expect(collected).toHaveLength(1)
-      expect(collected[0]).toEqual({ type: 'ready' })
+      expect(collected[0]).toEqual({
+        type: 'ready',
+        connection_id: 'mock-conn',
+      })
     })
   })
 
@@ -334,10 +349,11 @@ describe('SubscriptionStream service', () => {
       const events = Chunk.toReadonlyArray(chunk)
       expect(events.length).toBeGreaterThan(0)
       const event = events[0] as SubscriptionStreamEvent
-      // Event should be either { type: 'ready' } or { subscription_id: string }
+      // Event should be either { type: 'ready', connection_id } or { subscription_id: string }
       expect(
-        event.type === 'ready' ||
-          typeof (event as any).subscription_id === 'string',
+        ('type' in event && event.type === 'ready') ||
+          typeof (event as { subscription_id?: string }).subscription_id ===
+            'string',
       ).toBe(true)
     })
   })

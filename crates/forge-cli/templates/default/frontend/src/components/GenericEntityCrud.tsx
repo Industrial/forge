@@ -87,7 +87,9 @@ function defaultColumns(
   items: readonly Record<string, unknown>[],
 ): GenericEntityCrudColumn[] {
   const first = items[0]
-  if (!first || typeof first !== 'object') return [{ key: 'id', label: 'ID' }]
+  if (!first || typeof first !== 'object') {
+    return [{ key: 'id', label: 'ID' }]
+  }
   const keys = Object.keys(first)
   const idFirst = keys.includes('id')
     ? ['id', ...keys.filter((k) => k !== 'id')]
@@ -97,8 +99,12 @@ function defaultColumns(
     label: key.replace(/_/g, ' '),
     render: (item) => {
       const v = item[key]
-      if (v == null) return '—'
-      if (typeof v === 'object') return JSON.stringify(v)
+      if (v == null) {
+        return '—'
+      }
+      if (typeof v === 'object') {
+        return JSON.stringify(v)
+      }
       return String(v)
     },
   }))
@@ -183,12 +189,7 @@ export default function GenericEntityCrud({
 
   useEffect(() => {
     run(refreshEffect)
-  }, [
-    entityId,
-    JSON.stringify(listQueryParams ?? {}),
-    setListStateAsEffect,
-    run,
-  ])
+  }, [run, refreshEffect])
 
   const handleCreateSubmit = useCallback(
     (body: Record<string, unknown>) => {
@@ -212,7 +213,9 @@ export default function GenericEntityCrud({
 
   const handleUpdateSubmit = useCallback(
     (body: Record<string, unknown>) => {
-      if (!editItem) return
+      if (!editItem) {
+        return
+      }
       const id = getRowId(editItem)
       run(
         runStreamInto(
@@ -262,7 +265,9 @@ export default function GenericEntityCrud({
 
   // On create/update/delete success: refresh list state
   useEffect(() => {
-    if (!isSuccess(createState)) return
+    if (!isSuccess(createState)) {
+      return
+    }
     run(
       Effect.gen(function* () {
         yield* setListStateAsEffect(asyncSuccess(createState.value))
@@ -271,7 +276,9 @@ export default function GenericEntityCrud({
     )
   }, [createState, setListStateAsEffect, setCreateStateAsEffect, run])
   useEffect(() => {
-    if (!isSuccess(updateState)) return
+    if (!isSuccess(updateState)) {
+      return
+    }
     run(
       Effect.gen(function* () {
         yield* setListStateAsEffect(asyncSuccess(updateState.value))
@@ -280,7 +287,9 @@ export default function GenericEntityCrud({
     )
   }, [updateState, setListStateAsEffect, setUpdateStateAsEffect, run])
   useEffect(() => {
-    if (!isSuccess(deleteState)) return
+    if (!isSuccess(deleteState)) {
+      return
+    }
     run(
       Effect.gen(function* () {
         yield* setListStateAsEffect(asyncSuccess(deleteState.value))
@@ -290,7 +299,9 @@ export default function GenericEntityCrud({
   }, [deleteState, setListStateAsEffect, setDeleteStateAsEffect, run])
 
   useEffect(() => {
-    if (!isPending(deleteState)) setDeletingId(null)
+    if (!isPending(deleteState)) {
+      setDeletingId(null)
+    }
   }, [deleteState])
 
   if (!canRead) {

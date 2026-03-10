@@ -15,6 +15,7 @@ export const ListQueryParamsSchema = Schema.Struct({
   order: Schema.optional(Schema.String),
   offset: Schema.optional(Schema.Number),
   limit: Schema.optional(Schema.Number),
+  connection_id: Schema.optional(Schema.String),
 })
 
 export type ListQueryParams = Schema.Schema.Type<typeof ListQueryParamsSchema>

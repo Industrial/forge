@@ -8,7 +8,7 @@
  * For full CRUD use EntityApi (e.g. organization) or feature services: Roles, Users, etc.
  */
 
-import { Context, Effect } from 'effect'
+import { Context, type Effect } from 'effect'
 import type { Organization } from '../domain/Organization'
 import type { DashboardRole } from '../domain/DashboardRole'
 

@@ -14,7 +14,7 @@ import { render, waitFor } from '@testing-library/react'
 import { MemoryRouter } from 'react-router-dom'
 import { createTheme } from '@mui/material/styles'
 import { Window } from 'happy-dom'
-import React from 'react'
+import type React from 'react'
 import { Effect, Layer, Option, Stream, Chunk } from 'effect'
 
 import { RouteGuard } from './RouteGuard'
@@ -31,7 +31,7 @@ import {
   AuthStoreTag,
   initialAuthenticationState,
 } from '@/features/authentication/stores/AuthenticationStateReactiveStore'
-import { AuthenticationUser } from '@/features/authentication/domain/AuthenticationUser'
+import type { AuthenticationUser } from '@/features/authentication/domain/AuthenticationUser'
 import { RpcApiMock } from '@/services/RpcApiMock'
 
 beforeAll(() => {

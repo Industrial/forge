@@ -10,26 +10,19 @@ import {
   beforeEach,
   afterEach,
 } from 'bun:test'
-import { renderHook, waitFor } from '@testing-library/react'
-import { Effect, Layer } from 'effect'
 import { Window } from 'happy-dom'
 import { useLiveRefreshTrigger } from './useLiveRefreshTrigger'
 import type { ForgeWebsocketKey } from '@/lib/liveRefreshChannels'
 import { register, unregister, trigger } from '@/lib/subscriptionRegistry'
 import { RpcApi } from '@/services/RpcApi'
-import { RpcApiMock } from '@/services/RpcApiMock'
 import { SubscriptionStreamStatusStoreTag } from '@/lib/subscriptionStreamStatusStore'
-import { defineStore } from '@/lib/ReactiveStore'
-import { getApplicationLayer } from '@/lib/appLayer'
 
 // Set up DOM environment for tests
 beforeAll(() => {
   const window = new Window()
   const document = window.document
-  // @ts-expect-error - Setting global DOM APIs for bun test environment
-  globalThis.window = window
-  // @ts-expect-error - Setting global DOM APIs for bun test environment
-  globalThis.document = document
+  globalThis.window = window as unknown as typeof globalThis.window
+  globalThis.document = document as unknown as typeof globalThis.document
 })
 
 // Mock subscription registry

@@ -46,11 +46,17 @@ export default function UsersFilters({
     admin: filterAdmin,
   }
   const onChange = (key: string, value: string) => {
-    if (key === 'email') onFilterEmailChange(value)
-    else if (key === 'orgId') onFilterOrgIdChange(value)
-    else if (key === 'role') onFilterRoleChange(value)
-    else if (key === 'active') onFilterActiveChange(value as '' | 'yes' | 'no')
-    else if (key === 'admin') onFilterAdminChange(value as '' | 'yes' | 'no')
+    if (key === 'email') {
+      onFilterEmailChange(value)
+    } else if (key === 'orgId') {
+      onFilterOrgIdChange(value)
+    } else if (key === 'role') {
+      onFilterRoleChange(value)
+    } else if (key === 'active') {
+      onFilterActiveChange(value as '' | 'yes' | 'no')
+    } else if (key === 'admin') {
+      onFilterAdminChange(value as '' | 'yes' | 'no')
+    }
   }
   const fields: FilterField[] = [
     {

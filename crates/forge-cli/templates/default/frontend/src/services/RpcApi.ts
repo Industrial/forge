@@ -6,7 +6,7 @@
  * @see RpcApiLive – implementation using HttpClient
  */
 
-import { Context, Effect } from 'effect'
+import { Context, type Effect } from 'effect'
 import type { ListQueryParams, RpcSubscribeResult } from '@/api/types'
 
 export type { ListQueryParams }

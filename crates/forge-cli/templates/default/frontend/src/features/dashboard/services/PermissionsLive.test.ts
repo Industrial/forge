@@ -4,13 +4,12 @@
  */
 import { describe, test, expect } from 'bun:test'
 import { Effect, Layer } from 'effect'
-import { HttpClient, HttpClientRequest } from '@effect/platform'
+import type { HttpClient, HttpClientRequest } from '@effect/platform'
 
 import { AuthenticatedHttpClient } from '@/services/AuthenticatedHttpClient'
 import { PermissionsLive } from './PermissionsLive'
 import { Permissions } from './Permissions'
 import { Assignment } from '../domain/Assignment'
-import type { PermissionsData } from './Permissions'
 
 // Helper to create a mock HttpClient
 function createMockHttpClient(
@@ -98,7 +97,7 @@ function createMockHttpClient(
         json: Effect.succeed({}),
         headers: new Headers(),
       }),
-  } as HttpClient.HttpClient
+  } as unknown as HttpClient.HttpClient
 }
 
 describe('PermissionsLive', () => {

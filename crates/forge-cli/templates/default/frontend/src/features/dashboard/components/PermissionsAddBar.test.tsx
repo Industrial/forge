@@ -6,7 +6,7 @@ import { describe, test, expect, beforeAll } from 'bun:test'
 import { render, waitFor } from '@testing-library/react'
 import { ThemeProvider, createTheme } from '@mui/material/styles'
 import { Window } from 'happy-dom'
-import React from 'react'
+import type React from 'react'
 
 import PermissionsAddBar from './PermissionsAddBar'
 
@@ -64,7 +64,6 @@ describe('PermissionsAddBar component', () => {
       const { container } = render(
         <PermissionsAddBar
           scope="org"
-          role=""
           permission=""
           roles={[]}
           permissions={[]}
@@ -84,7 +83,6 @@ describe('PermissionsAddBar component', () => {
       const { container } = render(
         <PermissionsAddBar
           scope="org"
-          role=""
           permission=""
           roles={['admin', 'user']}
           permissions={[]}
@@ -104,7 +102,6 @@ describe('PermissionsAddBar component', () => {
       const { container } = render(
         <PermissionsAddBar
           scope="org"
-          role=""
           permission=""
           roles={[]}
           permissions={['read', 'write']}
@@ -124,7 +121,6 @@ describe('PermissionsAddBar component', () => {
       const { container } = render(
         <PermissionsAddBar
           scope="org"
-          role=""
           permission=""
           roles={[]}
           permissions={[]}
@@ -146,7 +142,6 @@ describe('PermissionsAddBar component', () => {
       const { container } = render(
         <PermissionsAddBar
           scope="global"
-          role=""
           permission=""
           roles={[]}
           permissions={[]}
@@ -166,7 +161,6 @@ describe('PermissionsAddBar component', () => {
       const { container } = render(
         <PermissionsAddBar
           scope="org"
-          role=""
           permission=""
           roles={['admin', 'user']}
           permissions={[]}
@@ -186,7 +180,6 @@ describe('PermissionsAddBar component', () => {
       const { container } = render(
         <PermissionsAddBar
           scope="org"
-          role=""
           permission=""
           roles={[]}
           permissions={['read', 'write']}
@@ -206,7 +199,6 @@ describe('PermissionsAddBar component', () => {
       const { container } = render(
         <PermissionsAddBar
           scope="org"
-          role="admin"
           permission="read"
           roles={['admin']}
           permissions={['read']}
@@ -226,7 +218,6 @@ describe('PermissionsAddBar component', () => {
       const { container } = render(
         <PermissionsAddBar
           scope="org"
-          role="admin"
           permission=""
           roles={['admin']}
           permissions={['read']}

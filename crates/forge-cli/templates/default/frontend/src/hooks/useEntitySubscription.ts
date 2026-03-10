@@ -9,6 +9,11 @@ import { useEffect, useRef } from 'react'
 import { Effect, Option } from 'effect'
 import { useAuthStore } from '@/features/authentication/stores'
 import { register, unregister } from '@/lib/subscriptionRegistry'
+import {
+  SubscriptionStreamStatusStoreTag,
+  initialSubscriptionStreamStatus,
+} from '@/lib/subscriptionStreamStatusStore'
+import { useReactiveStore } from '@/lib/ReactiveStore'
 import { useRunWithAppLayer } from '@/lib/appLayer'
 import { RpcApi } from '@/services/RpcApi'
 import type { ListQueryParams } from '@/services/EntityApi'
@@ -20,17 +25,30 @@ export function useEntitySubscription(
 ): void {
   const authentication = useAuthStore()
   const hasToken = Option.isSome(authentication.token)
+  const { run, runFork } = useRunWithAppLayer()
+  const status = useReactiveStore(
+    SubscriptionStreamStatusStoreTag,
+    initialSubscriptionStreamStatus,
+    run,
+    runFork,
+  )
+  const connectionId = status.connectionId
   const subscriptionIdRef = useRef<string | null>(null)
   const onRefetchRef = useRef(onRefetch)
   onRefetchRef.current = onRefetch
-  const { run } = useRunWithAppLayer()
 
   useEffect(() => {
-    if (!hasToken) return
+    if (!hasToken || !connectionId) {
+      return
+    }
 
+    const subscribeParams = {
+      ...(params ?? {}),
+      connection_id: connectionId,
+    }
     const subscribeEffect = Effect.gen(function* () {
       const rpc = yield* RpcApi
-      return yield* rpc.subscribe(entityId, params)
+      return yield* rpc.subscribe(entityId, subscribeParams)
     })
 
     run(subscribeEffect)
@@ -51,5 +69,5 @@ export function useEntitySubscription(
         subscriptionIdRef.current = null
       }
     }
-  }, [entityId, hasToken, run, JSON.stringify(params ?? {})])
+  }, [entityId, hasToken, connectionId, run, params])
 }

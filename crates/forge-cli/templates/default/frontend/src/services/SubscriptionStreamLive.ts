@@ -27,19 +27,25 @@ async function* readSSEEvents(
   try {
     while (true) {
       const { done, value } = await reader.read()
-      if (done) break
+      if (done) {
+        break
+      }
       buffer += decoder.decode(value, { stream: true })
       const events = buffer.split('\n\n')
       buffer = events.pop() ?? ''
       for (const block of events) {
         const line = block.split('\n').find((l) => l.startsWith('data:'))
-        if (!line) continue
+        if (!line) {
+          continue
+        }
         const json = line.slice(5).trim()
-        if (json === '[DONE]' || !json) continue
+        if (json === '[DONE]' || !json) {
+          continue
+        }
         try {
           const obj = JSON.parse(json) as Record<string, unknown>
-          if (obj?.type === 'ready') {
-            yield { type: 'ready' }
+          if (obj?.type === 'ready' && typeof obj?.connection_id === 'string') {
+            yield { type: 'ready', connection_id: obj.connection_id }
             continue
           }
           if (typeof obj?.subscription_id === 'string') {

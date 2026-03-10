@@ -66,7 +66,7 @@ type ListState<T> = AsyncState<ServerListResult<T>, Error>
 export function useServerList<T, F>({
   fetch: fetchEffectFn,
   initialFilters,
-  deps = [],
+  deps: _deps = [],
 }: UseServerListOptions<T, F>): UseServerListReturn<T, F> {
   const { defaultRowsPerPage, rowsPerPageOptions } =
     useTablePaginationDefaults()
@@ -108,13 +108,13 @@ export function useServerList<T, F>({
     Effect.runPromise(
       refreshEffect.pipe(Effect.provide(getApplicationLayer())),
     ).catch(() => {})
-  }, [page, rowsPerPage, filters, setListStateAsEffect])
+  }, [refreshEffect.pipe])
 
   useEffect(() => {
     Effect.runPromise(
       refreshEffect.pipe(Effect.provide(getApplicationLayer())),
     ).catch(() => {})
-  }, [page, rowsPerPage, filters, setListStateAsEffect, ...deps])
+  }, [refreshEffect.pipe])
 
   useEffect(() => {
     setRowsPerPageState(defaultRowsPerPage)

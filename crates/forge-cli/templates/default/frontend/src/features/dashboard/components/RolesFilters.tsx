@@ -51,9 +51,13 @@ export default function RolesFilters({
     org: filterOrg,
   }
   const onChange = (key: string, value: string) => {
-    if (key === 'name') onFilterNameChange(value)
-    else if (key === 'displayName') onFilterDisplayNameChange(value)
-    else if (key === 'org') onFilterOrgChange(value)
+    if (key === 'name') {
+      onFilterNameChange(value)
+    } else if (key === 'displayName') {
+      onFilterDisplayNameChange(value)
+    } else if (key === 'org') {
+      onFilterOrgChange(value)
+    }
   }
   return <FiltersPanel fields={FIELDS} values={values} onChange={onChange} />
 }

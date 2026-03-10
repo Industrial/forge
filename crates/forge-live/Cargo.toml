@@ -9,7 +9,7 @@ description = "Live Query: real-time broadcast and channel subscription for Forg
 
 [features]
 default = []
-redis = ["dep:redis", "dep:futures-util", "tracing"]
+redis = ["dep:redis", "dep:futures-util"]
 
 [dependencies]
 async-trait = "0.1"
@@ -25,7 +25,7 @@ tokio = { version = "1", features = [
   "rt-multi-thread",
   "time",
 ] }
-tracing = { version = "0.1", optional = true }
+tracing = "0.1"
 uuid = { version = "1.0", features = ["v4", "serde"] }
 workspace-hack = { version = "0.1", path = "../../workspace-hack" }
 

@@ -54,8 +54,19 @@ tasks:
       - 'Cargo.lock'
       - 'crates/**/*.rs'
       - 'crates/forge-cli/templates/**/*'
-  # Frontend unit tests (template frontend)
+  # Frontend lint (Biome)
+  lint:
+    deps: ['~:format']
+    command: 'bash'
+    args: ['-c', 'cd crates/forge-cli/templates/default/frontend && bun run lint']
+    inputs:
+      - 'crates/forge-cli/templates/default/frontend/**/*.ts'
+      - 'crates/forge-cli/templates/default/frontend/**/*.tsx'
+      - 'crates/forge-cli/templates/default/frontend/package.json'
+      - 'biome.json'
+  # Frontend unit tests (template frontend); runs after lint
   test:
+    deps: ['~:lint']
     command: 'bash'
     args: ['-c', 'cd crates/forge-cli/templates/default/frontend && bun test']
     inputs:

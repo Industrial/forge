@@ -3,7 +3,7 @@
  * Tests verify the behavior of the deprecated hook wrapper
  */
 
-import { describe, it, expect, beforeEach, spyOn } from 'bun:test'
+import { describe, it, expect } from 'bun:test'
 import {
   useAuthenticationStateReactiveStore,
   useAuthStoreWithInit,

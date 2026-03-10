@@ -1,8 +1,8 @@
 //! In-memory subscription store for invalidation events.
-//! Subscribe returns server-assigned id; unsubscribe by id.
-//! Long-lived stream for invalidation events; change worker matches events to subscriptions.
+//! Subscriptions are tied to a connection (e.g. the SSE stream). One subscription per (connection, query).
+//! When a connection is removed, all its subscriptions are removed; when a query has no subscriptions left, it is dropped.
 
-use std::collections::HashMap;
+use std::collections::{HashMap, HashSet};
 use std::sync::Mutex;
 use uuid::Uuid;
 
@@ -30,11 +30,33 @@ pub struct SubscriptionMeta {
   pub params: Option<serde_json::Value>,
 }
 
-/// In-memory store: subscription_id -> SubscriptionMeta; broadcast channels for change and invalidation events.
+fn query_key(entity_id: &str, params: &Option<serde_json::Value>) -> String {
+  let params_str = params
+    .as_ref()
+    .and_then(|p| serde_json::to_string(p).ok())
+    .unwrap_or_default();
+  format!("{}:{}", entity_id, params_str)
+}
+
+/// Internal record: subscription tied to a connection and a query (entity_id + params).
+#[derive(Debug, Clone)]
+struct SubscriptionRecord {
+  connection_id: Uuid,
+  query_key: String,
+  meta: SubscriptionMeta,
+}
+
+/// In-memory store: subscription_id -> record; indices by connection and query for cleanup and dedupe.
 #[derive(Clone)]
 pub struct SubscriptionStore {
-  /// Map of subscription IDs to their metadata.
-  inner: std::sync::Arc<Mutex<HashMap<Uuid, SubscriptionMeta>>>,
+  /// subscription_id -> record (connection, query_key, meta).
+  inner: std::sync::Arc<Mutex<HashMap<Uuid, SubscriptionRecord>>>,
+  /// connection_id -> set of subscription_ids (for remove_connection).
+  by_connection: std::sync::Arc<Mutex<HashMap<Uuid, HashSet<Uuid>>>>,
+  /// query_key -> set of subscription_ids (when empty, query is logically removed).
+  by_query: std::sync::Arc<Mutex<HashMap<String, HashSet<Uuid>>>>,
+  /// (connection_id, query_key) -> subscription_id (at most one subscription per connection per query).
+  by_connection_query: std::sync::Arc<Mutex<HashMap<(Uuid, String), Uuid>>>,
   #[allow(dead_code)]
   /// Broadcast channel sender for invalidation events.
   invalidation_tx: tokio::sync::broadcast::Sender<InvalidationEvent>,
@@ -54,6 +76,9 @@ impl SubscriptionStore {
     let (change_tx, _) = tokio::sync::broadcast::channel(256);
     Self {
       inner: std::sync::Arc::new(Mutex::new(HashMap::new())),
+      by_connection: std::sync::Arc::new(Mutex::new(HashMap::new())),
+      by_query: std::sync::Arc::new(Mutex::new(HashMap::new())),
+      by_connection_query: std::sync::Arc::new(Mutex::new(HashMap::new())),
       invalidation_tx,
       change_tx,
     }
@@ -61,6 +86,13 @@ impl SubscriptionStore {
 
   /// Publish a change event. Fire-and-forget; used by generic handler after create/update/delete.
   pub fn publish_change(&self, event: ChangeEvent) {
+    tracing::debug!(
+      model_id = %event.model_id,
+      resource_id = %event.resource_id,
+      action = %event.action,
+      organization_id = ?event.organization_id,
+      "subscription: publish_change"
+    );
     let _ = self.change_tx.send(event);
   }
 
@@ -77,25 +109,85 @@ impl SubscriptionStore {
 
   /// Send an invalidation hint. One message per affected subscription.
   pub fn send_invalidation(&self, event: InvalidationEvent) {
+    tracing::debug!(
+      subscription_id = %event.subscription_id,
+      "subscription: send_invalidation"
+    );
     let _ = self.invalidation_tx.send(event);
   }
 
-  /// Register a subscription; returns server-assigned id.
-  pub fn subscribe(&self, meta: SubscriptionMeta) -> Uuid {
+  /// Register a subscription for a connection. At most one subscription per (connection_id, query).
+  /// If the same connection already has a subscription for this query, returns the existing id.
+  /// When a query has no subscriptions left after a removal, it is dropped automatically.
+  ///
+  /// Note: "Clean up query when it has no subscriptions" does not by itself guarantee one
+  /// subscription per (connection, query). That invariant is enforced here by deduplication:
+  /// we look up (connection_id, query_key) and return the existing id when present.
+  pub fn subscribe(&self, connection_id: Uuid, meta: SubscriptionMeta) -> Uuid {
+    let qk = query_key(&meta.entity_id, &meta.params);
+    // Lock in fixed order to avoid deadlock: by_connection_query, inner, by_connection, by_query.
+    let mut by_cq = self.by_connection_query.lock().unwrap();
+    if let Some(&existing_id) = by_cq.get(&(connection_id, qk.clone())) {
+      return existing_id;
+    }
     let id = Uuid::new_v4();
-    let _ = self.inner.lock().unwrap().insert(id, meta);
+    let mut inner = self.inner.lock().unwrap();
+    let mut by_conn = self.by_connection.lock().unwrap();
+    let mut by_q = self.by_query.lock().unwrap();
+    let record = SubscriptionRecord {
+      connection_id,
+      query_key: qk.clone(),
+      meta: meta.clone(),
+    };
+    inner.insert(id, record);
+    by_conn.entry(connection_id).or_default().insert(id);
+    by_q.entry(qk.clone()).or_default().insert(id);
+    by_cq.insert((connection_id, qk), id);
     id
   }
 
   /// Remove subscription by id. Returns true if it existed.
+  /// If the query has no more subscriptions, the query is dropped.
   pub fn unsubscribe(&self, id: Uuid) -> bool {
-    self.inner.lock().unwrap().remove(&id).is_some()
+    let (connection_id, qk) = {
+      let mut inner = self.inner.lock().unwrap();
+      let record = match inner.remove(&id) {
+        Some(r) => r,
+        None => return false,
+      };
+      (record.connection_id, record.query_key)
+    };
+    let mut by_conn = self.by_connection.lock().unwrap();
+    let mut by_q = self.by_query.lock().unwrap();
+    let mut by_cq = self.by_connection_query.lock().unwrap();
+    by_conn.get_mut(&connection_id).map(|s| s.remove(&id));
+    by_q.get_mut(&qk).map(|s| s.remove(&id));
+    by_cq.remove(&(connection_id, qk.clone()));
+    if by_q.get(&qk).map(|s| s.is_empty()).unwrap_or(true) {
+      by_q.remove(&qk);
+    }
+    true
   }
 
-  /// Get subscription by id (for matching/delivery).
+  /// Remove all subscriptions for a connection (e.g. when the SSE stream closes). Queries with no remaining subscriptions are dropped.
+  pub fn remove_connection(&self, connection_id: Uuid) {
+    let ids: Vec<Uuid> = self
+      .by_connection
+      .lock()
+      .unwrap()
+      .remove(&connection_id)
+      .into_iter()
+      .flatten()
+      .collect();
+    for id in ids {
+      let _ = self.unsubscribe(id);
+    }
+  }
+
+  /// Get subscription meta by id (for matching/delivery).
   #[allow(dead_code)]
   pub fn get(&self, id: Uuid) -> Option<SubscriptionMeta> {
-    self.inner.lock().unwrap().get(&id).cloned()
+    self.inner.lock().unwrap().get(&id).map(|r| r.meta.clone())
   }
 
   /// Scope-aware matching: return subscription ids affected by a change event.
@@ -106,10 +198,10 @@ impl SubscriptionStore {
     let guard = self.inner.lock().unwrap();
     guard
       .iter()
-      .filter(|(_id, meta)| {
-        meta.entity_id == event.model_id
+      .filter(|(_, record)| {
+        record.meta.entity_id == event.model_id
           && (event.organization_id.is_none()
-            || event.organization_id == Some(meta.organization_id))
+            || event.organization_id == Some(record.meta.organization_id))
       })
       .map(|(id, _)| *id)
       .collect()
@@ -119,6 +211,12 @@ impl SubscriptionStore {
   /// Non-blocking: only in-process broadcast send; write path does not wait.
   pub fn notify_affected_by(&self, event: &ChangeEvent) {
     let ids = self.subscriptions_affected_by(event);
+    tracing::debug!(
+      model_id = %event.model_id,
+      organization_id = ?event.organization_id,
+      affected_count = ids.len(),
+      "subscription: notify_affected_by"
+    );
     for subscription_id in ids {
       self.send_invalidation(InvalidationEvent { subscription_id });
     }
@@ -141,14 +239,38 @@ impl SubscriptionStore {
 mod bdd_tests {
   use super::*;
 
+  fn conn() -> Uuid {
+    Uuid::new_v4()
+  }
+
   /// BDD-style tests focusing on behavior rather than implementation.
   /// Tests are organized by feature/behavior area with descriptive names.
   mod subscription_registration_behavior {
     use super::*;
 
     #[test]
-    fn should_register_subscription_and_return_unique_id() {
-      // Given: a subscription store and subscription metadata
+    fn should_return_same_id_for_same_connection_and_query() {
+      // Given: a subscription store, one connection, and same meta twice
+      let store = SubscriptionStore::new();
+      let c = conn();
+      let meta = SubscriptionMeta {
+        entity_id: "user".to_string(),
+        organization_id: Uuid::new_v4(),
+        role_id: Uuid::new_v4(),
+        params: None,
+      };
+
+      // When: subscribing twice with same connection and query
+      let id1 = store.subscribe(c, meta.clone());
+      let id2 = store.subscribe(c, meta.clone());
+
+      // Then: should return the same ID (one subscription per connection per query)
+      assert_eq!(id1, id2);
+    }
+
+    #[test]
+    fn should_return_different_ids_for_different_connections_same_query() {
+      // Given: a subscription store and two connections with same meta
       let store = SubscriptionStore::new();
       let meta = SubscriptionMeta {
         entity_id: "user".to_string(),
@@ -157,12 +279,12 @@ mod bdd_tests {
         params: None,
       };
 
-      // When: subscribing
-      let id1 = store.subscribe(meta.clone());
-      let id2 = store.subscribe(meta.clone());
+      // When: subscribing from two different connections
+      let id1 = store.subscribe(conn(), meta.clone());
+      let id2 = store.subscribe(conn(), meta.clone());
 
       // Then: should return unique IDs
-      assert_ne!(id1, id2, "Each subscription should get a unique ID");
+      assert_ne!(id1, id2);
     }
 
     #[test]
@@ -179,7 +301,7 @@ mod bdd_tests {
       };
 
       // When: subscribing
-      let id = store.subscribe(meta.clone());
+      let id = store.subscribe(conn(), meta.clone());
 
       // Then: subscription should be retrievable with same metadata
       let retrieved = store.get(id);
@@ -193,11 +315,13 @@ mod bdd_tests {
 
     #[test]
     fn should_allow_multiple_subscriptions_for_same_entity() {
-      // Given: a subscription store
+      // Given: a subscription store and two connections
       let store = SubscriptionStore::new();
       let org_id = Uuid::new_v4();
+      let c1 = conn();
+      let c2 = conn();
 
-      // When: subscribing multiple times to same entity
+      // When: subscribing multiple times to same entity from different connections
       let meta1 = SubscriptionMeta {
         entity_id: "user".to_string(),
         organization_id: org_id,
@@ -210,8 +334,8 @@ mod bdd_tests {
         role_id: Uuid::new_v4(),
         params: None,
       };
-      let id1 = store.subscribe(meta1);
-      let id2 = store.subscribe(meta2);
+      let id1 = store.subscribe(c1, meta1);
+      let id2 = store.subscribe(c2, meta2);
 
       // Then: both subscriptions should be stored
       assert!(store.get(id1).is_some());
@@ -233,7 +357,7 @@ mod bdd_tests {
         role_id: Uuid::new_v4(),
         params: None,
       };
-      let id = store.subscribe(meta);
+      let id = store.subscribe(conn(), meta);
 
       // When: unsubscribing
       let removed = store.unsubscribe(id);
@@ -275,8 +399,8 @@ mod bdd_tests {
         role_id: Uuid::new_v4(),
         params: None,
       };
-      let id1 = store.subscribe(meta1);
-      let id2 = store.subscribe(meta2);
+      let id1 = store.subscribe(conn(), meta1);
+      let id2 = store.subscribe(conn(), meta2);
 
       // When: unsubscribing one subscription
       store.unsubscribe(id1);
@@ -301,18 +425,24 @@ mod bdd_tests {
       // Given: subscriptions for different entities
       let store = SubscriptionStore::new();
       let org_id = Uuid::new_v4();
-      let user_sub_id = store.subscribe(SubscriptionMeta {
-        entity_id: "user".to_string(),
-        organization_id: org_id,
-        role_id: Uuid::new_v4(),
-        params: None,
-      });
-      let _task_sub_id = store.subscribe(SubscriptionMeta {
-        entity_id: "task".to_string(),
-        organization_id: org_id,
-        role_id: Uuid::new_v4(),
-        params: None,
-      });
+      let user_sub_id = store.subscribe(
+        conn(),
+        SubscriptionMeta {
+          entity_id: "user".to_string(),
+          organization_id: org_id,
+          role_id: Uuid::new_v4(),
+          params: None,
+        },
+      );
+      let _task_sub_id = store.subscribe(
+        conn(),
+        SubscriptionMeta {
+          entity_id: "task".to_string(),
+          organization_id: org_id,
+          role_id: Uuid::new_v4(),
+          params: None,
+        },
+      );
 
       // When: publishing change event for "user" entity
       let event = ChangeEvent {
@@ -334,18 +464,24 @@ mod bdd_tests {
       let store = SubscriptionStore::new();
       let org1_id = Uuid::new_v4();
       let org2_id = Uuid::new_v4();
-      let sub1_id = store.subscribe(SubscriptionMeta {
-        entity_id: "user".to_string(),
-        organization_id: org1_id,
-        role_id: Uuid::new_v4(),
-        params: None,
-      });
-      let sub2_id = store.subscribe(SubscriptionMeta {
-        entity_id: "user".to_string(),
-        organization_id: org2_id,
-        role_id: Uuid::new_v4(),
-        params: None,
-      });
+      let sub1_id = store.subscribe(
+        conn(),
+        SubscriptionMeta {
+          entity_id: "user".to_string(),
+          organization_id: org1_id,
+          role_id: Uuid::new_v4(),
+          params: None,
+        },
+      );
+      let sub2_id = store.subscribe(
+        conn(),
+        SubscriptionMeta {
+          entity_id: "user".to_string(),
+          organization_id: org2_id,
+          role_id: Uuid::new_v4(),
+          params: None,
+        },
+      );
 
       // When: publishing platform-level change event (no organization_id)
       let event = ChangeEvent {
@@ -368,18 +504,24 @@ mod bdd_tests {
       let store = SubscriptionStore::new();
       let org1_id = Uuid::new_v4();
       let org2_id = Uuid::new_v4();
-      let sub1_id = store.subscribe(SubscriptionMeta {
-        entity_id: "user".to_string(),
-        organization_id: org1_id,
-        role_id: Uuid::new_v4(),
-        params: None,
-      });
-      let _sub2_id = store.subscribe(SubscriptionMeta {
-        entity_id: "user".to_string(),
-        organization_id: org2_id,
-        role_id: Uuid::new_v4(),
-        params: None,
-      });
+      let sub1_id = store.subscribe(
+        conn(),
+        SubscriptionMeta {
+          entity_id: "user".to_string(),
+          organization_id: org1_id,
+          role_id: Uuid::new_v4(),
+          params: None,
+        },
+      );
+      let _sub2_id = store.subscribe(
+        conn(),
+        SubscriptionMeta {
+          entity_id: "user".to_string(),
+          organization_id: org2_id,
+          role_id: Uuid::new_v4(),
+          params: None,
+        },
+      );
 
       // When: publishing org-scoped change event
       let event = ChangeEvent {
@@ -400,12 +542,15 @@ mod bdd_tests {
       // Given: subscription for "user" entity
       let store = SubscriptionStore::new();
       let org_id = Uuid::new_v4();
-      let _sub_id = store.subscribe(SubscriptionMeta {
-        entity_id: "user".to_string(),
-        organization_id: org_id,
-        role_id: Uuid::new_v4(),
-        params: None,
-      });
+      let _sub_id = store.subscribe(
+        conn(),
+        SubscriptionMeta {
+          entity_id: "user".to_string(),
+          organization_id: org_id,
+          role_id: Uuid::new_v4(),
+          params: None,
+        },
+      );
 
       // When: publishing change event for different entity
       let event = ChangeEvent {
@@ -468,18 +613,24 @@ mod bdd_tests {
       let store = SubscriptionStore::new();
       let mut rx = store.subscribe_invalidations();
       let org_id = Uuid::new_v4();
-      let sub1_id = store.subscribe(SubscriptionMeta {
-        entity_id: "user".to_string(),
-        organization_id: org_id,
-        role_id: Uuid::new_v4(),
-        params: None,
-      });
-      let sub2_id = store.subscribe(SubscriptionMeta {
-        entity_id: "user".to_string(),
-        organization_id: org_id,
-        role_id: Uuid::new_v4(),
-        params: None,
-      });
+      let sub1_id = store.subscribe(
+        conn(),
+        SubscriptionMeta {
+          entity_id: "user".to_string(),
+          organization_id: org_id,
+          role_id: Uuid::new_v4(),
+          params: None,
+        },
+      );
+      let sub2_id = store.subscribe(
+        conn(),
+        SubscriptionMeta {
+          entity_id: "user".to_string(),
+          organization_id: org_id,
+          role_id: Uuid::new_v4(),
+          params: None,
+        },
+      );
 
       // When: notifying affected subscriptions
       let event = ChangeEvent {
@@ -625,6 +776,10 @@ mod tests {
 
   mod bdd_tests {
     use super::*;
+
+    fn conn() -> Uuid {
+      Uuid::new_v4()
+    }
 
     /// BDD-style tests focusing on behavior rather than implementation.
     /// Tests verify subscription management, change event handling, and invalidation event delivery behavior.
@@ -789,12 +944,15 @@ mod tests {
         // When: checking subscriptions
         // Then: should have no subscriptions initially
         // Verified by subscribe returning a new ID each time
-        let id1 = store.subscribe(SubscriptionMeta {
-          entity_id: "user".to_string(),
-          organization_id: Uuid::new_v4(),
-          role_id: Uuid::new_v4(),
-          params: None,
-        });
+        let id1 = store.subscribe(
+          conn(),
+          SubscriptionMeta {
+            entity_id: "user".to_string(),
+            organization_id: Uuid::new_v4(),
+            role_id: Uuid::new_v4(),
+            params: None,
+          },
+        );
         assert!(!id1.is_nil(), "Should generate valid subscription ID");
       }
     }
@@ -814,7 +972,7 @@ mod tests {
         };
 
         // When: subscribing
-        let id = store.subscribe(meta.clone());
+        let id = store.subscribe(conn(), meta.clone());
 
         // Then: should return a valid UUID
         assert!(!id.is_nil(), "Should return valid subscription ID");
@@ -826,7 +984,7 @@ mod tests {
 
       #[test]
       fn should_generate_unique_ids_for_multiple_subscriptions() {
-        // Given: a SubscriptionStore
+        // Given: a SubscriptionStore and two connections
         let store = SubscriptionStore::new();
         let meta = SubscriptionMeta {
           entity_id: "user".to_string(),
@@ -835,9 +993,9 @@ mod tests {
           params: None,
         };
 
-        // When: subscribing multiple times
-        let id1 = store.subscribe(meta.clone());
-        let id2 = store.subscribe(meta.clone());
+        // When: subscribing from two different connections
+        let id1 = store.subscribe(conn(), meta.clone());
+        let id2 = store.subscribe(conn(), meta.clone());
 
         // Then: should generate unique IDs
         assert_ne!(id1, id2, "Should generate unique subscription IDs");
@@ -853,7 +1011,7 @@ mod tests {
           role_id: Uuid::new_v4(),
           params: None,
         };
-        let id = store.subscribe(meta);
+        let id = store.subscribe(conn(), meta);
 
         // When: unsubscribing
         let existed = store.unsubscribe(id);
@@ -888,7 +1046,7 @@ mod tests {
           role_id,
           params: None,
         };
-        let id = store.subscribe(meta.clone());
+        let id = store.subscribe(conn(), meta.clone());
 
         // When: retrieving subscription
         let retrieved = store.get(id);
@@ -1011,7 +1169,7 @@ mod tests {
           role_id: Uuid::new_v4(),
           params: None,
         };
-        let subscription_id = store.subscribe(meta);
+        let subscription_id = store.subscribe(conn(), meta);
 
         // When: matching with change event for same entity
         let event = ChangeEvent {
@@ -1039,7 +1197,7 @@ mod tests {
           role_id: Uuid::new_v4(),
           params: None,
         };
-        let subscription_id = store.subscribe(meta);
+        let subscription_id = store.subscribe(conn(), meta);
 
         // When: matching with change event for different entity
         let event = ChangeEvent {
@@ -1075,8 +1233,8 @@ mod tests {
           role_id: Uuid::new_v4(),
           params: None,
         };
-        let id1 = store.subscribe(meta1);
-        let id2 = store.subscribe(meta2);
+        let id1 = store.subscribe(conn(), meta1);
+        let id2 = store.subscribe(conn(), meta2);
 
         // When: matching with platform-level change event (no org)
         let event = ChangeEvent {
@@ -1110,8 +1268,8 @@ mod tests {
           role_id: Uuid::new_v4(),
           params: None,
         };
-        let id1 = store.subscribe(meta1);
-        let id2 = store.subscribe(meta2);
+        let id1 = store.subscribe(conn(), meta1);
+        let id2 = store.subscribe(conn(), meta2);
 
         // When: matching with org-scoped change event
         let event = ChangeEvent {
@@ -1156,7 +1314,7 @@ mod tests {
           role_id: Uuid::new_v4(),
           params: None,
         };
-        let _subscription_id = store.subscribe(meta);
+        let _subscription_id = store.subscribe(conn(), meta);
 
         // When: notifying affected subscriptions directly
         let event = ChangeEvent {

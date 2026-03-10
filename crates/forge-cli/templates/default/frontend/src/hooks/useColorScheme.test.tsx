@@ -5,7 +5,6 @@
 import { describe, test, expect, beforeEach, beforeAll } from 'bun:test'
 import { renderHook, act } from '@testing-library/react'
 import { useColorSchemeMode } from './useColorScheme'
-import type { PaletteMode } from '@mui/material'
 import { Window } from 'happy-dom'
 
 const STORAGE_KEY = 'mui-color-scheme'

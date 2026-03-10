@@ -39,6 +39,8 @@ pub struct RpcRequest {
 pub struct RpcParams {
   pub id: Option<String>,
   pub body: Option<serde_json::Value>,
+  /// For subscribe: connection id from the subscription stream ready message (required for subscribe).
+  pub connection_id: Option<String>,
   /// For unsubscribe: server-assigned subscription id.
   pub subscription_id: Option<String>,
   /// For entity.list: same as REST query params (filter, sort, order, offset, limit, cursor).
@@ -117,7 +119,7 @@ pub async fn rpc_handler(
   }
 
   match action {
-    "list" => rpc_list(&db, entity_id, body.params.as_ref(), correlation_id).await,
+    "list" => rpc_list(&db, entity_id, body.params.as_ref(), correlation_id, &scope).await,
     "get" => {
       let id_str = body
         .params
@@ -251,6 +253,21 @@ async fn rpc_subscribe(
   {
     return Ok(rpc_error(StatusCode::BAD_REQUEST, &msg, correlation_id));
   }
+  let connection_id = body
+    .params
+    .as_ref()
+    .and_then(|p| p.connection_id.as_deref())
+    .and_then(|s| Uuid::parse_str(s).ok());
+  let connection_id = match connection_id {
+    Some(u) => u,
+    None => {
+      return Ok(rpc_error(
+        StatusCode::BAD_REQUEST,
+        "params.connection_id required for subscribe (open GET /api/subscriptions/stream first and use the connection_id from the ready message)",
+        correlation_id,
+      ));
+    }
+  };
   let params = serde_json::to_value(&spec).ok();
   let meta = SubscriptionMeta {
     entity_id,
@@ -258,7 +275,7 @@ async fn rpc_subscribe(
     role_id: scope.role_id,
     params,
   };
-  let subscription_id = store.subscribe(meta);
+  let subscription_id = store.subscribe(connection_id, meta);
   Ok(rpc_ok_result(
     json!({ "subscription_id": subscription_id.to_string() }),
     correlation_id,
@@ -332,6 +349,7 @@ async fn rpc_list(
   entity_id: &str,
   params: Option<&RpcParams>,
   correlation_id: Option<serde_json::Value>,
+  scope: &forge_auth::RequestScope,
 ) -> Result<axum::response::Response, ForgeError> {
   let list_params = ListQueryParams {
     expand: None,
@@ -349,7 +367,7 @@ async fn rpc_list(
       return Ok(rpc_error(StatusCode::BAD_REQUEST, &msg, correlation_id));
     }
   };
-  match list_entity_with_spec(db, entity_id, &spec).await {
+  match list_entity_with_spec(db, entity_id, &spec, Some(scope)).await {
     Ok(result) => Ok(rpc_ok_result(result, correlation_id)),
     Err(ForgeError::Auth(status, msg)) => Ok(rpc_error(status, &msg, correlation_id)),
     Err(e) => Ok(rpc_error(

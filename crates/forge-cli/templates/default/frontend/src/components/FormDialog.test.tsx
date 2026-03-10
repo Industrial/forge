@@ -118,7 +118,7 @@ beforeAll(() => {
           enumerable: false,
         })
       }
-    } catch (e) {
+    } catch (_e) {
       // Ignore errors if property can't be defined
     }
   }
@@ -182,10 +182,10 @@ beforeAll(() => {
 
   // Patch document.createElement to ensure new elements have these properties
   const originalCreateElement = document.createElement.bind(document)
-  document.createElement = function (
+  document.createElement = (
     tagName: string,
     options?: ElementCreationOptions,
-  ) {
+  ) => {
     const element = originalCreateElement(tagName, options)
     // Ensure scroll properties exist
     if (!('scrollTop' in element)) {
@@ -220,7 +220,7 @@ beforeAll(() => {
       typeof message === 'string' &&
       (message.includes('scrollTop') ||
         message.includes('null is not an object') ||
-        (error && error.message && error.message.includes('scrollTop')))
+        error?.message?.includes('scrollTop'))
     ) {
       return true // Suppress the error
     }
@@ -257,7 +257,9 @@ const NoTransition = React.forwardRef<
   HTMLDivElement,
   { in?: boolean; children: React.ReactNode }
 >(function NoTransition(props, ref) {
-  if (props.in === false) return null
+  if (props.in === false) {
+    return null
+  }
   return <div ref={ref}>{props.children}</div>
 })
 

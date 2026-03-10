@@ -8,10 +8,13 @@ import { defineStore, type ReactiveStore } from '@/lib/ReactiveStore'
 
 export interface SubscriptionStreamStatus {
   connected: boolean
+  /** Set when ready is received from the stream; used as params.connection_id for subscribe RPC. */
+  connectionId: string | null
 }
 
 export const initialSubscriptionStreamStatus: SubscriptionStreamStatus = {
   connected: false,
+  connectionId: null,
 }
 
 /** DSL: one store definition; use .tag in Effect, .layer in app layer. */

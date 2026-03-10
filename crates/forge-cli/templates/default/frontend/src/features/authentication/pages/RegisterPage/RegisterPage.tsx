@@ -139,13 +139,7 @@ export default function RegisterPage() {
         }
       })
     },
-    [
-      navigate,
-      formState.values,
-      validateForm,
-      setFieldTouched,
-      setValidationErrors,
-    ],
+    [navigate, formState.values, validateForm, setValidationErrors],
   )
 
   const emailError = getFieldError('email')

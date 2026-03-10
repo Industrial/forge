@@ -95,7 +95,7 @@ describe('InvalidTokenError', () => {
     })
 
     test('should handle long error messages', () => {
-      const longMessage = 'Token validation failed: ' + 'A'.repeat(500)
+      const longMessage = `Token validation failed: ${'A'.repeat(500)}`
       const error = new InvalidTokenError({ message: longMessage })
 
       expect(error.message).toBe(longMessage)

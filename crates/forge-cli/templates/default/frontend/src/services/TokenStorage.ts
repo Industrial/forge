@@ -2,7 +2,7 @@
  * Persisted auth token and scope (organization + role). Used by Authentication
  * to restore session and persist login/scope. Live uses localStorage; tests use Mock.
  */
-import { Context, Effect, Option } from 'effect'
+import { Context, type Effect, type Option } from 'effect'
 
 export interface TokenStorage {
   readonly getToken: () => Effect.Effect<Option.Option<string>, never, never>

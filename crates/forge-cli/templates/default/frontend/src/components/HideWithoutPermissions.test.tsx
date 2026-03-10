@@ -2,20 +2,13 @@
  * BDD component tests for HideWithoutPermissions.tsx
  * Tests verify component rendering, permission checking, and conditional visibility
  */
-import {
-  describe,
-  test,
-  expect,
-  beforeAll,
-  beforeEach,
-  afterEach,
-} from 'bun:test'
-import { render, waitFor, screen } from '@testing-library/react'
+import { describe, test, expect, beforeAll, afterEach } from 'bun:test'
+import { render, waitFor } from '@testing-library/react'
 import { BrowserRouter } from 'react-router-dom'
-import { ThemeProvider, createTheme } from '@mui/material/styles'
+import { createTheme } from '@mui/material/styles'
 import { Window } from 'happy-dom'
-import React from 'react'
-import { Effect, Layer, Option, Stream, Chunk } from 'effect'
+import type React from 'react'
+import { Effect, Layer, Stream, Chunk } from 'effect'
 
 import { HideWithoutPermissions } from './HideWithoutPermissions'
 import { Providers } from '@/Providers'

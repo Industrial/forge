@@ -5,10 +5,10 @@
 import { describe, test, expect, beforeAll } from 'bun:test'
 import { render } from '@testing-library/react'
 import { BrowserRouter } from 'react-router-dom'
-import { ThemeProvider, createTheme } from '@mui/material/styles'
+import { createTheme } from '@mui/material/styles'
 import { Window } from 'happy-dom'
-import React from 'react'
-import { Effect, Layer } from 'effect'
+import type React from 'react'
+import { Layer } from 'effect'
 
 import LoginPage from './LoginPage'
 import { Providers } from '@/Providers'
@@ -54,7 +54,7 @@ const createWrapper = () => {
   const theme = createTheme({ palette: { mode: 'light' } })
   const mockAuth = createMockAuthentication()
 
-  const appLayer = getApplicationLayer(
+  const _appLayer = getApplicationLayer(
     Layer.mergeAll(
       mockAuth.authentication,
       Layer.succeed(Authentication, mockAuth.authentication),

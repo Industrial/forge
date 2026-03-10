@@ -7,7 +7,7 @@ import { render, waitFor } from '@testing-library/react'
 import { BrowserRouter } from 'react-router-dom'
 import { createTheme } from '@mui/material/styles'
 import { Window } from 'happy-dom'
-import React from 'react'
+import type React from 'react'
 import { Effect, Layer, Option, Stream, Chunk } from 'effect'
 
 import NavbarUserMenu from './NavbarUserMenu'

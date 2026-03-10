@@ -18,7 +18,7 @@ const spinnerStyle: React.CSSProperties = {
 /** Full-page loading indicator. Inline styles only (no MUI) for use before ThemeProvider. */
 export default function FullPageLoader(): React.JSX.Element {
   return (
-    <div style={containerStyle} aria-busy aria-label="Loading">
+    <div style={containerStyle} role="status" aria-busy aria-label="Loading">
       <div style={spinnerStyle} />
       <style>{`@keyframes fullPageLoaderSpin { to { transform: rotate(360deg); } }`}</style>
     </div>

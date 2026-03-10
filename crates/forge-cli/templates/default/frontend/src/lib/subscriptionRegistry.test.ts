@@ -199,9 +199,6 @@ describe('subscriptionRegistry', () => {
     test('should pass entry data to callback', () => {
       // Given: a registered subscription with entityId and params
       const subscriptionId = 'test-subscription-6'
-      let receivedEntityId = ''
-      let receivedParams: unknown = undefined
-
       register(subscriptionId, {
         entityId: 'entity-123',
         params: { filter: 'active', sort: 'name' },

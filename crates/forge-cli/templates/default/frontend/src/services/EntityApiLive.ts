@@ -17,15 +17,25 @@ import type {
 import { EntityApi } from './EntityApi'
 
 function buildListQuery(params?: ListQueryParams): string {
-  if (!params) return ''
+  if (!params) {
+    return ''
+  }
   const search = new URLSearchParams()
-  if (params.filter != null && params.filter !== '')
+  if (params.filter != null && params.filter !== '') {
     search.set('filter', params.filter)
-  if (params.sort != null && params.sort !== '') search.set('sort', params.sort)
-  if (params.order != null && params.order !== '')
+  }
+  if (params.sort != null && params.sort !== '') {
+    search.set('sort', params.sort)
+  }
+  if (params.order != null && params.order !== '') {
     search.set('order', params.order)
-  if (params.offset != null) search.set('offset', String(params.offset))
-  if (params.limit != null) search.set('limit', String(params.limit))
+  }
+  if (params.offset != null) {
+    search.set('offset', String(params.offset))
+  }
+  if (params.limit != null) {
+    search.set('limit', String(params.limit))
+  }
   const q = search.toString()
   return q ? `?${q}` : ''
 }
@@ -70,7 +80,9 @@ export const EntityApiLive = Layer.effect(
           .execute(HttpClientRequest.get(path))
           .pipe(Effect.mapError(toError))
         const body = yield* response.json.pipe(Effect.mapError(toError))
-        if (response.status >= 200 && response.status < 300) return body
+        if (response.status >= 200 && response.status < 300) {
+          return body
+        }
         return yield* Effect.fail(new Error(parseError(body)))
       })
 
@@ -87,7 +99,9 @@ export const EntityApiLive = Layer.effect(
           )
           .pipe(Effect.mapError(toError))
         const resBody = yield* response.json.pipe(Effect.mapError(toError))
-        if (response.status >= 200 && response.status < 300) return resBody
+        if (response.status >= 200 && response.status < 300) {
+          return resBody
+        }
         return yield* Effect.fail(new Error(parseError(resBody)))
       })
 
@@ -106,7 +120,9 @@ export const EntityApiLive = Layer.effect(
           )
           .pipe(Effect.mapError(toError))
         const resBody = yield* response.json.pipe(Effect.mapError(toError))
-        if (response.status >= 200 && response.status < 300) return resBody
+        if (response.status >= 200 && response.status < 300) {
+          return resBody
+        }
         return yield* Effect.fail(new Error(parseError(resBody)))
       })
 

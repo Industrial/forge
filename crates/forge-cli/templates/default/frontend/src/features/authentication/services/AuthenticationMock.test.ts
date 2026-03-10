@@ -8,7 +8,6 @@ import { Effect, Option, Layer } from 'effect'
 import {
   createMockAuthentication,
   AuthenticationMockLayer,
-  type MockAuthenticationState,
 } from './AuthenticationMock'
 import { Authentication } from './Authentication'
 import { AuthenticationUser } from '@/features/authentication/domain/AuthenticationUser'
@@ -374,7 +373,7 @@ describe('AuthenticationMock', () => {
 
       // Then user should be set in state
       expect(Option.isSome(mock.state.user)).toBe(true)
-      const user = Option.getOrUndefined(mock.state.user)!
+      const user = Option.getOrThrow(mock.state.user)
       expect(user.email).toBe(email)
     })
 

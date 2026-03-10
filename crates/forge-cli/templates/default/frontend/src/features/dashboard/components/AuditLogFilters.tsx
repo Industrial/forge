@@ -81,12 +81,19 @@ export default function AuditLogFilters({
 }: AuditLogFiltersProps) {
   const values = { from, to, outcome, eventKind, action, reason }
   const onChange = (key: string, value: string) => {
-    if (key === 'from') onFromChange(value)
-    else if (key === 'to') onToChange(value)
-    else if (key === 'outcome') onOutcomeChange(value)
-    else if (key === 'eventKind') onEventKindChange(value)
-    else if (key === 'action') onActionChange(value)
-    else if (key === 'reason') onReasonChange(value)
+    if (key === 'from') {
+      onFromChange(value)
+    } else if (key === 'to') {
+      onToChange(value)
+    } else if (key === 'outcome') {
+      onOutcomeChange(value)
+    } else if (key === 'eventKind') {
+      onEventKindChange(value)
+    } else if (key === 'action') {
+      onActionChange(value)
+    } else if (key === 'reason') {
+      onReasonChange(value)
+    }
   }
   return <FiltersPanel fields={FIELDS} values={values} onChange={onChange} />
 }

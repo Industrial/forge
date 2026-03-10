@@ -106,12 +106,10 @@ function App() {
             element={
               <ProtectedRoute>
                 <DashboardScopeGuard>
-                  <>
-                    <SubscriptionStreamRunner />
-                    <DashboardLayout {...layoutProps}>
-                      <Outlet />
-                    </DashboardLayout>
-                  </>
+                  <SubscriptionStreamRunner />
+                  <DashboardLayout {...layoutProps}>
+                    <Outlet />
+                  </DashboardLayout>
                 </DashboardScopeGuard>
               </ProtectedRoute>
             }

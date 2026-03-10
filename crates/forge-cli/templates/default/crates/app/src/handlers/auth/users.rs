@@ -19,7 +19,7 @@ use std::sync::Arc;
 use uuid::Uuid;
 
 use db::auth::Backend;
-use db::models::{membership, org_role, user, user_org_role};
+use db::models::{membership, org_role, organization, user, user_org_role};
 
 use crate::Error as ForgeError;
 use crate::scoped_query::user_find_scoped;
@@ -75,15 +75,113 @@ pub async fn list_users(
     .all(&db)
     .await
     .map_err(|e| ForgeError::Generic(e.to_string()))?;
+  let user_ids: Vec<Uuid> = users.iter().map(|u| u.id).collect();
+  let (_org_map, _role_map, memberships_by_user) = if user_ids.is_empty() {
+    (
+      std::collections::HashMap::new(),
+      std::collections::HashMap::new(),
+      std::collections::HashMap::<Uuid, Vec<(Uuid, String, Vec<String>)>>::new(),
+    )
+  } else {
+    let uors = user_org_role::Entity::find()
+      .filter(user_org_role::Column::UserId.is_in(user_ids.clone()))
+      .all(&db)
+      .await
+      .map_err(|e| ForgeError::Generic(e.to_string()))?;
+    let org_ids: Vec<Uuid> = uors
+      .iter()
+      .map(|u| u.org_id)
+      .collect::<std::collections::HashSet<_>>()
+      .into_iter()
+      .collect();
+    let role_ids: Vec<Uuid> = uors
+      .iter()
+      .map(|u| u.role_id)
+      .collect::<std::collections::HashSet<_>>()
+      .into_iter()
+      .collect();
+    let orgs = if org_ids.is_empty() {
+      vec![]
+    } else {
+      organization::Entity::find()
+        .filter(organization::Column::Id.is_in(org_ids))
+        .all(&db)
+        .await
+        .map_err(|e| ForgeError::Generic(e.to_string()))?
+    };
+    let roles = if role_ids.is_empty() {
+      vec![]
+    } else {
+      org_role::Entity::find()
+        .filter(org_role::Column::Id.is_in(role_ids))
+        .all(&db)
+        .await
+        .map_err(|e| ForgeError::Generic(e.to_string()))?
+    };
+    let org_map: std::collections::HashMap<Uuid, String> =
+      orgs.into_iter().map(|o| (o.id, o.name)).collect();
+    let role_map: std::collections::HashMap<Uuid, String> =
+      roles.into_iter().map(|r| (r.id, r.name.clone())).collect();
+    let mut memberships_by_user: std::collections::HashMap<Uuid, Vec<(Uuid, String, Vec<String>)>> =
+      std::collections::HashMap::new();
+    for uor in &uors {
+      let org_name = org_map
+        .get(&uor.org_id)
+        .cloned()
+        .unwrap_or_else(|| uor.org_id.to_string());
+      let role_name = role_map
+        .get(&uor.role_id)
+        .cloned()
+        .unwrap_or_else(|| uor.role_id.to_string());
+      memberships_by_user.entry(uor.user_id).or_default().push((
+        uor.org_id,
+        org_name,
+        vec![role_name],
+      ));
+    }
+    for (_, per_org) in memberships_by_user.iter_mut() {
+      per_org.sort_by_key(|(org_id, _, _)| *org_id);
+      let mut merged: Vec<(Uuid, String, Vec<String>)> = Vec::new();
+      for (org_id, org_name, roles) in per_org.drain(..) {
+        if let Some(last) = merged.last_mut()
+          && last.0 == org_id
+        {
+          if !last.2.contains(&roles[0]) {
+            last.2.push(roles[0].clone());
+          }
+          continue;
+        }
+        merged.push((org_id, org_name, roles));
+      }
+      *per_org = merged;
+    }
+    (org_map, role_map, memberships_by_user)
+  };
   let list: Vec<serde_json::Value> = users
     .into_iter()
     .map(|u| {
+      let memberships: Vec<serde_json::Value> = memberships_by_user
+        .get(&u.id)
+        .map(|per_org| {
+          per_org
+            .iter()
+            .map(|(org_id, org_name, role_names)| {
+              serde_json::json!({
+                "org_id": org_id.to_string(),
+                "org_name": org_name,
+                "roles": role_names,
+              })
+            })
+            .collect()
+        })
+        .unwrap_or_default();
       serde_json::json!({
         "id": u.id.to_string(),
         "email": u.email,
         "is_active": u.is_active,
         "is_admin": u.is_admin,
         "created_at": u.created_at.format("%Y-%m-%dT%H:%M:%S%.fZ").to_string(),
+        "memberships": memberships,
       })
     })
     .collect();

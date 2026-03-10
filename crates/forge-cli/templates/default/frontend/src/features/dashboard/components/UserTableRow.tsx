@@ -29,8 +29,11 @@ export default function UserTableRow({
   isDeleting,
 }: UserTableRowProps) {
   const onRowClick = () => {
-    if (onView) onView(user)
-    else if (canWrite) onEdit(user)
+    if (onView) {
+      onView(user)
+    } else if (canWrite) {
+      onEdit(user)
+    }
   }
   return (
     <EntityTableRow<UserRow>

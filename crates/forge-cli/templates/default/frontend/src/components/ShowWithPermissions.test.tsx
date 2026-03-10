@@ -5,9 +5,9 @@
 import { describe, test, expect, beforeAll, afterEach } from 'bun:test'
 import { render, waitFor } from '@testing-library/react'
 import { BrowserRouter } from 'react-router-dom'
-import { ThemeProvider, createTheme } from '@mui/material/styles'
+import { createTheme } from '@mui/material/styles'
 import { Window } from 'happy-dom'
-import React from 'react'
+import type React from 'react'
 import { Effect, Layer, Stream, Chunk } from 'effect'
 
 import { ShowWithPermissions } from './ShowWithPermissions'
@@ -70,7 +70,7 @@ function createMockAuthStoreWithPermissions(permissions: string[]) {
 
   // Get the sync registry if it exists (set by createExternalStore)
   // This allows the store to update the React cache synchronously
-  const getRegistry = () => {
+  const _getRegistry = () => {
     // Access the internal registry from ReactiveStore module
     // We can't import it directly, so we'll trigger updates via the stream
     return null

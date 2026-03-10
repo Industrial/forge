@@ -7,7 +7,7 @@ import { render } from '@testing-library/react'
 import { ThemeProvider, createTheme } from '@mui/material/styles'
 import { Table, TableBody } from '@mui/material'
 import { Window } from 'happy-dom'
-import React from 'react'
+import type React from 'react'
 
 import UserTableRow, { type UserRow } from './UserTableRow'
 

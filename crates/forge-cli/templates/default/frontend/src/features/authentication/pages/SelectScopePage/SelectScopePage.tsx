@@ -85,8 +85,7 @@ export default function SelectScopePage() {
             ),
           )
           const scopesList = body.scopes ?? []
-
-          setScopes(scopesList)
+          setScopes([...scopesList])
         } else {
           setScopes([])
         }

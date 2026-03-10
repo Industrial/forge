@@ -8,7 +8,7 @@ import { Effect } from 'effect'
 import { Dashboard, type DashboardService } from './Dashboard'
 import { Organization } from '../domain/Organization'
 import { DashboardRole } from '../domain/DashboardRole'
-import { createDashboardMock, DashboardMockLayer } from './DashboardMock'
+import { DashboardMockLayer } from './DashboardMock'
 
 describe('Dashboard service', () => {
   describe('service tag', () => {

@@ -112,7 +112,7 @@ export default function DataTable<T>({
                     ))}
                     {hasActions && (
                       <TableCell align="right">
-                        {actionsColumn!.render(row)}
+                        {actionsColumn?.render(row)}
                       </TableCell>
                     )}
                   </TableRow>

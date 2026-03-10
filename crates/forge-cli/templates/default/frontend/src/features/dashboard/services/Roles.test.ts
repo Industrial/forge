@@ -8,7 +8,7 @@ import { Effect } from 'effect'
 import { Roles, type RolesService } from './Roles'
 import { Role } from '../domain/Role'
 import { DashboardRole } from '../domain/DashboardRole'
-import { createRolesMock, RolesMockLayer } from './RolesMock'
+import { RolesMockLayer } from './RolesMock'
 
 describe('Roles service', () => {
   describe('service tag', () => {

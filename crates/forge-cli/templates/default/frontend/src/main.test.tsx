@@ -3,7 +3,6 @@
  * Tests verify initialization logic, error handling, and integration with Effect and ReactDOM
  */
 import { describe, test, expect, beforeEach, afterEach } from 'bun:test'
-import { render, screen, waitFor } from '@testing-library/react'
 import { Effect, Layer } from 'effect'
 import { Window } from 'happy-dom'
 import ReactDOM from 'react-dom/client'
@@ -24,11 +23,8 @@ import { RpcApiMock } from '@/services/RpcApiMock'
 beforeEach(() => {
   const window = new Window()
   const document = window.document
-  // @ts-expect-error - Setting global DOM APIs for bun test environment
-  globalThis.window = window
-  // @ts-expect-error - Setting global DOM APIs for bun test environment
-  globalThis.document = document
-  // @ts-expect-error - Setting global DOM APIs for bun test environment
+  globalThis.window = window as unknown as typeof globalThis.window
+  globalThis.document = document as unknown as typeof globalThis.document
   globalThis.localStorage = window.localStorage
 
   // Create root element
@@ -121,7 +117,7 @@ describe('main.tsx initialization', () => {
       const rootElement = document.getElementById('root')
       expect(rootElement).not.toBeNull()
       // When: creating React root
-      const root = ReactDOM.createRoot(rootElement!)
+      const root = ReactDOM.createRoot(rootElement as HTMLElement)
       // Then: root should be created successfully
       expect(root).toBeDefined()
       expect(typeof root.render).toBe('function')
@@ -132,7 +128,7 @@ describe('main.tsx initialization', () => {
       const rootElement = document.getElementById('root')
       expect(rootElement).not.toBeNull()
       // When: creating React root
-      const root = ReactDOM.createRoot(rootElement!)
+      const root = ReactDOM.createRoot(rootElement as HTMLElement)
       // Then: root should have render method
       expect(root).toBeDefined()
       expect(typeof root.render).toBe('function')
@@ -238,7 +234,7 @@ describe('main.tsx initialization', () => {
       const element = await Effect.runPromise(
         program.pipe(Effect.provide(layer)),
       )
-      const root = ReactDOM.createRoot(element!)
+      const root = ReactDOM.createRoot(element as HTMLElement)
       // Then: both Effect and ReactDOM should work together
       expect(element).not.toBeNull()
       expect(root).toBeDefined()
@@ -285,7 +281,7 @@ describe('main.tsx initialization', () => {
       // Given: root element and React root
       const rootElement = document.getElementById('root')
       expect(rootElement).not.toBeNull()
-      const root = ReactDOM.createRoot(rootElement!)
+      const root = ReactDOM.createRoot(rootElement as HTMLElement)
       // When: checking that BrowserRouter can wrap App
       // Then: structure should be valid (BrowserRouter wraps App)
       const wrapper = (

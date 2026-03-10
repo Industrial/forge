@@ -6,7 +6,7 @@ import { describe, test, expect, beforeAll } from 'bun:test'
 import { render } from '@testing-library/react'
 import { BrowserRouter } from 'react-router-dom'
 import { Window } from 'happy-dom'
-import React from 'react'
+import type React from 'react'
 
 import HomePage from './HomePage'
 import { Providers } from '@/Providers'

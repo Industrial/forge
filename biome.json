@@ -62,7 +62,38 @@
       }
     }
   },
-  "overrides": [],
+  "overrides": [
+    {
+      "includes": ["**/*.test.ts", "**/*.test.tsx"],
+      "linter": {
+        "rules": {
+          "suspicious": {
+            "noExplicitAny": "off",
+            "noShadowRestrictedNames": "off"
+          },
+          "style": { "useImportType": "off" },
+          "a11y": { "useButtonType": "off" },
+          "style": { "noNonNullAssertion": "off" }
+        }
+      }
+    },
+    {
+      "includes": ["**/FullPageLoader.tsx", "**/Navbar.tsx"],
+      "linter": {
+        "rules": {
+          "a11y": { "useSemanticElements": "off", "noSvgWithoutTitle": "off" }
+        }
+      }
+    },
+    {
+      "includes": ["**/useForm.ts", "**/useEffectForm.ts"],
+      "linter": {
+        "rules": {
+          "suspicious": { "noExplicitAny": "off" }
+        }
+      }
+    }
+  ],
   "vcs": {
     "clientKind": "git",
     "enabled": true,

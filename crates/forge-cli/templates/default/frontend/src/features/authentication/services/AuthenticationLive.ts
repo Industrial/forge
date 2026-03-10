@@ -15,7 +15,7 @@ import { Effect, Option, pipe, Schema } from 'effect'
 import {
   HttpClient,
   HttpClientRequest,
-  HttpClientError,
+  type HttpClientError,
 } from '@effect/platform'
 import { Layer } from 'effect'
 
@@ -29,7 +29,7 @@ import { Authentication } from '@/features/authentication/services/Authenticatio
 import { AuthenticationUser } from '@/features/authentication/domain/AuthenticationUser'
 import { Scope } from '@/features/authentication/domain/Scope'
 import {
-  ScopeError,
+  type ScopeError,
   LoginFailedError,
   RegistrationFailedError,
   UserNotFoundError,
@@ -55,7 +55,9 @@ export function parseMeResponse(
   token: string,
 ): Option.Option<AuthenticationUser> {
   const user = body.user
-  if (user == null) return Option.none()
+  if (user == null) {
+    return Option.none()
+  }
   return Option.some(
     new AuthenticationUser({
       id: String(user.id ?? ''),
@@ -110,7 +112,9 @@ export function buildAuthState(
 export function selectSingleScope(
   scopes: readonly { org_id: string; role_id?: string }[],
 ): Option.Option<{ organizationId: string; roleId: string }> {
-  if (!Array.isArray(scopes) || scopes.length !== 1) return Option.none()
+  if (!Array.isArray(scopes) || scopes.length !== 1) {
+    return Option.none()
+  }
 
   const scope = scopes[0]
   const orgId = scope.org_id
@@ -311,7 +315,9 @@ export function fetchAuthMe(
       Effect.catchAll(() => Effect.succeed(null)),
     )
 
-    if (!rawBody) return null
+    if (!rawBody) {
+      return null
+    }
 
     return yield* parseAuthMeBody(rawBody)
   })
@@ -345,7 +351,9 @@ export function fetchScopes(
       Effect.catchAll(() => Effect.succeed(null)),
     )
 
-    if (!rawBody) return []
+    if (!rawBody) {
+      return []
+    }
 
     const scopesBody = yield* parseScopesResponse(rawBody)
     return scopesBody.scopes ?? []
@@ -375,7 +383,9 @@ export function fetchScopesFull(
       Effect.catchAll(() => Effect.succeed(null)),
     )
 
-    if (!rawBody) return []
+    if (!rawBody) {
+      return []
+    }
 
     const scopesBody = yield* parseScopesResponseFull(rawBody)
     const list = scopesBody.scopes ?? []
@@ -506,7 +516,9 @@ export function fetchMeAndBuildState(
 ): Effect.Effect<AuthenticationState | null, never, HttpClient.HttpClient> {
   return Effect.gen(function* () {
     const body = yield* fetchAuthMe(baseUrl, token, scope)
-    if (!body) return null
+    if (!body) {
+      return null
+    }
     return buildAuthState(token, body, scope)
   })
 }
@@ -610,14 +622,18 @@ export const AuthenticationLive = Layer.effect(
                       Layer.succeed(HttpClient.HttpClient, client),
                     ),
                   )
-                  if (state) yield* updateAuthState(store, state)
+                  if (state) {
+                    yield* updateAuthState(store, state)
+                  }
                 } else {
                   state = yield* fetchMeAndBuildState(baseUrl, token).pipe(
                     Effect.provide(
                       Layer.succeed(HttpClient.HttpClient, client),
                     ),
                   )
-                  if (state) yield* updateAuthState(store, state)
+                  if (state) {
+                    yield* updateAuthState(store, state)
+                  }
                 }
                 // Token was present but /me failed (e.g. 401): clear localStorage so we don't retry on next load.
                 if (!state) {
@@ -754,7 +770,9 @@ export const AuthenticationLive = Layer.effect(
               ).pipe(
                 Effect.provide(Layer.succeed(HttpClient.HttpClient, client)),
               )
-              if (updatedState) yield* updateAuthState(store, updatedState)
+              if (updatedState) {
+                yield* updateAuthState(store, updatedState)
+              }
             }
 
             return state.user.pipe(
@@ -835,7 +853,9 @@ export const AuthenticationLive = Layer.effect(
                   `AuthenticationLive.selectScope: fetchMe status=${state ? 'success' : 'failed'}`,
                 )
 
-                if (!state) return
+                if (!state) {
+                  return
+                }
 
                 yield* Effect.logDebug(
                   `AuthenticationLive.selectScope: permissions count=${state.permissions.length}`,
@@ -862,7 +882,9 @@ export const AuthenticationLive = Layer.effect(
         Effect.gen(function* () {
           const tokenOpt = yield* tokenStorage.getToken()
           const token = Option.getOrElse(tokenOpt, () => '')
-          if (token === '') return []
+          if (token === '') {
+            return []
+          }
           return yield* fetchScopesFull(baseUrl, token).pipe(
             Effect.provide(Layer.succeed(HttpClient.HttpClient, client)),
             Effect.catchAll(() => Effect.succeed([])),

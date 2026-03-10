@@ -5,16 +5,14 @@
 import { describe, test, expect, beforeAll } from 'bun:test'
 import { render } from '@testing-library/react'
 import { BrowserRouter } from 'react-router-dom'
-import { ThemeProvider, createTheme } from '@mui/material/styles'
+import { createTheme } from '@mui/material/styles'
 import { Window } from 'happy-dom'
-import React from 'react'
-import { Effect, Layer, Option, Stream, Chunk } from 'effect'
+import type React from 'react'
+import { Effect, Layer, Stream, Chunk } from 'effect'
 
 import Sidebar from './Sidebar'
 import { Providers } from '@/Providers'
-import { getApplicationLayer, buildApplicationLayer } from '@/lib/appLayer'
-import type { ReactiveStore } from '@/lib/ReactiveStore'
-import type { AuthenticationState } from '@/features/authentication/stores/AuthenticationStateReactiveStore'
+import { getApplicationLayer } from '@/lib/appLayer'
 import type { ReactiveStore } from '@/lib/ReactiveStore'
 import type { AuthenticationState } from '@/features/authentication/stores/AuthenticationStateReactiveStore'
 import { Authentication } from '@/features/authentication/services/Authentication'
@@ -59,7 +57,7 @@ beforeAll(() => {
 })
 
 // Helper to create a mock auth store with permissions
-function createMockAuthStoreWithPermissions(permissions: string[]) {
+function _createMockAuthStoreWithPermissions(permissions: string[]) {
   let current: AuthenticationState = {
     ...initialAuthenticationState,
     permissions,
@@ -99,7 +97,7 @@ const createWrapper = (permissions: string[] = []) => {
   const mockAuth = createMockAuthentication()
   mockAuth.state.permissions = permissions
 
-  const appLayer = getApplicationLayer(
+  const _appLayer = getApplicationLayer(
     Layer.mergeAll(
       mockAuth.authentication,
       Layer.succeed(Authentication, mockAuth.authentication),

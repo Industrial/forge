@@ -12,9 +12,9 @@ import {
 } from 'bun:test'
 import { render, waitFor } from '@testing-library/react'
 import { BrowserRouter } from 'react-router-dom'
-import { ThemeProvider, createTheme } from '@mui/material/styles'
+import { createTheme } from '@mui/material/styles'
 import { Window } from 'happy-dom'
-import React from 'react'
+import type React from 'react'
 import { Effect, Layer, Runtime } from 'effect'
 import { EffectRuntimeProvider } from 'react-effect-hooks'
 
@@ -32,7 +32,6 @@ import type {
   ListQueryParams,
   ListResponse,
 } from '@/services/EntityApi'
-import { Organization } from '@/features/dashboard/domain/Organization'
 import { PermissionsMockLayer } from '@/features/dashboard/services/PermissionsMock'
 import { RpcApiMock } from '@/services/RpcApiMock'
 import { clearReactiveStoreCacheForTesting } from '@/lib/ReactiveStore'

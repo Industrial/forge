@@ -60,3 +60,10 @@ This document records technical decisions for the ninth deliverable (subscriptio
 | Delivery | In-process for now; document that cross-process delivery may be added later. |
 | Non-blocking | Confirmed; write path does not wait for matching or delivery. |
 | Matching | Scope-aware; only invalidate subscriptions whose scope can see the changed row. |
+
+---
+
+## 7. Organization entity: platform-level invalidation, scope-dependent data
+
+- **Choice:** For the **organization** entity, the list is one logical query (same entity + params). **Invalidation** is **platform-level**: any create/update/delete of an organization publishes a change event with `organization_id: None`, so all subscriptions watching `"organization"` are invalidated and every subscriber refetches. **Data** returned on list/get is **scope-dependent**: the read path filters so that org-scoped requests only see the organization(s) in their scope (e.g. list returns only `scope.organization_id`, get returns 404 for other org ids).
+- **Implication:** Subscribers always receive invalidation when any org changes; what they see after refetch depends on their request scope. Multi-tenancy is enforced on the read path, not by restricting who gets invalidated.

@@ -35,8 +35,11 @@ export default function OrganizationsFilters({
 }: OrganizationsFiltersProps) {
   const values = { name: filterName, slug: filterSlug }
   const onChange = (key: string, value: string) => {
-    if (key === 'name') onFilterNameChange(value)
-    else if (key === 'slug') onFilterSlugChange(value)
+    if (key === 'name') {
+      onFilterNameChange(value)
+    } else if (key === 'slug') {
+      onFilterSlugChange(value)
+    }
   }
   return <FiltersPanel fields={FIELDS} values={values} onChange={onChange} />
 }

@@ -4,7 +4,7 @@
  * Note: Full media query testing requires browser environment
  */
 import { describe, test, expect } from 'bun:test'
-import React from 'react'
+import type React from 'react'
 import { renderHook } from '@testing-library/react'
 import { ThemeProvider, createTheme } from '@mui/material/styles'
 import { useIsMobile } from './useIsMobile'

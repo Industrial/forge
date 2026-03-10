@@ -5,7 +5,7 @@
  * Effect<A, Error, never>; Live uses HttpClient.
  */
 
-import { Context, Effect } from 'effect'
+import { Context, type Effect } from 'effect'
 import type { User } from '../domain/User'
 
 export interface UsersService {

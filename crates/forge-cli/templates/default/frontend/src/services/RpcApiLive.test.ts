@@ -4,7 +4,7 @@
  */
 import { describe, test, expect } from 'bun:test'
 import { Effect, Layer } from 'effect'
-import { HttpClient, HttpClientRequest } from '@effect/platform'
+import type { HttpClient, HttpClientRequest } from '@effect/platform'
 
 import { AuthenticatedHttpClient } from './AuthenticatedHttpClient'
 import { RpcApiLive } from './RpcApiLive'
@@ -96,7 +96,7 @@ function createMockHttpClient(
         json: Effect.succeed({}),
         headers: new Headers(),
       }),
-  } as HttpClient.HttpClient
+  } as unknown as HttpClient.HttpClient
 }
 
 describe('RpcApiLive', () => {

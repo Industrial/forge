@@ -33,8 +33,8 @@
 import { Effect, Layer, Option } from 'effect'
 import { Authentication } from './Authentication'
 import { AuthenticationUser } from '../domain/AuthenticationUser'
-import { AuthenticationError } from '../errors/AuthenticationError'
-import { ScopeError } from '../errors'
+import type { AuthenticationError } from '../errors/AuthenticationError'
+import type { ScopeError } from '../errors'
 
 /** Internal state for the mock authentication service */
 export interface MockAuthenticationState {
@@ -110,8 +110,8 @@ export function createMockAuthentication(): {
     state.selectScopeError = error ? Option.some(error) : Option.none()
   }
 
-  // Mock Authentication implementation
-  const authentication: Authentication = {
+  // Mock Authentication implementation (cast to satisfy error type union in tests)
+  const authentication = {
     restoreSession: () => Effect.void,
 
     getCurrentUser: () =>
@@ -156,7 +156,7 @@ export function createMockAuthentication(): {
       }),
 
     getScopes: () => Effect.succeed([]),
-  }
+  } as Authentication
 
   return {
     authentication,

@@ -4,7 +4,7 @@
  */
 import { describe, test, expect, beforeAll } from 'bun:test'
 import { renderHook } from '@testing-library/react'
-import React from 'react'
+import type React from 'react'
 import { ThemeProvider, createTheme } from '@mui/material/styles'
 import { Window } from 'happy-dom'
 import { useTablePaginationDefaults } from './useTablePaginationDefaults'
@@ -93,7 +93,7 @@ describe('useTablePaginationDefaults', () => {
         expect(typeof result.current).toBe('object')
         expect(result.current).toHaveProperty('defaultRowsPerPage')
         expect(result.current).toHaveProperty('rowsPerPageOptions')
-      } catch (error) {
+      } catch (_error) {
         // Fallback: verify the hook is callable and returns expected structure
         // This handles cases where renderHook has DOM environment issues
         expect(typeof useTablePaginationDefaults).toBe('function')

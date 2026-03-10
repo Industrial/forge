@@ -142,6 +142,82 @@ async fn list_organization_200_with_scope() {
   assert!(json.get("data").and_then(|d| d.as_array()).is_some());
 }
 
+// ---------- Organization list/get scope filtering (multi-tenancy) ----------
+
+#[tokio::test]
+async fn list_organization_returns_only_scoped_org_when_x_organization_id_set() {
+  let client = test_client_with_migrations().await;
+  let (token, org_id, role_id) =
+    app::auth_with_profile(&client, "viewer@default.org", app::SEED_PASSWORD)
+      .await
+      .expect("login");
+  let scope = scope_headers(&org_id, &role_id);
+  let (status, body) = app::test_request(
+    &client,
+    "GET",
+    &list_path(ENTITY_ORGANIZATION),
+    Some(&token),
+    None,
+    Some(&scope),
+  )
+  .await
+  .unwrap();
+  assert_eq!(status, StatusCode::OK);
+  let json: app::serde_json::Value = app::serde_json::from_slice(&body).unwrap();
+  let data = json["data"].as_array().expect("data array");
+  assert_eq!(
+    data.len(),
+    1,
+    "org-scoped list must return only the scoped org"
+  );
+  assert_eq!(
+    data[0]["id"].as_str().unwrap(),
+    org_id,
+    "returned org id must match scope"
+  );
+}
+
+#[tokio::test]
+async fn get_organization_404_for_other_org_when_scoped() {
+  let client = test_client_with_migrations().await;
+  let (_, admin_org_id, _) = app::auth_with_profile(&client, "admin@admin.com", app::SEED_PASSWORD)
+    .await
+    .expect("login");
+  let (token, default_org_id, role_id) =
+    app::auth_with_profile(&client, "viewer@default.org", app::SEED_PASSWORD)
+      .await
+      .expect("login");
+  let scope = scope_headers(&default_org_id, &role_id);
+  let (status_other, _) = app::test_request(
+    &client,
+    "GET",
+    &get_path(ENTITY_ORGANIZATION, &admin_org_id),
+    Some(&token),
+    None,
+    Some(&scope),
+  )
+  .await
+  .unwrap();
+  assert_eq!(
+    status_other,
+    StatusCode::NOT_FOUND,
+    "get organization for other org must return 404 when scoped"
+  );
+  let (status_own, body) = app::test_request(
+    &client,
+    "GET",
+    &get_path(ENTITY_ORGANIZATION, &default_org_id),
+    Some(&token),
+    None,
+    Some(&scope),
+  )
+  .await
+  .unwrap();
+  assert_eq!(status_own, StatusCode::OK);
+  let json: app::serde_json::Value = app::serde_json::from_slice(&body).unwrap();
+  assert_eq!(json["id"].as_str().unwrap(), default_org_id);
+}
+
 #[tokio::test]
 async fn list_user_200_with_scope() {
   let client = test_client_with_migrations().await;

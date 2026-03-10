@@ -40,8 +40,11 @@ describe('subscriptionStreamStatusStore', () => {
     test('should export initialSubscriptionStreamStatus', () => {
       // Given: the store module
       // When: checking the initial state
-      // Then: should be { connected: false }
-      expect(initialSubscriptionStreamStatus).toEqual({ connected: false })
+      // Then: should be { connected: false, connectionId: null }
+      expect(initialSubscriptionStreamStatus).toEqual({
+        connected: false,
+        connectionId: null,
+      })
     })
 
     test('should export getSubscriptionStreamStatusStoreLayer', () => {
@@ -68,8 +71,8 @@ describe('subscriptionStreamStatusStore', () => {
         program.pipe(Effect.provide(subscriptionStreamStatusStoreLayer)),
       )
 
-      // Then: connected should be false
-      expect(result).toEqual({ connected: false })
+      // Then: connected should be false, connectionId null
+      expect(result).toEqual({ connected: false, connectionId: null })
     })
   })
 
@@ -95,7 +98,7 @@ describe('subscriptionStreamStatusStore', () => {
       // When: setting connected to true then getting
       const program = Effect.gen(function* () {
         const store = yield* SubscriptionStreamStatusStoreTag
-        yield* store.update(() => ({ connected: true }))
+        yield* store.update((prev) => ({ ...prev, connected: true }))
         return yield* store.get()
       })
 
@@ -104,7 +107,7 @@ describe('subscriptionStreamStatusStore', () => {
       )
 
       // Then: connected should be true
-      expect(result).toEqual({ connected: true })
+      expect(result.connected).toBe(true)
     })
   })
 
@@ -114,7 +117,7 @@ describe('subscriptionStreamStatusStore', () => {
       // When: updating connected to true
       const program = Effect.gen(function* () {
         const store = yield* SubscriptionStreamStatusStoreTag
-        yield* store.update(() => ({ connected: true }))
+        yield* store.update((prev) => ({ ...prev, connected: true }))
         return yield* store.get()
       })
 
@@ -131,8 +134,8 @@ describe('subscriptionStreamStatusStore', () => {
       // When: setting connected true then false
       const program = Effect.gen(function* () {
         const store = yield* SubscriptionStreamStatusStoreTag
-        yield* store.update(() => ({ connected: true }))
-        yield* store.update(() => ({ connected: false }))
+        yield* store.update((prev) => ({ ...prev, connected: true }))
+        yield* store.update((prev) => ({ ...prev, connected: false }))
         return yield* store.get()
       })
 

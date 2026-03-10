@@ -46,8 +46,11 @@ export default function EntityTableRow<T>({
   const rowId = getRowId(item)
   const hasClick = Boolean(onRowClick || (canEditDelete && onEdit))
   const handleRowClick = () => {
-    if (onRowClick) onRowClick(item)
-    else if (canEditDelete && onEdit) onEdit(item)
+    if (onRowClick) {
+      onRowClick(item)
+    } else if (canEditDelete && onEdit) {
+      onEdit(item)
+    }
   }
   const handleEdit = (e: React.MouseEvent) => {
     e?.stopPropagation?.()

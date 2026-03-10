@@ -10,7 +10,7 @@ tasks:
       runFromWorkspaceRoot: true
     inputs:
       - Cargo.toml
-      - Cargo.lock
+      - /Cargo.lock
       - '**/*.rs'
     deps:
       - server:lint
@@ -23,7 +23,7 @@ tasks:
       runFromWorkspaceRoot: true
     inputs:
       - Cargo.toml
-      - Cargo.lock
+      - /Cargo.lock
       - '**/*.rs'
   test:
     command: bash
@@ -34,7 +34,7 @@ tasks:
       runFromWorkspaceRoot: true
     inputs:
       - Cargo.toml
-      - Cargo.lock
+      - /Cargo.lock
       - '**/*.rs'
       - '**/*.toml'
     deps:
@@ -48,7 +48,7 @@ tasks:
       runFromWorkspaceRoot: true
     inputs:
       - Cargo.toml
-      - Cargo.lock
+      - /Cargo.lock
       - '**/*.rs'
     deps:
       - default:format

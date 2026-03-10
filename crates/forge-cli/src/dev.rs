@@ -148,7 +148,10 @@ mod tests {
         auto_seed: false,
       },
       cache: None,
-      frontend: FrontendConfig { port: 5173 },
+      frontend: FrontendConfig {
+        host: "127.0.0.1".to_string(),
+        port: 5173,
+      },
     }
   }
 
@@ -277,7 +280,10 @@ mod tests {
           auto_seed: false,
         },
         cache: None,
-        frontend: FrontendConfig { port: 5173 },
+        frontend: FrontendConfig {
+          host: "127.0.0.1".to_string(),
+          port: 5173,
+        },
       };
 
       // When run() is called (even if it fails due to missing files)
@@ -475,7 +481,10 @@ mod tests {
             auto_seed: false,
           },
           cache: None,
-          frontend: FrontendConfig { port: 5173 },
+          frontend: FrontendConfig {
+            host: "127.0.0.1".to_string(),
+            port: 5173,
+          },
         };
 
         // When: run() uses the config

@@ -1,4 +1,4 @@
-import React from 'react'
+import type React from 'react'
 import { RouteGuard } from './RouteGuard'
 
 export type GuestRouteProps = {

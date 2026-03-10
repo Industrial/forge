@@ -3,8 +3,8 @@
  * Tests verify the behavior of the reactive store implementation
  */
 import { describe, test, expect } from 'bun:test'
-import { Effect, Layer, Stream, Chunk, Fiber } from 'effect'
-import { defineStore, makeReactiveStore, ReactiveStore } from './ReactiveStore'
+import { Effect, Layer, Stream, Fiber } from 'effect'
+import { defineStore, makeReactiveStore } from './ReactiveStore'
 
 describe('ReactiveStore', () => {
   describe('defineStore behavior', () => {

@@ -7,10 +7,10 @@ import { describe, test, expect, beforeAll } from 'bun:test'
 import '@/test-setup'
 import { render, waitFor } from '@testing-library/react'
 import { BrowserRouter } from 'react-router-dom'
-import { ThemeProvider, createTheme } from '@mui/material/styles'
+import { createTheme } from '@mui/material/styles'
 import { Window } from 'happy-dom'
-import React from 'react'
-import { Effect, Layer, Option } from 'effect'
+import type React from 'react'
+import { Layer, Option } from 'effect'
 
 import { SubscriptionStreamRunner } from './SubscriptionStreamRunner'
 import { Providers } from '@/Providers'
@@ -59,7 +59,7 @@ const createWrapper = (hasToken: boolean = false) => {
     mockAuth.state.token = Option.some('test-token')
   }
 
-  const appLayer = getApplicationLayer(
+  const _appLayer = getApplicationLayer(
     Layer.mergeAll(
       mockAuth.authentication,
       Layer.succeed(Authentication, mockAuth.authentication),

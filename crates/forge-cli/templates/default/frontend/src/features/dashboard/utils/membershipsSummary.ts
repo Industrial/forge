@@ -6,7 +6,9 @@ export type MembershipLike = {
 export function membershipsSummary(
   memberships: readonly MembershipLike[],
 ): string {
-  if (!memberships.length) return '—'
+  if (!memberships.length) {
+    return '—'
+  }
   return memberships
     .map((m) => `${m.org_name}: ${(m.roles ?? []).join(', ') || '—'}`)
     .join('; ')

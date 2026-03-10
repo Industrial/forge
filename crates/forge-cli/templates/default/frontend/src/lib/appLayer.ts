@@ -11,7 +11,7 @@
  * Use {@link buildApplicationLayer} in tests or when you need a fresh layer or
  * custom composition.
  */
-import { FetchHttpClient, HttpClient } from '@effect/platform'
+import { FetchHttpClient, type HttpClient } from '@effect/platform'
 import { useMemo } from 'react'
 import { Effect } from 'effect'
 import { Layer, Logger, LogLevel } from 'effect'

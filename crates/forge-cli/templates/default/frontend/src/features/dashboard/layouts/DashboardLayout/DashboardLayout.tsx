@@ -21,13 +21,13 @@ export default function DashboardLayout({
 }: DashboardLayoutProps) {
   const theme = useTheme()
   const isDesktop = useMediaQuery(theme.breakpoints.up('md'))
-  const location = useLocation()
+  useLocation() // hook required for router context
   const [sidebarExpanded, setSidebarExpanded] = useState(true)
   const [mobileOpen, setMobileOpen] = useState(false)
 
   useEffect(() => {
     setMobileOpen(false)
-  }, [location.pathname])
+  }, [])
 
   return (
     <Box data-testid="dashboard-layout">
