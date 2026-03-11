@@ -51,5 +51,5 @@ tasks:
       - /Cargo.lock
       - '**/*.rs'
     deps:
-      - default:format
+      - forge:format
       - app:check

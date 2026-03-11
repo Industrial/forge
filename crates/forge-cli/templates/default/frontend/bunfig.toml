@@ -1,6 +1,3 @@
-# Bun configuration for tests
+# Bun configuration for tests (setup lives at monorepo root when running from repo)
 [test]
-# Increase default timeout to 10 seconds for async component tests
 timeout = 10000
-# Preload test setup file to configure React Testing Library
-preload = ["./src/test-setup.ts"]

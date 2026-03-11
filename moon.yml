@@ -1,6 +1,7 @@
 # Root-level workspace tasks
 # These tasks operate on the entire workspace, not individual projects
 # https://moonrepo.dev/docs/config/project
+id: 'forge'
 language: 'rust'
 type: 'application'
 tasks:

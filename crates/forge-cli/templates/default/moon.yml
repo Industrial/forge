@@ -1,6 +1,6 @@
-# Root-level workspace tasks
-# These tasks operate on the entire workspace, not individual projects
+# Template app workspace (id avoids collision with root project id "forge")
 # https://moonrepo.dev/docs/config/project
+id: 'template-default'
 language: 'rust'
 type: 'application'
 tasks:
