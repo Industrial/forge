@@ -1,0 +1,5 @@
+# https://moonrepo.dev/docs/config/project
+# Lint and test run from monorepo root (moon run check / moon run test)
+id: 'forge-react-effect-store'
+language: 'typescript'
+type: 'library'

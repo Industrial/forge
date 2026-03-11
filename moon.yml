@@ -54,24 +54,27 @@ tasks:
       - 'Cargo.lock'
       - 'crates/**/*.rs'
       - 'crates/forge-cli/templates/**/*'
-  # Frontend lint (Biome)
-  lint:
+  # Monorepo check (tsgo + Biome at root)
+  check:
     deps: ['~:format']
-    command: 'bash'
-    args: ['-c', 'cd crates/forge-cli/templates/default/frontend && bun run lint']
+    command: 'bun'
+    args: ['run', 'check']
     inputs:
-      - 'crates/forge-cli/templates/default/frontend/**/*.ts'
-      - 'crates/forge-cli/templates/default/frontend/**/*.tsx'
-      - 'crates/forge-cli/templates/default/frontend/package.json'
+      - 'package.json'
+      - 'bun.lock'
       - 'biome.json'
-  # Frontend unit tests (template frontend); runs after lint
+      - 'tsconfig.json'
+      - 'packages/**/*.ts'
+      - 'packages/**/*.tsx'
+  # Monorepo unit tests (root); runs after check; only *.test.* (excludes Playwright .spec.ts)
   test:
-    deps: ['~:lint']
-    command: 'bash'
-    args: ['-c', 'cd crates/forge-cli/templates/default/frontend && bun test']
+    deps: ['~:check']
+    command: 'bun'
+    args: ['test', '.test.']
     inputs:
-      - 'crates/forge-cli/templates/default/frontend/**/*.ts'
-      - 'crates/forge-cli/templates/default/frontend/**/*.tsx'
-      - 'crates/forge-cli/templates/default/frontend/package.json'
-      - 'crates/forge-cli/templates/default/frontend/bun.lockb'
-      - 'crates/forge-cli/templates/default/frontend/bunfig.toml'
+      - 'package.json'
+      - 'bun.lock'
+      - 'packages/**/*.ts'
+      - 'packages/**/*.tsx'
+      - '**/*.test.ts'
+      - '**/*.test.tsx'

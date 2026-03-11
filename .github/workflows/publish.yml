@@ -105,7 +105,7 @@ jobs:
           MOON_TOOLCHAIN_FORCE_GLOBALS: rust
         run: |
           export PATH="$HOME/.moon/bin:$PATH"
-          moon run :lint
+          moon run :check
       - name: Run tests
         env:
           MOON_TOOLCHAIN_FORCE_GLOBALS: rust

@@ -13,7 +13,7 @@ describe('vite.config.ts', () => {
       // When: checking default export
       // Then: should export default config object
       // Note: This is verified by successful Vite build/start
-      const configPath = join(process.cwd(), 'vite.config.ts')
+      const configPath = join(import.meta.dir, 'vite.config.ts')
       const configContent = readFileSync(configPath, 'utf-8')
       expect(configContent).toContain('export default')
       expect(configContent).toContain('defineConfig')
@@ -23,7 +23,7 @@ describe('vite.config.ts', () => {
       // Given: vite.config.ts file
       // When: checking imports
       // Then: should import defineConfig from vite
-      const configPath = join(process.cwd(), 'vite.config.ts')
+      const configPath = join(import.meta.dir, 'vite.config.ts')
       const configContent = readFileSync(configPath, 'utf-8')
       expect(configContent).toContain("from 'vite'")
       expect(configContent).toContain('defineConfig')
@@ -33,7 +33,7 @@ describe('vite.config.ts', () => {
       // Given: vite.config.ts file
       // When: checking environment variable usage
       // Then: should require VITE_BACKEND_URL
-      const configPath = join(process.cwd(), 'vite.config.ts')
+      const configPath = join(import.meta.dir, 'vite.config.ts')
       const configContent = readFileSync(configPath, 'utf-8')
       expect(configContent).toContain('VITE_BACKEND_URL')
     })
@@ -44,7 +44,7 @@ describe('vite.config.ts', () => {
       // Given: vite.config.ts file
       // When: checking resolve configuration
       // Then: should have alias '@' pointing to src directory
-      const configPath = join(process.cwd(), 'vite.config.ts')
+      const configPath = join(import.meta.dir, 'vite.config.ts')
       const configContent = readFileSync(configPath, 'utf-8')
       expect(configContent).toContain('alias')
       expect(configContent).toContain("'@'")
@@ -55,7 +55,7 @@ describe('vite.config.ts', () => {
       // Given: vite.config.ts file
       // When: checking alias resolution
       // Then: should use path.resolve
-      const configPath = join(process.cwd(), 'vite.config.ts')
+      const configPath = join(import.meta.dir, 'vite.config.ts')
       const configContent = readFileSync(configPath, 'utf-8')
       expect(configContent).toContain('path.resolve')
     })
@@ -66,7 +66,7 @@ describe('vite.config.ts', () => {
       // Given: vite.config.ts file
       // When: checking server proxy configuration
       // Then: should proxy /api to VITE_BACKEND_URL
-      const configPath = join(process.cwd(), 'vite.config.ts')
+      const configPath = join(import.meta.dir, 'vite.config.ts')
       const configContent = readFileSync(configPath, 'utf-8')
       expect(configContent).toContain("'/api'")
       expect(configContent).toContain('proxy')
@@ -76,7 +76,7 @@ describe('vite.config.ts', () => {
       // Given: vite.config.ts file
       // When: checking WebSocket proxy configuration
       // Then: should proxy /ws to VITE_BACKEND_URL with ws: true
-      const configPath = join(process.cwd(), 'vite.config.ts')
+      const configPath = join(import.meta.dir, 'vite.config.ts')
       const configContent = readFileSync(configPath, 'utf-8')
       expect(configContent).toContain("'/ws'")
       expect(configContent).toContain('ws: true')
@@ -86,7 +86,7 @@ describe('vite.config.ts', () => {
       // Given: vite.config.ts file
       // When: checking proxy configuration
       // Then: should set changeOrigin: true
-      const configPath = join(process.cwd(), 'vite.config.ts')
+      const configPath = join(import.meta.dir, 'vite.config.ts')
       const configContent = readFileSync(configPath, 'utf-8')
       expect(configContent).toContain('changeOrigin')
     })
@@ -97,7 +97,7 @@ describe('vite.config.ts', () => {
       // Given: vite.config.ts file
       // When: checking plugins
       // Then: should include @vitejs/plugin-react
-      const configPath = join(process.cwd(), 'vite.config.ts')
+      const configPath = join(import.meta.dir, 'vite.config.ts')
       const configContent = readFileSync(configPath, 'utf-8')
       expect(configContent).toContain('react')
       expect(configContent).toContain('plugins')
@@ -109,7 +109,7 @@ describe('vite.config.ts', () => {
       // Given: vite.config.ts file
       // When: checking build target
       // Then: should target es2022
-      const configPath = join(process.cwd(), 'vite.config.ts')
+      const configPath = join(import.meta.dir, 'vite.config.ts')
       const configContent = readFileSync(configPath, 'utf-8')
       expect(configContent).toContain("target: ['es2022']")
     })
@@ -118,7 +118,7 @@ describe('vite.config.ts', () => {
       // Given: vite.config.ts file
       // When: checking CSS minification
       // Then: should use lightningcss
-      const configPath = join(process.cwd(), 'vite.config.ts')
+      const configPath = join(import.meta.dir, 'vite.config.ts')
       const configContent = readFileSync(configPath, 'utf-8')
       expect(configContent).toContain('cssMinify')
       expect(configContent).toContain('lightningcss')
@@ -131,7 +131,7 @@ describe('vite.config.ts', () => {
       // When: VITE_BACKEND_URL is not set
       // Then: should throw error
       // Note: This is verified by the code structure
-      const configPath = join(process.cwd(), 'vite.config.ts')
+      const configPath = join(import.meta.dir, 'vite.config.ts')
       const configContent = readFileSync(configPath, 'utf-8')
       expect(configContent).toContain('throw new Error')
       expect(configContent).toContain('VITE_BACKEND_URL is not set')
@@ -141,7 +141,7 @@ describe('vite.config.ts', () => {
       // Given: vite.config.ts file
       // When: checking proxy target
       // Then: should use VITE_BACKEND_URL variable
-      const configPath = join(process.cwd(), 'vite.config.ts')
+      const configPath = join(import.meta.dir, 'vite.config.ts')
       const configContent = readFileSync(configPath, 'utf-8')
       expect(configContent).toContain('VITE_BACKEND_URL')
       expect(configContent).toContain('target')
@@ -153,7 +153,7 @@ describe('vite.config.ts', () => {
       // Given: vite.config.ts file
       // When: checking file type
       // Then: should be a .ts file
-      const configPath = join(process.cwd(), 'vite.config.ts')
+      const configPath = join(import.meta.dir, 'vite.config.ts')
       expect(() => readFileSync(configPath, 'utf-8')).not.toThrow()
     })
 
