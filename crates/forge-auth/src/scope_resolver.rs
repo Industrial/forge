@@ -14,9 +14,12 @@ use forge_db::DbConnection;
 use serde::Serialize;
 use uuid::Uuid;
 
+/// JSON body for scope-resolution error responses (4xx).
 #[derive(Serialize)]
 struct ErrorBody {
+  /// Error code or type.
   error: String,
+  /// Human-readable message.
   message: String,
 }
 

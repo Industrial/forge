@@ -10,9 +10,12 @@ use uuid::Uuid;
 
 use crate::authz::RequestScope;
 
+/// JSON body for 403 Forbidden responses.
 #[derive(Serialize)]
 struct ForbiddenBody {
+  /// Error code or type.
   error: &'static str,
+  /// Human-readable message.
   message: &'static str,
 }
 

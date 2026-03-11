@@ -30,6 +30,7 @@ pub struct SubscriptionMeta {
   pub params: Option<serde_json::Value>,
 }
 
+/// Builds a string key from entity_id and params for subscription deduplication and lookup.
 fn query_key(entity_id: &str, params: &Option<serde_json::Value>) -> String {
   let params_str = params
     .as_ref()
@@ -41,8 +42,11 @@ fn query_key(entity_id: &str, params: &Option<serde_json::Value>) -> String {
 /// Internal record: subscription tied to a connection and a query (entity_id + params).
 #[derive(Debug, Clone)]
 struct SubscriptionRecord {
+  /// WebSocket or connection that owns this subscription.
   connection_id: Uuid,
+  /// Key from [query_key] for the subscribed entity/params.
   query_key: String,
+  /// Subscription metadata (entity_id, org, role, params).
   meta: SubscriptionMeta,
 }
 

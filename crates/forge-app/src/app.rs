@@ -71,6 +71,7 @@ async fn __healthz_with_state<S: Clone + Send + Sync + 'static>(
 ) -> impl axum::response::IntoResponse {
   healthz().await
 }
+/// Liveness handler that accepts `State<S>` for use with any app state type.
 async fn __livez_with_state<S: Clone + Send + Sync + 'static>(
   _: axum::extract::State<S>,
 ) -> impl axum::response::IntoResponse {
@@ -110,6 +111,7 @@ pub struct App<S = DbConnection> {
   token_only_auth: bool,
   /// The Axum router containing all configured routes and middleware.
   router: Router<S>,
+  /// Builds the final app state (e.g. `ScopeExtractorState`) from `DbConnection` after router setup.
   state_builder: Box<dyn FnOnce(DbConnection) -> S + Send>,
   /// Application configuration loaded from `config/app.toml` and `config/db.toml`
   config: ForgeConfig,

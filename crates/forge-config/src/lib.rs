@@ -21,6 +21,7 @@ pub struct ForgeConfig {
   pub frontend: FrontendConfig,
 }
 
+/// Default host for the frontend dev server when not set in config.
 fn default_frontend_host() -> String {
   "127.0.0.1".to_string()
 }
