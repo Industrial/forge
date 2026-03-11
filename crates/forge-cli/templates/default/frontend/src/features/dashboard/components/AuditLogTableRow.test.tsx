@@ -2,8 +2,8 @@
  * BDD component tests for AuditLogTableRow.tsx
  * Tests verify component rendering, props handling, and table row structure
  */
-import { describe, test, expect, beforeAll } from 'bun:test'
-import { render } from '@testing-library/react'
+import { describe, test, expect, beforeAll, afterEach } from 'bun:test'
+import { render, cleanup } from '@testing-library/react'
 import { ThemeProvider, createTheme } from '@mui/material/styles'
 import { Table, TableBody } from '@mui/material'
 import { Window } from 'happy-dom'
@@ -55,6 +55,10 @@ const createWrapper = () => {
     </ThemeProvider>
   )
 }
+
+afterEach(() => {
+  cleanup()
+})
 
 describe('AuditLogTableRow component', () => {
   describe('export behavior', () => {

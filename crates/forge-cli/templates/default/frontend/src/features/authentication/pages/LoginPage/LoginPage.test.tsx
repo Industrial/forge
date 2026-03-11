@@ -2,8 +2,8 @@
  * BDD component tests for LoginPage.tsx
  * Tests verify component rendering, form handling, and authentication integration
  */
-import { describe, test, expect, beforeAll } from 'bun:test'
-import { render } from '@testing-library/react'
+import { describe, test, expect, beforeAll, afterEach } from 'bun:test'
+import { render, cleanup } from '@testing-library/react'
 import { BrowserRouter } from 'react-router-dom'
 import { createTheme } from '@mui/material/styles'
 import { Window } from 'happy-dom'
@@ -67,6 +67,10 @@ const createWrapper = () => {
     </BrowserRouter>
   )
 }
+
+afterEach(() => {
+  cleanup()
+})
 
 describe('LoginPage component', () => {
   describe('export behavior', () => {

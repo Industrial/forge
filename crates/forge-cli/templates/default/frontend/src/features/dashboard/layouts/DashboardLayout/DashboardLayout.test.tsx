@@ -2,8 +2,8 @@
  * BDD component tests for DashboardLayout.tsx
  * Tests verify component rendering, props handling, and layout structure
  */
-import { describe, test, expect, beforeAll } from 'bun:test'
-import { render } from '@testing-library/react'
+import { describe, test, expect, beforeAll, afterEach } from 'bun:test'
+import { render, cleanup } from '@testing-library/react'
 import { BrowserRouter } from 'react-router-dom'
 import { createTheme } from '@mui/material/styles'
 import { Window } from 'happy-dom'
@@ -67,6 +67,10 @@ const createWrapper = () => {
     </BrowserRouter>
   )
 }
+
+afterEach(() => {
+  cleanup()
+})
 
 describe('DashboardLayout component', () => {
   describe('export behavior', () => {

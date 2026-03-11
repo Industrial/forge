@@ -3,7 +3,7 @@
  * Tests verify component rendering, props handling, and navigation integration
  */
 import { describe, test, expect, beforeAll, afterEach } from 'bun:test'
-import { render, waitFor } from '@testing-library/react'
+import { render, cleanup, waitFor } from '@testing-library/react'
 import { BrowserRouter } from 'react-router-dom'
 import { createTheme } from '@mui/material/styles'
 import { Window } from 'happy-dom'
@@ -115,6 +115,10 @@ const createWrapper = (user: AuthenticationUser | null = null) => {
     </BrowserRouter>
   )
 }
+
+afterEach(() => {
+  cleanup()
+})
 
 describe('Navbar component', () => {
   afterEach(() => {

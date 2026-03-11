@@ -4,7 +4,7 @@
  * Tests use Effect's Layer system for dependency injection (no vi.mock()).
  */
 import { describe, test, expect, beforeAll, afterEach } from 'bun:test'
-import { render, waitFor } from '@testing-library/react'
+import { render, cleanup, waitFor } from '@testing-library/react'
 import { BrowserRouter } from 'react-router-dom'
 import { createTheme } from '@mui/material/styles'
 import { Window } from 'happy-dom'
@@ -123,6 +123,10 @@ const createWrapper = (user: AuthenticationUser | null = null) => {
     </BrowserRouter>
   )
 }
+
+afterEach(() => {
+  cleanup()
+})
 
 describe('ProfilePage component', () => {
   afterEach(() => {

@@ -1,8 +1,8 @@
 /**
  * BDD component tests for RoleCard.tsx
  */
-import { describe, test, expect, beforeAll } from 'bun:test'
-import { render } from '@testing-library/react'
+import { describe, test, expect, beforeAll, afterEach } from 'bun:test'
+import { render, cleanup } from '@testing-library/react'
 import { ThemeProvider, createTheme } from '@mui/material/styles'
 import { Window } from 'happy-dom'
 import type React from 'react'
@@ -69,6 +69,10 @@ const orgs: Organization[] = [
     updated_at: '',
   }),
 ]
+
+afterEach(() => {
+  cleanup()
+})
 
 describe('RoleCard component', () => {
   describe('export behavior', () => {

@@ -3,7 +3,7 @@
  * Tests verify component rendering, CRUD operations, and EntityApi integration
  */
 import { describe, test, expect, beforeAll, afterEach } from 'bun:test'
-import { render, waitFor } from '@testing-library/react'
+import { render, cleanup, waitFor } from '@testing-library/react'
 import { BrowserRouter } from 'react-router-dom'
 import { createTheme } from '@mui/material/styles'
 import { Window } from 'happy-dom'
@@ -73,6 +73,10 @@ const createWrapper = () => {
     </BrowserRouter>
   )
 }
+
+afterEach(() => {
+  cleanup()
+})
 
 describe('GenericEntityCrud component', () => {
   afterEach(() => {

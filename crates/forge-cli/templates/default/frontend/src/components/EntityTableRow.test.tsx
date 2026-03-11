@@ -2,8 +2,8 @@
  * BDD component tests for EntityTableRow.tsx
  * Tests verify row rendering, columns, and edit/delete actions
  */
-import { describe, test, expect, beforeAll } from 'bun:test'
-import { render } from '@testing-library/react'
+import { describe, test, expect, beforeAll, afterEach } from 'bun:test'
+import { render, cleanup } from '@testing-library/react'
 import { ThemeProvider, createTheme } from '@mui/material/styles'
 import { Window } from 'happy-dom'
 import type React from 'react'
@@ -52,6 +52,10 @@ type Item = { id: string; name: string }
 const columns: EntityTableRowColumn<Item>[] = [
   { key: 'name', render: (item) => item.name },
 ]
+
+afterEach(() => {
+  cleanup()
+})
 
 describe('EntityTableRow component', () => {
   describe('export behavior', () => {

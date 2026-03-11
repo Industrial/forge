@@ -2,8 +2,15 @@
  * BDD tests for useColorSchemeMode hook
  * Tests verify localStorage persistence and state management behavior
  */
-import { describe, test, expect, beforeEach, beforeAll } from 'bun:test'
-import { renderHook, act } from '@testing-library/react'
+import {
+  describe,
+  test,
+  expect,
+  beforeEach,
+  beforeAll,
+  afterEach,
+} from 'bun:test'
+import { renderHook, cleanup, act } from '@testing-library/react'
 import { useColorSchemeMode } from './useColorScheme'
 import { Window } from 'happy-dom'
 
@@ -19,6 +26,10 @@ beforeAll(() => {
   globalThis.document = document
   // @ts-expect-error - Setting global DOM APIs for bun test environment
   globalThis.localStorage = window.localStorage
+})
+
+afterEach(() => {
+  cleanup()
 })
 
 describe('useColorSchemeMode', () => {

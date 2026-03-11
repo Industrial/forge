@@ -3,7 +3,7 @@
  * Tests verify localStorage persistence and state management behavior
  */
 import { describe, test, expect, beforeEach, afterEach } from 'bun:test'
-import { renderHook, act } from '@testing-library/react'
+import { renderHook, cleanup, act } from '@testing-library/react'
 import { useColorSchemeMode } from './useColorScheme'
 import type { PaletteMode } from '@mui/material'
 import { Window } from 'happy-dom'
@@ -19,6 +19,10 @@ if (typeof globalThis.window === 'undefined') {
 }
 
 const STORAGE_KEY = 'mui-color-scheme'
+
+afterEach(() => {
+  cleanup()
+})
 
 describe('useColorSchemeMode', () => {
   beforeEach(() => {

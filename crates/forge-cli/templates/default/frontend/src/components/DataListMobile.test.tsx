@@ -2,8 +2,8 @@
  * BDD component tests for DataListMobile.tsx
  * Tests verify component rendering, items list, and optional pagination
  */
-import { describe, test, expect, beforeAll } from 'bun:test'
-import { render } from '@testing-library/react'
+import { describe, test, expect, beforeAll, afterEach } from 'bun:test'
+import { render, cleanup } from '@testing-library/react'
 import { ThemeProvider, createTheme } from '@mui/material/styles'
 import { Window } from 'happy-dom'
 import type React from 'react'
@@ -48,6 +48,10 @@ const createWrapper = () => {
 }
 
 type Item = { id: string; label: string }
+
+afterEach(() => {
+  cleanup()
+})
 
 describe('DataListMobile component', () => {
   describe('export behavior', () => {

@@ -2,8 +2,8 @@
  * BDD tests for useFilteredList hook
  * Tests verify filter state management and filtered list derivation behavior
  */
-import { describe, test, expect, beforeAll } from 'bun:test'
-import { renderHook, act } from '@testing-library/react'
+import { describe, test, expect, beforeAll, afterEach } from 'bun:test'
+import { renderHook, cleanup, act } from '@testing-library/react'
 import { useFilteredList } from './useFilteredList'
 import { Window } from 'happy-dom'
 
@@ -51,6 +51,10 @@ function testPredicate(item: TestItem, filters: TestFilters): boolean {
       .includes(filters.filterCategory.toLowerCase().trim())
   return nameMatch && categoryMatch
 }
+
+afterEach(() => {
+  cleanup()
+})
 
 describe('useFilteredList', () => {
   describe('export behavior', () => {

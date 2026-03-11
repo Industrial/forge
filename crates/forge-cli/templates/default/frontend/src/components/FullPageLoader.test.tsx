@@ -2,8 +2,8 @@
  * BDD component tests for FullPageLoader.tsx
  * Tests verify component rendering, accessibility, and styling
  */
-import { describe, test, expect, beforeAll } from 'bun:test'
-import { render } from '@testing-library/react'
+import { describe, test, expect, beforeAll, afterEach } from 'bun:test'
+import { render, cleanup } from '@testing-library/react'
 import { Window } from 'happy-dom'
 
 import FullPageLoader from './FullPageLoader'
@@ -40,6 +40,10 @@ beforeAll(() => {
       ;(globalThis.window as any).SyntaxError = global.SyntaxError
     }
   }
+})
+
+afterEach(() => {
+  cleanup()
 })
 
 describe('FullPageLoader component', () => {

@@ -2,8 +2,8 @@
  * BDD component tests for DataTable.tsx
  * Tests verify component rendering, columns, loading state, and pagination
  */
-import { describe, test, expect, beforeAll } from 'bun:test'
-import { render } from '@testing-library/react'
+import { describe, test, expect, beforeAll, afterEach } from 'bun:test'
+import { render, cleanup } from '@testing-library/react'
 import { ThemeProvider, createTheme } from '@mui/material/styles'
 import { Window } from 'happy-dom'
 import type React from 'react'
@@ -61,6 +61,10 @@ const pagination: DataTablePagination = {
   onRowsPerPageChange: () => {},
   rowsPerPageOptions: [10, 25, 50],
 }
+
+afterEach(() => {
+  cleanup()
+})
 
 describe('DataTable component', () => {
   describe('export behavior', () => {

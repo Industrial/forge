@@ -2,8 +2,8 @@
  * BDD component tests for HomePage.tsx
  * Tests verify component rendering, structure, and integration with PageHeader and MUI components
  */
-import { describe, test, expect, beforeAll } from 'bun:test'
-import { render } from '@testing-library/react'
+import { describe, test, expect, beforeAll, afterEach } from 'bun:test'
+import { render, cleanup } from '@testing-library/react'
 import { BrowserRouter } from 'react-router-dom'
 import { Window } from 'happy-dom'
 import type React from 'react'
@@ -54,6 +54,10 @@ const createWrapper = () => {
     </BrowserRouter>
   )
 }
+
+afterEach(() => {
+  cleanup()
+})
 
 describe('HomePage component', () => {
   describe('export behavior', () => {

@@ -2,10 +2,10 @@
  * BDD component tests for SubscriptionStreamRunner.tsx
  * Tests verify component behavior, stream setup, and Effect integration
  */
-import { describe, test, expect, beforeAll } from 'bun:test'
+import { describe, test, expect, beforeAll, afterEach } from 'bun:test'
 // Import test setup to configure React Testing Library (reduces verbose output)
 import '../test-setup'
-import { render, waitFor } from '@testing-library/react'
+import { render, cleanup, waitFor } from '@testing-library/react'
 import { BrowserRouter } from 'react-router-dom'
 import { createTheme } from '@mui/material/styles'
 import { Window } from 'happy-dom'
@@ -72,6 +72,10 @@ const createWrapper = (hasToken: boolean = false) => {
     </BrowserRouter>
   )
 }
+
+afterEach(() => {
+  cleanup()
+})
 
 describe('SubscriptionStreamRunner component', () => {
   describe('export behavior', () => {

@@ -2,8 +2,8 @@
  * BDD tests for useTablePaginationDefaults hook
  * Tests verify hook behavior, exports, and integration points
  */
-import { describe, test, expect, beforeAll } from 'bun:test'
-import { renderHook } from '@testing-library/react'
+import { describe, test, expect, beforeAll, afterEach } from 'bun:test'
+import { renderHook, cleanup } from '@testing-library/react'
 import type React from 'react'
 import { ThemeProvider, createTheme } from '@mui/material/styles'
 import { Window } from 'happy-dom'
@@ -51,6 +51,10 @@ const createWrapper = () => {
     <ThemeProvider theme={theme}>{children}</ThemeProvider>
   )
 }
+
+afterEach(() => {
+  cleanup()
+})
 
 describe('useTablePaginationDefaults', () => {
   describe('export behavior', () => {

@@ -2,8 +2,8 @@
  * BDD component tests for CenteredLoader.tsx
  * Tests verify component rendering, structure, and accessibility
  */
-import { describe, test, expect, beforeAll } from 'bun:test'
-import { render } from '@testing-library/react'
+import { describe, test, expect, beforeAll, afterEach } from 'bun:test'
+import { render, cleanup } from '@testing-library/react'
 import { ThemeProvider, createTheme } from '@mui/material/styles'
 import { Window } from 'happy-dom'
 import type React from 'react'
@@ -46,6 +46,10 @@ const createWrapper = () => {
     <ThemeProvider theme={theme}>{children}</ThemeProvider>
   )
 }
+
+afterEach(() => {
+  cleanup()
+})
 
 describe('CenteredLoader component', () => {
   describe('export behavior', () => {

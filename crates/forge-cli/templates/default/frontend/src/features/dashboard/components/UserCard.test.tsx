@@ -1,8 +1,8 @@
 /**
  * BDD component tests for UserCard.tsx
  */
-import { describe, test, expect, beforeAll } from 'bun:test'
-import { render } from '@testing-library/react'
+import { describe, test, expect, beforeAll, afterEach } from 'bun:test'
+import { render, cleanup } from '@testing-library/react'
 import { ThemeProvider, createTheme } from '@mui/material/styles'
 import { Window } from 'happy-dom'
 import type React from 'react'
@@ -65,6 +65,10 @@ const createUser = (
     ],
     ...overrides,
   })
+
+afterEach(() => {
+  cleanup()
+})
 
 describe('UserCard component', () => {
   describe('export behavior', () => {

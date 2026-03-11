@@ -3,9 +3,9 @@
  * Tests verify hook structure and breakpoint parameter handling
  * Note: Full media query testing requires browser environment
  */
-import { describe, test, expect } from 'bun:test'
+import { describe, test, expect, afterEach } from 'bun:test'
 import type React from 'react'
-import { renderHook } from '@testing-library/react'
+import { renderHook, cleanup } from '@testing-library/react'
 import { ThemeProvider, createTheme } from '@mui/material/styles'
 import { useIsMobile } from './useIsMobile'
 import { Window } from 'happy-dom'
@@ -45,6 +45,10 @@ const createWrapper = () => {
     <ThemeProvider theme={theme}>{children}</ThemeProvider>
   )
 }
+
+afterEach(() => {
+  cleanup()
+})
 
 describe('useIsMobile', () => {
   describe('export behavior', () => {

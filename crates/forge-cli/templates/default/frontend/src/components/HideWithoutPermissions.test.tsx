@@ -3,7 +3,7 @@
  * Tests verify component rendering, permission checking, and conditional visibility
  */
 import { describe, test, expect, beforeAll, afterEach } from 'bun:test'
-import { render, waitFor } from '@testing-library/react'
+import { render, cleanup, waitFor } from '@testing-library/react'
 import { BrowserRouter } from 'react-router-dom'
 import { createTheme } from '@mui/material/styles'
 import { Window } from 'happy-dom'
@@ -134,6 +134,10 @@ const createWrapper = (permissions: string[] = []) => {
     </BrowserRouter>
   )
 }
+
+afterEach(() => {
+  cleanup()
+})
 
 describe('HideWithoutPermissions component', () => {
   afterEach(() => {

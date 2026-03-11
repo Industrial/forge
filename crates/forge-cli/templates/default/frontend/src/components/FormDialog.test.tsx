@@ -2,8 +2,14 @@
  * BDD component tests for FormDialog.tsx
  * Tests verify component rendering, props handling, and dialog behavior
  */
-import { describe, test, expect, beforeAll } from 'bun:test'
-import { render, fireEvent, waitFor, within } from '@testing-library/react'
+import { describe, test, expect, beforeAll, afterEach } from 'bun:test'
+import {
+  render,
+  fireEvent,
+  waitFor,
+  within,
+  cleanup,
+} from '@testing-library/react'
 import { ThemeProvider, createTheme } from '@mui/material/styles'
 import { Window } from 'happy-dom'
 import React from 'react'
@@ -249,6 +255,10 @@ beforeAll(() => {
       return originalUnhandledRejection(event)
     }
   }
+})
+
+afterEach(() => {
+  cleanup()
 })
 
 // No-op transition to avoid MUI reflow(node.scrollTop) on null in happy-dom.

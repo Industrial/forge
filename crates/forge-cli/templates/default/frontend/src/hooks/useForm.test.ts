@@ -5,8 +5,8 @@
  * @ts-nocheck - Schema/ResolverResult types need updating for current API
  */
 // @ts-nocheck
-import { describe, test, expect } from 'bun:test'
-import { renderHook, act } from '@testing-library/react'
+import { describe, test, expect, afterEach } from 'bun:test'
+import { renderHook, cleanup, act } from '@testing-library/react'
 import { Schema, Effect, Either } from 'effect'
 import { useForm, type FieldError, type UseFormConfig } from './useForm'
 
@@ -46,6 +46,10 @@ const MultiFieldSchema = Schema.Struct({
       message: () => 'Age must be non-negative',
     }),
   ),
+})
+
+afterEach(() => {
+  cleanup()
 })
 
 describe('useForm', () => {

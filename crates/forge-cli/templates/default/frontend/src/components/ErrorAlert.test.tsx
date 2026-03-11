@@ -2,8 +2,8 @@
  * BDD component tests for ErrorAlert.tsx
  * Tests verify component rendering, props handling, and MUI Alert integration
  */
-import { describe, test, expect, beforeAll } from 'bun:test'
-import { render, waitFor } from '@testing-library/react'
+import { describe, test, expect, beforeAll, afterEach } from 'bun:test'
+import { render, cleanup, waitFor } from '@testing-library/react'
 import { ThemeProvider, createTheme } from '@mui/material/styles'
 import { Window } from 'happy-dom'
 import type React from 'react'
@@ -51,6 +51,10 @@ const createWrapper = () => {
     <ThemeProvider theme={theme}>{children}</ThemeProvider>
   )
 }
+
+afterEach(() => {
+  cleanup()
+})
 
 describe('ErrorAlert component', () => {
   describe('export behavior', () => {

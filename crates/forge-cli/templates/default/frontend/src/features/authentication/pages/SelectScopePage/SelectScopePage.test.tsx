@@ -3,7 +3,7 @@
  * Tests verify component rendering, scope selection, and navigation behavior
  */
 import { describe, test, expect, beforeAll, afterEach } from 'bun:test'
-import { render, waitFor } from '@testing-library/react'
+import { render, cleanup, waitFor } from '@testing-library/react'
 import { MemoryRouter, Routes, Route } from 'react-router-dom'
 import { createTheme } from '@mui/material/styles'
 import { Window } from 'happy-dom'
@@ -143,6 +143,10 @@ const createWrapper = (
     </MemoryRouter>
   )
 }
+
+afterEach(() => {
+  cleanup()
+})
 
 describe('SelectScopePage component', () => {
   afterEach(() => {
