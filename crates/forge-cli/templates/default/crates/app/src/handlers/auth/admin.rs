@@ -1,18 +1,19 @@
 //! GET /api/auth/admin — global admin only (is_admin or global permission).
 
-use axum::{Json, extract::State, http::StatusCode, response::IntoResponse};
+use axum::{Json, http::StatusCode, response::IntoResponse};
 use forge_audit::record_authz_denied;
 use forge_auth::{Action, token_auth::OptionalRequireAuth};
-use forge_db::DbConnection;
 
 use db::auth::Backend;
 use db::models::user;
 
 use crate::Error as ForgeError;
 
+use super::shared::DbFromScope;
+
 pub async fn admin_only(
   opt_auth: OptionalRequireAuth<Backend, user::Model>,
-  State(db): State<DbConnection>,
+  DbFromScope(db): DbFromScope,
 ) -> Result<impl IntoResponse, ForgeError> {
   let maybe_user = opt_auth.0;
   tracing::debug!(target: "app::auth", "route: GET /api/auth/admin authenticated={}", maybe_user.is_some());

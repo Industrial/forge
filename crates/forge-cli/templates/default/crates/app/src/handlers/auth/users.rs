@@ -2,13 +2,12 @@
 
 use axum::{
   Json,
-  extract::{Extension, Path, Query, State},
+  extract::{Extension, Path, Query},
   http::StatusCode,
   response::IntoResponse,
 };
 use chrono::Utc;
 use forge_auth::token_auth::{RequireAuth, hash_password};
-use forge_db::DbConnection;
 use forge_live::{Channel, InMemoryLiveBackend, LiveEvent, broadcast_to_channel};
 use sea_orm::{
   ActiveModelTrait, ColumnTrait, EntityTrait, PaginatorTrait, QueryFilter, QueryOrder, QuerySelect,
@@ -25,7 +24,7 @@ use crate::Error as ForgeError;
 use crate::scoped_query::user_find_scoped;
 
 use super::shared::{
-  PERMISSION_USERS_READ, PERMISSION_USERS_WRITE, ScopeFromHeaders, has_global_scope,
+  DbFromScope, PERMISSION_USERS_READ, PERMISSION_USERS_WRITE, ScopeFromHeaders, has_global_scope,
   require_permission,
 };
 
@@ -44,9 +43,9 @@ fn default_limit() -> u64 {
 
 /// GET /api/auth/users — list users. Optional ?org_id= for scope. Requires user.read.
 pub async fn list_users(
-  ScopeFromHeaders(scope): ScopeFromHeaders,
+  ScopeFromHeaders(scope, _): ScopeFromHeaders<user::Model>,
   auth: RequireAuth<Backend, user::Model>,
-  State(db): State<DbConnection>,
+  DbFromScope(db): DbFromScope,
   Query(q): Query<ListUsersQuery>,
 ) -> Result<impl IntoResponse, ForgeError> {
   let user = &auth.0;
@@ -198,9 +197,9 @@ pub struct CreateUserBody {
 
 /// POST /api/auth/users — create user with org membership and roles. Requires user.create.
 pub async fn create_user(
-  ScopeFromHeaders(scope): ScopeFromHeaders,
+  ScopeFromHeaders(scope, _): ScopeFromHeaders<user::Model>,
   auth: RequireAuth<Backend, user::Model>,
-  State(db): State<DbConnection>,
+  DbFromScope(db): DbFromScope,
   Extension(live_backend): Extension<Option<Arc<InMemoryLiveBackend>>>,
   Json(payload): Json<CreateUserBody>,
 ) -> Result<impl IntoResponse, ForgeError> {
@@ -380,9 +379,9 @@ pub struct UpdateUserBody {
 
 /// PATCH /api/auth/users/{id} — update user. Requires user.update.
 pub async fn update_user(
-  ScopeFromHeaders(scope): ScopeFromHeaders,
+  ScopeFromHeaders(scope, _): ScopeFromHeaders<user::Model>,
   auth: RequireAuth<Backend, user::Model>,
-  State(db): State<DbConnection>,
+  DbFromScope(db): DbFromScope,
   Extension(live_backend): Extension<Option<Arc<InMemoryLiveBackend>>>,
   Path(id): Path<Uuid>,
   Json(payload): Json<UpdateUserBody>,
@@ -426,9 +425,9 @@ pub async fn update_user(
 
 /// DELETE /api/auth/users/{id} — delete user. Requires user.delete.
 pub async fn delete_user(
-  ScopeFromHeaders(scope): ScopeFromHeaders,
+  ScopeFromHeaders(scope, _): ScopeFromHeaders<user::Model>,
   auth: RequireAuth<Backend, user::Model>,
-  State(db): State<DbConnection>,
+  DbFromScope(db): DbFromScope,
   Extension(live_backend): Extension<Option<Arc<InMemoryLiveBackend>>>,
   Path(id): Path<Uuid>,
 ) -> Result<impl IntoResponse, ForgeError> {

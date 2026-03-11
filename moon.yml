@@ -20,6 +20,7 @@ tasks:
       - '.github/workflows/*.yml'
     options:
       cache: false
+      outputStyle: buffer-only-failure
   # Audit workspace dependencies
   audit:
     command: 'cargo'
@@ -27,6 +28,8 @@ tasks:
     inputs:
       - 'Cargo.toml'
       - 'Cargo.lock'
+    options:
+      outputStyle: buffer-only-failure
   # Check documentation
   check-docs:
     command: 'bash'
@@ -35,6 +38,8 @@ tasks:
       - 'Cargo.toml'
       - 'Cargo.lock'
       - '**/*.rs'
+    options:
+      outputStyle: buffer-only-failure
   # Integration tests: forge new then run template bin/test-integration
   test-integration:
     command: 'bash'
@@ -45,6 +50,8 @@ tasks:
       - 'Cargo.lock'
       - 'crates/**/*.rs'
       - 'crates/forge-cli/templates/**/*'
+    options:
+      outputStyle: buffer-only-failure
   # E2E tests: forge new then run template bin/test-e2e (Playwright in templates/default/test/e2e)
   test-e2e:
     command: 'bash'
@@ -55,6 +62,8 @@ tasks:
       - 'Cargo.lock'
       - 'crates/**/*.rs'
       - 'crates/forge-cli/templates/**/*'
+    options:
+      outputStyle: buffer-only-failure
   # Monorepo check (tsgo + Biome at root)
   check:
     deps: ['~:format']
@@ -67,6 +76,8 @@ tasks:
       - 'tsconfig.json'
       - 'packages/**/*.ts'
       - 'packages/**/*.tsx'
+    options:
+      outputStyle: buffer-only-failure
   # Monorepo unit tests (root); runs after check; only *.test.* (excludes Playwright .spec.ts)
   test:
     deps: ['~:check']
@@ -79,3 +90,5 @@ tasks:
       - 'packages/**/*.tsx'
       - '**/*.test.ts'
       - '**/*.test.tsx'
+    options:
+      outputStyle: buffer-only-failure

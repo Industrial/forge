@@ -80,7 +80,7 @@ auto_seed = false
     fn type_aliases_are_exported() {
       // Given the lib.rs module exports type aliases
       // When I check the types exist
-      let _auth_installer: Option<AuthInstallerFn> = None;
+      let _auth_installer: Option<AuthInstallerFn<forge_db::DbConnection>> = None;
       let _migrator: Option<MigratorFn> = None;
       let _seeder: Option<SeedFn> = None;
 
@@ -183,7 +183,7 @@ auto_seed = false
       fn should_export_type_aliases_when_using_from_lib() {
         // Given: lib.rs re-exports type aliases (AuthInstallerFn, MigratorFn, SeedFn)
         // When: I use these types
-        let _auth_installer: Option<AuthInstallerFn> = None;
+        let _auth_installer: Option<AuthInstallerFn<forge_db::DbConnection>> = None;
         let _migrator: Option<MigratorFn> = None;
         let _seeder: Option<SeedFn> = None;
 

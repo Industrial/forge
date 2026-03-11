@@ -39,10 +39,11 @@ pub use organizations::{
 // Re-export shared for dashboard and other handlers.
 pub use crate::permissions::dashboard_permissions;
 pub use shared::{
-  HEADER_ORGANIZATION_ID, HEADER_ROLE_ID, PERMISSION_AUDIT_READ, PERMISSION_ORGS_READ,
-  PERMISSION_ORGS_WRITE, PERMISSION_READ, PERMISSION_ROLES_READ, PERMISSION_ROLES_WRITE,
-  PERMISSION_USERS_READ, PERMISSION_USERS_WRITE, PERMISSION_WRITE, ScopeFromHeaders,
-  channels_from_permissions, forbidden_response, get_scope_from_headers_map, has_global_scope,
-  has_permission, require_any_permission, require_entity_permission, require_permission,
-  resolve_permissions, try_scope_from_headers,
+  AppPermissionResolver, AppScopeResolver, DbFromScope, HEADER_ORGANIZATION_ID, HEADER_ROLE_ID,
+  OptionalScopeFromHeaders, PERMISSION_AUDIT_READ, PERMISSION_ORGS_READ, PERMISSION_ORGS_WRITE,
+  PERMISSION_READ, PERMISSION_ROLES_READ, PERMISSION_ROLES_WRITE, PERMISSION_USERS_READ,
+  PERMISSION_USERS_WRITE, PERMISSION_WRITE, ScopeExtractorState, ScopeFromHeaders,
+  ScopeHeadersRequired, channels_from_permissions, forbidden_response, get_scope_from_headers_map,
+  has_global_scope, has_permission, require_any_permission, require_entity_permission,
+  require_permission, resolve_permissions, try_scope_from_headers,
 };

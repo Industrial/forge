@@ -6,7 +6,7 @@
 //! Epic 4: list accepts ListQuerySpec (filter, sort, pagination) via query params.
 
 use axum::Json;
-use axum::extract::{Extension, Path, Query, State};
+use axum::extract::{Extension, Path, Query};
 use axum::http::StatusCode;
 use axum::response::IntoResponse;
 use db::auth::Backend;
@@ -16,8 +16,7 @@ use serde::Deserialize;
 use uuid::Uuid;
 
 use crate::Error as ForgeError;
-use crate::handlers::auth::ScopeFromHeaders;
-use crate::handlers::auth::require_entity_permission;
+use crate::handlers::auth::{DbFromScope, ScopeFromHeaders, require_entity_permission};
 use crate::query_spec::{
   CursorLimit, DEFAULT_LIMIT, FilterCond, FilterOperator, ListQuerySpec, OffsetLimit,
   SortDirection, SortSpec, validate_cursor_limit, validate_filter_cond, validate_offset_limit,
@@ -162,9 +161,9 @@ fn reject_expand_include(params: &ListQueryParams) -> Option<axum::response::Res
 pub async fn list_entities(
   Path(entity_id): Path<String>,
   Query(params): Query<ListQueryParams>,
-  ScopeFromHeaders(scope): ScopeFromHeaders,
+  ScopeFromHeaders(scope, _): ScopeFromHeaders<user::Model>,
   auth: RequireAuth<Backend, user::Model>,
-  State(db): State<DbConnection>,
+  DbFromScope(db): DbFromScope,
 ) -> Result<impl IntoResponse, ForgeError> {
   tracing::debug!(
     target: "app::handlers::generic_entity",
@@ -336,9 +335,9 @@ pub async fn list_entity_with_spec(
 pub async fn get_entity_by_id(
   Path((entity_id, id_str)): Path<(String, String)>,
   Query(params): Query<ListQueryParams>,
-  ScopeFromHeaders(scope): ScopeFromHeaders,
+  ScopeFromHeaders(scope, _): ScopeFromHeaders<user::Model>,
   auth: RequireAuth<Backend, user::Model>,
-  State(db): State<DbConnection>,
+  DbFromScope(db): DbFromScope,
 ) -> Result<impl IntoResponse, ForgeError> {
   tracing::debug!(
     target: "app::handlers::generic_entity",
@@ -449,9 +448,9 @@ fn require_object_body(body: &serde_json::Value) -> Option<axum::response::Respo
 /// POST /api/entities/:entity_id — create entity. 404 unknown entity; 403 missing entity.create.
 pub async fn create_entity(
   Path(entity_id): Path<String>,
-  ScopeFromHeaders(scope): ScopeFromHeaders,
+  ScopeFromHeaders(scope, _): ScopeFromHeaders<user::Model>,
   auth: RequireAuth<Backend, user::Model>,
-  State(db): State<DbConnection>,
+  DbFromScope(db): DbFromScope,
   Extension(subscriptions): Extension<SubscriptionStore>,
   Json(body): Json<serde_json::Value>,
 ) -> Result<impl IntoResponse, ForgeError> {
@@ -523,9 +522,9 @@ pub async fn create_entity(
 /// PATCH /api/entities/:entity_id/:id — update entity. 404 unknown entity or not found; 403 missing entity.update.
 pub async fn update_entity(
   Path((entity_id, id_str)): Path<(String, String)>,
-  ScopeFromHeaders(scope): ScopeFromHeaders,
+  ScopeFromHeaders(scope, _): ScopeFromHeaders<user::Model>,
   auth: RequireAuth<Backend, user::Model>,
-  State(db): State<DbConnection>,
+  DbFromScope(db): DbFromScope,
   Extension(subscriptions): Extension<SubscriptionStore>,
   Json(body): Json<serde_json::Value>,
 ) -> Result<impl IntoResponse, ForgeError> {
@@ -606,9 +605,9 @@ pub async fn update_entity(
 /// DELETE /api/entities/:entity_id/:id — delete entity. 404 unknown entity or not found; 403 missing entity.delete.
 pub async fn delete_entity(
   Path((entity_id, id_str)): Path<(String, String)>,
-  ScopeFromHeaders(scope): ScopeFromHeaders,
+  ScopeFromHeaders(scope, _): ScopeFromHeaders<user::Model>,
   auth: RequireAuth<Backend, user::Model>,
-  State(db): State<DbConnection>,
+  DbFromScope(db): DbFromScope,
   Extension(subscriptions): Extension<SubscriptionStore>,
 ) -> Result<impl IntoResponse, ForgeError> {
   tracing::debug!(

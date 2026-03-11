@@ -7,6 +7,7 @@ pub mod organization;
 pub mod query_spec;
 pub mod registry;
 pub mod rest_model;
+pub mod scoped_query;
 
 /// Default permission keys per org role name. Used by [seed_role_permissions_for_org] and by migrations seeds.
 const ORG_OWNER_ADMIN: &[&str] = &[
@@ -45,7 +46,13 @@ const ORG_EDITOR: &[&str] = &[
   "role.update",
   "role.delete",
 ];
-const ORG_VIEWER: &[&str] = &["user.read", "audit.read", "permission.read", "role.read"];
+const ORG_VIEWER: &[&str] = &[
+  "organization.read",
+  "user.read",
+  "audit.read",
+  "permission.read",
+  "role.read",
+];
 
 /// Inserts default role_permission rows for an org (owner, admin, editor, viewer).
 pub async fn seed_role_permissions_for_org<C: sea_orm::ConnectionTrait>(

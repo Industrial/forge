@@ -1,13 +1,7 @@
 //! POST /api/auth/login — session login (returns token; client stores it).
 
-use axum::{
-  Json,
-  extract::{Extension, State},
-  http::StatusCode,
-  response::IntoResponse,
-};
+use axum::{Json, extract::Extension, http::StatusCode, response::IntoResponse};
 use chrono::Utc;
-use forge_db::DbConnection;
 use forge_live::InMemoryLiveBackend;
 use sea_orm::{ColumnTrait, EntityTrait, QueryFilter, Set};
 use serde::Deserialize;
@@ -24,7 +18,7 @@ use forge_auth::token_auth::hash_api_token;
 
 use crate::Error as ForgeError;
 
-use super::shared::{JsonOrForm, broadcast_audit_entry};
+use super::shared::{DbFromScope, JsonOrForm, broadcast_audit_entry};
 
 #[derive(Deserialize, Validate)]
 pub struct LoginRequest {
@@ -35,7 +29,7 @@ pub struct LoginRequest {
 }
 
 pub async fn login(
-  State(db): State<DbConnection>,
+  DbFromScope(db): DbFromScope,
   Extension(live_backend): Extension<Option<Arc<InMemoryLiveBackend>>>,
   JsonOrForm(payload): JsonOrForm<LoginRequest>,
 ) -> Result<impl IntoResponse, ForgeError> {

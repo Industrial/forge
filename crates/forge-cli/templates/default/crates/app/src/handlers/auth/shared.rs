@@ -1,23 +1,131 @@
 //! Shared auth/scope/permission helpers used by auth handlers and dashboard.
+//! Uses forge-auth's [ScopeResolver] and [PermissionResolver]; re-exports scope extractors and permission helpers.
 
 use crate::Error as ForgeError;
-use axum::{
-  Form, Json,
-  extract::{FromRequest, FromRequestParts},
-  http::StatusCode,
-  http::request::Parts,
-  response::{IntoResponse, Response},
-};
+use async_trait::async_trait;
+use axum::{Form, Json, extract::FromRequest, http::StatusCode, response::Response};
 use forge_audit::{AuditEvent, LogResult};
-use forge_auth::RequestScope;
+use forge_auth::{PermissionResolver, RequestScope, ScopeResolveError, ScopeResolver};
+
+use axum::extract::FromRequestParts;
+/// Re-export for router state and scope extractors. In handlers use `ScopeFromHeaders(scope, _): ScopeFromHeaders<user::Model>`.
+pub use forge_auth::{
+  OptionalScopeFromHeaders, ScopeExtractorState, ScopeFromHeaders, ScopeHeadersRequired,
+  forbidden_response, has_permission,
+};
 use forge_db::DbConnection;
 use forge_live::LiveBackend;
 use sea_orm::{ColumnTrait, EntityTrait, QueryFilter};
 use serde::de::DeserializeOwned;
+use uuid::Uuid;
 
 use db::models::{org_role, organization, role_permission, user, user_global_role, user_org_role};
 
-use crate::permissions::entity_action_key;
+/// Extractor that yields [DbConnection] from [ScopeExtractorState]. Use when app state is ScopeExtractorState.
+#[derive(Clone)]
+pub struct DbFromScope(pub DbConnection);
+
+impl std::ops::Deref for DbFromScope {
+  type Target = DbConnection;
+  fn deref(&self) -> &Self::Target {
+    &self.0
+  }
+}
+
+impl FromRequestParts<ScopeExtractorState> for DbFromScope {
+  type Rejection = std::convert::Infallible;
+
+  #[allow(refining_impl_trait)]
+  fn from_request_parts<'a>(
+    _parts: &mut axum::http::request::Parts,
+    state: &'a ScopeExtractorState,
+  ) -> std::pin::Pin<Box<dyn std::future::Future<Output = Result<Self, Self::Rejection>> + Send + 'a>>
+  {
+    Box::pin(async move { Ok(DbFromScope(state.db.clone())) })
+  }
+}
+
+/// App's scope resolver: validates org/role from headers and user membership (same logic as legacy try_scope_from_headers).
+#[derive(Clone)]
+pub struct AppScopeResolver;
+
+#[async_trait]
+impl ScopeResolver for AppScopeResolver {
+  async fn resolve_optional(
+    &self,
+    headers: &axum::http::HeaderMap,
+    user_id: Uuid,
+    db: &DbConnection,
+  ) -> Result<Option<RequestScope>, ScopeResolveError> {
+    try_scope_from_headers_optional(headers, db, user_id)
+      .await
+      .map_err(forge_error_to_scope_resolve_error)
+  }
+
+  async fn resolve_required(
+    &self,
+    headers: &axum::http::HeaderMap,
+    user_id: Uuid,
+    db: &DbConnection,
+  ) -> Result<RequestScope, ScopeResolveError> {
+    try_scope_from_headers(headers, db, user_id)
+      .await
+      .map_err(forge_error_to_scope_resolve_error)
+  }
+}
+
+fn forge_error_to_scope_resolve_error(e: ForgeError) -> ScopeResolveError {
+  match &e {
+    ForgeError::Auth(StatusCode::BAD_REQUEST, m) => ScopeResolveError::BadRequest(m.clone()),
+    ForgeError::Auth(StatusCode::NOT_FOUND, m) => ScopeResolveError::NotFound(m.clone()),
+    ForgeError::Auth(StatusCode::FORBIDDEN, m) => ScopeResolveError::Forbidden(m.clone()),
+    ForgeError::Auth(StatusCode::UNAUTHORIZED, m) => ScopeResolveError::Unauthorized(m.clone()),
+    _ => ScopeResolveError::Other(e.to_string()),
+  }
+}
+
+/// App's permission resolver: resolves from role_permission and user_global_role (same logic as resolve_permissions).
+#[derive(Clone)]
+pub struct AppPermissionResolver;
+
+#[async_trait]
+impl PermissionResolver for AppPermissionResolver {
+  async fn resolve(
+    &self,
+    db: &DbConnection,
+    user_id: Uuid,
+    scope: Option<&RequestScope>,
+  ) -> Result<Vec<String>, Box<dyn std::error::Error + Send + Sync>> {
+    let user = user::Entity::find_by_id(user_id)
+      .one(db)
+      .await?
+      .ok_or("user not found")?;
+    Ok(resolve_permissions(db, &user, scope).await)
+  }
+}
+
+/// Returns `Some(403)` if the user does not have the given permission; otherwise `None`. Uses [AppPermissionResolver].
+pub async fn require_permission(
+  user: &user::Model,
+  db: &DbConnection,
+  permission_key: &str,
+  scope: Option<&RequestScope>,
+) -> Option<Response> {
+  let resolver = AppPermissionResolver;
+  forge_auth::require_permission(&resolver, user, db, permission_key, scope).await
+}
+
+/// Returns `Some(403)` if the user does not have the entity action permission; otherwise `None`. Uses [AppPermissionResolver].
+pub async fn require_entity_permission(
+  user: &user::Model,
+  db: &DbConnection,
+  scope: Option<&RequestScope>,
+  entity: &str,
+  action: &str,
+) -> Option<Response> {
+  let resolver = AppPermissionResolver;
+  forge_auth::require_entity_permission(&resolver, user, db, scope, entity, action).await
+}
 
 /// Permission key constants (entity-based).
 pub const PERMISSION_READ: &str = "permission.read";
@@ -113,66 +221,6 @@ pub async fn has_global_scope(db: &DbConnection, user: &user::Model, permission_
     || permission_key.ends_with(".update")
     || permission_key.ends_with(".delete");
   (is_read && keys.contains("all.read")) || (is_write && keys.contains("all.write"))
-}
-
-/// Entity-based permission check: exact match or all.read / all.write wildcard.
-pub fn has_permission(permissions: &[String], key: &str) -> bool {
-  // Direct exact match
-  if permissions.iter().any(|p| p == key) {
-    return true;
-  }
-  // Wildcard: all.read grants any .read permission
-  if key.ends_with(".read") && permissions.iter().any(|p| p == "all.read") {
-    return true;
-  }
-  // Wildcard: all.write grants any .write/.create/.update/.delete permission
-  if (key.ends_with(".write")
-    || key.ends_with(".create")
-    || key.ends_with(".update")
-    || key.ends_with(".delete"))
-    && permissions.iter().any(|p| p == "all.write")
-  {
-    return true;
-  }
-  false
-}
-
-/// Returns Some(403 response) if the current user does not have the given permission.
-pub async fn require_permission(
-  user: &user::Model,
-  db: &DbConnection,
-  permission: &str,
-  scope: Option<&RequestScope>,
-) -> Option<Response> {
-  let permissions = resolve_permissions(db, user, scope).await;
-  if has_permission(&permissions, permission) {
-    return None;
-  }
-  Some(forbidden_response())
-}
-
-/// 403 Forbidden with clear message when permission is missing.
-pub fn forbidden_response() -> Response {
-  (
-    StatusCode::FORBIDDEN,
-    Json(serde_json::json!({
-      "error": "Forbidden",
-      "message": "Insufficient permissions"
-    })),
-  )
-    .into_response()
-}
-
-/// Require the corresponding entity.action in scope.
-pub async fn require_entity_permission(
-  user: &user::Model,
-  db: &DbConnection,
-  scope: Option<&RequestScope>,
-  entity: &str,
-  action: &str,
-) -> Option<Response> {
-  let key = entity_action_key(entity, action);
-  require_permission(user, db, &key, scope).await
 }
 
 /// Returns Some(403) if the user has no resolved permissions.
@@ -280,33 +328,48 @@ pub async fn try_scope_from_headers(
   })
 }
 
-/// Extractor: requires Bearer auth and X-Organization-Id + X-Role-Id headers.
-#[derive(Clone, Debug)]
-pub struct ScopeFromHeaders(pub RequestScope);
+/// Like [try_scope_from_headers] but returns Ok(None) when scope headers are missing and the user
+/// has zero or multiple org/role assignments (instead of 400). Used by entity list so global-read
+/// users can list without sending scope headers.
+pub async fn try_scope_from_headers_optional(
+  headers: &axum::http::HeaderMap,
+  db: &DbConnection,
+  user_id: uuid::Uuid,
+) -> Result<Option<RequestScope>, ForgeError> {
+  let org_id_str = headers
+    .get(HEADER_ORGANIZATION_ID)
+    .and_then(|v| v.to_str().ok());
+  let role_id_str = headers.get(HEADER_ROLE_ID).and_then(|v| v.to_str().ok());
 
-impl FromRequestParts<DbConnection> for ScopeFromHeaders {
-  type Rejection = ForgeError;
-
-  fn from_request_parts(
-    parts: &mut Parts,
-    state: &DbConnection,
-  ) -> impl std::future::Future<Output = Result<Self, Self::Rejection>> + Send {
-    let user_id = parts
-      .extensions
-      .get::<forge_auth::token_auth::TokenUser<user::Model>>()
-      .map(|tu| tu.user.id);
-    let db = state.clone();
-    let headers = parts.headers.clone();
-    async move {
-      let user_id = user_id.ok_or_else(|| {
-        ForgeError::Auth(
-          StatusCode::UNAUTHORIZED,
-          "Authentication required".to_string(),
-        )
-      })?;
-      let scope = try_scope_from_headers(&headers, &db, user_id).await?;
-      Ok(ScopeFromHeaders(scope))
+  if org_id_str.is_none() || role_id_str.is_none() {
+    let uors = user_org_role::Entity::find()
+      .filter(user_org_role::Column::UserId.eq(user_id))
+      .all(db)
+      .await
+      .map_err(|e| ForgeError::Generic(e.to_string()))?;
+    if uors.len() == 1 {
+      let uor = &uors[0];
+      let role_row = org_role::Entity::find_by_id(uor.role_id)
+        .one(db)
+        .await
+        .map_err(|e| ForgeError::Generic(e.to_string()))?
+        .ok_or_else(|| ForgeError::Auth(StatusCode::NOT_FOUND, "Role not found".to_string()))?;
+      return Ok(Some(RequestScope {
+        organization_id: uor.org_id,
+        role_id: uor.role_id,
+        role_name: role_row.name.clone(),
+      }));
     }
+    return Ok(None);
+  }
+
+  match try_scope_from_headers(headers, db, user_id).await {
+    Ok(scope) => Ok(Some(scope)),
+    Err(ForgeError::Auth(StatusCode::BAD_REQUEST, _)) => {
+      // Invalid or stale scope headers: treat as no scope so list can use global read.
+      Ok(None)
+    }
+    Err(e) => Err(e),
   }
 }
 

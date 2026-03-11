@@ -2,7 +2,7 @@
 //! Same entity operations (list, get, create, update, delete) over POST /api/rpc; auth and scope from headers (parity with REST).
 
 use axum::Json;
-use axum::extract::{Extension, State};
+use axum::extract::Extension;
 use axum::http::StatusCode;
 use axum::response::IntoResponse;
 use db::auth::Backend;
@@ -13,8 +13,7 @@ use serde_json::json;
 use uuid::Uuid;
 
 use crate::Error as ForgeError;
-use crate::handlers::auth::ScopeFromHeaders;
-use crate::handlers::auth::require_entity_permission;
+use crate::handlers::auth::{DbFromScope, ScopeFromHeaders, require_entity_permission};
 use crate::handlers::generic_entity::{
   ListQueryParams, list_entity_with_spec, parse_list_query_spec,
 };
@@ -61,9 +60,9 @@ pub struct RpcParams {
 /// POST /api/rpc — same entity operations as REST; body: { method, entity_id, params?, id? }.
 /// Identity and scope from same headers (Authorization, X-Organization-Id, X-Role-Id). Response: { result } or { error: { code, message } }; optional id echoed.
 pub async fn rpc_handler(
-  ScopeFromHeaders(scope): ScopeFromHeaders,
+  ScopeFromHeaders(scope, _): ScopeFromHeaders<user::Model>,
   auth: RequireAuth<Backend, user::Model>,
-  State(db): State<DbConnection>,
+  DbFromScope(db): DbFromScope,
   Extension(subscriptions): Extension<SubscriptionStore>,
   Json(body): Json<RpcRequest>,
 ) -> Result<impl IntoResponse, ForgeError> {

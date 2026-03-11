@@ -2,12 +2,11 @@
 
 use axum::{
   Json,
-  extract::{Extension, Path, State},
+  extract::{Extension, Path},
   http::StatusCode,
   response::IntoResponse,
 };
 use forge_auth::token_auth::RequireAuth;
-use forge_db::DbConnection;
 use forge_live::{Channel, InMemoryLiveBackend, LiveEvent, broadcast_to_channel};
 use sea_orm::{EntityTrait, QueryOrder};
 use serde::Deserialize;
@@ -24,14 +23,14 @@ use db::organization::{
 use crate::Error as ForgeError;
 
 use super::shared::{
-  PERMISSION_ORGS_READ, PERMISSION_ORGS_WRITE, ScopeFromHeaders, require_permission,
+  DbFromScope, PERMISSION_ORGS_READ, PERMISSION_ORGS_WRITE, ScopeFromHeaders, require_permission,
 };
 
 /// GET /api/auth/organizations — list organizations. Requires organization.read.
 pub async fn list_organizations(
-  ScopeFromHeaders(scope): ScopeFromHeaders,
+  ScopeFromHeaders(scope, _): ScopeFromHeaders<user::Model>,
   auth: RequireAuth<Backend, user::Model>,
-  State(db): State<DbConnection>,
+  DbFromScope(db): DbFromScope,
 ) -> Result<impl IntoResponse, ForgeError> {
   let user = &auth.0;
   if let Some(resp) = require_permission(user, &db, PERMISSION_ORGS_READ, Some(&scope)).await {
@@ -59,9 +58,9 @@ pub async fn list_organizations(
 
 /// POST /api/auth/organizations — create organization. Requires organization.create.
 pub async fn create_organization(
-  ScopeFromHeaders(scope): ScopeFromHeaders,
+  ScopeFromHeaders(scope, _): ScopeFromHeaders<user::Model>,
   auth: RequireAuth<Backend, user::Model>,
-  State(db): State<DbConnection>,
+  DbFromScope(db): DbFromScope,
   Extension(live_backend): Extension<Option<Arc<InMemoryLiveBackend>>>,
   Json(payload): Json<CreateOrganizationBody>,
 ) -> Result<impl IntoResponse, ForgeError> {
@@ -131,9 +130,9 @@ pub struct UpdateOrganizationBody {
 
 /// PATCH /api/auth/organizations/{id} — update organization. Requires organization.update.
 pub async fn update_organization(
-  ScopeFromHeaders(scope): ScopeFromHeaders,
+  ScopeFromHeaders(scope, _): ScopeFromHeaders<user::Model>,
   auth: RequireAuth<Backend, user::Model>,
-  State(db): State<DbConnection>,
+  DbFromScope(db): DbFromScope,
   Extension(live_backend): Extension<Option<Arc<InMemoryLiveBackend>>>,
   Path(id): Path<Uuid>,
   Json(payload): Json<UpdateOrganizationBody>,
@@ -175,9 +174,9 @@ pub async fn update_organization(
 
 /// DELETE /api/auth/organizations/{id}. Requires organization.delete.
 pub async fn delete_organization(
-  ScopeFromHeaders(scope): ScopeFromHeaders,
+  ScopeFromHeaders(scope, _): ScopeFromHeaders<user::Model>,
   auth: RequireAuth<Backend, user::Model>,
-  State(db): State<DbConnection>,
+  DbFromScope(db): DbFromScope,
   Extension(live_backend): Extension<Option<Arc<InMemoryLiveBackend>>>,
   Path(id): Path<Uuid>,
 ) -> Result<impl IntoResponse, ForgeError> {

@@ -1,9 +1,8 @@
 //! GET /api/auth/me — current user, scopes, permissions (from optional scope headers).
 
-use axum::{Json, extract::State, http::Request, response::IntoResponse};
+use axum::{Json, http::Request, response::IntoResponse};
 use forge_auth::RequestScope;
 use forge_auth::token_auth::RequireAuth;
-use forge_db::DbConnection;
 use sea_orm::{ColumnTrait, EntityTrait, QueryFilter};
 
 use db::auth::Backend;
@@ -11,11 +10,11 @@ use db::models::{org_role, organization, user, user_org_role};
 
 use crate::Error as ForgeError;
 
-use super::shared::{get_scope_from_headers_map, resolve_permissions};
+use super::shared::{DbFromScope, get_scope_from_headers_map, resolve_permissions};
 
 pub async fn get_me(
   auth: RequireAuth<Backend, user::Model>,
-  State(db): State<DbConnection>,
+  DbFromScope(db): DbFromScope,
   req: Request<axum::body::Body>,
 ) -> Result<impl IntoResponse, ForgeError> {
   let user = &auth.0;

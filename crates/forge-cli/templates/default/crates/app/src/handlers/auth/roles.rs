@@ -2,12 +2,11 @@
 
 use axum::{
   Json,
-  extract::{Extension, Path, Query, State},
+  extract::{Extension, Path, Query},
   http::StatusCode,
   response::IntoResponse,
 };
 use forge_auth::token_auth::RequireAuth;
-use forge_db::DbConnection;
 use forge_live::{Channel, InMemoryLiveBackend, LiveEvent, broadcast_to_channel};
 use sea_orm::{
   ActiveModelTrait, ColumnTrait, EntityTrait, PaginatorTrait, QueryFilter, QueryOrder, Set,
@@ -22,7 +21,7 @@ use db::models::{org_role, organization, user, user_org_role};
 use crate::Error as ForgeError;
 
 use super::shared::{
-  PERMISSION_ROLES_READ, PERMISSION_ROLES_WRITE, ScopeFromHeaders, has_global_scope,
+  DbFromScope, PERMISSION_ROLES_READ, PERMISSION_ROLES_WRITE, ScopeFromHeaders, has_global_scope,
   require_permission,
 };
 
@@ -33,9 +32,9 @@ pub struct ListRolesQuery {
 
 /// GET /api/auth/roles — list roles. ?org_id= for org-scoped. Requires role.read.
 pub async fn list_roles(
-  ScopeFromHeaders(scope): ScopeFromHeaders,
+  ScopeFromHeaders(scope, _): ScopeFromHeaders<user::Model>,
   auth: RequireAuth<Backend, user::Model>,
-  State(db): State<DbConnection>,
+  DbFromScope(db): DbFromScope,
   Query(q): Query<ListRolesQuery>,
 ) -> Result<impl IntoResponse, ForgeError> {
   let user = &auth.0;
@@ -114,9 +113,9 @@ pub struct CreateRoleBody {
 
 /// POST /api/auth/roles — create role. Requires role.create.
 pub async fn create_role(
-  ScopeFromHeaders(scope): ScopeFromHeaders,
+  ScopeFromHeaders(scope, _): ScopeFromHeaders<user::Model>,
   auth: RequireAuth<Backend, user::Model>,
-  State(db): State<DbConnection>,
+  DbFromScope(db): DbFromScope,
   Extension(live_backend): Extension<Option<Arc<InMemoryLiveBackend>>>,
   Json(payload): Json<CreateRoleBody>,
 ) -> Result<impl IntoResponse, ForgeError> {
@@ -221,9 +220,9 @@ pub struct UpdateRoleBody {
 
 /// PATCH /api/auth/roles/{id}. Requires role.update.
 pub async fn update_role(
-  ScopeFromHeaders(scope): ScopeFromHeaders,
+  ScopeFromHeaders(scope, _): ScopeFromHeaders<user::Model>,
   auth: RequireAuth<Backend, user::Model>,
-  State(db): State<DbConnection>,
+  DbFromScope(db): DbFromScope,
   Extension(live_backend): Extension<Option<Arc<InMemoryLiveBackend>>>,
   Path(id): Path<Uuid>,
   Json(payload): Json<UpdateRoleBody>,
@@ -297,9 +296,9 @@ pub async fn update_role(
 
 /// DELETE /api/auth/roles/{id}. Requires role.delete.
 pub async fn delete_role(
-  ScopeFromHeaders(scope): ScopeFromHeaders,
+  ScopeFromHeaders(scope, _): ScopeFromHeaders<user::Model>,
   auth: RequireAuth<Backend, user::Model>,
-  State(db): State<DbConnection>,
+  DbFromScope(db): DbFromScope,
   Extension(live_backend): Extension<Option<Arc<InMemoryLiveBackend>>>,
   Path(id): Path<Uuid>,
 ) -> Result<impl IntoResponse, ForgeError> {

@@ -1,9 +1,8 @@
 //! POST /api/auth/register — create account (email + password).
 
-use axum::{Json, extract::State, http::StatusCode, response::IntoResponse};
+use axum::{Json, http::StatusCode, response::IntoResponse};
 use chrono::Utc;
 use forge_core::Valid;
-use forge_db::DbConnection;
 use sea_orm::{ActiveModelTrait, ColumnTrait, EntityTrait, QueryFilter, Set, TransactionTrait};
 use serde::Deserialize;
 use uuid::Uuid;
@@ -14,6 +13,8 @@ use forge_auth::token_auth::{hash_api_token, hash_password};
 
 use crate::Error as ForgeError;
 
+use super::shared::DbFromScope;
+
 #[derive(Deserialize, Validate)]
 pub struct RegisterRequest {
   #[validate(email)]
@@ -23,7 +24,7 @@ pub struct RegisterRequest {
 }
 
 pub async fn register(
-  State(db): State<DbConnection>,
+  DbFromScope(db): DbFromScope,
   Valid(Json(payload)): Valid<Json<RegisterRequest>>,
 ) -> Result<impl IntoResponse, ForgeError> {
   tracing::debug!(target: "app::auth", "route: POST /api/auth/register email={}", payload.email);

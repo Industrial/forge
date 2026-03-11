@@ -3,13 +3,25 @@
 //! - **password**: Argon2 password hashing and API token hashing (re-exported from [token_auth] for convenience).
 //! - **token_auth**: Bearer token layer and extractors ([TokenUser], [RequireAuth], etc.).
 //! - **authz**: Authorization context, roles, actions, and policy traits.
+//! - **scope_resolver**: Scope-from-headers resolver trait and extractors ([ScopeFromHeaders], [OptionalScopeFromHeaders]). The app provides the [ScopeResolver] implementation.
+//! - **permission**: Permission check ([has_permission]), resolver trait ([PermissionResolver]), and [require_permission] / [require_entity_permission]. The app provides the [PermissionResolver] implementation.
 
 pub mod authz;
 pub mod password;
+pub mod permission;
+pub mod scope_resolver;
 pub mod token_auth;
 
 pub use authz::{Action, AuthzContext, AuthzError, ForgePolicy, ForgeScoped, RequestScope};
 pub use axum_login::{AuthUser, AuthnBackend as Backend};
+pub use permission::{
+  PermissionResolver, entity_action_key, forbidden_response, has_permission,
+  require_entity_permission, require_permission,
+};
+pub use scope_resolver::{
+  HEADER_ORGANIZATION_ID, HEADER_ROLE_ID, OptionalScopeFromHeaders, ScopeExtractorState,
+  ScopeFromHeaders, ScopeHeadersRequired, ScopeResolveError, ScopeResolver,
+};
 pub use token_auth::{
   OptionalRequireAuth, RequireAuth, TokenLookupFn, TokenUser, hash_api_token, hash_password,
   verify_api_token, verify_password,

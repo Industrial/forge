@@ -8,7 +8,7 @@ use forge_cache::HttpResponseCacheLayer;
 use forge_config::ForgeConfig;
 use forge_cron::{CronRunner, CronSchedule, CronTaskBox};
 use forge_db::{DbConnection, initialize_database, wrap_traced};
-use forge_health::{healthz, livez, readyz};
+use forge_health::{healthz, livez};
 use forge_observability::{env_filter, init_otel, otel_layer};
 use forge_rate_limit::RequesterOrgKeyExtractor;
 use futures::future::BoxFuture;
@@ -37,18 +37,51 @@ pub type SeedFn = Box<
 pub type MigratorFn =
   Box<dyn Fn() -> BoxFuture<'static, Result<(), Box<dyn std::error::Error>>> + Send + Sync>;
 
-/// Type alias for the auth installer function.
+/// Type alias for the auth installer function (generic over app state type S).
 /// Args: router, db, optional per-user rate limit, optional token lookup for Bearer auth.
-pub type AuthInstallerFn = Box<
+pub type AuthInstallerFn<S> = Box<
   dyn FnOnce(
-      Router<DbConnection>,
+      Router<S>,
       DbConnection,
       Option<u32>,
       Option<TokenLookupFn>,
-    ) -> BoxFuture<'static, Router<DbConnection>>
+    ) -> BoxFuture<'static, Router<S>>
     + Send
     + Sync,
 >;
+
+/// Internal handler used only to type an empty router as `Router<S>`.
+async fn __forge_empty_handler<S: Clone + Send + Sync + 'static>(
+  _: axum::extract::State<S>,
+) -> (axum::http::StatusCode, ()) {
+  (axum::http::StatusCode::NOT_FOUND, ())
+}
+
+/// Create an empty `Router<S>` (used when building `App<S>` with custom state).
+fn empty_router<S: Clone + Send + Sync + 'static>() -> Router<S> {
+  Router::new().route(
+    "/__forge_typed_state",
+    axum::routing::get(__forge_empty_handler::<S>),
+  )
+}
+
+/// Health handlers that accept `State<S>` so they can be used with any app state type.
+async fn __healthz_with_state<S: Clone + Send + Sync + 'static>(
+  _: axum::extract::State<S>,
+) -> impl axum::response::IntoResponse {
+  healthz().await
+}
+async fn __livez_with_state<S: Clone + Send + Sync + 'static>(
+  _: axum::extract::State<S>,
+) -> impl axum::response::IntoResponse {
+  livez().await
+}
+/// Readiness for generic state: returns 200 OK. For DB-backed readiness use [App] with `DbConnection` state.
+async fn __readyz_with_state<S: Clone + Send + Sync + 'static>(
+  _: axum::extract::State<S>,
+) -> impl axum::response::IntoResponse {
+  (axum::http::StatusCode::OK, "ok")
+}
 
 /// Initialize the tracing subscriber for logging and OpenTelemetry (017).
 /// Call this at the start of `main` when using `into_router_before_state()` so that
@@ -72,11 +105,12 @@ fn init_tracing_impl() {
 /// The main Forge application builder.
 ///
 /// Provides a fluent API for configuring and running Axum-based web applications.
-pub struct App {
+pub struct App<S = DbConnection> {
   /// Whether the app is configured for token-only authentication.
   token_only_auth: bool,
   /// The Axum router containing all configured routes and middleware.
-  router: Router<DbConnection>,
+  router: Router<S>,
+  state_builder: Box<dyn FnOnce(DbConnection) -> S + Send>,
   /// Application configuration loaded from `config/app.toml` and `config/db.toml`
   config: ForgeConfig,
   /// Optional migrator function to run on startup
@@ -84,7 +118,7 @@ pub struct App {
   /// Optional seeder to run on startup
   seeder: Option<SeedFn>,
   /// Optional auth installer
-  auth_installer: Option<AuthInstallerFn>,
+  auth_installer: Option<AuthInstallerFn<S>>,
   /// Optional per-IP rate limit config (health routes are excluded)
   rate_limit_per_ip: Option<Arc<GovernorConfig<PeerIpKeyExtractor, NoOpMiddleware>>>,
   /// Optional per-user (per-org) rate limit: requests per minute per (org, user). Requires auth.
@@ -97,7 +131,7 @@ pub struct App {
   live_backend: Option<Arc<forge_live::InMemoryLiveBackend>>,
 }
 
-impl App {
+impl App<DbConnection> {
   /// Create a new Forge application. Panics if configuration cannot be loaded.
   pub fn new() -> Self {
     Self::try_new().unwrap_or_else(|e| {
@@ -129,6 +163,7 @@ impl App {
 
     Ok(Self {
       router,
+      state_builder: Box::new(|db: DbConnection| db),
       config,
       migrator: None,
       seeder: None,
@@ -142,11 +177,42 @@ impl App {
     })
   }
 
+  /// Switch to a custom state type (e.g. [ScopeExtractorState](forge_auth::ScopeExtractorState))
+  /// so routes can use handlers that take `State<S>`. Call this before adding routes and before
+  /// [with_token_auth_only](Self::with_token_auth_only).
+  pub fn with_state_builder<S2, F>(self, state_builder: F) -> App<S2>
+  where
+    S2: Clone + Send + Sync + 'static,
+    F: FnOnce(DbConnection) -> S2 + Send + 'static,
+  {
+    let trace_layer = TraceLayer::new_for_http()
+      .make_span_with(DefaultMakeSpan::new().level(tracing::Level::INFO))
+      .on_request(DefaultOnRequest::new().level(tracing::Level::INFO))
+      .on_response(DefaultOnResponse::new().level(tracing::Level::INFO));
+    let router = empty_router::<S2>().layer(ServiceBuilder::new().layer(trace_layer));
+    App {
+      token_only_auth: self.token_only_auth,
+      router,
+      state_builder: Box::new(state_builder),
+      config: self.config,
+      migrator: self.migrator,
+      seeder: self.seeder,
+      auth_installer: None,
+      rate_limit_per_ip: self.rate_limit_per_ip,
+      rate_limit_per_user: self.rate_limit_per_user,
+      token_lookup: self.token_lookup,
+      cron_tasks: self.cron_tasks,
+      live_backend: self.live_backend,
+    }
+  }
+
   /// Returns a reference to the application configuration.
   pub fn config(&self) -> &ForgeConfig {
     &self.config
   }
+}
 
+impl<S: Clone + Send + Sync + 'static> App<S> {
   /// Enable Live Query: in-memory channel broadcast for real-time sync.
   /// Handlers can use [axum::Extension]<Option<Arc<forge_live::InMemoryLiveBackend>>>
   /// and call [forge_live::broadcast_to_org] after mutations.
@@ -274,9 +340,9 @@ impl App {
   pub fn with_health_routes(mut self) -> Self {
     let router = self
       .router
-      .route("/healthz", axum::routing::get(healthz))
-      .route("/livez", axum::routing::get(livez))
-      .route("/readyz", axum::routing::get(readyz));
+      .route("/healthz", axum::routing::get(__healthz_with_state::<S>))
+      .route("/livez", axum::routing::get(__livez_with_state::<S>))
+      .route("/readyz", axum::routing::get(__readyz_with_state::<S>));
     self.router = router;
     self
   }
@@ -284,7 +350,7 @@ impl App {
   /// Mounts a `Router` at the given path (GET).
   pub fn route<T, H>(mut self, path: &str, service: H) -> Self
   where
-    H: Handler<T, DbConnection> + Clone + Send + 'static,
+    H: Handler<T, S> + Clone + Send + 'static,
     T: Send + 'static,
   {
     self.router = self.router.route(path, axum::routing::get(service));
@@ -294,7 +360,7 @@ impl App {
   /// Mounts a `Router` at the given path (POST).
   pub fn post_route<T, H>(mut self, path: &str, service: H) -> Self
   where
-    H: Handler<T, DbConnection> + Clone + Send + 'static,
+    H: Handler<T, S> + Clone + Send + 'static,
     T: Send + 'static,
   {
     self.router = self.router.route(path, axum::routing::post(service));
@@ -305,7 +371,7 @@ impl App {
   pub fn route_methods(
     mut self,
     path: &str,
-    method_router: axum::routing::MethodRouter<DbConnection>,
+    method_router: axum::routing::MethodRouter<S>,
   ) -> Self {
     self.router = self.router.route(path, method_router);
     self
@@ -313,7 +379,7 @@ impl App {
 
   /// Mounts a `Router` at the given path for any HTTP method.
   /// When path is `"/"` or `""`, routes are merged (axum 0.8 does not allow nesting at root).
-  pub fn nest(mut self, path: &str, router: Router<DbConnection>) -> Self {
+  pub fn nest(mut self, path: &str, router: Router<S>) -> Self {
     if path.is_empty() || path == "/" {
       self.router = self.router.merge(router);
     } else {
@@ -323,13 +389,15 @@ impl App {
   }
 
   /// Build the router with all configured middleware and services.
+  /// Returns state_builder so the caller can apply state (into_router consumes it).
   async fn build_router_until_state(
     self,
   ) -> (
-    Router<DbConnection>,
+    Router<S>,
     DbConnection,
     Option<(DbConnection, CronRunner)>,
     Option<HttpResponseCacheLayer>,
+    Box<dyn FnOnce(DbConnection) -> S + Send>,
   ) {
     let db_raw = initialize_database(&self.config.database)
       .await
@@ -414,7 +482,13 @@ impl App {
       ))
     };
 
-    (router, db_conn, cron_runner, response_cache_layer)
+    (
+      router,
+      db_conn,
+      cron_runner,
+      response_cache_layer,
+      self.state_builder,
+    )
   }
 
   /// Consumes the App and returns the underlying Axum router and optionally a cron runner.
@@ -422,10 +496,11 @@ impl App {
   /// For tests that only need the router, use `let (router, _) = app.into_router().await`.\
   /// The returned router has state applied and is `Router<()>`, so it can be used with `into_make_service_with_connect_info`.
   pub async fn into_router(self) -> (Router<()>, Option<(DbConnection, CronRunner)>) {
-    let (router, db_conn, cron_runner, response_cache_layer) =
+    let (router, db_conn, cron_runner, response_cache_layer, state_builder) =
       self.build_router_until_state().await;
 
-    let mut router: Router<()> = router.with_state(db_conn);
+    let state = state_builder(db_conn);
+    let mut router: Router<()> = router.with_state(state);
 
     if let Some(layer) = response_cache_layer {
       router = router.layer(layer);
@@ -455,12 +530,15 @@ impl App {
   pub async fn into_router_before_state(
     self,
   ) -> (
-    Router<DbConnection>,
+    Router<S>,
     DbConnection,
     Option<(DbConnection, CronRunner)>,
     Option<HttpResponseCacheLayer>,
+    Box<dyn FnOnce(DbConnection) -> S + Send>,
   ) {
-    self.build_router_until_state().await
+    let (router, db_conn, cron_runner, layer, state_builder) =
+      self.build_router_until_state().await;
+    (router, db_conn, cron_runner, layer, state_builder)
   }
 
   /// Start the server and serve the application.
@@ -1182,7 +1260,8 @@ auto_seed = false
 
         // When: converting app to router before state
         let app = App::new().with_health_routes();
-        let (router, db_conn, cron_runner, cache_layer) = app.into_router_before_state().await;
+        let (router, db_conn, cron_runner, cache_layer, _state_builder) =
+          app.into_router_before_state().await;
 
         // Then: router should be built with DbConnection state
         let _router: Router<DbConnection> = router;

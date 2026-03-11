@@ -2,12 +2,11 @@
 
 use axum::{
   Json,
-  extract::{Extension, Query, State},
+  extract::{Extension, Query},
   http::StatusCode,
   response::IntoResponse,
 };
 use forge_auth::token_auth::RequireAuth;
-use forge_db::DbConnection;
 use forge_live::{Channel, InMemoryLiveBackend, LiveEvent, broadcast_to_channel};
 use sea_orm::{ColumnTrait, EntityTrait, QueryFilter, Set};
 use serde::Deserialize;
@@ -21,7 +20,8 @@ use crate::Error as ForgeError;
 use crate::permissions::dashboard_permissions;
 
 use super::shared::{
-  PERMISSION_READ, PERMISSION_WRITE, ScopeFromHeaders, has_global_scope, require_permission,
+  DbFromScope, PERMISSION_READ, PERMISSION_WRITE, ScopeFromHeaders, has_global_scope,
+  require_permission,
 };
 
 #[derive(Debug, Deserialize)]
@@ -33,9 +33,9 @@ pub struct ListRolePermissionsQuery {
 
 /// GET /api/auth/role-permissions — list assignments. ?scope=global or ?org_id=&role_name=. Requires permission.read.
 pub async fn list_role_permissions(
-  ScopeFromHeaders(scope): ScopeFromHeaders,
+  ScopeFromHeaders(scope, _): ScopeFromHeaders<user::Model>,
   auth: RequireAuth<Backend, user::Model>,
-  State(db): State<DbConnection>,
+  DbFromScope(db): DbFromScope,
   Query(q): Query<ListRolePermissionsQuery>,
 ) -> Result<impl IntoResponse, ForgeError> {
   let user = &auth.0;
@@ -87,9 +87,9 @@ pub struct AddRolePermissionBody {
 
 /// POST /api/auth/role-permissions — add assignment. Requires permission.write.
 pub async fn add_role_permission(
-  ScopeFromHeaders(req_scope): ScopeFromHeaders,
+  ScopeFromHeaders(req_scope, _): ScopeFromHeaders<user::Model>,
   auth: RequireAuth<Backend, user::Model>,
-  State(db): State<DbConnection>,
+  DbFromScope(db): DbFromScope,
   Extension(live_backend): Extension<Option<Arc<InMemoryLiveBackend>>>,
   Json(payload): Json<AddRolePermissionBody>,
 ) -> Result<impl IntoResponse, ForgeError> {
@@ -189,9 +189,9 @@ pub struct DeleteRolePermissionBody {
 
 /// DELETE /api/auth/role-permissions — remove assignment (body). Requires permission.write.
 pub async fn delete_role_permission(
-  ScopeFromHeaders(req_scope): ScopeFromHeaders,
+  ScopeFromHeaders(req_scope, _): ScopeFromHeaders<user::Model>,
   auth: RequireAuth<Backend, user::Model>,
-  State(db): State<DbConnection>,
+  DbFromScope(db): DbFromScope,
   Extension(live_backend): Extension<Option<Arc<InMemoryLiveBackend>>>,
   Json(payload): Json<DeleteRolePermissionBody>,
 ) -> Result<impl IntoResponse, ForgeError> {

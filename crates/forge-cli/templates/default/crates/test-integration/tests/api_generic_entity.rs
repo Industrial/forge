@@ -147,8 +147,9 @@ async fn list_organization_200_with_scope() {
 #[tokio::test]
 async fn list_organization_returns_only_scoped_org_when_x_organization_id_set() {
   let client = test_client_with_migrations().await;
+  // Use admin@admin.com (has all.read) scoped to Admin org so list returns only that org
   let (token, org_id, role_id) =
-    app::auth_with_profile(&client, "viewer@default.org", app::SEED_PASSWORD)
+    app::auth_with_profile(&client, "admin@admin.com", app::SEED_PASSWORD)
       .await
       .expect("login");
   let scope = scope_headers(&org_id, &role_id);
@@ -315,12 +316,13 @@ async fn list_audit_200_with_scope() {
 #[tokio::test]
 async fn list_organization_with_filter_eq() {
   let client = test_client_with_migrations().await;
+  // Admin user is scoped to Admin org; list returns only that org
   let (token, org_id, role_id) =
     app::auth_with_profile(&client, "admin@admin.com", app::SEED_PASSWORD)
       .await
       .expect("login");
   let scope = scope_headers(&org_id, &role_id);
-  let filter = r#"[{"field":"name","operator":"eq","value":"Default"}]"#;
+  let filter = r#"[{"field":"name","operator":"eq","value":"Admin"}]"#;
   let path = list_path_with_query(
     ENTITY_ORGANIZATION,
     &format!("filter={}", encode_query_value(filter)),
@@ -332,7 +334,7 @@ async fn list_organization_with_filter_eq() {
   let json: app::serde_json::Value = app::serde_json::from_slice(&body).unwrap();
   let data = json["data"].as_array().unwrap();
   assert!(!data.is_empty());
-  assert_eq!(data[0]["name"], "Default");
+  assert_eq!(data[0]["name"], "Admin");
 }
 
 #[tokio::test]
@@ -452,7 +454,8 @@ async fn list_organization_filter_in() {
       .await
       .expect("login");
   let scope = scope_headers(&org_id, &role_id);
-  let filter = r#"[{"field":"name","operator":"in","value":["Default","Other"]}]"#;
+  // Admin user is scoped to Admin org; list returns only that org, so filter must include "Admin"
+  let filter = r#"[{"field":"name","operator":"in","value":["Admin","Default"]}]"#;
   let path = list_path_with_query(
     ENTITY_ORGANIZATION,
     &format!("filter={}", encode_query_value(filter)),

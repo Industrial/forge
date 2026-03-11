@@ -1,8 +1,7 @@
 //! GET /api/auth/scopes — list (org, role) scopes for scope picker.
 
-use axum::{Json, extract::State, response::IntoResponse};
+use axum::{Json, response::IntoResponse};
 use forge_auth::token_auth::RequireAuth;
-use forge_db::DbConnection;
 use sea_orm::{ColumnTrait, EntityTrait, QueryFilter};
 
 use db::auth::Backend;
@@ -10,9 +9,11 @@ use db::models::{org_role, organization, user, user_org_role};
 
 use crate::Error as ForgeError;
 
+use super::shared::DbFromScope;
+
 pub async fn profiles_list(
   auth: RequireAuth<Backend, user::Model>,
-  State(db): State<DbConnection>,
+  DbFromScope(db): DbFromScope,
 ) -> Result<impl IntoResponse, ForgeError> {
   let user = &auth.0;
   let uors = user_org_role::Entity::find()

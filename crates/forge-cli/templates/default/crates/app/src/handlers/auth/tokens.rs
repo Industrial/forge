@@ -1,9 +1,8 @@
 //! POST /api/auth/tokens — create API token (Bearer) for machine access.
 
-use axum::{Json, extract::State, response::IntoResponse};
+use axum::{Json, response::IntoResponse};
 use chrono::Utc;
 use forge_core::Valid;
-use forge_db::DbConnection;
 use sea_orm::{EntityTrait, Set};
 use serde::Deserialize;
 use uuid::Uuid;
@@ -14,6 +13,7 @@ use forge_auth::token_auth::hash_api_token;
 
 use crate::Error as ForgeError;
 
+use super::shared::DbFromScope;
 use db::auth::Backend;
 use db::models::user;
 use forge_auth::token_auth::RequireAuth;
@@ -25,7 +25,7 @@ pub struct CreateTokenRequest {
 
 pub async fn create_token(
   auth: RequireAuth<Backend, user::Model>,
-  State(db): State<DbConnection>,
+  DbFromScope(db): DbFromScope,
   Valid(Json(payload)): Valid<Json<CreateTokenRequest>>,
 ) -> Result<impl IntoResponse, ForgeError> {
   let user = &auth.0;

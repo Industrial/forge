@@ -1,13 +1,7 @@
 //! GET/POST/DELETE /api/auth/global-role-assignments. Flat: user_id, role_name in query/body.
 
-use axum::{
-  Json,
-  extract::{Query, State},
-  http::StatusCode,
-  response::IntoResponse,
-};
+use axum::{Json, extract::Query, http::StatusCode, response::IntoResponse};
 use forge_auth::token_auth::RequireAuth;
-use forge_db::DbConnection;
 use sea_orm::{ColumnTrait, EntityTrait, QueryFilter, Set};
 use serde::Deserialize;
 use uuid::Uuid;
@@ -18,7 +12,7 @@ use db::models::{user, user_global_role};
 use crate::Error as ForgeError;
 
 use super::shared::{
-  PERMISSION_USERS_WRITE, ScopeFromHeaders, has_global_scope, require_permission,
+  DbFromScope, PERMISSION_USERS_WRITE, ScopeFromHeaders, has_global_scope, require_permission,
 };
 
 #[derive(Debug, Deserialize)]
@@ -28,9 +22,9 @@ pub struct ListGlobalRoleAssignmentsQuery {
 
 /// GET /api/auth/global-role-assignments — list. ?user_id= optional. Requires user.write (or all.write).
 pub async fn list_global_role_assignments(
-  ScopeFromHeaders(scope): ScopeFromHeaders,
+  ScopeFromHeaders(scope, _): ScopeFromHeaders<user::Model>,
   auth: RequireAuth<Backend, user::Model>,
-  State(db): State<DbConnection>,
+  DbFromScope(db): DbFromScope,
   Query(q): Query<ListGlobalRoleAssignmentsQuery>,
 ) -> Result<impl IntoResponse, ForgeError> {
   let user = &auth.0;
@@ -75,9 +69,9 @@ pub struct AddGlobalRoleAssignmentBody {
 
 /// POST /api/auth/global-role-assignments — assign global role to user. Requires global user.write.
 pub async fn add_global_role_assignment(
-  ScopeFromHeaders(scope): ScopeFromHeaders,
+  ScopeFromHeaders(scope, _): ScopeFromHeaders<user::Model>,
   auth: RequireAuth<Backend, user::Model>,
-  State(db): State<DbConnection>,
+  DbFromScope(db): DbFromScope,
   Json(payload): Json<AddGlobalRoleAssignmentBody>,
 ) -> Result<impl IntoResponse, ForgeError> {
   let user = &auth.0;
@@ -154,9 +148,9 @@ pub struct DeleteGlobalRoleAssignmentBody {
 
 /// DELETE /api/auth/global-role-assignments — remove assignment (body). Requires global user.write.
 pub async fn delete_global_role_assignment(
-  ScopeFromHeaders(scope): ScopeFromHeaders,
+  ScopeFromHeaders(scope, _): ScopeFromHeaders<user::Model>,
   auth: RequireAuth<Backend, user::Model>,
-  State(db): State<DbConnection>,
+  DbFromScope(db): DbFromScope,
   Json(payload): Json<DeleteGlobalRoleAssignmentBody>,
 ) -> Result<impl IntoResponse, ForgeError> {
   let user = &auth.0;

@@ -1,13 +1,8 @@
 //! GET /api/auth/audit-log — list audit log entries. Requires audit.read. Non-global: only current org.
 
-use axum::{
-  Json,
-  extract::{Query, State},
-  response::IntoResponse,
-};
+use axum::{Json, extract::Query, response::IntoResponse};
 use chrono::NaiveDateTime;
 use forge_auth::token_auth::RequireAuth;
-use forge_db::DbConnection;
 use sea_orm::{ColumnTrait, EntityTrait, PaginatorTrait, QueryFilter, QueryOrder, QuerySelect};
 use serde::Deserialize;
 use uuid::Uuid;
@@ -19,7 +14,7 @@ use crate::Error as ForgeError;
 use crate::scoped_query::WithScope;
 
 use super::shared::{
-  PERMISSION_AUDIT_READ, ScopeFromHeaders, has_global_scope, require_permission,
+  DbFromScope, PERMISSION_AUDIT_READ, ScopeFromHeaders, has_global_scope, require_permission,
 };
 
 fn default_limit() -> u64 {
@@ -45,9 +40,9 @@ pub struct ListAuditLogQuery {
 
 /// GET /api/auth/audit-log — list audit log entries. Requires audit.read. Non-global: only current org.
 pub async fn list_audit_log(
-  ScopeFromHeaders(scope): ScopeFromHeaders,
+  ScopeFromHeaders(scope, _): ScopeFromHeaders<user::Model>,
   auth: RequireAuth<Backend, user::Model>,
-  State(db): State<DbConnection>,
+  DbFromScope(db): DbFromScope,
   Query(q): Query<ListAuditLogQuery>,
 ) -> Result<impl IntoResponse, ForgeError> {
   let user = &auth.0;

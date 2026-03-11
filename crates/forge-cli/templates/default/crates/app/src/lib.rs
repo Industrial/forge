@@ -14,6 +14,7 @@ static BUILD_ROUTER_FOR_TEST_LOCK: std::sync::Mutex<()> = std::sync::Mutex::new(
 use forge_app::App;
 use tempfile::TempDir;
 
+pub mod entity_policies;
 pub mod error;
 pub mod handlers;
 pub mod permissions;
@@ -27,8 +28,14 @@ pub use error::Error;
 
 /// Build the Forge [App] with all template routes. Requires CWD to be a directory that contains
 /// `config/app.toml` and `config/db.toml` (e.g. project root or a temp dir from [build_router_for_test]).
-pub fn make_app(live_backend: Arc<forge_live::InMemoryLiveBackend>) -> App {
-  let app = App::new()
+pub fn make_app(
+  live_backend: Arc<forge_live::InMemoryLiveBackend>,
+) -> App<handlers::auth::ScopeExtractorState> {
+  let app: App<handlers::auth::ScopeExtractorState> = App::new()
+    .with_state_builder(|db| handlers::auth::ScopeExtractorState {
+      db: db.clone(),
+      scope_resolver: Arc::new(handlers::auth::AppScopeResolver),
+    })
     .with_token_auth_only(
       db::auth::Backend::new,
       Arc::new(move |db, raw_token| Box::pin(db::token_lookup(db, raw_token))),
@@ -354,7 +361,9 @@ pub async fn build_router_for_test_with_db() -> Result<
       .expect("test router build lock");
     // Lock dropped here before await
   }
-  let (router, db_conn, _cron_runner, response_cache) = app.into_router_before_state().await;
+  let (router, db_conn, _cron_runner, response_cache, state_builder) =
+    app.into_router_before_state().await;
+  let scope_extractor_state = state_builder(db_conn.clone());
 
   // Run migrations and seeds on the same db_conn the router uses.
   // Dev-dependencies (migrations, sea_orm_migration) are available when compiling test binaries.
@@ -462,9 +471,11 @@ pub async fn build_router_for_test_with_db() -> Result<
     .and_then(|cache_config| forge_cache::AppCache::from_config(&cache_config))
     .map(Arc::new);
 
+  let permission_resolver = Arc::new(handlers::auth::AppPermissionResolver);
   let mut api_router = router
-    .with_state(db_conn.clone())
+    .with_state(scope_extractor_state)
     .layer(axum::extract::Extension(db_conn.clone()))
+    .layer(axum::extract::Extension(permission_resolver))
     .layer(axum::extract::Extension(task_state))
     .layer(axum::extract::Extension(subscription_store));
 

@@ -1,20 +1,19 @@
 //! GET /api/auth/permissions — list known permission keys (code-defined).
 
-use axum::{Json, extract::State, response::IntoResponse};
+use axum::{Json, response::IntoResponse};
 use forge_auth::token_auth::RequireAuth;
-use forge_db::DbConnection;
 
 use db::auth::Backend;
 use db::models::user;
 
 use crate::Error as ForgeError;
 
-use super::shared::{ScopeFromHeaders, require_entity_permission};
+use super::shared::{DbFromScope, ScopeFromHeaders, require_entity_permission};
 
 pub async fn list_permissions(
-  ScopeFromHeaders(scope): ScopeFromHeaders,
+  ScopeFromHeaders(scope, _): ScopeFromHeaders<user::Model>,
   auth: RequireAuth<Backend, user::Model>,
-  State(db): State<DbConnection>,
+  DbFromScope(db): DbFromScope,
 ) -> Result<impl IntoResponse, ForgeError> {
   let user = &auth.0;
   if let Some(resp) = require_entity_permission(user, &db, Some(&scope), "permission", "read").await

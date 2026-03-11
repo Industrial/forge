@@ -3,13 +3,12 @@
 use crate::Error as ForgeError;
 use axum::{
   Json,
-  extract::{Extension, Query, State},
+  extract::{Extension, Query},
   http::StatusCode,
   response::IntoResponse,
 };
 use chrono::NaiveDateTime;
 use forge_auth::token_auth::RequireAuth;
-use forge_db::DbConnection;
 use forge_live::{Channel, InMemoryLiveBackend, LiveEvent, broadcast_to_channel};
 use sea_orm::{
   ActiveModelTrait, ColumnTrait, EntityTrait, PaginatorTrait, QueryFilter, QueryOrder, QuerySelect,
@@ -27,10 +26,10 @@ use db::models::{
 };
 
 use crate::handlers::auth::{
-  PERMISSION_AUDIT_READ, PERMISSION_ORGS_READ, PERMISSION_ORGS_WRITE, PERMISSION_READ,
+  DbFromScope, PERMISSION_AUDIT_READ, PERMISSION_ORGS_READ, PERMISSION_ORGS_WRITE, PERMISSION_READ,
   PERMISSION_ROLES_READ, PERMISSION_ROLES_WRITE, PERMISSION_USERS_READ, PERMISSION_USERS_WRITE,
-  PERMISSION_WRITE, ScopeFromHeaders, has_global_scope, require_any_permission,
-  require_entity_permission, require_permission,
+  PERMISSION_WRITE, ScopeFromHeaders, ScopeHeadersRequired, has_global_scope,
+  require_any_permission, require_entity_permission, require_permission,
 };
 use crate::handlers::generic_entity::{ListQueryParams, parse_list_query_spec};
 use crate::permissions::dashboard_permissions;
@@ -45,9 +44,9 @@ use db::organization::{
 
 /// GET /api/dashboard/permissions — list known permission keys (code-defined). Requires permission.read (§6).
 pub async fn list_permissions(
-  ScopeFromHeaders(scope): ScopeFromHeaders,
+  ScopeFromHeaders(scope, _): ScopeFromHeaders<user::Model>,
   auth: RequireAuth<Backend, user::Model>,
-  State(db): State<DbConnection>,
+  DbFromScope(db): DbFromScope,
 ) -> Result<impl IntoResponse, ForgeError> {
   let user = &auth.0;
   if let Some(resp) = require_entity_permission(user, &db, Some(&scope), "permission", "read").await
@@ -60,9 +59,9 @@ pub async fn list_permissions(
 
 /// GET /api/dashboard/role-permissions — list role–permission assignments. Requires dashboard.permissions.read. Global scope: all; else current org only.
 pub async fn list_role_permissions(
-  ScopeFromHeaders(scope): ScopeFromHeaders,
+  ScopeFromHeaders(scope, _): ScopeFromHeaders<user::Model>,
   auth: RequireAuth<Backend, user::Model>,
-  State(db): State<DbConnection>,
+  DbFromScope(db): DbFromScope,
 ) -> Result<impl IntoResponse, ForgeError> {
   let user = &auth.0;
   if let Some(resp) = require_permission(user, &db, PERMISSION_READ, Some(&scope)).await {
@@ -95,9 +94,9 @@ pub async fn list_role_permissions(
 
 /// GET /api/dashboard/tasks — list tasks (ran, running, planned). Requires dashboard. Live updates via WebSocket channel "tasks".
 pub async fn list_tasks(
-  ScopeFromHeaders(scope): ScopeFromHeaders,
+  ScopeFromHeaders(scope, _): ScopeFromHeaders<user::Model>,
   auth: RequireAuth<Backend, user::Model>,
-  State(db): State<DbConnection>,
+  DbFromScope(db): DbFromScope,
   Extension(task_state): Extension<std::sync::Arc<crate::tasks::TaskState>>,
 ) -> Result<impl IntoResponse, ForgeError> {
   let user = &auth.0;
@@ -131,9 +130,9 @@ pub(crate) fn default_limit() -> u64 {
 
 /// GET /api/dashboard/audit-log — list audit log entries. Requires dashboard.audit.read. Non-admin: only current org. Supports filters and pagination.
 pub async fn list_audit_log(
-  ScopeFromHeaders(scope): ScopeFromHeaders,
+  ScopeFromHeaders(scope, _): ScopeFromHeaders<user::Model>,
   auth: RequireAuth<Backend, user::Model>,
-  State(db): State<DbConnection>,
+  DbFromScope(db): DbFromScope,
   Query(q): Query<ListAuditLogQuery>,
 ) -> Result<impl IntoResponse, ForgeError> {
   let user = &auth.0;
@@ -230,9 +229,9 @@ pub struct AddRolePermissionBody {
 
 /// POST /api/dashboard/role-permissions — add one role–permission assignment. Requires dashboard.permissions.write. Admin: any scope/org; else only scope=org and session profile org.
 pub async fn add_role_permission(
-  ScopeFromHeaders(req_scope): ScopeFromHeaders,
+  ScopeFromHeaders(req_scope, _): ScopeFromHeaders<user::Model>,
   auth: RequireAuth<Backend, user::Model>,
-  State(db): State<DbConnection>,
+  DbFromScope(db): DbFromScope,
   Extension(live_backend): Extension<Option<Arc<InMemoryLiveBackend>>>,
   Json(payload): Json<AddRolePermissionBody>,
 ) -> Result<impl IntoResponse, ForgeError> {
@@ -342,9 +341,9 @@ pub struct DeleteRolePermissionBody {
 
 /// DELETE /api/dashboard/role-permissions — remove one role–permission assignment. Requires dashboard.permissions.write. Admin: any; else only scope=org and session profile org.
 pub async fn delete_role_permission(
-  ScopeFromHeaders(req_scope): ScopeFromHeaders,
+  ScopeFromHeaders(req_scope, _): ScopeFromHeaders<user::Model>,
   auth: RequireAuth<Backend, user::Model>,
-  State(db): State<DbConnection>,
+  DbFromScope(db): DbFromScope,
   Extension(live_backend): Extension<Option<Arc<InMemoryLiveBackend>>>,
   Json(payload): Json<DeleteRolePermissionBody>,
 ) -> Result<impl IntoResponse, ForgeError> {
@@ -438,9 +437,9 @@ pub struct OrgRolePermissionPath {
 /// GET /api/organizations/{org_id}/roles — list roles for an organization. Requires dashboard.roles.read.
 pub async fn list_org_roles(
   axum::extract::Path(OrgRolePath { org_id }): axum::extract::Path<OrgRolePath>,
-  ScopeFromHeaders(scope): ScopeFromHeaders,
+  ScopeFromHeaders(scope, _): ScopeFromHeaders<user::Model>,
   auth: RequireAuth<Backend, user::Model>,
-  State(db): State<DbConnection>,
+  DbFromScope(db): DbFromScope,
 ) -> Result<impl IntoResponse, ForgeError> {
   let user = &auth.0;
   if let Some(resp) = require_permission(user, &db, PERMISSION_ROLES_READ, Some(&scope)).await {
@@ -484,9 +483,9 @@ pub async fn get_role_permissions(
   axum::extract::Path(OrgRolePermissionPath { org_id, role_id }): axum::extract::Path<
     OrgRolePermissionPath,
   >,
-  ScopeFromHeaders(scope): ScopeFromHeaders,
+  ScopeFromHeaders(scope, _): ScopeFromHeaders<user::Model>,
   auth: RequireAuth<Backend, user::Model>,
-  State(db): State<DbConnection>,
+  DbFromScope(db): DbFromScope,
 ) -> Result<impl IntoResponse, ForgeError> {
   let user = &auth.0;
   if let Some(resp) = require_permission(user, &db, PERMISSION_READ, Some(&scope)).await {
@@ -543,9 +542,9 @@ pub async fn post_role_permission(
   axum::extract::Path(OrgRolePermissionPath { org_id, role_id }): axum::extract::Path<
     OrgRolePermissionPath,
   >,
-  ScopeFromHeaders(req_scope): ScopeFromHeaders,
+  ScopeFromHeaders(req_scope, _): ScopeFromHeaders<user::Model>,
   auth: RequireAuth<Backend, user::Model>,
-  State(db): State<DbConnection>,
+  DbFromScope(db): DbFromScope,
   Extension(live_backend): Extension<Option<Arc<InMemoryLiveBackend>>>,
   Json(payload): Json<OrgRolePermissionBody>,
 ) -> Result<impl IntoResponse, ForgeError> {
@@ -645,9 +644,9 @@ pub async fn delete_role_permission_by_path(
   axum::extract::Path(OrgRolePermissionPath { org_id, role_id }): axum::extract::Path<
     OrgRolePermissionPath,
   >,
-  ScopeFromHeaders(req_scope): ScopeFromHeaders,
+  ScopeFromHeaders(req_scope, _): ScopeFromHeaders<user::Model>,
   auth: RequireAuth<Backend, user::Model>,
-  State(db): State<DbConnection>,
+  DbFromScope(db): DbFromScope,
   Extension(live_backend): Extension<Option<Arc<InMemoryLiveBackend>>>,
   Json(payload): Json<OrgRolePermissionBody>,
 ) -> Result<impl IntoResponse, ForgeError> {
@@ -725,9 +724,9 @@ pub async fn delete_role_permission_by_path(
 
 /// GET /api/dashboard/organizations — list all organizations. Requires dashboard.organizations.read (global).
 pub async fn list_organizations(
-  ScopeFromHeaders(scope): ScopeFromHeaders,
+  ScopeFromHeaders(scope, _): ScopeFromHeaders<user::Model>,
   auth: RequireAuth<Backend, user::Model>,
-  State(db): State<DbConnection>,
+  DbFromScope(db): DbFromScope,
 ) -> Result<impl IntoResponse, ForgeError> {
   let user = &auth.0;
   if let Some(resp) = require_permission(user, &db, PERMISSION_ORGS_READ, Some(&scope)).await {
@@ -761,9 +760,9 @@ pub struct ListRolesQuery {
 
 /// GET /api/dashboard/roles — list org roles. Global scope: all orgs; else current org only. Requires dashboard.roles.read.
 pub async fn list_roles(
-  ScopeFromHeaders(scope): ScopeFromHeaders,
+  ScopeFromHeaders(scope, _): ScopeFromHeaders<user::Model>,
   auth: RequireAuth<Backend, user::Model>,
-  State(db): State<DbConnection>,
+  DbFromScope(db): DbFromScope,
   Query(_q): Query<ListRolesQuery>,
 ) -> Result<impl IntoResponse, ForgeError> {
   let user = &auth.0;
@@ -810,9 +809,9 @@ pub struct CreateRoleBody {
 
 /// POST /api/dashboard/roles — create org role. Requires dashboard.roles.write. Global scope: any org_id; else session profile org only.
 pub async fn create_role(
-  ScopeFromHeaders(scope): ScopeFromHeaders,
+  ScopeFromHeaders(scope, _): ScopeFromHeaders<user::Model>,
   auth: RequireAuth<Backend, user::Model>,
-  State(db): State<DbConnection>,
+  DbFromScope(db): DbFromScope,
   Extension(live_backend): Extension<Option<Arc<InMemoryLiveBackend>>>,
   Json(payload): Json<CreateRoleBody>,
 ) -> Result<impl IntoResponse, ForgeError> {
@@ -925,9 +924,9 @@ pub struct UpdateRoleBody {
 
 /// PATCH /api/dashboard/roles — update org role. Requires dashboard.roles.write.
 pub async fn update_role(
-  ScopeFromHeaders(scope): ScopeFromHeaders,
+  ScopeFromHeaders(scope, _): ScopeFromHeaders<user::Model>,
   auth: RequireAuth<Backend, user::Model>,
-  State(db): State<DbConnection>,
+  DbFromScope(db): DbFromScope,
   Extension(live_backend): Extension<Option<Arc<InMemoryLiveBackend>>>,
   Json(payload): Json<UpdateRoleBody>,
 ) -> Result<impl IntoResponse, ForgeError> {
@@ -1005,9 +1004,9 @@ pub struct DeleteRoleBody {
 
 /// DELETE /api/dashboard/roles — delete org role. Requires dashboard.roles.write. Fails if any user has this role.
 pub async fn delete_role(
-  ScopeFromHeaders(scope): ScopeFromHeaders,
+  ScopeFromHeaders(scope, _): ScopeFromHeaders<user::Model>,
   auth: RequireAuth<Backend, user::Model>,
-  State(db): State<DbConnection>,
+  DbFromScope(db): DbFromScope,
   Extension(live_backend): Extension<Option<Arc<InMemoryLiveBackend>>>,
   Json(payload): Json<DeleteRoleBody>,
 ) -> Result<impl IntoResponse, ForgeError> {
@@ -1066,9 +1065,9 @@ pub async fn delete_role(
 
 /// POST /api/dashboard/organizations — create organization. Requires dashboard.organizations.write.
 pub async fn create_organization(
-  ScopeFromHeaders(scope): ScopeFromHeaders,
+  ScopeFromHeaders(scope, _): ScopeFromHeaders<user::Model>,
   auth: RequireAuth<Backend, user::Model>,
-  State(db): State<DbConnection>,
+  DbFromScope(db): DbFromScope,
   Extension(live_backend): Extension<Option<Arc<InMemoryLiveBackend>>>,
   Json(payload): Json<CreateOrganizationBody>,
 ) -> Result<impl IntoResponse, ForgeError> {
@@ -1140,9 +1139,9 @@ pub struct UpdateOrganizationBody {
 
 /// PATCH /api/dashboard/organizations — update organization. Requires dashboard.organizations.write.
 pub async fn update_organization(
-  ScopeFromHeaders(scope): ScopeFromHeaders,
+  ScopeFromHeaders(scope, _): ScopeFromHeaders<user::Model>,
   auth: RequireAuth<Backend, user::Model>,
-  State(db): State<DbConnection>,
+  DbFromScope(db): DbFromScope,
   Extension(live_backend): Extension<Option<Arc<InMemoryLiveBackend>>>,
   Json(payload): Json<UpdateOrganizationBody>,
 ) -> Result<impl IntoResponse, ForgeError> {
@@ -1189,9 +1188,9 @@ pub struct DeleteOrganizationBody {
 
 /// DELETE /api/dashboard/organizations — delete organization. Requires dashboard.organizations.write.
 pub async fn delete_organization(
-  ScopeFromHeaders(scope): ScopeFromHeaders,
+  ScopeFromHeaders(scope, _): ScopeFromHeaders<user::Model>,
   auth: RequireAuth<Backend, user::Model>,
-  State(db): State<DbConnection>,
+  DbFromScope(db): DbFromScope,
   Extension(live_backend): Extension<Option<Arc<InMemoryLiveBackend>>>,
   Json(payload): Json<DeleteOrganizationBody>,
 ) -> Result<impl IntoResponse, ForgeError> {
@@ -1390,11 +1389,12 @@ fn apply_user_filter(
 }
 
 /// GET /api/dashboard/users — list users. Requires dashboard.users.read. Global scope: all orgs; else session profile org only.
+/// X-Organization-Id and X-Role-Id are required (no inference when user has single org).
 /// Query params: filter (JSON array), sort, order, offset, limit (ListQuerySpec). Returns { users, total }.
 pub async fn list_users(
-  ScopeFromHeaders(scope): ScopeFromHeaders,
+  ScopeHeadersRequired(scope, _): ScopeHeadersRequired<user::Model>,
   auth: RequireAuth<Backend, user::Model>,
-  State(db): State<DbConnection>,
+  DbFromScope(db): DbFromScope,
   Query(params): Query<ListQueryParams>,
 ) -> Result<impl IntoResponse, ForgeError> {
   let user = &auth.0;
@@ -1508,9 +1508,9 @@ pub struct CreateUserBody {
 
 /// POST /api/dashboard/users — create user and add to org with given roles. Requires dashboard.users.write. Non-admin: org_id must match session profile org.
 pub async fn create_user(
-  ScopeFromHeaders(scope): ScopeFromHeaders,
+  ScopeFromHeaders(scope, _): ScopeFromHeaders<user::Model>,
   auth: RequireAuth<Backend, user::Model>,
-  State(db): State<DbConnection>,
+  DbFromScope(db): DbFromScope,
   Extension(live_backend): Extension<Option<Arc<InMemoryLiveBackend>>>,
   Json(payload): Json<CreateUserBody>,
 ) -> Result<impl IntoResponse, ForgeError> {
@@ -1691,9 +1691,9 @@ pub struct UpdateUserBody {
 
 /// PATCH /api/dashboard/users — update user (email, is_active). Requires dashboard.users.write.
 pub async fn update_user(
-  ScopeFromHeaders(scope): ScopeFromHeaders,
+  ScopeFromHeaders(scope, _): ScopeFromHeaders<user::Model>,
   auth: RequireAuth<Backend, user::Model>,
-  State(db): State<DbConnection>,
+  DbFromScope(db): DbFromScope,
   Extension(live_backend): Extension<Option<Arc<InMemoryLiveBackend>>>,
   Json(payload): Json<UpdateUserBody>,
 ) -> Result<impl IntoResponse, ForgeError> {
@@ -1741,9 +1741,9 @@ pub struct DeleteUserBody {
 
 /// DELETE /api/dashboard/users — delete user and their memberships. Requires dashboard.users.write.
 pub async fn delete_user(
-  ScopeFromHeaders(scope): ScopeFromHeaders,
+  ScopeFromHeaders(scope, _): ScopeFromHeaders<user::Model>,
   auth: RequireAuth<Backend, user::Model>,
-  State(db): State<DbConnection>,
+  DbFromScope(db): DbFromScope,
   Extension(live_backend): Extension<Option<Arc<InMemoryLiveBackend>>>,
   Json(payload): Json<DeleteUserBody>,
 ) -> Result<impl IntoResponse, ForgeError> {
