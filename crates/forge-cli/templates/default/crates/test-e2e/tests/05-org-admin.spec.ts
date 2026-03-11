@@ -25,7 +25,6 @@ import {
 import { createPageLayers } from '@/fixtures/page-layers'
 import { API_BASE_URL } from '@/playwright.config'
 import * as ExpectHelpers from '@/helpers/expect'
-import * as LocatorHelpers from '@/helpers/locator'
 import * as PageHelpers from '@/helpers/page'
 import { getAuthHeadersFromPage } from '@/helpers/auth'
 

@@ -2,16 +2,11 @@
  * Debug runner for Playwright tests
  * Uses Playwright's programmatic API to run tests and debug issues
  */
-import {
-  chromium,
-  type Browser,
-  type BrowserContext,
-  type Page,
-} from '@playwright/test'
+import { chromium } from '@playwright/test'
 import { spawn } from 'node:child_process'
 import { promisify } from 'node:util'
 
-const exec = promisify(spawn)
+const _exec = promisify(spawn)
 
 async function main() {
   console.log('🔍 Starting Playwright debug runner...')
@@ -81,8 +76,9 @@ async function main() {
       if (listError) {
         console.log('Errors:', listError)
       }
-    } catch (error: any) {
-      console.log('\n❌ Test listing failed or timed out:', error.message)
+    } catch (error: unknown) {
+      const msg = error instanceof Error ? error.message : String(error)
+      console.log('\n❌ Test listing failed or timed out:', msg)
       console.log('Output so far:', listOutput)
       console.log('Errors so far:', listError)
       listProcess.kill('SIGTERM')
@@ -94,9 +90,11 @@ async function main() {
       const testModule = await import('./tests/01-guest.spec.ts')
       console.log('✅ Test file imported successfully')
       console.log('Exports:', Object.keys(testModule))
-    } catch (error: any) {
-      console.log('❌ Failed to import test file:', error.message)
-      console.log('Stack:', error.stack)
+    } catch (error: unknown) {
+      const msg = error instanceof Error ? error.message : String(error)
+      const stack = error instanceof Error ? error.stack : undefined
+      console.log('❌ Failed to import test file:', msg)
+      console.log('Stack:', stack)
     }
 
     // Try to import helper modules
@@ -116,8 +114,9 @@ async function main() {
         console.log(
           `✅ ${helper}: imported (${Object.keys(module).length} exports)`,
         )
-      } catch (error: any) {
-        console.log(`❌ ${helper}: ${error.message}`)
+      } catch (error: unknown) {
+        const msg = error instanceof Error ? error.message : String(error)
+        console.log(`❌ ${helper}: ${msg}`)
       }
     }
 
@@ -140,25 +139,30 @@ async function main() {
 
       await browser.close()
       console.log('✅ Browser closed')
-    } catch (error: any) {
-      console.log('❌ Browser launch failed:', error.message)
-      console.log('Stack:', error.stack)
+    } catch (error: unknown) {
+      const msg = error instanceof Error ? error.message : String(error)
+      const stack = error instanceof Error ? error.stack : undefined
+      console.log('❌ Browser launch failed:', msg)
+      console.log('Stack:', stack)
     }
 
     // Try to run a single test programmatically
     console.log('\n6️⃣  Attempting to run test programmatically...')
     try {
-      const { test } = await import('@playwright/test')
+      await import('@playwright/test')
       console.log('✅ Playwright test API imported')
 
       // This won't work directly, but let's see what happens
       console.log('Note: Playwright tests need to be run via the CLI')
-    } catch (error: any) {
-      console.log('❌ Failed to import test API:', error.message)
+    } catch (error: unknown) {
+      const msg = error instanceof Error ? error.message : String(error)
+      console.log('❌ Failed to import test API:', msg)
     }
-  } catch (error: any) {
-    console.error('\n💥 Fatal error:', error.message)
-    console.error('Stack:', error.stack)
+  } catch (error: unknown) {
+    const msg = error instanceof Error ? error.message : String(error)
+    const stack = error instanceof Error ? error.stack : undefined
+    console.error('\n💥 Fatal error:', msg)
+    console.error('Stack:', stack)
     process.exit(1)
   }
 

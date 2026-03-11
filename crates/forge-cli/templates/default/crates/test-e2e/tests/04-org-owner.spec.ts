@@ -37,7 +37,6 @@ import {
 import { createPageLayers } from '@/fixtures/page-layers'
 import { API_BASE_URL } from '@/playwright.config'
 import * as ExpectHelpers from '@/helpers/expect'
-import * as LocatorHelpers from '@/helpers/locator'
 import * as PageHelpers from '@/helpers/page'
 import { getAuthHeadersFromPage } from '@/helpers/auth'
 
@@ -641,7 +640,7 @@ test.describe('Org Owner Role', () => {
 
       const program = Effect.gen(function* () {
         const profilePageService = yield* ProfilePage
-        const dashboardPageService = yield* DashboardPage
+        const _dashboardPageService = yield* DashboardPage
         const usersPageService = yield* UsersPage
 
         const profileList = yield* profilePageService.profileList()

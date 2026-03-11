@@ -1,5 +1,5 @@
-import { Page } from '@playwright/test'
-import { Effect, Context, Layer } from 'effect'
+import type { Page } from '@playwright/test'
+import { Context, Layer } from 'effect'
 
 /**
  * Playwright Page service - provides Page instance to Effect programs

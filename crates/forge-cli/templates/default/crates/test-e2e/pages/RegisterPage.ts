@@ -1,4 +1,4 @@
-import { Locator } from '@playwright/test'
+import type { Locator } from '@playwright/test'
 import { Effect, Context, Layer } from 'effect'
 
 import { PlaywrightPage } from '@/fixtures/playwright'

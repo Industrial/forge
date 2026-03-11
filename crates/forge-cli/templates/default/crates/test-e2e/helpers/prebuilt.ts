@@ -55,9 +55,15 @@ export function assertAuthLayout(): void {
   const handlersAuth = path.join(root, 'crates/app/src/handlers/auth.rs')
   const mainRsPath = path.join(root, 'crates/app/src/main.rs')
 
-  if (!fs.existsSync(authRs)) throw new Error('crates/db/src/auth.rs missing')
-  if (!fs.existsSync(orgRs)) throw new Error('organization.rs missing')
-  if (!fs.existsSync(membershipRs)) throw new Error('membership.rs missing')
+  if (!fs.existsSync(authRs)) {
+    throw new Error('crates/db/src/auth.rs missing')
+  }
+  if (!fs.existsSync(orgRs)) {
+    throw new Error('organization.rs missing')
+  }
+  if (!fs.existsSync(membershipRs)) {
+    throw new Error('membership.rs missing')
+  }
 
   const userModel = fs.readFileSync(userRs, 'utf-8')
   if (

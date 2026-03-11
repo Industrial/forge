@@ -2,9 +2,8 @@
  * BDD tests for e2e prebuilt helpers
  * Tests verify helper functions for checking prebuilt project structure and files
  */
-import { describe, test, expect, beforeEach } from 'bun:test'
+import { describe, test, expect } from 'bun:test'
 import fs from 'node:fs'
-import path from 'node:path'
 import {
   getPrebuiltRoot,
   prebuiltExists,

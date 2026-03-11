@@ -16,7 +16,6 @@ import { SEED_USERS, createTestUser } from '@/fixtures/test-data'
 import { createPageLayers } from '@/fixtures/page-layers'
 import { API_BASE_URL } from '@/playwright.config'
 import * as ExpectHelpers from '@/helpers/expect'
-import * as LocatorHelpers from '@/helpers/locator'
 import * as PageHelpers from '@/helpers/page'
 
 test.describe('Cross-Role Scenarios', () => {
@@ -284,7 +283,7 @@ test.describe('Cross-Role Scenarios', () => {
   })
 
   test.describe('7.5 Session Management', () => {
-    test('logout invalidates token', async ({ page, context }) => {
+    test('logout invalidates token', async ({ page }) => {
       await page.goto('/authentication/login')
       const loginProgram = Effect.gen(function* () {
         const loginPageService = yield* LoginPage

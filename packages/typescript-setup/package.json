@@ -1,0 +1,7 @@
+{
+  "name": "typescript-setup",
+  "version": "0.0.1",
+  "private": true,
+  "type": "module",
+  "description": "Shared TypeScript base config for the monorepo; extend via \"extends\": \"typescript-setup/tsconfig.base.json\" or relative path."
+}

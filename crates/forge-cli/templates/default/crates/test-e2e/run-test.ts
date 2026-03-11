@@ -3,7 +3,6 @@
  * Spawns Playwright process and captures all output to debug hangs
  */
 import { spawn } from 'node:child_process'
-import { createInterface } from 'node:readline'
 import path from 'node:path'
 import { fileURLToPath } from 'node:url'
 
@@ -26,8 +25,9 @@ async function runPlaywrightTest(testFile: string) {
     const fs = await import('node:fs/promises')
     const stats = await fs.stat(testPath)
     console.log('✅ Test file exists:', stats.size, 'bytes')
-  } catch (error: any) {
-    console.error('❌ Test file not found:', error.message)
+  } catch (error: unknown) {
+    const msg = error instanceof Error ? error.message : String(error)
+    console.error('❌ Test file not found:', msg)
     process.exit(1)
   }
 

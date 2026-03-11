@@ -4,7 +4,7 @@
   "type": "module",
   "private": true,
   "scripts": {
-    "check": "tsgo --noEmit && biome check --write .",
+    "check": "tsgo -b --noEmit && biome check --unsafe --write .",
     "test": "bun test ./packages/**/*.test.ts ./packages/**/*.test.tsx ./crates/**/*.test.ts ./crates/**/*.test.tsx --passWithNoTests"
   },
   "dependencies": {

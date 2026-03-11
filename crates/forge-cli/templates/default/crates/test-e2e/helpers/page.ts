@@ -1,4 +1,4 @@
-import { Page } from '@playwright/test'
+import type { AriaRole, Page } from '@playwright/test'
 import { Effect } from 'effect'
 
 /**
@@ -92,13 +92,15 @@ export const wait = (page: Page, timeout: number): Effect.Effect<void> =>
   Effect.promise(() => page.waitForTimeout(timeout))
 
 /**
- * Wait for a function to return truthy value
+ * Wait for a function to return truthy value.
+ * Returns a Playwright JSHandle to the value (use .evaluate() to get the value).
  */
 export const waitForFunction = <T>(
   page: Page,
   fn: () => T | Promise<T>,
   options?: { timeout?: number; polling?: number | 'raf' },
-): Effect.Effect<T> => Effect.promise(() => page.waitForFunction(fn, options))
+): Effect.Effect<import('@playwright/test').JSHandle<T>> =>
+  Effect.promise(() => page.waitForFunction(fn, options))
 
 /**
  * Wait for load state
@@ -151,7 +153,7 @@ export const getByRole = (
   },
 ): Effect.Effect<import('@playwright/test').Locator> =>
   Effect.gen(function* () {
-    return page.getByRole(role as any, options)
+    return page.getByRole(role as AriaRole, options)
   })
 
 /**

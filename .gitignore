@@ -10,6 +10,7 @@
 *.sw?
 *.swo
 *.swp
+*.tsbuildinfo
 .DS_Store
 .attractor/
 .beads/
@@ -22,6 +23,8 @@
 .env.local
 .idea
 .idea/
+.moon/cache
+.moon/docker
 .serena/
 .tmp/
 .vscode/
@@ -38,7 +41,3 @@ outcome.json
 target/
 yarn-debug.log*
 yarn-error.log*
-
-# moon
-.moon/cache
-.moon/docker

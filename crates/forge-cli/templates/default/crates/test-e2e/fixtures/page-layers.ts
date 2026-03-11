@@ -1,30 +1,30 @@
-import { Page } from '@playwright/test'
+import type { Page } from '@playwright/test'
 import { Layer } from 'effect'
 import {
-  LoginPage,
+  type LoginPage,
   LoginPageLive,
-  RegisterPage,
+  type RegisterPage,
   RegisterPageLive,
-  DashboardPage,
+  type DashboardPage,
   DashboardPageLive,
-  SelectScopePage,
+  type SelectScopePage,
   SelectScopePageLive,
-  UsersPage,
+  type UsersPage,
   UsersPageLive,
-  RolesPage,
+  type RolesPage,
   RolesPageLive,
-  PermissionsPage,
+  type PermissionsPage,
   PermissionsPageLive,
-  AuditLogPage,
+  type AuditLogPage,
   AuditLogPageLive,
-  OrganizationsPage,
+  type OrganizationsPage,
   OrganizationsPageLive,
-  ProfilePage,
+  type ProfilePage,
   ProfilePageLive,
 } from '@/pages'
 import {
   createPlaywrightPageLayer,
-  PlaywrightPage,
+  type PlaywrightPage,
 } from '@/fixtures/playwright'
 
 /**

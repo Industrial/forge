@@ -34,7 +34,11 @@ export async function getAuthHeadersFromPage(
   const headers: Record<string, string> = {
     Authorization: `Bearer ${storage.token}`,
   }
-  if (storage.orgId) headers['X-Organization-Id'] = storage.orgId
-  if (storage.roleId) headers['X-Role-Id'] = storage.roleId
+  if (storage.orgId) {
+    headers['X-Organization-Id'] = storage.orgId
+  }
+  if (storage.roleId) {
+    headers['X-Role-Id'] = storage.roleId
+  }
   return headers
 }

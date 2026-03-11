@@ -1,0 +1,5 @@
+# https://moonrepo.dev/docs/config/project
+# Config-only package; lint/test run from monorepo root
+id: 'typescript-setup'
+language: 'typescript'
+type: 'library'
