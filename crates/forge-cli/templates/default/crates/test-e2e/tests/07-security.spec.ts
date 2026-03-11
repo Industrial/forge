@@ -11,12 +11,12 @@
  */
 import { test, expect } from '@playwright/test'
 import { Effect } from 'effect'
-import { LoginPage, DashboardPage, SelectScopePage, UsersPage } from '@/pages'
-import { SEED_USERS, createTestUser } from '@/fixtures/test-data'
-import { createPageLayers } from '@/fixtures/page-layers'
-import { API_BASE_URL } from '@/playwright.config'
-import * as ExpectHelpers from '@/helpers/expect'
-import * as PageHelpers from '@/helpers/page'
+import { LoginPage, DashboardPage, SelectScopePage, UsersPage } from '../pages'
+import { SEED_USERS, createTestUser } from '../fixtures/test-data'
+import { createPageLayers } from '../fixtures/page-layers'
+import { API_BASE_URL } from '../playwright.config'
+import * as ExpectHelpers from '../helpers/expect'
+import * as PageHelpers from '../helpers/page'
 
 test.describe('Cross-Role Scenarios', () => {
   test.describe('7.1 Multi-Organization User Flow', () => {

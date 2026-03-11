@@ -1,4 +1,4 @@
-import EntityTableRow from '@/components/EntityTableRow'
+import EntityTableRow from '../../../components/EntityTableRow'
 import type { Assignment } from '../domain/Assignment'
 
 export type AssignmentTableRowProps = {

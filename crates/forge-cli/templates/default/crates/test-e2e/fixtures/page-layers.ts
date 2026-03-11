@@ -21,11 +21,11 @@ import {
   OrganizationsPageLive,
   type ProfilePage,
   ProfilePageLive,
-} from '@/pages'
+} from '../pages'
 import {
   createPlaywrightPageLayer,
   type PlaywrightPage,
-} from '@/fixtures/playwright'
+} from '../fixtures/playwright'
 
 /**
  * Create all page layers from a Playwright Page instance

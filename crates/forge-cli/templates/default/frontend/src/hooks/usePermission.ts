@@ -1,5 +1,5 @@
-import { useAuthStore } from '@/features/authentication/stores'
-import { hasPermission } from '@/lib/permissions'
+import { useAuthStore } from '../features/authentication/stores'
+import { hasPermission } from '../lib/permissions'
 
 /**
  * Permission → UI helper: returns whether the current user has the required permission(s).

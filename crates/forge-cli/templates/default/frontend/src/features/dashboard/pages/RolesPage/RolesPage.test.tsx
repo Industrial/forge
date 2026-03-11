@@ -19,18 +19,18 @@ import { Effect, Layer } from 'effect'
 import { EffectRuntimeProvider } from 'react-effect-hooks'
 
 import RolesPage from './RolesPage'
-import { Providers } from '@/Providers'
+import { Providers } from '../../../../Providers'
 import {
   buildApplicationLayer,
   setApplicationLayerOverrideForTesting,
   clearApplicationLayerOverrideForTesting,
   getApplicationLayer,
-} from '@/lib/appLayer'
-import { RolesMockLayer } from '@/features/dashboard/services/RolesMock'
-import { DashboardMockLayer } from '@/features/dashboard/services/DashboardMock'
-import { RpcApiMock } from '@/services/RpcApiMock'
-import { Role } from '@/features/dashboard/domain/Role'
-import { Organization } from '@/features/dashboard/domain/Organization'
+} from '../../../../lib/appLayer'
+import { RolesMockLayer } from '../../../../features/dashboard/services/RolesMock'
+import { DashboardMockLayer } from '../../../../features/dashboard/services/DashboardMock'
+import { RpcApiMock } from '../../../../services/RpcApiMock'
+import { Role } from '../../../../features/dashboard/domain/Role'
+import { Organization } from '../../../../features/dashboard/domain/Organization'
 
 beforeAll(() => {
   // Ensure SyntaxError exists globally first

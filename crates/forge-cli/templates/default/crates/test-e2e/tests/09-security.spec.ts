@@ -13,12 +13,12 @@
 import { test, expect } from '@playwright/test'
 import { Effect } from 'effect'
 
-import { LoginPage, UsersPage } from '@/pages'
-import { SEED_USERS } from '@/fixtures/test-data'
-import { createPageLayers } from '@/fixtures/page-layers'
-import { API_BASE_URL } from '@/playwright.config'
-import * as ExpectHelpers from '@/helpers/expect'
-import * as LocatorHelpers from '@/helpers/locator'
+import { LoginPage, UsersPage } from '../pages'
+import { SEED_USERS } from '../fixtures/test-data'
+import { createPageLayers } from '../fixtures/page-layers'
+import { API_BASE_URL } from '../playwright.config'
+import * as ExpectHelpers from '../helpers/expect'
+import * as LocatorHelpers from '../helpers/locator'
 
 test.describe('Security Scenarios', () => {
   test.describe('9.1 Authentication Security', () => {

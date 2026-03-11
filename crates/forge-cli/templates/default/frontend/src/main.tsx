@@ -3,10 +3,10 @@ import { BrowserRouter } from 'react-router-dom'
 import { Effect, Layer, pipe } from 'effect'
 import { EffectRuntimeProvider } from 'react-effect-hooks'
 
-import '@/reset.css'
-import App from '@/App.tsx'
-import { getApplicationLayer } from '@/lib/appLayer'
-import { Authentication } from '@/features/authentication/services/Authentication'
+import './reset.css'
+import App from './App.tsx'
+import { getApplicationLayer } from './lib/appLayer'
+import { Authentication } from './features/authentication/services/Authentication'
 
 await Effect.runPromise(
   pipe(

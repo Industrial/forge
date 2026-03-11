@@ -9,7 +9,7 @@ import {
   useOrganizationsFilter,
   organizationMatches,
 } from './useOrganizationsFilter'
-import { Organization } from '@/features/dashboard/domain/Organization'
+import { Organization } from '../../../features/dashboard/domain/Organization'
 import type { OrganizationsFilterState } from './useOrganizationsFilter'
 
 // Factory function for creating mock organizations

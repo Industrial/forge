@@ -11,22 +11,22 @@ import type React from 'react'
 import { Effect, Layer, Option, Stream, Chunk } from 'effect'
 
 import Navbar from './Navbar'
-import { Providers } from '@/Providers'
+import { Providers } from '../Providers'
 import {
   buildApplicationLayer,
   setApplicationLayerOverrideForTesting,
   clearApplicationLayerOverrideForTesting,
-} from '@/lib/appLayer'
-import { clearReactiveStoreCacheForTesting } from '@/lib/ReactiveStore'
-import type { ReactiveStore } from '@/lib/ReactiveStore'
-import type { AuthenticationState } from '@/features/authentication/stores/AuthenticationStateReactiveStore'
+} from '../lib/appLayer'
+import { clearReactiveStoreCacheForTesting } from '../lib/ReactiveStore'
+import type { ReactiveStore } from '../lib/ReactiveStore'
+import type { AuthenticationState } from '../features/authentication/stores/AuthenticationStateReactiveStore'
 import {
   AuthStoreTag,
   initialAuthenticationState,
-} from '@/features/authentication/stores/AuthenticationStateReactiveStore'
-import { Authentication } from '@/features/authentication/services/Authentication'
-import { createMockAuthentication } from '@/features/authentication/services/AuthenticationMock'
-import { AuthenticationUser } from '@/features/authentication/domain/AuthenticationUser'
+} from '../features/authentication/stores/AuthenticationStateReactiveStore'
+import { Authentication } from '../features/authentication/services/Authentication'
+import { createMockAuthentication } from '../features/authentication/services/AuthenticationMock'
+import { AuthenticationUser } from '../features/authentication/domain/AuthenticationUser'
 
 beforeAll(() => {
   // Ensure SyntaxError exists globally first

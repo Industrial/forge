@@ -7,16 +7,16 @@
  */
 import { useEffect, useRef } from 'react'
 import { Effect, Option } from 'effect'
-import { useAuthStore } from '@/features/authentication/stores'
-import { register, unregister } from '@/lib/subscriptionRegistry'
+import { useAuthStore } from '../features/authentication/stores'
+import { register, unregister } from '../lib/subscriptionRegistry'
 import {
   SubscriptionStreamStatusStoreTag,
   initialSubscriptionStreamStatus,
-} from '@/lib/subscriptionStreamStatusStore'
-import { useReactiveStore } from '@/lib/ReactiveStore'
-import { useRunWithAppLayer } from '@/lib/appLayer'
-import { RpcApi } from '@/services/RpcApi'
-import type { ListQueryParams } from '@/services/EntityApi'
+} from '../lib/subscriptionStreamStatusStore'
+import { useReactiveStore } from '../lib/ReactiveStore'
+import { useRunWithAppLayer } from '../lib/appLayer'
+import { RpcApi } from '../services/RpcApi'
+import type { ListQueryParams } from '../services/EntityApi'
 
 export function useEntitySubscription(
   entityId: string,

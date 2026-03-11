@@ -5,7 +5,7 @@
  */
 
 import { HttpClientRequest } from '@effect/platform'
-import { AuthenticatedHttpClient } from '@/services/AuthenticatedHttpClient'
+import { AuthenticatedHttpClient } from '../services/AuthenticatedHttpClient'
 import { Effect, Layer, pipe } from 'effect'
 import { Schema } from 'effect'
 import {
@@ -13,7 +13,7 @@ import {
   RpcResponseSchema,
   RpcSubscribeResultSchema,
   type RpcSubscribeRequest,
-} from '@/api/types'
+} from '../api/types'
 import type { RpcApiService } from './RpcApi'
 import { RpcApi } from './RpcApi'
 

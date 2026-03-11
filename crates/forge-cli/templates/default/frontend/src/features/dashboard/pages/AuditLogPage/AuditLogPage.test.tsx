@@ -19,17 +19,17 @@ import { Effect, Layer } from 'effect'
 import { EffectRuntimeProvider } from 'react-effect-hooks'
 
 import AuditLogPage from './AuditLogPage'
-import { Providers } from '@/Providers'
+import { Providers } from '../../../../Providers'
 import {
   buildApplicationLayer,
   setApplicationLayerOverrideForTesting,
   clearApplicationLayerOverrideForTesting,
   getApplicationLayer,
-} from '@/lib/appLayer'
-import { AuditLogMockLayer } from '@/features/dashboard/services/AuditLogMock'
-import { AuditLogEntry } from '@/features/dashboard/domain/AuditLogEntry'
-import { AuditLog } from '@/features/dashboard/services/AuditLog'
-import { RpcApiMock } from '@/services/RpcApiMock'
+} from '../../../../lib/appLayer'
+import { AuditLogMockLayer } from '../../../../features/dashboard/services/AuditLogMock'
+import { AuditLogEntry } from '../../../../features/dashboard/domain/AuditLogEntry'
+import { AuditLog } from '../../../../features/dashboard/services/AuditLog'
+import { RpcApiMock } from '../../../../services/RpcApiMock'
 
 beforeAll(() => {
   // Ensure SyntaxError exists globally first

@@ -7,8 +7,8 @@
  */
 import { Context, type Effect, type Option } from 'effect'
 
-import type { AuthenticationUser } from '@/features/authentication/domain/AuthenticationUser'
-import type { Scope } from '@/features/authentication/domain/Scope'
+import type { AuthenticationUser } from '../../../features/authentication/domain/AuthenticationUser'
+import type { Scope } from '../../../features/authentication/domain/Scope'
 import type {
   InvalidTokenError,
   LoginFailedError,
@@ -16,7 +16,7 @@ import type {
   ScopeError,
   TokenMissingError,
   UserNotFoundError,
-} from '@/features/authentication/errors'
+} from '../../../features/authentication/errors'
 
 export interface Authentication {
   /**

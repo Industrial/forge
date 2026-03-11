@@ -1,4 +1,4 @@
-import EntityTableRow from '@/components/EntityTableRow'
+import EntityTableRow from '../../../components/EntityTableRow'
 import { formatDate } from '../utils/formatDate'
 
 export type AuditLogEntryRow = {

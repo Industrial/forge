@@ -27,22 +27,22 @@ import AddIcon from '@mui/icons-material/Add'
 import VisibilityIcon from '@mui/icons-material/Visibility'
 import DeleteIcon from '@mui/icons-material/Delete'
 
-import { getApplicationLayer } from '@/lib/appLayer'
-import PageHeader from '@/components/PageHeader'
-import ActionBar from '@/components/ActionBar'
-import DataTable from '@/components/DataTable'
-import type { DataTableColumn } from '@/components/DataTable'
-import FormDialog from '@/components/FormDialog'
-import PermissionsFilters from '@/features/dashboard/components/PermissionsFilters'
-import ErrorAlert from '@/components/ErrorAlert'
-import LoadingSpinner from '@/components/LoadingSpinner'
-import { useLiveRefreshTrigger } from '@/hooks/useLiveRefreshTrigger'
-import { useTablePaginationDefaults } from '@/hooks/useTablePaginationDefaults'
-import type { Assignment } from '@/features/dashboard/domain/Assignment'
+import { getApplicationLayer } from '../../../../lib/appLayer'
+import PageHeader from '../../../../components/PageHeader'
+import ActionBar from '../../../../components/ActionBar'
+import DataTable from '../../../../components/DataTable'
+import type { DataTableColumn } from '../../../../components/DataTable'
+import FormDialog from '../../../../components/FormDialog'
+import PermissionsFilters from '../../../../features/dashboard/components/PermissionsFilters'
+import ErrorAlert from '../../../../components/ErrorAlert'
+import LoadingSpinner from '../../../../components/LoadingSpinner'
+import { useLiveRefreshTrigger } from '../../../../hooks/useLiveRefreshTrigger'
+import { useTablePaginationDefaults } from '../../../../hooks/useTablePaginationDefaults'
+import type { Assignment } from '../../../../features/dashboard/domain/Assignment'
 import {
   Permissions as PermissionsService,
   type PermissionsData,
-} from '@/features/dashboard/services/Permissions'
+} from '../../../../features/dashboard/services/Permissions'
 
 const ORG_ROLES = ['owner', 'admin', 'editor', 'viewer'] as const
 const GLOBAL_ROLES = ['platform_admin'] as const

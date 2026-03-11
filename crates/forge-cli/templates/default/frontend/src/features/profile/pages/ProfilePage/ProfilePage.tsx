@@ -3,10 +3,10 @@ import Box from '@mui/material/Box'
 import Button from '@mui/material/Button'
 import Typography from '@mui/material/Typography'
 import { Effect, Option } from 'effect'
-import PageHeader from '@/components/PageHeader'
-import { getApplicationLayer } from '@/lib/appLayer'
-import { useAuthStore } from '@/features/authentication/stores'
-import { Authentication } from '@/features/authentication/services/Authentication'
+import PageHeader from '../../../../components/PageHeader'
+import { getApplicationLayer } from '../../../../lib/appLayer'
+import { useAuthStore } from '../../../../features/authentication/stores'
+import { Authentication } from '../../../../features/authentication/services/Authentication'
 
 export default function ScopePage() {
   const authentication = useAuthStore()

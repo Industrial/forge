@@ -8,8 +8,8 @@ import { HttpClient, type HttpClientRequest } from '@effect/platform'
 
 import { SubscriptionStreamLive } from './SubscriptionStreamLive'
 import { SubscriptionStream } from './SubscriptionStream'
-import { AuthenticationStateReactiveStoreTag } from '@/features/authentication/stores/AuthenticationStateReactiveStore'
-import type { AuthenticationState } from '@/features/authentication/stores/AuthenticationStateReactiveStore'
+import { AuthenticationStateReactiveStoreTag } from '../features/authentication/stores/AuthenticationStateReactiveStore'
+import type { AuthenticationState } from '../features/authentication/stores/AuthenticationStateReactiveStore'
 
 // Helper to create SSE data chunks
 function createSSEData(data: string): Uint8Array {

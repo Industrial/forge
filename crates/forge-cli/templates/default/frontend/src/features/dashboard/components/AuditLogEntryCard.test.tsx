@@ -8,7 +8,7 @@ import { Window } from 'happy-dom'
 import type React from 'react'
 
 import AuditLogEntryCard from './AuditLogEntryCard'
-import { AuditLogEntry } from '@/features/dashboard/domain/AuditLogEntry'
+import { AuditLogEntry } from '../../../features/dashboard/domain/AuditLogEntry'
 
 beforeAll(() => {
   const global = globalThis as any

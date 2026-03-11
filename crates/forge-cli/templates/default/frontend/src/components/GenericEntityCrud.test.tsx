@@ -12,15 +12,15 @@ import { Effect, Layer } from 'effect'
 import { EffectRuntimeProvider } from 'react-effect-hooks'
 
 import GenericEntityCrud from './GenericEntityCrud'
-import { Providers } from '@/Providers'
+import { Providers } from '../Providers'
 import {
   buildApplicationLayer,
   getApplicationLayer,
   setApplicationLayerOverrideForTesting,
   clearApplicationLayerOverrideForTesting,
-} from '@/lib/appLayer'
-import { EntityApiMock } from '@/services/EntityApiMock'
-import { RpcApiMock } from '@/services/RpcApiMock'
+} from '../lib/appLayer'
+import { EntityApiMock } from '../services/EntityApiMock'
+import { RpcApiMock } from '../services/RpcApiMock'
 
 beforeAll(() => {
   // Ensure SyntaxError exists globally first

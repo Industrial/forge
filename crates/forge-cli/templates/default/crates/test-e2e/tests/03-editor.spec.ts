@@ -25,13 +25,13 @@ import {
   RolesPage,
   PermissionsPage,
   ProfilePage,
-} from '@/pages'
-import { SEED_USERS, createTestUser } from '@/fixtures/test-data'
-import { createPageLayers } from '@/fixtures/page-layers'
-import { API_BASE_URL } from '@/playwright.config'
-import * as ExpectHelpers from '@/helpers/expect'
-import * as LocatorHelpers from '@/helpers/locator'
-import { getAuthHeadersFromPage } from '@/helpers/auth'
+} from '../pages'
+import { SEED_USERS, createTestUser } from '../fixtures/test-data'
+import { createPageLayers } from '../fixtures/page-layers'
+import { API_BASE_URL } from '../playwright.config'
+import * as ExpectHelpers from '../helpers/expect'
+import * as LocatorHelpers from '../helpers/locator'
+import { getAuthHeadersFromPage } from '../helpers/auth'
 
 test.describe('Editor Role', () => {
   test.describe('3.1 Authentication & Profile Selection', () => {

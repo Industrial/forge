@@ -39,7 +39,7 @@ import {
   isFailure,
   isPending,
 } from 'react-effect-hooks'
-import { useRunWithAppLayer } from '@/lib/appLayer'
+import { useRunWithAppLayer } from '../lib/appLayer'
 import { Effect } from 'effect'
 import { EntityApi, type EntityApiService } from '../services/EntityApi'
 import type { ListQueryParams } from '../services/EntityApi'

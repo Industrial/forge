@@ -19,16 +19,16 @@ import { Effect, Layer } from 'effect'
 import { EffectRuntimeProvider } from 'react-effect-hooks'
 
 import PermissionsPage from './PermissionsPage'
-import { Providers } from '@/Providers'
+import { Providers } from '../../../../Providers'
 import {
   buildApplicationLayer,
   setApplicationLayerOverrideForTesting,
   clearApplicationLayerOverrideForTesting,
   getApplicationLayer,
-} from '@/lib/appLayer'
-import { PermissionsMockLayer } from '@/features/dashboard/services/PermissionsMock'
-import { RpcApiMock } from '@/services/RpcApiMock'
-import { Assignment } from '@/features/dashboard/domain/Assignment'
+} from '../../../../lib/appLayer'
+import { PermissionsMockLayer } from '../../../../features/dashboard/services/PermissionsMock'
+import { RpcApiMock } from '../../../../services/RpcApiMock'
+import { Assignment } from '../../../../features/dashboard/domain/Assignment'
 
 beforeAll(() => {
   // Ensure SyntaxError exists globally first

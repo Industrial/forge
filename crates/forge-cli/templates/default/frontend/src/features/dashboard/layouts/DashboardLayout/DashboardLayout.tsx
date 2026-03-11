@@ -5,8 +5,8 @@ import Drawer from '@mui/material/Drawer'
 import useMediaQuery from '@mui/material/useMediaQuery'
 import { useTheme } from '@mui/material/styles'
 
-import Sidebar from '@/features/dashboard/components/Sidebar/Sidebar'
-import Navbar from '@/components/Navbar'
+import Sidebar from '../../../../features/dashboard/components/Sidebar/Sidebar'
+import Navbar from '../../../../components/Navbar'
 
 export type DashboardLayoutProps = {
   children: React.ReactNode

@@ -8,7 +8,7 @@ import {
   useAuthenticationStateReactiveStore,
   useAuthStoreWithInit,
 } from './useAuthenticationStateReactiveStore'
-import type { AuthenticationState } from '@/features/authentication/stores/AuthenticationStateReactiveStore'
+import type { AuthenticationState } from '../../../features/authentication/stores/AuthenticationStateReactiveStore'
 
 describe('useAuthenticationStateReactiveStore', () => {
   describe('export behavior', () => {

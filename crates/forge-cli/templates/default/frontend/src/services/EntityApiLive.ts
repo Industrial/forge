@@ -6,9 +6,9 @@
  */
 
 import { HttpClientRequest } from '@effect/platform'
-import { AuthenticatedHttpClient } from '@/services/AuthenticatedHttpClient'
+import { AuthenticatedHttpClient } from '../services/AuthenticatedHttpClient'
 import { Effect, Layer } from 'effect'
-import { parseError } from '@/lib/parseError'
+import { parseError } from '../lib/parseError'
 import type {
   EntityApiService,
   ListQueryParams,

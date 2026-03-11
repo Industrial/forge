@@ -28,17 +28,17 @@ import {
   AuditLogPage,
   OrganizationsPage,
   ProfilePage,
-} from '@/pages'
+} from '../pages'
 import {
   SEED_USERS,
   createTestUser,
   createTestOrganization,
-} from '@/fixtures/test-data'
-import { createPageLayers } from '@/fixtures/page-layers'
-import { API_BASE_URL } from '@/playwright.config'
-import * as ExpectHelpers from '@/helpers/expect'
-import * as PageHelpers from '@/helpers/page'
-import { getAuthHeadersFromPage } from '@/helpers/auth'
+} from '../fixtures/test-data'
+import { createPageLayers } from '../fixtures/page-layers'
+import { API_BASE_URL } from '../playwright.config'
+import * as ExpectHelpers from '../helpers/expect'
+import * as PageHelpers from '../helpers/page'
+import { getAuthHeadersFromPage } from '../helpers/auth'
 
 test.describe('Org Owner Role', () => {
   test.describe('4.1 Authentication & Profile Selection', () => {

@@ -19,31 +19,31 @@ import { Effect, Layer, Runtime } from 'effect'
 import { EffectRuntimeProvider } from 'react-effect-hooks'
 
 import OrganizationsPage from './OrganizationsPage'
-import { Providers } from '@/Providers'
+import { Providers } from '../../../../Providers'
 import {
   buildApplicationLayer,
   setApplicationLayerOverrideForTesting,
   clearApplicationLayerOverrideForTesting,
   getApplicationLayer,
-} from '@/lib/appLayer'
-import { EntityApi } from '@/services/EntityApi'
+} from '../../../../lib/appLayer'
+import { EntityApi } from '../../../../services/EntityApi'
 import type {
   EntityApiService,
   ListQueryParams,
   ListResponse,
-} from '@/services/EntityApi'
-import { PermissionsMockLayer } from '@/features/dashboard/services/PermissionsMock'
-import { RpcApiMock } from '@/services/RpcApiMock'
-import { clearReactiveStoreCacheForTesting } from '@/lib/ReactiveStore'
-import type { ReactiveStore } from '@/lib/ReactiveStore'
+} from '../../../../services/EntityApi'
+import { PermissionsMockLayer } from '../../../../features/dashboard/services/PermissionsMock'
+import { RpcApiMock } from '../../../../services/RpcApiMock'
+import { clearReactiveStoreCacheForTesting } from '../../../../lib/ReactiveStore'
+import type { ReactiveStore } from '../../../../lib/ReactiveStore'
 import {
   AuthStoreTag,
   initialAuthenticationState,
-} from '@/features/authentication/stores/AuthenticationStateReactiveStore'
-import type { AuthenticationState } from '@/features/authentication/stores/AuthenticationStateReactiveStore'
+} from '../../../../features/authentication/stores/AuthenticationStateReactiveStore'
+import type { AuthenticationState } from '../../../../features/authentication/stores/AuthenticationStateReactiveStore'
 import { Option } from 'effect'
 import { Stream } from 'effect'
-import { trigger } from '@/lib/subscriptionRegistry'
+import { trigger } from '../../../../lib/subscriptionRegistry'
 
 beforeAll(() => {
   // Ensure SyntaxError exists globally first

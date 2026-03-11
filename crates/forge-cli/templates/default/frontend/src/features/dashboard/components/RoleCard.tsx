@@ -6,8 +6,8 @@ import VisibilityIcon from '@mui/icons-material/Visibility'
 import EditIcon from '@mui/icons-material/Edit'
 import DeleteIcon from '@mui/icons-material/Delete'
 
-import type { Role } from '@/features/dashboard/domain/Role'
-import type { Organization } from '@/features/dashboard/domain/Organization'
+import type { Role } from '../../../features/dashboard/domain/Role'
+import type { Organization } from '../../../features/dashboard/domain/Organization'
 
 export type RoleCardProps = {
   role: Role

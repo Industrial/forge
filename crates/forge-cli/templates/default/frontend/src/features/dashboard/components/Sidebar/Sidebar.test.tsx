@@ -11,16 +11,16 @@ import type React from 'react'
 import { Effect, Layer, Stream, Chunk } from 'effect'
 
 import Sidebar from './Sidebar'
-import { Providers } from '@/Providers'
-import { getApplicationLayer } from '@/lib/appLayer'
-import type { ReactiveStore } from '@/lib/ReactiveStore'
-import type { AuthenticationState } from '@/features/authentication/stores/AuthenticationStateReactiveStore'
-import { Authentication } from '@/features/authentication/services/Authentication'
+import { Providers } from '../../../../Providers'
+import { getApplicationLayer } from '../../../../lib/appLayer'
+import type { ReactiveStore } from '../../../../lib/ReactiveStore'
+import type { AuthenticationState } from '../../../../features/authentication/stores/AuthenticationStateReactiveStore'
+import { Authentication } from '../../../../features/authentication/services/Authentication'
 import {
   AuthStoreTag,
   initialAuthenticationState,
-} from '@/features/authentication/stores/AuthenticationStateReactiveStore'
-import { createMockAuthentication } from '@/features/authentication/services/AuthenticationMock'
+} from '../../../../features/authentication/stores/AuthenticationStateReactiveStore'
+import { createMockAuthentication } from '../../../../features/authentication/services/AuthenticationMock'
 
 beforeAll(() => {
   // Ensure SyntaxError exists globally first

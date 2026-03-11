@@ -4,10 +4,10 @@
 
 import { HttpClientRequest } from '@effect/platform'
 import { Effect, Layer } from 'effect'
-import { AuthenticatedHttpClient } from '@/services/AuthenticatedHttpClient'
+import { AuthenticatedHttpClient } from '../../../services/AuthenticatedHttpClient'
 import { Users } from './Users'
 import type { UsersService } from './Users'
-import { parseError } from '@/lib/parseError'
+import { parseError } from '../../../lib/parseError'
 import { User, UserMembership } from '../domain/User'
 
 const UsersLive = Layer.effect(

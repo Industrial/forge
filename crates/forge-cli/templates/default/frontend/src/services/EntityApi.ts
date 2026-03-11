@@ -10,7 +10,7 @@
  */
 
 import { Context, type Effect } from 'effect'
-import type { ListQueryParams, ListResponse } from '@/api/types'
+import type { ListQueryParams, ListResponse } from '../api/types'
 
 export type { ListQueryParams, ListResponse }
 

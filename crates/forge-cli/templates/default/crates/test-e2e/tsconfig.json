@@ -7,11 +7,7 @@
     "resolveJsonModule": true,
     "isolatedModules": true,
     "allowImportingTsExtensions": true,
-    "types": ["node"],
-    "paths": {
-      "*": ["./*"],
-      "@/*": ["./*"]
-    }
+    "types": ["node"]
   },
   "include": ["**/*.ts"],
   "exclude": ["**/*.test.ts", "**/*.test.tsx", "node_modules"]

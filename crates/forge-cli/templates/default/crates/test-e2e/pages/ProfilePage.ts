@@ -1,9 +1,9 @@
 import type { Locator } from '@playwright/test'
 import { Effect, Context, Layer } from 'effect'
 
-import { PlaywrightPage } from '@/fixtures/playwright'
-import * as LocatorHelpers from '@/helpers/locator'
-import * as PageHelpers from '@/helpers/page'
+import { PlaywrightPage } from '../fixtures/playwright'
+import * as LocatorHelpers from '../helpers/locator'
+import * as PageHelpers from '../helpers/page'
 
 /**
  * ProfilePage service - Effect.ts service for profile/scope selection page interactions

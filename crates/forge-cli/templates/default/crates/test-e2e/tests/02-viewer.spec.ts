@@ -30,14 +30,14 @@ import {
   PermissionsPage,
   AuditLogPage,
   ProfilePage,
-} from '@/pages'
-import { SEED_USERS } from '@/fixtures/test-data'
-import { createPageLayers } from '@/fixtures/page-layers'
-import { API_BASE_URL } from '@/playwright.config'
-import * as ExpectHelpers from '@/helpers/expect'
-import * as LocatorHelpers from '@/helpers/locator'
-import * as PageHelpers from '@/helpers/page'
-import { getAuthHeadersFromPage } from '@/helpers/auth'
+} from '../pages'
+import { SEED_USERS } from '../fixtures/test-data'
+import { createPageLayers } from '../fixtures/page-layers'
+import { API_BASE_URL } from '../playwright.config'
+import * as ExpectHelpers from '../helpers/expect'
+import * as LocatorHelpers from '../helpers/locator'
+import * as PageHelpers from '../helpers/page'
+import { getAuthHeadersFromPage } from '../helpers/auth'
 
 test.describe('Viewer Role', () => {
   test.describe('2.1 Authentication & Profile Selection', () => {

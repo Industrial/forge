@@ -1,8 +1,8 @@
 import { useCallback, type Dispatch, type SetStateAction } from 'react'
 
-import { useFilteredList } from '@/hooks/useFilteredList'
-import type { Role } from '@/features/dashboard/domain/Role'
-import type { Organization } from '@/features/dashboard/domain/Organization'
+import { useFilteredList } from '../../../hooks/useFilteredList'
+import type { Role } from '../../../features/dashboard/domain/Role'
+import type { Organization } from '../../../features/dashboard/domain/Organization'
 
 export type RolesFilterState = {
   filterName: string

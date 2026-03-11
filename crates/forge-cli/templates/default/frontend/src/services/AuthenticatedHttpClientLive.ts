@@ -6,8 +6,8 @@
 import { HttpClient, HttpClientRequest } from '@effect/platform'
 import { Effect, Layer, Option, pipe } from 'effect'
 
-import { AuthenticatedHttpClient } from '@/services/AuthenticatedHttpClient'
-import { TokenStorage } from '@/services/TokenStorage'
+import { AuthenticatedHttpClient } from '../services/AuthenticatedHttpClient'
+import { TokenStorage } from '../services/TokenStorage'
 
 function withAuthHeaders<A extends HttpClientRequest.HttpClientRequest>(
   request: A,

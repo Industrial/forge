@@ -13,12 +13,12 @@
 import { test, expect } from '@playwright/test'
 import { Effect } from 'effect'
 
-import { LoginPage, RegisterPage } from '@/pages'
-import { createPageLayers } from '@/fixtures/page-layers'
-import * as ExpectHelpers from '@/helpers/expect'
-import * as LocatorHelpers from '@/helpers/locator'
-import { createTestUser, SEED_USERS } from '@/fixtures/test-data'
-import { API_BASE_URL } from '@/playwright.config'
+import { LoginPage, RegisterPage } from '../pages'
+import { createPageLayers } from '../fixtures/page-layers'
+import * as ExpectHelpers from '../helpers/expect'
+import * as LocatorHelpers from '../helpers/locator'
+import { createTestUser, SEED_USERS } from '../fixtures/test-data'
+import { API_BASE_URL } from '../playwright.config'
 
 test.describe('Guest/Unauthenticated User', () => {
   test.describe('1.1 Initial Access', () => {

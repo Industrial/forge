@@ -16,10 +16,10 @@ import { useNavigate } from 'react-router-dom'
 import { useState, useEffect } from 'react'
 import { Effect, Option } from 'effect'
 
-import { useAuthStore } from '@/features/authentication/stores'
-import { Authentication } from '@/features/authentication/services/Authentication'
-import type { Scope } from '@/features/authentication/domain/Scope'
-import { getApplicationLayer } from '@/lib/appLayer'
+import { useAuthStore } from '../features/authentication/stores'
+import { Authentication } from '../features/authentication/services/Authentication'
+import type { Scope } from '../features/authentication/domain/Scope'
+import { getApplicationLayer } from '../lib/appLayer'
 
 export type NavbarUserMenuProps = {
   /** Called when user chooses "Log out". */

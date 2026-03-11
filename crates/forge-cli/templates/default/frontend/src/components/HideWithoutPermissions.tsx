@@ -1,6 +1,6 @@
 import type { ReactNode } from 'react'
-import { useAuthStore } from '@/features/authentication/stores'
-import { shouldHideWithoutPermissions } from '@/lib/permissions'
+import { useAuthStore } from '../features/authentication/stores'
+import { shouldHideWithoutPermissions } from '../lib/permissions'
 
 /**
  * Renders children only when the user has at least one of the given permissions.

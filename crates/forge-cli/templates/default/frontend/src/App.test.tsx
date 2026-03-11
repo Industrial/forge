@@ -16,10 +16,10 @@ import {
   buildApplicationLayer,
   setApplicationLayerOverrideForTesting,
   clearApplicationLayerOverrideForTesting,
-} from '@/lib/appLayer'
-import { Authentication } from '@/features/authentication/services/Authentication'
-import { createMockAuthentication } from '@/features/authentication/services/AuthenticationMock'
-import { RpcApiMock } from '@/services/RpcApiMock'
+} from './lib/appLayer'
+import { Authentication } from './features/authentication/services/Authentication'
+import { createMockAuthentication } from './features/authentication/services/AuthenticationMock'
+import { RpcApiMock } from './services/RpcApiMock'
 
 // Set up DOM environment for tests
 beforeAll(() => {

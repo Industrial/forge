@@ -4,7 +4,7 @@
 import { Effect, Option } from 'effect'
 import { Layer } from 'effect'
 
-import { TokenStorage } from '@/services/TokenStorage'
+import { TokenStorage } from '../services/TokenStorage'
 
 const TOKEN_KEY = 'token'
 const ORG_ID_KEY = 'currentOrgId'

@@ -8,12 +8,12 @@
  */
 import { useEffect } from 'react'
 import { Effect, Stream } from 'effect'
-import { useAuthStore } from '@/features/authentication/stores'
+import { useAuthStore } from '../features/authentication/stores'
 import { Option } from 'effect'
-import { getApplicationLayer } from '@/lib/appLayer'
-import { trigger } from '@/lib/subscriptionRegistry'
-import { SubscriptionStreamStatusStoreTag } from '@/lib/subscriptionStreamStatusStore'
-import { SubscriptionStream } from '@/services/SubscriptionStream'
+import { getApplicationLayer } from '../lib/appLayer'
+import { trigger } from '../lib/subscriptionRegistry'
+import { SubscriptionStreamStatusStoreTag } from '../lib/subscriptionStreamStatusStore'
+import { SubscriptionStream } from '../services/SubscriptionStream'
 
 export function SubscriptionStreamRunner() {
   const authentication = useAuthStore()

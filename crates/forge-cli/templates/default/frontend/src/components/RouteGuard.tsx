@@ -4,8 +4,8 @@ import { Option } from 'effect'
 import {
   useAuthStore,
   useAuthStoreWithInit,
-} from '@/features/authentication/stores'
-import { hasPermission } from '@/lib/permissions'
+} from '../features/authentication/stores'
+import { hasPermission } from '../lib/permissions'
 import CenteredLoader from './CenteredLoader'
 
 export type RouteGuardProps = {

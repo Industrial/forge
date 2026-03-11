@@ -9,7 +9,7 @@ import { Window } from 'happy-dom'
 import type React from 'react'
 
 import OrganizationCard from './OrganizationCard'
-import type { Organization } from '@/features/dashboard/domain/Organization'
+import type { Organization } from '../../../features/dashboard/domain/Organization'
 
 beforeAll(() => {
   // Ensure SyntaxError exists globally first

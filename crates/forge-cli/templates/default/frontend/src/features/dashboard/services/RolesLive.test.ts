@@ -6,7 +6,7 @@ import { describe, test, expect } from 'bun:test'
 import { Effect, Layer } from 'effect'
 import type { HttpClient, HttpClientRequest } from '@effect/platform'
 
-import { AuthenticatedHttpClient } from '@/services/AuthenticatedHttpClient'
+import { AuthenticatedHttpClient } from '../../../services/AuthenticatedHttpClient'
 import { RolesLive } from './RolesLive'
 import { Roles } from './Roles'
 import { Role } from '../domain/Role'

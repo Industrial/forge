@@ -2,7 +2,7 @@ import type { ReactNode } from 'react'
 import Box from '@mui/material/Box'
 import TablePagination from '@mui/material/TablePagination'
 
-import type { DataTablePagination } from '@/components/DataTable'
+import type { DataTablePagination } from '../components/DataTable'
 
 export type DataListMobileProps<T> = {
   /** Items to render (e.g. current page slice or full filtered list). */

@@ -1,8 +1,11 @@
 import { Schema } from 'effect'
 
-import { requiredMessage } from '@/schemas/RequiredStringSchema'
-import { emailPattern, emailMessage } from '@/schemas/EmailSchema'
-import { passwordMinLength, passwordMessage } from '@/schemas/PasswordSchema'
+import { requiredMessage } from '../../../schemas/RequiredStringSchema'
+import { emailPattern, emailMessage } from '../../../schemas/EmailSchema'
+import {
+  passwordMinLength,
+  passwordMessage,
+} from '../../../schemas/PasswordSchema'
 
 /**
  * Registration form schema combining required validation with field-specific validation.

@@ -8,16 +8,16 @@ import { Window } from 'happy-dom'
 import ReactDOM from 'react-dom/client'
 import { BrowserRouter } from 'react-router-dom'
 
-import App from '@/App.tsx'
+import App from './App.tsx'
 import {
   getApplicationLayer,
   buildApplicationLayer,
   setApplicationLayerOverrideForTesting,
   clearApplicationLayerOverrideForTesting,
-} from '@/lib/appLayer'
-import { Authentication } from '@/features/authentication/services/Authentication'
-import { createMockAuthentication } from '@/features/authentication/services/AuthenticationMock'
-import { RpcApiMock } from '@/services/RpcApiMock'
+} from './lib/appLayer'
+import { Authentication } from './features/authentication/services/Authentication'
+import { createMockAuthentication } from './features/authentication/services/AuthenticationMock'
+import { RpcApiMock } from './services/RpcApiMock'
 
 // Set up DOM environment and application layer override for tests
 beforeEach(() => {

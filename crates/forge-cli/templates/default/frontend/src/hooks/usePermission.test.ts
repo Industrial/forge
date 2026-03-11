@@ -5,8 +5,8 @@
 
 import { describe, test, expect } from 'bun:test'
 import { usePermission } from './usePermission'
-import { useAuthStore } from '@/features/authentication/stores'
-import { hasPermission } from '@/lib/permissions'
+import { useAuthStore } from '../features/authentication/stores'
+import { hasPermission } from '../lib/permissions'
 
 describe('usePermission', () => {
   describe('export behavior', () => {

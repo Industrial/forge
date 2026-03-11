@@ -4,8 +4,8 @@ import Button from '@mui/material/Button'
 import Paper from '@mui/material/Paper'
 import VisibilityIcon from '@mui/icons-material/Visibility'
 
-import type { AuditLogEntry } from '@/features/dashboard/domain/AuditLogEntry'
-import { formatDate } from '@/features/dashboard/utils/formatDate'
+import type { AuditLogEntry } from '../../../features/dashboard/domain/AuditLogEntry'
+import { formatDate } from '../../../features/dashboard/utils/formatDate'
 
 export type AuditLogEntryCardProps = {
   entry: AuditLogEntry

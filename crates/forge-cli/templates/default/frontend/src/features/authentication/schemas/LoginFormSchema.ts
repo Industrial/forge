@@ -1,7 +1,7 @@
 import { Schema } from 'effect'
 
-import { requiredMessage } from '@/schemas/RequiredStringSchema'
-import { emailPattern, emailMessage } from '@/schemas/EmailSchema'
+import { requiredMessage } from '../../../schemas/RequiredStringSchema'
+import { emailPattern, emailMessage } from '../../../schemas/EmailSchema'
 
 /**
  * Login form schema combining required validation with field-specific validation.

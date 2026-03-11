@@ -8,7 +8,7 @@
 
 import { Option } from 'effect'
 import { describe, expect, it } from 'vitest'
-import type { AuthMeBody } from '@/api/types'
+import type { AuthMeBody } from '../../../api/types'
 import {
   buildAuthState,
   extractApiErrorMessage,

@@ -12,10 +12,10 @@ import {
 } from 'bun:test'
 import { Window } from 'happy-dom'
 import { useLiveRefreshTrigger } from './useLiveRefreshTrigger'
-import type { ForgeWebsocketKey } from '@/lib/liveRefreshChannels'
-import { register, unregister, trigger } from '@/lib/subscriptionRegistry'
-import { RpcApi } from '@/services/RpcApi'
-import { SubscriptionStreamStatusStoreTag } from '@/lib/subscriptionStreamStatusStore'
+import type { ForgeWebsocketKey } from '../lib/liveRefreshChannels'
+import { register, unregister, trigger } from '../lib/subscriptionRegistry'
+import { RpcApi } from '../services/RpcApi'
+import { SubscriptionStreamStatusStoreTag } from '../lib/subscriptionStreamStatusStore'
 
 // Set up DOM environment for tests
 beforeAll(() => {

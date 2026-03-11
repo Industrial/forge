@@ -4,7 +4,7 @@
  */
 import { describe, test, expect, beforeAll } from 'bun:test'
 // Import test setup to configure React Testing Library (reduces verbose output)
-import '@/test-setup'
+import '../test-setup'
 import { render, waitFor } from '@testing-library/react'
 import { BrowserRouter } from 'react-router-dom'
 import { createTheme } from '@mui/material/styles'
@@ -13,10 +13,10 @@ import type React from 'react'
 import { Layer, Option } from 'effect'
 
 import { SubscriptionStreamRunner } from './SubscriptionStreamRunner'
-import { Providers } from '@/Providers'
-import { getApplicationLayer } from '@/lib/appLayer'
-import { Authentication } from '@/features/authentication/services/Authentication'
-import { createMockAuthentication } from '@/features/authentication/services/AuthenticationMock'
+import { Providers } from '../Providers'
+import { getApplicationLayer } from '../lib/appLayer'
+import { Authentication } from '../features/authentication/services/Authentication'
+import { createMockAuthentication } from '../features/authentication/services/AuthenticationMock'
 
 beforeAll(() => {
   // Ensure SyntaxError exists globally first

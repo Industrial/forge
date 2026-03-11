@@ -1,6 +1,6 @@
-import EntityTableRow from '@/components/EntityTableRow'
-import { formatDate } from '@/features/dashboard/utils/formatDate'
-import { membershipsSummary } from '@/features/dashboard/utils/membershipsSummary'
+import EntityTableRow from '../../../components/EntityTableRow'
+import { formatDate } from '../../../features/dashboard/utils/formatDate'
+import { membershipsSummary } from '../../../features/dashboard/utils/membershipsSummary'
 
 export type UserRow = {
   id: string

@@ -6,8 +6,8 @@ import VisibilityIcon from '@mui/icons-material/Visibility'
 import EditIcon from '@mui/icons-material/Edit'
 import DeleteIcon from '@mui/icons-material/Delete'
 
-import type { Organization } from '@/features/dashboard/domain/Organization'
-import { formatDate } from '@/features/dashboard/utils/formatDate'
+import type { Organization } from '../../../features/dashboard/domain/Organization'
+import { formatDate } from '../../../features/dashboard/utils/formatDate'
 
 export type OrganizationCardProps = {
   org: Organization

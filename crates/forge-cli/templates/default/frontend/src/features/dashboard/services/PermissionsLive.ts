@@ -4,10 +4,10 @@
 
 import { HttpClientRequest } from '@effect/platform'
 import { Effect, Layer } from 'effect'
-import { AuthenticatedHttpClient } from '@/services/AuthenticatedHttpClient'
+import { AuthenticatedHttpClient } from '../../../services/AuthenticatedHttpClient'
 import { Permissions } from './Permissions'
 import type { PermissionsService } from './Permissions'
-import { parseError } from '@/lib/parseError'
+import { parseError } from '../../../lib/parseError'
 import { Assignment } from '../domain/Assignment'
 
 const PermissionsLive = Layer.effect(

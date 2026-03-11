@@ -9,15 +9,15 @@ import { Effect } from 'effect'
 import {
   channelToEntityId,
   type ForgeWebsocketKey,
-} from '@/lib/liveRefreshChannels'
-import { register, unregister } from '@/lib/subscriptionRegistry'
+} from '../lib/liveRefreshChannels'
+import { register, unregister } from '../lib/subscriptionRegistry'
 import {
   SubscriptionStreamStatusStoreTag,
   initialSubscriptionStreamStatus,
-} from '@/lib/subscriptionStreamStatusStore'
-import { useReactiveStore } from '@/lib/ReactiveStore'
-import { useRunWithAppLayer } from '@/lib/appLayer'
-import { RpcApi } from '@/services/RpcApi'
+} from '../lib/subscriptionStreamStatusStore'
+import { useReactiveStore } from '../lib/ReactiveStore'
+import { useRunWithAppLayer } from '../lib/appLayer'
+import { RpcApi } from '../services/RpcApi'
 
 export function useLiveRefreshTrigger(channel: ForgeWebsocketKey): {
   trigger: number

@@ -1,5 +1,5 @@
 import Box from '@mui/material/Box'
-import PageHeader from '@/components/PageHeader'
+import PageHeader from '../../../../components/PageHeader'
 
 export default function DashboardPage() {
   return (

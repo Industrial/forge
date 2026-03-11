@@ -6,7 +6,7 @@
 
 import { describe, it, expect } from 'bun:test'
 import { useEntitySubscription } from './useEntitySubscription'
-import type { ListQueryParams } from '@/services/EntityApi'
+import type { ListQueryParams } from '../services/EntityApi'
 
 describe('useEntitySubscription', () => {
   describe('export behavior', () => {

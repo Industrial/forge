@@ -1,5 +1,5 @@
-import FiltersPanel from '@/components/FiltersPanel'
-import type { FilterField } from '@/components/FiltersPanel'
+import FiltersPanel from '../../../components/FiltersPanel'
+import type { FilterField } from '../../../components/FiltersPanel'
 
 const OUTCOMES = ['success', 'failure', 'allowed', 'denied'] as const
 const EVENT_KINDS = ['auth', 'authz', 'mutation', 'custom'] as const

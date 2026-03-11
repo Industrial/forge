@@ -39,28 +39,6 @@ describe('vite.config.ts', () => {
     })
   })
 
-  describe('resolve configuration behavior', () => {
-    test('should configure path alias', () => {
-      // Given: vite.config.ts file
-      // When: checking resolve configuration
-      // Then: should have alias '@' pointing to src directory
-      const configPath = join(import.meta.dir, 'vite.config.ts')
-      const configContent = readFileSync(configPath, 'utf-8')
-      expect(configContent).toContain('alias')
-      expect(configContent).toContain("'@'")
-      expect(configContent).toContain('src')
-    })
-
-    test('should use path.resolve for alias', () => {
-      // Given: vite.config.ts file
-      // When: checking alias resolution
-      // Then: should use path.resolve
-      const configPath = join(import.meta.dir, 'vite.config.ts')
-      const configContent = readFileSync(configPath, 'utf-8')
-      expect(configContent).toContain('path.resolve')
-    })
-  })
-
   describe('server configuration behavior', () => {
     test('should configure proxy for /api', () => {
       // Given: vite.config.ts file

@@ -8,12 +8,12 @@ import { Effect, Either } from 'effect'
 import { Link as RouterLink, useNavigate } from 'react-router-dom'
 import { useCallback, useState } from 'react'
 
-import { Authentication } from '@/features/authentication/services/Authentication'
-import { navigateTo } from '@/lib/navigate'
-import { getApplicationLayer } from '@/lib/appLayer'
-import { AuthenticationError } from '@/features/authentication/errors/AuthenticationError'
-import { useForm } from '@/hooks/useForm'
-import { LoginFormSchema } from '@/features/authentication/schemas/LoginFormSchema'
+import { Authentication } from '../../../../features/authentication/services/Authentication'
+import { navigateTo } from '../../../../lib/navigate'
+import { getApplicationLayer } from '../../../../lib/appLayer'
+import { AuthenticationError } from '../../../../features/authentication/errors/AuthenticationError'
+import { useForm } from '../../../../hooks/useForm'
+import { LoginFormSchema } from '../../../../features/authentication/schemas/LoginFormSchema'
 
 export default function LoginPage() {
   const navigate = useNavigate()

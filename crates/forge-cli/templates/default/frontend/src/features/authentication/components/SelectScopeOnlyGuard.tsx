@@ -1,5 +1,5 @@
 import type React from 'react'
-import { RouteGuard } from '@/components/RouteGuard'
+import { RouteGuard } from '../../../components/RouteGuard'
 
 type SelectScopeOnlyGuardProps = { children: React.ReactNode }
 

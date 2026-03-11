@@ -11,10 +11,10 @@ import type React from 'react'
 import { Layer } from 'effect'
 
 import DashboardLayout from './DashboardLayout'
-import { Providers } from '@/Providers'
-import { getApplicationLayer } from '@/lib/appLayer'
-import { Authentication } from '@/features/authentication/services/Authentication'
-import { createMockAuthentication } from '@/features/authentication/services/AuthenticationMock'
+import { Providers } from '../../../../Providers'
+import { getApplicationLayer } from '../../../../lib/appLayer'
+import { Authentication } from '../../../../features/authentication/services/Authentication'
+import { createMockAuthentication } from '../../../../features/authentication/services/AuthenticationMock'
 
 beforeAll(() => {
   // Ensure SyntaxError exists globally first

@@ -4,7 +4,7 @@
  * useLiveRefreshTrigger reads connected for the live indicator.
  * DSL: same pattern as auth store — merge layer in app layer, use tag in Effect.
  */
-import { defineStore, type ReactiveStore } from '@/lib/ReactiveStore'
+import { defineStore, type ReactiveStore } from '../lib/ReactiveStore'
 
 export interface SubscriptionStreamStatus {
   connected: boolean

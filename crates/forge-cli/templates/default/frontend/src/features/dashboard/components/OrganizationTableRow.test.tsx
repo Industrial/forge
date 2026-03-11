@@ -10,7 +10,7 @@ import { Window } from 'happy-dom'
 import type React from 'react'
 
 import OrganizationTableRow from './OrganizationTableRow'
-import type { Organization } from '@/features/dashboard/domain/Organization'
+import type { Organization } from '../../../features/dashboard/domain/Organization'
 
 beforeAll(() => {
   // Ensure SyntaxError exists globally first

@@ -9,8 +9,8 @@ import { useNavigate } from 'react-router-dom'
 import { Effect } from 'effect'
 
 import NavbarUserMenu from './NavbarUserMenu'
-import { Authentication } from '@/features/authentication/services/Authentication'
-import { getApplicationLayer } from '@/lib/appLayer'
+import { Authentication } from '../features/authentication/services/Authentication'
+import { getApplicationLayer } from '../lib/appLayer'
 
 type NavbarProps = {
   appName?: string

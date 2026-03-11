@@ -4,7 +4,7 @@
 import { Effect, Option } from 'effect'
 import { Layer } from 'effect'
 
-import { TokenStorage } from '@/services/TokenStorage'
+import { TokenStorage } from '../services/TokenStorage'
 
 export function makeTokenStorageMock(): {
   layer: Layer.Layer<TokenStorage>

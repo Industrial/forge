@@ -9,8 +9,8 @@ import TableRow from '@mui/material/TableRow'
 import TablePagination from '@mui/material/TablePagination'
 import Paper from '@mui/material/Paper'
 
-import LoadingSpinner from '@/components/LoadingSpinner'
-import TableEmptyRow from '@/components/TableEmptyRow'
+import LoadingSpinner from '../components/LoadingSpinner'
+import TableEmptyRow from '../components/TableEmptyRow'
 
 export type DataTableColumn<T> = {
   id: string

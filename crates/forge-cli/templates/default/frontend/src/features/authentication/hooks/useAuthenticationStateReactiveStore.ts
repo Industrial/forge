@@ -3,13 +3,16 @@
  * {@link useAuthStoreWithInit} when you need {@link initialized} to avoid
  * redirecting before the store has received a value (e.g. after restoreSession).
  */
-import { useRunWithAppLayer } from '@/lib/appLayer'
-import { useReactiveStore, useReactiveStoreWithInit } from '@/lib/ReactiveStore'
+import { useRunWithAppLayer } from '../../../lib/appLayer'
+import {
+  useReactiveStore,
+  useReactiveStoreWithInit,
+} from '../../../lib/ReactiveStore'
 import {
   AuthenticationStateReactiveStoreTag,
   initialAuthenticationState,
   type AuthenticationState,
-} from '@/features/authentication/stores/AuthenticationStateReactiveStore'
+} from '../../../features/authentication/stores/AuthenticationStateReactiveStore'
 
 /** Bound hook: returns current auth state only. */
 export function useAuthStore(): AuthenticationState {

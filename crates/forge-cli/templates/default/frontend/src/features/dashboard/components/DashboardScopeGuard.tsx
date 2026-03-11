@@ -3,11 +3,11 @@ import { useEffect, useState } from 'react'
 import { Navigate } from 'react-router-dom'
 import { Effect, Option, pipe, Schema } from 'effect'
 import { HttpClient, HttpClientRequest } from '@effect/platform'
-import CenteredLoader from '@/components/CenteredLoader'
-import { getApplicationLayer } from '@/lib/appLayer'
-import { useAuthStore } from '@/features/authentication/stores'
-import { Authentication } from '@/features/authentication/services/Authentication'
-import { getBaseUrl } from '@/lib/baseUrl'
+import CenteredLoader from '../../../components/CenteredLoader'
+import { getApplicationLayer } from '../../../lib/appLayer'
+import { useAuthStore } from '../../../features/authentication/stores'
+import { Authentication } from '../../../features/authentication/services/Authentication'
+import { getBaseUrl } from '../../../lib/baseUrl'
 
 export type DashboardScopeGuardProps = {
   children: React.ReactNode

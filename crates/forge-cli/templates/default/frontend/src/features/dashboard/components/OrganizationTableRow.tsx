@@ -1,6 +1,6 @@
-import EntityTableRow from '@/components/EntityTableRow'
-import type { Organization } from '@/features/dashboard/domain/Organization'
-import { formatDate } from '@/features/dashboard/utils/formatDate'
+import EntityTableRow from '../../../components/EntityTableRow'
+import type { Organization } from '../../../features/dashboard/domain/Organization'
+import { formatDate } from '../../../features/dashboard/utils/formatDate'
 
 export type OrganizationTableRowProps = {
   org: Organization

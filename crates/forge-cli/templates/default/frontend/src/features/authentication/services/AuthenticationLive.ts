@@ -24,10 +24,10 @@ import {
   AuthMeBodySchema,
   LoginResponseSchema,
   type AuthMeBody,
-} from '@/api/types'
-import { Authentication } from '@/features/authentication/services/Authentication'
-import { AuthenticationUser } from '@/features/authentication/domain/AuthenticationUser'
-import { Scope } from '@/features/authentication/domain/Scope'
+} from '../../../api/types'
+import { Authentication } from '../../../features/authentication/services/Authentication'
+import { AuthenticationUser } from '../../../features/authentication/domain/AuthenticationUser'
+import { Scope } from '../../../features/authentication/domain/Scope'
 import {
   type ScopeError,
   LoginFailedError,
@@ -35,15 +35,15 @@ import {
   UserNotFoundError,
   InvalidTokenError,
   TokenMissingError,
-} from '@/features/authentication/errors'
+} from '../../../features/authentication/errors'
 import {
   AuthStoreTag,
   initialAuthenticationState,
   type AuthenticationState,
-} from '@/features/authentication/stores/AuthenticationStateReactiveStore'
-import { TokenStorage } from '@/services/TokenStorage'
-import { getBaseUrl } from '@/lib/baseUrl'
-import type { ReactiveStore } from '@/lib/ReactiveStore'
+} from '../../../features/authentication/stores/AuthenticationStateReactiveStore'
+import { TokenStorage } from '../../../services/TokenStorage'
+import { getBaseUrl } from '../../../lib/baseUrl'
+import type { ReactiveStore } from '../../../lib/ReactiveStore'
 
 // ============================================================================
 // SECTION 1: Pure Helper Functions

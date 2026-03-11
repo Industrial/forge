@@ -1,5 +1,5 @@
-import EntityTableRow from '@/components/EntityTableRow'
-import type { Role } from '@/features/dashboard/domain/Role'
+import EntityTableRow from '../../../components/EntityTableRow'
+import type { Role } from '../../../features/dashboard/domain/Role'
 
 export type RoleTableRowProps = {
   role: Role

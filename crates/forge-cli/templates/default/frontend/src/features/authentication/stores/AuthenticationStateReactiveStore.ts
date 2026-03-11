@@ -4,8 +4,8 @@
  */
 import { Option } from 'effect'
 
-import { defineStore, type ReactiveStore } from '@/lib/ReactiveStore'
-import type { AuthenticationUser } from '@/features/authentication/domain/AuthenticationUser'
+import { defineStore, type ReactiveStore } from '../../../lib/ReactiveStore'
+import type { AuthenticationUser } from '../../../features/authentication/domain/AuthenticationUser'
 
 export interface CurrentScope {
   readonly organizationId: string

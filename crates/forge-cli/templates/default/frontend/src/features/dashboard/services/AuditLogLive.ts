@@ -4,7 +4,7 @@
 
 import { HttpClientRequest } from '@effect/platform'
 import { Effect, Layer } from 'effect'
-import { AuthenticatedHttpClient } from '@/services/AuthenticatedHttpClient'
+import { AuthenticatedHttpClient } from '../../../services/AuthenticatedHttpClient'
 import { AuditLog } from './AuditLog'
 import { AuditLogEntry } from '../domain/AuditLogEntry'
 import type {
@@ -12,7 +12,7 @@ import type {
   AuditLogResult,
   AuditLogService,
 } from './AuditLog'
-import { parseError } from '@/lib/parseError'
+import { parseError } from '../../../lib/parseError'
 
 const AuditLogLive = Layer.effect(
   AuditLog,

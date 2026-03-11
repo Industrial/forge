@@ -9,7 +9,7 @@ import { Window } from 'happy-dom'
 import type React from 'react'
 
 import HomePage from './HomePage'
-import { Providers } from '@/Providers'
+import { Providers } from '../../../../Providers'
 import { createTheme } from '@mui/material/styles'
 
 // Set up DOM environment for tests

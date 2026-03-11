@@ -10,9 +10,9 @@ import {
   AuthenticationMockLayer,
 } from './AuthenticationMock'
 import { Authentication } from './Authentication'
-import { AuthenticationUser } from '@/features/authentication/domain/AuthenticationUser'
-import { AuthenticationError } from '@/features/authentication/errors/AuthenticationError'
-import { ScopeError } from '@/features/authentication/errors'
+import { AuthenticationUser } from '../../../features/authentication/domain/AuthenticationUser'
+import { AuthenticationError } from '../../../features/authentication/errors/AuthenticationError'
+import { ScopeError } from '../../../features/authentication/errors'
 
 describe('AuthenticationMock', () => {
   describe('createMockAuthentication behavior', () => {

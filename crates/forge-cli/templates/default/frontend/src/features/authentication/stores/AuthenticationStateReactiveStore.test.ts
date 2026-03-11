@@ -15,8 +15,8 @@ import {
   type AuthenticationState,
   type AuthenticationStateReactiveStore,
 } from './AuthenticationStateReactiveStore'
-import { AuthenticationUser } from '@/features/authentication/domain/AuthenticationUser'
-import type { ReactiveStore } from '@/lib/ReactiveStore'
+import { AuthenticationUser } from '../../../features/authentication/domain/AuthenticationUser'
+import type { ReactiveStore } from '../../../lib/ReactiveStore'
 
 describe('AuthenticationStateReactiveStore', () => {
   describe('initial state', () => {

@@ -11,21 +11,21 @@ import type React from 'react'
 import { Effect, Layer, Option, Stream, Chunk } from 'effect'
 
 import ProtectedRoute from './ProtectedRoute'
-import { Providers } from '@/Providers'
+import { Providers } from '../Providers'
 import {
   buildApplicationLayer,
   setApplicationLayerOverrideForTesting,
   clearApplicationLayerOverrideForTesting,
-} from '@/lib/appLayer'
-import { clearReactiveStoreCacheForTesting } from '@/lib/ReactiveStore'
-import type { ReactiveStore } from '@/lib/ReactiveStore'
-import type { AuthenticationState } from '@/features/authentication/stores/AuthenticationStateReactiveStore'
+} from '../lib/appLayer'
+import { clearReactiveStoreCacheForTesting } from '../lib/ReactiveStore'
+import type { ReactiveStore } from '../lib/ReactiveStore'
+import type { AuthenticationState } from '../features/authentication/stores/AuthenticationStateReactiveStore'
 import {
   AuthStoreTag,
   initialAuthenticationState,
-} from '@/features/authentication/stores/AuthenticationStateReactiveStore'
-import type { AuthenticationUser } from '@/features/authentication/domain/AuthenticationUser'
-import { RpcApiMock } from '@/services/RpcApiMock'
+} from '../features/authentication/stores/AuthenticationStateReactiveStore'
+import type { AuthenticationUser } from '../features/authentication/domain/AuthenticationUser'
+import { RpcApiMock } from '../services/RpcApiMock'
 
 beforeAll(() => {
   // Ensure SyntaxError exists globally first

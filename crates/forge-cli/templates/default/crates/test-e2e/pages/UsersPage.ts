@@ -1,8 +1,8 @@
 import type { Locator } from '@playwright/test'
 import { Effect, Context, Layer } from 'effect'
 
-import { PlaywrightPage } from '@/fixtures/playwright'
-import * as LocatorHelpers from '@/helpers/locator'
+import { PlaywrightPage } from '../fixtures/playwright'
+import * as LocatorHelpers from '../helpers/locator'
 
 /**
  * UsersPage service - Effect.ts service for users page interactions

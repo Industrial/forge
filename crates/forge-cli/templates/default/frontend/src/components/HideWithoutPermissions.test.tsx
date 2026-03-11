@@ -11,22 +11,22 @@ import type React from 'react'
 import { Effect, Layer, Stream, Chunk } from 'effect'
 
 import { HideWithoutPermissions } from './HideWithoutPermissions'
-import { Providers } from '@/Providers'
+import { Providers } from '../Providers'
 import {
   buildApplicationLayer,
   setApplicationLayerOverrideForTesting,
   clearApplicationLayerOverrideForTesting,
-} from '@/lib/appLayer'
-import { clearReactiveStoreCacheForTesting } from '@/lib/ReactiveStore'
-import type { ReactiveStore } from '@/lib/ReactiveStore'
-import type { AuthenticationState } from '@/features/authentication/stores/AuthenticationStateReactiveStore'
-import { Authentication } from '@/features/authentication/services/Authentication'
+} from '../lib/appLayer'
+import { clearReactiveStoreCacheForTesting } from '../lib/ReactiveStore'
+import type { ReactiveStore } from '../lib/ReactiveStore'
+import type { AuthenticationState } from '../features/authentication/stores/AuthenticationStateReactiveStore'
+import { Authentication } from '../features/authentication/services/Authentication'
 import {
   AuthStoreTag,
   initialAuthenticationState,
-} from '@/features/authentication/stores/AuthenticationStateReactiveStore'
-import { createMockAuthentication } from '@/features/authentication/services/AuthenticationMock'
-import { RpcApiMock } from '@/services/RpcApiMock'
+} from '../features/authentication/stores/AuthenticationStateReactiveStore'
+import { createMockAuthentication } from '../features/authentication/services/AuthenticationMock'
+import { RpcApiMock } from '../services/RpcApiMock'
 
 // Set up DOM environment for tests
 beforeAll(() => {

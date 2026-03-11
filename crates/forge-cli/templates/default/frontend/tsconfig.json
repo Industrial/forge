@@ -5,9 +5,6 @@
     "useDefineForClassFields": true,
     "lib": ["ES2020", "DOM", "DOM.Iterable"],
     "allowJs": true,
-    "paths": {
-      "@/*": ["./src/*"]
-    },
     "types": ["node"],
     "moduleResolution": "bundler",
     "resolveJsonModule": true,

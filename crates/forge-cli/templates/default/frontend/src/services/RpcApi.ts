@@ -7,7 +7,7 @@
  */
 
 import { Context, type Effect } from 'effect'
-import type { ListQueryParams, RpcSubscribeResult } from '@/api/types'
+import type { ListQueryParams, RpcSubscribeResult } from '../api/types'
 
 export type { ListQueryParams }
 export type SubscribeResult = RpcSubscribeResult

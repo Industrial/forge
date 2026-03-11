@@ -1,9 +1,9 @@
 import type { Locator } from '@playwright/test'
 import { Effect, Context, Layer } from 'effect'
 
-import { PlaywrightPage } from '@/fixtures/playwright'
-import * as LocatorHelpers from '@/helpers/locator'
-import * as PageHelpers from '@/helpers/page'
+import { PlaywrightPage } from '../fixtures/playwright'
+import * as LocatorHelpers from '../helpers/locator'
+import * as PageHelpers from '../helpers/page'
 
 /**
  * SelectScopePage service - Effect.ts service for scope selection page interactions

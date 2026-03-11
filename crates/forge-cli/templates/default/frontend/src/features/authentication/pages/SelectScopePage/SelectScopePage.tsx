@@ -8,11 +8,11 @@ import { Effect, Option, pipe, Schema } from 'effect'
 import { HttpClient, HttpClientRequest } from '@effect/platform'
 import { useCallback, useEffect, useState } from 'react'
 
-import { getApplicationLayer } from '@/lib/appLayer'
-import { useAuthStore } from '@/features/authentication/stores'
-import { Authentication } from '@/features/authentication/services/Authentication'
+import { getApplicationLayer } from '../../../../lib/appLayer'
+import { useAuthStore } from '../../../../features/authentication/stores'
+import { Authentication } from '../../../../features/authentication/services/Authentication'
 import { ScopeError } from '../../errors'
-import { getBaseUrl } from '@/lib/baseUrl'
+import { getBaseUrl } from '../../../../lib/baseUrl'
 
 const ScopesResponseSchema = Schema.Struct({
   scopes: Schema.optional(

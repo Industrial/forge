@@ -8,8 +8,8 @@ import { Window } from 'happy-dom'
 import type React from 'react'
 
 import RoleCard from './RoleCard'
-import { Role } from '@/features/dashboard/domain/Role'
-import { Organization } from '@/features/dashboard/domain/Organization'
+import { Role } from '../../../features/dashboard/domain/Role'
+import { Organization } from '../../../features/dashboard/domain/Organization'
 
 beforeAll(() => {
   const global = globalThis as any

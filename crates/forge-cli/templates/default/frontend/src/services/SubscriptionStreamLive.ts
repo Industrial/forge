@@ -8,7 +8,7 @@
 import { HttpClient, HttpClientRequest } from '@effect/platform'
 import { Effect, Option, Stream } from 'effect'
 import { Layer } from 'effect'
-import { AuthenticationStateReactiveStoreTag } from '@/features/authentication/stores/AuthenticationStateReactiveStore'
+import { AuthenticationStateReactiveStoreTag } from '../features/authentication/stores/AuthenticationStateReactiveStore'
 import type {
   SubscriptionStreamEvent,
   SubscriptionStreamService,

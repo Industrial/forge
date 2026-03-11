@@ -4,10 +4,10 @@
 
 import { HttpClientRequest } from '@effect/platform'
 import { Effect, Layer } from 'effect'
-import { AuthenticatedHttpClient } from '@/services/AuthenticatedHttpClient'
+import { AuthenticatedHttpClient } from '../../../services/AuthenticatedHttpClient'
 import { Roles } from './Roles'
 import type { RolesService } from './Roles'
-import { parseError } from '@/lib/parseError'
+import { parseError } from '../../../lib/parseError'
 import { Role } from '../domain/Role'
 import { DashboardRole } from '../domain/DashboardRole'
 

@@ -20,8 +20,8 @@ import {
 } from 'react-effect-hooks'
 import { Effect } from 'effect'
 
-import { getApplicationLayer, type AppServices } from '@/lib/appLayer'
-import { useTablePaginationDefaults } from '@/hooks/useTablePaginationDefaults'
+import { getApplicationLayer, type AppServices } from '../lib/appLayer'
+import { useTablePaginationDefaults } from '../hooks/useTablePaginationDefaults'
 
 export type ServerListParams<F> = {
   offset: number

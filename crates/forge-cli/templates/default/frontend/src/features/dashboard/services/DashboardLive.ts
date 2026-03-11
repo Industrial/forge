@@ -4,11 +4,11 @@
 
 import { HttpClientRequest } from '@effect/platform'
 import { Effect, Layer } from 'effect'
-import { AuthenticatedHttpClient } from '@/services/AuthenticatedHttpClient'
+import { AuthenticatedHttpClient } from '../../../services/AuthenticatedHttpClient'
 import { Dashboard } from './Dashboard'
 import type { DashboardService } from './Dashboard'
 import { Organization } from '../domain/Organization'
-import { parseError } from '@/lib/parseError'
+import { parseError } from '../../../lib/parseError'
 import { DashboardRole } from '../domain/DashboardRole'
 
 const DashboardLive = Layer.effect(

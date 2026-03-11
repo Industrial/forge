@@ -1,5 +1,5 @@
-import FiltersPanel from '@/components/FiltersPanel'
-import type { FilterField } from '@/components/FiltersPanel'
+import FiltersPanel from '../../../components/FiltersPanel'
+import type { FilterField } from '../../../components/FiltersPanel'
 
 export type RolesFiltersProps = {
   filterName: string
