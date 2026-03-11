@@ -22,27 +22,13 @@ echo "> test-integration (backend port $FORGE_SERVER_PORT, frontend port $FORGE_
 echo "> test-integration > cargo build"
 cargo build
 
-# Config files must exist; ports are overridden by FORGE_SERVER_PORT / FORGE_FRONTEND_PORT
-echo "> test-integration > writing config (ports from env)"
-mkdir -p config
-cat > config/app.toml <<EOF
-[app]
-name = "$PROJECT_NAME"
-
-[server]
-host = "127.0.0.1"
-port = 4000
-
-[frontend]
-port = 3000
-EOF
-
+# Use default config/; ports and database overridden by FORGE_SERVER_PORT, FORGE_FRONTEND_PORT, FORGE_DATABASE_URL
 # Use a temporary database file; forge-config reads FORGE_DATABASE_URL
-E2E_DB_PATH="${ROOT}/data/forge_integration_$$.sqlite"
+INTEGRATION_DB_PATH="${ROOT}/data/forge_integration_$$.sqlite"
 mkdir -p "${ROOT}/data"
-rm -f "$E2E_DB_PATH"
-export FORGE_DATABASE_URL="sqlite://${E2E_DB_PATH}?mode=rwc"
-export E2E_DB_PATH
+rm -f "$INTEGRATION_DB_PATH"
+export FORGE_DATABASE_URL="sqlite://${INTEGRATION_DB_PATH}?mode=rwc"
+export INTEGRATION_DB_PATH
 
 API_PID=""
 API_URL="http://${FORGE_BACKEND_HOST}:${FORGE_SERVER_PORT}"

@@ -26,22 +26,8 @@ if [[ -f frontend/package.json ]]; then
   (cd frontend && bun install --frozen-lockfile 2>/dev/null || bun install)
 fi
 
-# Config files must exist; ports/hosts overridden by FORGE_* env vars
+# Use default config/; ports and database overridden by FORGE_* env vars
 export FORGE_ENVIRONMENT=production
-echo "> test-e2e > writing config"
-mkdir -p config
-cat > config/app.toml <<EOF
-[app]
-name = "$PROJECT_NAME"
-
-[server]
-host = "127.0.0.1"
-port = 4000
-
-[frontend]
-host = "127.0.0.1"
-port = 3000
-EOF
 
 # Use a temporary database file in the project directory for e2e tests
 # Don't overwrite config/db.toml - use environment variable override instead
