@@ -7,6 +7,7 @@ tasks:
       - -c
       - 'cd crates/forge-cli/templates/default && cargo build -p server'
     options:
+      outputStyle: buffer-only-failure
       runFromWorkspaceRoot: true
     inputs:
       - Cargo.toml
@@ -20,6 +21,7 @@ tasks:
       - -c
       - 'cd crates/forge-cli/templates/default && cargo check -p server --all-features'
     options:
+      outputStyle: buffer-only-failure
       runFromWorkspaceRoot: true
     inputs:
       - Cargo.toml
@@ -31,6 +33,7 @@ tasks:
       - -c
       - 'cd crates/forge-cli/templates/default && cargo nextest run -p server --all-features'
     options:
+      outputStyle: buffer-only-failure
       runFromWorkspaceRoot: true
     inputs:
       - Cargo.toml
@@ -45,6 +48,7 @@ tasks:
       - -c
       - 'cd crates/forge-cli/templates/default && cargo clippy -p server --all-targets --all-features -- -D warnings'
     options:
+      outputStyle: buffer-only-failure
       runFromWorkspaceRoot: true
     inputs:
       - Cargo.toml

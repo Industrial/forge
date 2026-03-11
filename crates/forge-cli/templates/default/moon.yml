@@ -19,10 +19,13 @@ tasks:
       - '.github/workflows/*.yml'
     options:
       cache: false
+      outputStyle: buffer-only-failure
   # Integration tests (API server + cargo test -p app)
   test-integration:
     command: 'bash'
     args: ['bin/test-integration']
+    options:
+      outputStyle: buffer-only-failure
     inputs:
       - 'bin/test-integration'
       - 'Cargo.toml'
@@ -33,6 +36,8 @@ tasks:
   test-e2e:
     command: 'bash'
     args: ['bin/test-e2e']
+    options:
+      outputStyle: buffer-only-failure
     inputs:
       - 'bin/test-e2e'
       - 'Cargo.toml'

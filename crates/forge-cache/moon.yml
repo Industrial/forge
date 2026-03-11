@@ -8,6 +8,7 @@ tasks:
       - -p
       - forge-cache
     options:
+      outputStyle: buffer-only-failure
       runFromWorkspaceRoot: true
     inputs:
       - Cargo.toml
@@ -23,6 +24,7 @@ tasks:
       - forge-cache
       - --all-features
     options:
+      outputStyle: buffer-only-failure
       runFromWorkspaceRoot: true
     inputs:
       - Cargo.toml
@@ -37,6 +39,7 @@ tasks:
       - forge-cache
       - --all-features
     options:
+      outputStyle: buffer-only-failure
       runFromWorkspaceRoot: true
     inputs:
       - Cargo.toml
@@ -57,6 +60,7 @@ tasks:
       - -D
       - warnings
     options:
+      outputStyle: buffer-only-failure
       runFromWorkspaceRoot: true
     inputs:
       - Cargo.toml
