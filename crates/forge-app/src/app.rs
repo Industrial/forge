@@ -205,14 +205,14 @@ impl App<DbConnection> {
       live_backend: self.live_backend,
     }
   }
+}
 
+impl<S: Clone + Send + Sync + 'static> App<S> {
   /// Returns a reference to the application configuration.
   pub fn config(&self) -> &ForgeConfig {
     &self.config
   }
-}
 
-impl<S: Clone + Send + Sync + 'static> App<S> {
   /// Enable Live Query: in-memory channel broadcast for real-time sync.
   /// Handlers can use [axum::Extension]<Option<Arc<forge_live::InMemoryLiveBackend>>>
   /// and call [forge_live::broadcast_to_org] after mutations.

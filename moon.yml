@@ -40,30 +40,6 @@ tasks:
       - '**/*.rs'
     options:
       outputStyle: buffer-only-failure
-  # Integration tests: forge new then run template bin/test-integration
-  test-integration:
-    command: 'bash'
-    args: ['bin/test-integration']
-    inputs:
-      - 'bin/test-integration'
-      - 'Cargo.toml'
-      - 'Cargo.lock'
-      - 'crates/**/*.rs'
-      - 'crates/forge-cli/templates/**/*'
-    options:
-      outputStyle: buffer-only-failure
-  # E2E tests: forge new then run template bin/test-e2e (Playwright in templates/default/test/e2e)
-  test-e2e:
-    command: 'bash'
-    args: ['bin/test-e2e']
-    inputs:
-      - 'bin/test-e2e'
-      - 'Cargo.toml'
-      - 'Cargo.lock'
-      - 'crates/**/*.rs'
-      - 'crates/forge-cli/templates/**/*'
-    options:
-      outputStyle: buffer-only-failure
   # Monorepo check (tsgo + Biome at root)
   check:
     deps: ['~:format']

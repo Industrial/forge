@@ -7,6 +7,12 @@ $schema: './cache/schemas/workspace.json'
 hasher:
   ignorePatterns:
     - '**/target/**'
+    - '**/debug/**'
+    - '**/incremental/**'
+  # Suppress "Attempted to hash input ... but it does not exist" for build artifacts
+  ignoreMissingPatterns:
+    - '**/target/**'
+    - '**/debug/incremental/**'
 # Rust workspace crates
 projects:
   - 'crates/*'

@@ -16,7 +16,7 @@ use serde::Deserialize;
 use uuid::Uuid;
 
 use crate::Error as ForgeError;
-use crate::handlers::auth::{DbFromScope, ScopeFromHeaders, require_entity_permission};
+use crate::handlers::auth::{DbFromScope, ScopeFromHeaders, ScopeHeadersRequired, require_entity_permission};
 use crate::query_spec::{
   CursorLimit, DEFAULT_LIMIT, FilterCond, FilterOperator, ListQuerySpec, OffsetLimit,
   SortDirection, SortSpec, validate_cursor_limit, validate_filter_cond, validate_offset_limit,
@@ -156,12 +156,12 @@ fn reject_expand_include(params: &ListQueryParams) -> Option<axum::response::Res
 }
 
 /// GET /api/entities/:entity_id — list entities. Query spec (filter, sort, pagination) via query params.
-/// 404 unknown entity_id; 403 missing entity.read; scope from headers. Rejects expand/include (400).
-/// Query params: filter (JSON array), sort, order, offset, limit. Validates filter/sort against entity allowed fields (400).
+/// 400 when X-Organization-Id or X-Role-Id missing; 404 unknown entity_id; 403 missing entity.read.
+/// Rejects expand/include (400). Query params: filter, sort, order, offset, limit.
 pub async fn list_entities(
   Path(entity_id): Path<String>,
   Query(params): Query<ListQueryParams>,
-  ScopeFromHeaders(scope, _): ScopeFromHeaders<user::Model>,
+  ScopeHeadersRequired(scope, _): ScopeHeadersRequired<user::Model>,
   auth: RequireAuth<Backend, user::Model>,
   DbFromScope(db): DbFromScope,
 ) -> Result<impl IntoResponse, ForgeError> {

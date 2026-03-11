@@ -1,7 +1,9 @@
 use axum::response::{Html, IntoResponse};
 use axum::routing::get;
+use std::sync::Arc;
 use tower_http::services::ServeDir;
 
+use app::handlers::auth::AppPermissionResolver;
 use app::make_app;
 
 #[tokio::main]
@@ -29,7 +31,9 @@ async fn main() -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
   let host = app.config().server.host.clone();
   let port = app.config().server.port;
 
-  let (router, db_conn, cron_runner, response_cache) = app.into_router_before_state().await;
+  let (router, db_conn, cron_runner, response_cache, state_builder) =
+    app.into_router_before_state().await;
+  let scope_extractor_state = state_builder(db_conn.clone());
 
   let task_state = std::sync::Arc::new(app::tasks::TaskState::new());
   {
@@ -46,9 +50,11 @@ async fn main() -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
 
   let subscription_store = forge_live::SubscriptionStore::new();
   subscription_store.spawn_change_worker();
+  let permission_resolver = Arc::new(AppPermissionResolver);
   let api_router = router
-    .with_state(db_conn.clone())
-    .layer(axum::extract::Extension(db_conn.clone()))
+    .with_state(scope_extractor_state.clone())
+    .layer(axum::extract::Extension(scope_extractor_state.db.clone()))
+    .layer(axum::extract::Extension(permission_resolver))
     .layer(axum::extract::Extension(task_state.clone()))
     .layer(axum::extract::Extension(subscription_store));
 
