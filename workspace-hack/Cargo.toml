@@ -156,7 +156,7 @@ crossbeam-utils = { version = "0.8" }
 crypto-common = { version = "0.1", default-features = false, features = [
   "std",
 ] }
-darling = { version = "0.20" }
+darling = { version = "0.23" }
 darling_core = { version = "0.20", default-features = false, features = [
   "suggestions",
 ] }
