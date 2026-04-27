@@ -46,7 +46,7 @@ getrandom-468e82937335b1c9 = { package = "getrandom", version = "0.3", default-f
 getrandom-6f8ce4dd05d13bba = { package = "getrandom", version = "0.2", default-features = false, features = [
   "std",
 ] }
-hashbrown = { version = "0.16" }
+hashbrown = { version = "0.17" }
 hyper = { version = "1", features = ["client", "http1", "http2", "server"] }
 hyper-util = { version = "0.1", features = [
   "client-legacy",
@@ -171,7 +171,7 @@ futures-util = { version = "0.3", features = ["channel", "io", "sink"] }
 getrandom-6f8ce4dd05d13bba = { package = "getrandom", version = "0.2", default-features = false, features = [
   "std",
 ] }
-hashbrown = { version = "0.16" }
+hashbrown = { version = "0.17" }
 heck = { version = "0.4" }
 idna = { version = "1" }
 lock_api = { version = "0.4", features = ["serde"] }
