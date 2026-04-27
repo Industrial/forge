@@ -66,7 +66,7 @@ opentelemetry = { version = "0.31" }
 parking_lot = { version = "0.12", features = ["serde"] }
 percent-encoding = { version = "2" }
 portable-atomic = { version = "1", features = ["require-cas"] }
-rand = { version = "0.9" }
+rand = { version = "0.10" }
 regex = { version = "1" }
 regex-automata = { version = "0.4", default-features = false, features = [
   "dfa-build",
