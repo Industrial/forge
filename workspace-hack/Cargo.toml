@@ -172,7 +172,7 @@ getrandom-6f8ce4dd05d13bba = { package = "getrandom", version = "0.2", default-f
   "std",
 ] }
 hashbrown = { version = "0.16" }
-heck = { version = "0.4" }
+heck = { version = "0.5" }
 idna = { version = "1" }
 lock_api = { version = "0.4", features = ["serde"] }
 log = { version = "0.4", default-features = false, features = ["std"] }
